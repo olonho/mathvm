@@ -66,9 +66,7 @@ typedef enum {
     VT_INVALID = 0,
     VT_DOUBLE,
     VT_INT,
-    VT_STRING,
-    VT_DOUBLE_MATRIX,
-    VT_INT_MATRIX,
+    VT_STRING
 } VarType;
 
 typedef enum {
@@ -174,8 +172,9 @@ class Var {
 class Code {
   public:
     virtual ~Code() {}
-    /** Execute this code with passed parameters, and update vars
-     *  in array with new values, if code says so.
+    /** 
+     * Execute this code with passed parameters, and update vars
+     * in array with new values from topmost scope, if code says so.
      */
     virtual Status* execute(vector<Var*> vars) = 0;
 };
