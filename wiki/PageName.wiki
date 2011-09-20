@@ -15,9 +15,8 @@
 
 = Build =
 
- Build shall be pretty straightforward, just type 'make' in command 
-line (known to work with MacOS and Linux).
+  Build shall be pretty straightforward, just type 'make' in command line (known to work with MacOS and Linux).
 
 = Commits=
 
- Commit your work under 'students/2011/Your.Name'. 
+  Commit your work under 'students/2011/Your.Name'. 
