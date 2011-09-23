@@ -346,5 +346,9 @@ class Bytecode {
     void dump() const;
 };
 
+// Utility functions.
+char* loadFile(const char* file);
+void positionToLineOffset(const string& text,
+                          uint32_t position, uint32_t& line, uint32_t& offset);
 }
 #endif // _MATHVM_H
