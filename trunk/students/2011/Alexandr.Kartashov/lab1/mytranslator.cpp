@@ -1,4 +1,7 @@
 #include <iostream>
+#include <sstream>
+
+#include <string.h>
 
 #include "mathvm.h"
 #include "parser.h"
@@ -14,20 +17,40 @@ namespace mathvm {
 #undef TOK_REPR
   };
 
+  const char* typeRepr[] = {
+    "Invalid",   // Should never happen :)
+    "double",
+    "int",
+    "string"
+  };
+
   static int indent; // Need to be encapsulated into the AstDumper class
   
   static void escape_string(const std::string& s) {
     for (std::string::const_iterator c = s.begin();
          c != s.end();
          ++c) {
-      if (*c == '\"') {
-        std::cout << "\\\"";
+      if (*c == '\'') {
+        std::cout << "\\\'";
       } else if (*c == '\n') {
         std::cout << "\\n";
       } else {
         std::cout << *c;
       }
     }
+  }
+
+  static void display_double(double d) {
+    stringstream ss;
+    const char *s;
+
+    ss << d;
+    s = ss.str().c_str();
+    for (unsigned int i = 0; i < strlen(s); ++i) {
+      if (s[i] != '+') {
+        std::cout << s[i];
+      }
+    }         
   }
 
   static void print_indent() {
@@ -53,17 +76,27 @@ namespace mathvm {
 
   VISIT_METHOD(UnaryOpNode) {
     std::cout << tokRepr[node->kind()];
-    node->operand()->visit(this);
+
+    if (node->operand()->isLoadNode() ||
+        node->operand()->isIntLiteralNode() ||
+        node->operand()->isDoubleLiteralNode()) { // Maybe additional checks are required
+      node->operand()->visit(this);
+    } else {
+      std::cout << "(";
+      node->operand()->visit(this);
+      std::cout << ")";
+    }    
   }
 
   VISIT_METHOD(StringLiteralNode) {
-    std::cout << "\"";
+    std::cout << "\'";
     escape_string(node->literal());
-    std::cout << "\"";
+    std::cout << "\'";
   }
      
   VISIT_METHOD(DoubleLiteralNode) {
-    std::cout << node->literal();
+    display_double(node->literal());
+    //std::cout << node->literal();
   }
 
   VISIT_METHOD(IntLiteralNode) {
@@ -122,16 +155,28 @@ namespace mathvm {
     std::cout << "while (";
     node->whileExpr()->visit(this);
     std::cout << ") {\n";
-
+	
     indent++;
     node->loopBlock()->visit(this);
-
+	
     indent--;
     print_indent();
     std::cout << "}\n";
   }
-
+    
   VISIT_METHOD(BlockNode) {
+    Scope::VarIterator vi(node->scope());
+    AstVar *v;
+
+    if (vi.hasNext()) {
+      while (vi.hasNext()) {
+        v = vi.next();    
+        std::cout << typeRepr[v->type()] << " " << v->name() << ";" << std::endl;
+      }
+
+      std::cout << std::endl;
+    }
+
     for (uint32_t i = 0; i < node->nodes(); i++) {
       print_indent();
       node->nodeAt(i)->visit(this);
