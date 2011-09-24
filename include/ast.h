@@ -51,6 +51,7 @@ enum TokenKind {
     DO("double")                                \
     DO("string")                                \
     DO("for")                                   \
+    DO("while")                                 \
     DO("if")                                    \
     DO("print")                                 \
     DO("function")
@@ -70,6 +71,7 @@ static inline bool isKeyword(const string& word) {
             DO(LoadNode, "loadval")             \
             DO(StoreNode, "storeval")           \
             DO(ForNode, "for")                  \
+            DO(WhileNode, "while")              \
             DO(IfNode, "if")                    \
             DO(BlockNode, "block")              \
             DO(FunctionNode, "function")        \
@@ -392,6 +394,36 @@ class ForNode : public AstNode {
     }
 
     COMMON_NODE_FUNCTIONS(ForNode);
+};
+
+class WhileNode : public AstNode {
+    AstNode* _whileExpr;
+    BlockNode* _loopBlock;
+
+  public:
+    WhileNode(uint32_t index,
+              AstNode* whileExpr,
+              BlockNode* loopBlock) :
+    AstNode(index), _whileExpr(whileExpr), 
+    _loopBlock(loopBlock) {
+        assert(_whileExpr != 0);
+        assert(_loopBlock != 0);
+    }
+
+    AstNode* whileExpr() const {
+        return _whileExpr;
+    }
+
+    BlockNode* loopBlock() const {
+        return _loopBlock;
+    }
+
+    virtual void visitChildren(AstVisitor* visitor) const {
+        whileExpr()->visit(visitor);
+        loopBlock()->visit(visitor);
+    }
+
+    COMMON_NODE_FUNCTIONS(WhileNode);
 };
 
 class IfNode : public AstNode {

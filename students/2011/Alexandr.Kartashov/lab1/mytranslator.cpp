@@ -116,7 +116,21 @@ namespace mathvm {
     print_indent();
     std::cout << "}\n";
   }
-    
+
+  VISIT_METHOD(WhileNode) {
+    //print_indent();
+    std::cout << "while (";
+    node->whileExpr()->visit(this);
+    std::cout << ") {\n";
+
+    indent++;
+    node->loopBlock()->visit(this);
+
+    indent--;
+    print_indent();
+    std::cout << "}\n";
+  }
+
   VISIT_METHOD(BlockNode) {
     for (uint32_t i = 0; i < node->nodes(); i++) {
       print_indent();

@@ -36,6 +36,7 @@ class Parser {
     PrintNode* parsePrint();
     AstNode* parseArgList();
     ForNode* parseFor();
+    WhileNode* parseWhile();
     IfNode*  parseIf();
     BlockNode* parseBlock(bool needBraces);
     void parseDeclaration(VarType type);
