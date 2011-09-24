@@ -15,7 +15,7 @@ def readFile(name):
 
 mvm = './build/bin/mvm'
 diff = '/usr/bin/diff'
-tests = ['literal', 'add', 'sub', 'mul', 'div', 'for', 'if'];
+tests = ['literal', 'add', 'sub', 'mul', 'div', 'for', 'while', 'if'];
 
 def runTest(test):
     result = runProg(mvm, './tests/'+test+'.mvm')

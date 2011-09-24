@@ -202,6 +202,18 @@ ForNode* Parser::parseFor() {
     return new ForNode(token, forVar, inExpr, forBody);
 }
 
+WhileNode* Parser::parseWhile() {
+    uint32_t token = _currentTokenIndex;
+    ensureKeyword("while");
+    ensureToken(tLPAREN);
+    AstNode* whileExpr = parseExpression();
+    ensureToken(tRPAREN);
+
+    BlockNode* loopBlock = parseBlock(true);
+
+    return new WhileNode(token, whileExpr, loopBlock);
+}
+
 IfNode* Parser::parseIf() {
     uint32_t token = _currentTokenIndex;
     ensureKeyword("if");
@@ -245,7 +257,9 @@ BlockNode* Parser::parseBlock(bool needBraces) {
                  block->add(parseFor());
              } else if (currentTokenValue() == "if") {
                  block->add(parseIf());
-             } else if (currentTokenValue() == "print") {
+             } else if (currentTokenValue() == "while") {
+                 block->add(parseWhile());
+             }else if (currentTokenValue() == "print") {
                  block->add(parsePrint());
              } else if (currentTokenValue() == "int") {
                  parseDeclaration(VT_INT);
