@@ -1,6 +1,6 @@
 ROOT   = .
 VM_ROOT = ../../../..
-USER_OBJ = $(OBJ)/main$(OBJ_SUFF) $(OBJ)/my_translator$(OBJ_SUFF)
+USER_OBJ = $(OBJ)/main$(OBJ_SUFF) $(OBJ)/my_translator$(OBJ_SUFF) $(OBJ)/print_visitor$(OBJ_SUFF)
 DEPENDENCIES = $(ROOT)/my_translator.h
 
 include $(VM_ROOT)/common.mk
