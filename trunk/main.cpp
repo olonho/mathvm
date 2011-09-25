@@ -1,5 +1,7 @@
 #include "mathvm.h"
 
+#include <stdio.h>
+
 #include <iostream> 
 
 using namespace mathvm;
