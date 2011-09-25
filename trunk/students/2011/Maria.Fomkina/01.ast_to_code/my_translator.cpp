@@ -2,6 +2,7 @@
 #include "parser.h"
 #include "visitors.h"
 #include "my_translator.h"
+#include "print_visitor.h"
 
 namespace mathvm {
 
@@ -18,7 +19,14 @@ Translator* Translator::create(const string& impl) {
 
 Status* CodeWriterTranslator::translate(
     const string& program, Code* *code) {
-  printf("The code of ast_to_code translator will be here!\n");
+  Parser* parser = new Parser();
+  Status* parser_status = parser->parseProgram(program);
+  BlockNode* top = parser->top();
+  PrintVisitor* visitor = new PrintVisitor();
+  visitor->visitBlockNode(top);
+  delete parser;
+  delete parser_status;
+  delete visitor;
   return new Status();
 }
 
