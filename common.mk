@@ -26,19 +26,20 @@ default: all
 
 tar:
 	rm -f $(MATHVMTGZ)
-	tar czf $(MATHVMTGZ) ../MathVM
+	tar czf $(MATHVMTGZ) ../mathvm-public
 
 $(OBJ)/%$(OBJ_SUFF): $(VM_ROOT)/vm/%.cpp \
-	$(VM_ROOT)/include/ast.h $(VM_ROOT)/include/mathvm.h\
+	$(VM_ROOT)/include/ast.h $(VM_ROOT)/include/mathvm.h \
         $(VM_ROOT)/include/visitors.h \
         $(VM_ROOT)/vm/scanner.h $(VM_ROOT)/vm/parser.h \
 	$(VM_ROOT)/common.mk
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
 $(OBJ)/%$(OBJ_SUFF): $(ROOT)/%.cpp \
-	$(VM_ROOT)/include/ast.h $(VM_ROOT)/include/mathvm.h\
+	$(VM_ROOT)/include/ast.h $(VM_ROOT)/include/mathvm.h \
 	$(VM_ROOT)/include/visitors.h \
-	$(VM_ROOT)/vm/scanner.h $(VM_ROOT)/vm/parser.h
+	$(VM_ROOT)/vm/scanner.h $(VM_ROOT)/vm/parser.h \
+	$(VM_ROOT)/common.mk $(USER_DEPS)
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
 $(ROOT)/$(OUT):
