@@ -11,18 +11,25 @@ namespace mathvm {
 
   /* AstDumper implementation */
 
-  const char* tokRepr[] = {
+  static const char* tokRepr[] = {
 #define TOK_REPR(t, s, p) s,
     FOR_TOKENS(TOK_REPR)
 #undef TOK_REPR
   };
 
-  const char* typeRepr[] = {
+  static int opPriority[] = {
+#define TOK_PRIO(t, s, p) p,
+    FOR_TOKENS(TOK_PRIO)
+#undef TOK_PRIO
+  };
+
+  static const char* typeRepr[] = {
     "Invalid",   // Should never happen :)
     "double",
     "int",
     "string"
   };
+
 
   static int indent; // Need to be encapsulated into the AstDumper class
   
@@ -67,11 +74,28 @@ namespace mathvm {
     indent = 0;
     root->visit(this);
   }
+
+  static void display(BinaryOpNode* parent, AstNode* child, AstVisitor* v) {
+    if (child->isBinaryOpNode()) {
+      BinaryOpNode* n = (BinaryOpNode*)child;
+      if (opPriority[n->kind()] < opPriority[parent->kind()]) {
+        std::cout << '(';
+        child->visit(v);
+        std::cout << ')';
+
+        return;
+      }
+    } 
+
+    child->visit(v);
+  }
     
   VISIT_METHOD(BinaryOpNode) {
-    node->left()->visit(this);
+    display(node, node->left(), this);
+    //->visit(this);
     std::cout << ' ' << tokRepr[node->kind()] << ' ';
-    node->right()->visit(this);
+    display(node, node->right(), this);
+    //node->right()->visit(this);
   }
 
   VISIT_METHOD(UnaryOpNode) {
