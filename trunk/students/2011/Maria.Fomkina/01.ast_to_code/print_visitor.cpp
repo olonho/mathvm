@@ -37,7 +37,7 @@ void PrintVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 }
 
 void PrintVisitor::visitUnaryOpNode(UnaryOpNode* node) {
-  printf("(%s", tokenOp(node->kind()));
+  printf("%s(", tokenOp(node->kind()));
   node->operand()->visit(this);
   printf(")");
 }
@@ -66,18 +66,31 @@ void PrintVisitor::visitStoreNode(StoreNode* node) {
 }
 
 void PrintVisitor::visitForNode(ForNode* node) {
-  printf("Nothing! ");
-
+  printf("for (%s in ", node->var()->name().c_str());
+  node->inExpr()->visit(this);
+  printf(") {\n");
+  node->body()->visit(this);
+  printf("}\n");
 }
 
 void PrintVisitor::visitWhileNode(WhileNode* node) {
-  printf("Nothing! ");
-
+  printf("while (");
+  node->whileExpr()->visit(this);
+  printf(") {\n");
+  node->loopBlock()->visit(this);
+  printf("}\n");
 }
 
 void PrintVisitor::visitIfNode(IfNode* node) {
-  printf("Nothing! ");
-
+  printf("if (");
+  node->ifExpr()->visit(this);
+  printf(") {\n");
+  node->thenBlock()->visit(this);
+  if (node->elseBlock()) {
+    printf("} else {\n");
+    node->elseBlock()->visit(this);
+  }
+  printf("}\n");
 }
 
 void PrintVisitor::visitBlockNode(BlockNode* node) {
@@ -92,8 +105,11 @@ void PrintVisitor::visitBlockNode(BlockNode* node) {
 }
 
 void PrintVisitor::visitFunctionNode(FunctionNode* node) {
-  printf("Nothing! ");
-
+  printf("function %s(", node->name().c_str());
+  node->args()->visit(this);
+  printf(") {\n");
+  node->body()->visit(this);
+  printf("}\n");
 }
 
 void PrintVisitor::visitPrintNode(PrintNode* node) {
