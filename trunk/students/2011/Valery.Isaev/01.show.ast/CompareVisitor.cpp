@@ -52,25 +52,13 @@ void CompareVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
 }
 
 void CompareVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
-    DEFINE(DoubleLiteralNode)
-    if (a) {
-        TEST(EQ(a->literal(), node->literal()))
-        return;
-    }
-    {   INIT(IntLiteralNode)
-        TEST(EQ(a->literal(), node->literal()))
-    }
+    INIT(DoubleLiteralNode)
+    TEST(EQ(a->literal(), node->literal()))
 }
 
 void CompareVisitor::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
-    DEFINE(IntLiteralNode)
-    if (a) {
-        CHECK(literal)
-        return;
-    }
-    {   INIT(DoubleLiteralNode)
-        TEST(EQ(a->literal(), node->literal()))
-    }
+    INIT(IntLiteralNode)
+    CHECK(literal)
 }
 
 void CompareVisitor::visitLoadNode(mathvm::LoadNode* node) {

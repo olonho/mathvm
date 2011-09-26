@@ -5,28 +5,6 @@
 
 const int tab = 4;
 
-#define DO_CASE_OP(t, s, u) \
-    case mathvm::t: op = s; break;
-
-#define SHOW_OP(f) ({ \
-    const char* op = ""; \
-    switch (node->f()) { \
-        FOR_TOKENS(DO_CASE_OP) \
-        case mathvm::tTokenCount:; \
-    } \
-    op; })
-
-#define DO_CASE_PREC(t, s, u) \
-    case mathvm::t: prec = u; break;
-
-#define GET_PREC(f) ({ \
-    int prec = 0; \
-    switch (node->f()) { \
-        FOR_TOKENS(DO_CASE_PREC) \
-        case mathvm::tTokenCount:; \
-    } \
-    prec; })
-
 #define SHOW_TYPE(f) ({ \
     const char* typ = ""; \
     switch (f) { \
@@ -58,10 +36,10 @@ ShowVisitor::ShowVisitor(std::ostream& o): need_tabs(false),
 void ShowVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
     TABS
     int pprec = prec;
-    prec = GET_PREC(kind);
+    prec = tokenPrecedence(node->kind());
     if (pprec > prec) stream << '(';
     node->left()->visit(this);
-    stream << " " << SHOW_OP(kind) << ' ';
+    stream << " " << tokenOp(node->kind()) << ' ';
     ++prec;
     node->right()->visit(this);
     if (pprec >= prec) stream << ')';
@@ -72,7 +50,7 @@ void ShowVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
     TABS
     int pprec = prec;
     prec = 1000000;
-    stream << SHOW_OP(kind);
+    stream << tokenOp(node->kind());
     node->operand()->visit(this);
     prec = pprec;
 }
@@ -107,6 +85,9 @@ void ShowVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
         stream << s.substr(0, r + 1) << s.substr(r + 2);
     } else {
         stream << node->literal();
+        if (r == std::string::npos && s.find('.') == std::string::npos) {
+            stream << ".0";
+        }
     }
 }
 
@@ -122,7 +103,7 @@ void ShowVisitor::visitLoadNode(mathvm::LoadNode* node) {
 
 void ShowVisitor::visitStoreNode(mathvm::StoreNode* node) {
     TABS
-    stream << node->var()->name() << ' ' << SHOW_OP(op) << ' ';
+    stream << node->var()->name() << ' ' << tokenOp(node->op()) << ' ';
     node->value()->visit(this);
     stream << ';';
 }
