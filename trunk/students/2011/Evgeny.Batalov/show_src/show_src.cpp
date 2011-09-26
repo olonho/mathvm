@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
     }
     mathvm::Parser p;
     parseFile(p, argv[1]);
-    ShowVisitor v(std::cout);
+    ShowVisitor v(std::cout, 4);
     v.show(p.top());
     return 0;
 }

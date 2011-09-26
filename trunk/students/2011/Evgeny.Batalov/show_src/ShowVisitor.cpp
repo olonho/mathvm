@@ -3,13 +3,12 @@
 
 #include "ShowVisitor.h"
 
-const int sw = 4;
-
-ShowVisitor::ShowVisitor(std::ostream& o)
-    :  need_sw(false)
-    ,  prec(0)
-    ,  level(0)
-    ,  stream(o)
+ShowVisitor::ShowVisitor(std::ostream& o, int tabs_)
+    : need_tabs(false)
+    , prec(0)
+    , level(0)
+    , stream(o)
+    , tabs(tabs_)
     {}
 
 //I WROTE ALL THE UNDER FOR FUN
@@ -32,7 +31,31 @@ switch(VAR->type()) { \
 }\
 stream << 
 
-//let us generate transformation for our string from type BadLetterList!
+#define NEW_LINE std::endl; need_tabs = true;
+
+#define TABS \
+if (need_tabs) {\
+    for(int i = 0; i < level; ++i)\
+        for(int t = 0; t < tabs; ++t)\
+        stream << " ";\
+    need_tabs = false;\
+}
+
+#define BLOCK(NODE) \
+if (NODE->isBlockNode()) {\
+stream << " {" << NEW_LINE\
+    ++level;\
+    NODE->visit(this);\
+    --level;\
+    stream << "}" << NEW_LINE;\
+} else {\
+    stream << NEW_LINE\
+    NODE->visit(this);\
+}
+
+//StringTransformer generates transformation alg for string literal
+//from BadLetterList which stores LetterPairs of char and char*
+//We replace every LetterPair::first by its LetterPair::second
 template<int i>
 struct LetterPair{ static char const first; static char const * const second; };
 
@@ -97,17 +120,29 @@ struct StringTransformer<nil> {
 };
 
 void ShowVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {    
+    TABS
+    int prev_prec = prec;
+    prec = tokenPrecedence(node->kind());
+    if (prev_prec > prec) stream << "(";
+
     node->left()->visit(this);
-    stream << tokenOp(node->kind());
+    stream << " " << tokenOp(node->kind()) << " ";
     node->right()->visit(this);
+    if (prev_prec > prec) stream << ")";
+    prec = prev_prec;
 }
 
 void ShowVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
+    TABS
+    int prev_prec = prec;
+    prec = 9999999;
     stream << tokenOp(node->kind());
     node->visitChildren(this);
+    prec = prev_prec;
 }
 
 void ShowVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
+    TABS
     std::string literal = node->literal();
     StringTransformer<BadLetterList>::transform(literal);
     stream << "'" << literal << "'";
@@ -115,60 +150,97 @@ void ShowVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
 }
 
 void ShowVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
-    stream << node->literal();
+    TABS
+    std::stringstream str;
+    str << node->literal();
+    std::string s = str.str();
+    size_t pos = s.find('e');
+    if (pos != std::string::npos) {
+        if (s[pos + 1] == '+')
+            s.erase(pos + 1, 1);
+    }
+    stream << s;
+    if (s.find("e") == std::string::npos && 
+        s.find(".") == std::string::npos) 
+        stream << ".0";
     node->visitChildren(this);
 }
 
 void ShowVisitor::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
+    TABS
     stream << node->literal();
     node->visitChildren(this);
 }
 
 void ShowVisitor::visitLoadNode(mathvm::LoadNode* node) {
+    TABS
     PRINT_AST_VAR(node->var())"";
 }
 
 void ShowVisitor::visitStoreNode(mathvm::StoreNode* node) {
-    PRINT_AST_VAR(node->var())"";
+    TABS
+    PRINT_AST_VAR(node->var()) tokenOp(node->op());
     node->visitChildren(this);
+    stream << ";" << NEW_LINE;
 }
 
 void ShowVisitor::visitForNode(mathvm::ForNode* node) {
-    PRINT_AST_VAR(node->var())"";
-    node->visitChildren(this);
+    TABS
+    stream << "for (";
+    PRINT_AST_VAR(node->var())" in ";
+    node->inExpr()->visit(this);
+    stream << ")";
+    BLOCK(node->body());
 }
 
 void ShowVisitor::visitWhileNode(mathvm::WhileNode* node) {
-    stream << " " << "while()" << " ";
-    node->visitChildren(this);
+    TABS
+    stream << "while (";
+    node->whileExpr()->visit(this);
+    stream << ") ";
+    BLOCK(node->loopBlock())
 }
 
 void ShowVisitor::visitIfNode(mathvm::IfNode* node) {
-    stream << "If ()" << " ";
-    node->visitChildren(this);
+    TABS
+    stream << "if (";
+    node->ifExpr()->visit(this);
+    stream << ") ";
+    BLOCK(node->thenBlock())
+    if (node->elseBlock()) {
+        stream << " else ";
+        BLOCK(node->elseBlock())
+    }
 }
 
 void ShowVisitor::visitBlockNode(mathvm::BlockNode* node) {
-    stream << " " << "{ }" << " ";
+    TABS
     mathvm::Scope::VarIterator it(node->scope());
     while(it.hasNext()) {
         mathvm::AstVar* curr = it.next();
         PRINT_AST_TYPE(curr) " ";
-        PRINT_AST_VAR(curr) ";" << std::endl;
+        PRINT_AST_VAR(curr) ";" << NEW_LINE;
     }
     node->visitChildren(this);
 }
 
 void ShowVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
-    stream << " " << node->name() << " ";
-    node->visitChildren(this);
+    TABS
+    stream << "function" << node->name() << "(";
+     node->args()->visit(this);
+     stream << ") ";
+     BLOCK(node->body());
+
 }
 
 void ShowVisitor::visitPrintNode(mathvm::PrintNode* node) {
+    TABS
     stream << "print (";
-    for (uint32_t i = 0; i < node->operands(); i++) {
+    for (uint32_t i = 0; i < node->operands() - 1; ++i) {
         node->operandAt(i)->visit(this);
         stream << ", ";
     }
-    stream << ")" << std::endl;
+    if ( (node->operands() - 1) >= 0) 
+        node->operandAt(node->operands() - 1)->visit(this);
+    stream << ");" << NEW_LINE;
 }
