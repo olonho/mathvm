@@ -21,9 +21,7 @@ void BCodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
     //mathvm::Instruction instruction;
     std::string instruction;
     if (genInstrBinNode(nl, nr, node->kind(), resType, instruction)) {
-        stream << "ERROR in typing" << std::endl;
-        stream << nl.type << " " << tokenOp(node->kind()) << " " << nr.type << std::endl;
-        stream << "Exiting..." << std::endl;
+        stream << "INVALID" << std::endl;
         return;
     }
     
@@ -222,20 +220,6 @@ void BCodeVisitor::visitPrintNode(mathvm::PrintNode* node) {
     saveInfo(node, 0, mathvm::VT_INVALID);
     for (uint32_t i = 0; i < node->operands(); ++i) {
         node->operandAt(i)->visit(this);
-        NodeInfo& nop = getInfo(node->operandAt(i));
-        switch(nop.type) {
-            case(mathvm::VT_STRING):
-                stream << "LOADSVAR " << nop.id << std::endl;
-                break;
-            case(mathvm::VT_INT):
-                stream << "LOADIVAR " << nop.id << std::endl;
-                break;
-            case(mathvm::VT_DOUBLE):
-                stream << "LOADDVAR " << nop.id << std::endl;
-                break;
-            default:
-                stream << "INVALID";
-        }
         stream << "DUMP "  << std::endl;
         stream << "POP " << std::endl;
     }
