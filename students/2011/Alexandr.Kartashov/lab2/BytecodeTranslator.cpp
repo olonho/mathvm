@@ -127,6 +127,18 @@ namespace mathvm {
           code->add(BC_DDIV);
           break;
 
+        case tINCRSET:
+          code->add(BC_DADD);
+          code->add(BC_STOREDVAR);
+          put(node->left()->asLoadNode()->var());
+          break;
+
+        case tDECRSET:
+          code->add(BC_DSUB);
+          code->add(BC_STOREDVAR);
+          put(node->left()->asLoadNode()->var());
+          break;
+
         default:
           break;
         }
@@ -149,6 +161,18 @@ namespace mathvm {
 
         case tDIV:
           code->add(BC_IDIV);
+          break;
+          
+        case tINCRSET:
+          code->add(BC_IADD);
+          code->add(BC_STOREIVAR);
+          put(node->left()->asLoadNode()->var());
+          break;
+
+        case tDECRSET:
+          code->add(BC_ISUB);
+          code->add(BC_STOREIVAR);
+          put(node->left()->asLoadNode()->var());
           break;
 
         default:
@@ -175,7 +199,7 @@ namespace mathvm {
         code->add(BC_POP);
 
         code->add(BC_ILOAD0);  // convert to the integer case :)
-        code->add(BC_SWAP);
+        //code->add(BC_SWAP);
       }
 
       switch (node->kind()) {
@@ -206,7 +230,7 @@ namespace mathvm {
       default:
         break;
       }
-      code->addInt16(3);
+      code->addInt16(4);
 
       code->add(BC_ILOAD0); // If the condition doesn't hold
       
@@ -215,8 +239,12 @@ namespace mathvm {
       
       code->add(BC_ILOAD1); // If the condition holds
 
+      /*
+      code->add(BC_SWAP);
       code->add(BC_POP);
+      code->add(BC_SWAP);
       code->add(BC_POP);    // Remove arguments
+      */
       
       node_type[node] = VT_INT;       
     }
@@ -226,10 +254,9 @@ namespace mathvm {
       case tOR:
         code->add(BC_IADD);
         code->add(BC_ILOAD0);
-        code->add(BC_SWAP);
 
         code->add(BC_IFICMPG);
-        code->addInt16(3);
+        code->addInt16(4);
         
         code->add(BC_ILOAD0);
 
@@ -258,6 +285,8 @@ namespace mathvm {
       case tSUB:
       case tMUL:
       case tDIV:
+      case tINCRSET:
+      case tDECRSET:
         gen_arith(node);
         break;
 
@@ -304,6 +333,12 @@ namespace mathvm {
           code->add(BC_INEG);
           break;
 
+        case tNOT:
+          code->add(BC_ILOAD1);
+          code->add(BC_SWAP);
+          code->add(BC_ISUB);
+          break;
+
         default:
           break;
         }
@@ -312,6 +347,8 @@ namespace mathvm {
       default:
         break;
       }
+
+      node_type[node] = node_type[node->operand()];
     }
 
     VISIT(DoubleLiteralNode) {
@@ -411,12 +448,11 @@ namespace mathvm {
       code->add(BC_STOREIVAR);
       put(node->var());
 
-      node->inExpr()->asBinaryOpNode()->right()->visit(this);      
-
       code->add(BC_LOADIVAR);
       put(node->var());
+      node->inExpr()->asBinaryOpNode()->right()->visit(this);      
 
-      code->add(BC_IFICMPNE);
+      code->add(BC_IFICMPLE);
       code->addInt16((int16_t)jmp_pos - code->current() - 2);
     }
   
@@ -427,15 +463,24 @@ namespace mathvm {
 
       code->add(BC_ILOAD1);
       code->add(BC_IFICMPNE);
-      code->addInt16(0);
+      code->addInt16(0);      
       jmp_pos = code->current();
 
       node->thenBlock()->visit(this);
+      
       if (node->elseBlock()) {
-        node->elseBlock()->visit(this);
-      }
+        code->add(BC_JA);
+        code->addInt16(0);
+        code->setTyped(jmp_pos - 2, (int16_t)(code->current() - jmp_pos));
 
-      code->setTyped(jmp_pos - 2, (int16_t)(code->current() - jmp_pos));
+        jmp_pos = code->current();
+
+        node->elseBlock()->visit(this);
+        
+        code->setTyped(jmp_pos - 2, (int16_t)(code->current() - jmp_pos));
+      } else {
+        code->setTyped(jmp_pos - 2, (int16_t)(code->current() - jmp_pos));
+      }             
     }
 
     VISIT(WhileNode) {
@@ -445,14 +490,14 @@ namespace mathvm {
       node->whileExpr()->visit(this);
       code->add(BC_ILOAD1);
       code->add(BC_IFICMPNE);
-      code->addInt16(0);
       jmp_pos = code->current();
+      code->addInt16(0);      
 
       node->loopBlock()->visit(this);
       code->add(BC_JA);
       code->addInt16((int16_t)cond_pos - code->current() - 2);
 
-      code->setTyped(jmp_pos, (int16_t)code->current() - jmp_pos);
+      code->setTyped(jmp_pos, (int16_t)((int32_t)code->current() - jmp_pos));
     }
     
     VISIT(BlockNode) {
@@ -472,10 +517,11 @@ namespace mathvm {
     }
     
     VISIT(PrintNode) {
-      for (size_t i = 0; i < node->operands() - 1; i++) {
+      for (size_t i = 0; i < node->operands(); i++) {
         node->operandAt(i)->visit(this);
         
         code->add(BC_DUMP);
+        code->add(BC_POP);
       }
     }
 
