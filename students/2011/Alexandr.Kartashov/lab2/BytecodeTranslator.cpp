@@ -407,10 +407,30 @@ namespace mathvm {
 
       switch (node->var()->type()) {
       case VT_DOUBLE:
+        if (node->op() == tINCRSET) {
+          code->add(BC_LOADDVAR);
+          put(node->var());
+          code->add(BC_DADD);
+        } else if (node->op() == tDECRSET) {
+          code->add(BC_LOADDVAR);
+          put(node->var());
+          code->add(BC_SWAP);
+          code->add(BC_DSUB);          
+        }
         code->add(BC_STOREDVAR);
         break;
 
       case VT_INT:
+        if (node->op() == tINCRSET) {
+          code->add(BC_LOADIVAR);
+          put(node->var());
+          code->add(BC_IADD);
+        } else if (node->op() == tDECRSET) {
+          code->add(BC_LOADIVAR);
+          put(node->var());
+          code->add(BC_SWAP);
+          code->add(BC_ISUB);          
+        }
         code->add(BC_STOREIVAR);
         break;
 
@@ -490,14 +510,14 @@ namespace mathvm {
       node->whileExpr()->visit(this);
       code->add(BC_ILOAD1);
       code->add(BC_IFICMPNE);
+      code->addInt16(0);
       jmp_pos = code->current();
-      code->addInt16(0);      
 
       node->loopBlock()->visit(this);
       code->add(BC_JA);
       code->addInt16((int16_t)cond_pos - code->current() - 2);
 
-      code->setTyped(jmp_pos, (int16_t)((int32_t)code->current() - jmp_pos));
+      code->setTyped(jmp_pos - 2, (int16_t)((int32_t)code->current() - jmp_pos));
     }
     
     VISIT(BlockNode) {
