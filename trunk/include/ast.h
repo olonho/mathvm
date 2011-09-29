@@ -54,7 +54,8 @@ enum TokenKind {
     DO("while")                                 \
     DO("if")                                    \
     DO("print")                                 \
-    DO("function")
+    DO("function")                              \
+    DO("return")
 
 static inline bool isKeyword(const string& word) {
 #define CHECK_WORD(w) if (word == w) return true;
@@ -75,6 +76,8 @@ static inline bool isKeyword(const string& word) {
             DO(IfNode, "if")                    \
             DO(BlockNode, "block")              \
             DO(FunctionNode, "function")        \
+            DO(ReturnNode, "return")            \
+            DO(CallNode, "call")                \
             DO(PrintNode, "print")
 
 #define FORWARD_DECLARATION(type, name) class type;
@@ -90,31 +93,51 @@ class AstVar {
   AstVar(const string& name, VarType type, Scope* owner) :
     _name(name), _type(type), _owner(owner) {
     }
+    const string& name() const { return _name; }
+    VarType type() const { return _type; }
+    Scope* owner() const { return _owner; }
+};
 
-    const string& name() const {
-        return _name;
+class FunctionNode;
+class AstFunction {
+    FunctionNode* _function;
+    Scope* _owner;
+
+  public:
+    AstFunction(FunctionNode* function, Scope* owner) :
+        _function(function), _owner(owner) {
     }
 
-    VarType type() const {
-        return _type;
-    }
-
-    Scope* owner() const {
-        return _owner;
-    }
+    const string& name() const;
+    VarType returnType() const;
+    VarType parameterType(uint32_t index) const;
+    const string& parameterName(uint32_t index) const;
+    uint32_t parametersNumber() const;
+    Scope* owner() const { return _owner; }
+    bool isTop() const { return _function == 0; }
+  
+    static const string top_name;
+    static const string invalid;
 };
 
 class Scope {
     typedef std::map<string, AstVar* > VarMap;
+    typedef std::map<string, AstFunction* > FunctionMap;
+
     VarMap _vars;
+    FunctionMap _functions;
     Scope* _parent;
 
   public:
     Scope(Scope* parent): _parent(parent) {}
     ~Scope();
 
-    void declare(const string& name, VarType type);
-    AstVar* lookup(const string& name);
+    void declareVariable(const string& name, VarType type);
+    void declareFunction(FunctionNode* node);
+
+    AstVar* lookupVariable(const string& name);
+    AstFunction* lookupFunction(const string& name);
+
     Scope* parent() const { return _parent; }
 
     class VarIterator {
@@ -130,6 +153,21 @@ class Scope {
         bool hasNext();
         AstVar* next();
     };
+
+    class FunctionIterator {
+        FunctionMap::iterator _it;
+        Scope* _scope;
+        bool _includeOuter;
+    public:
+        FunctionIterator(Scope* scope, bool includeOuter = false) :
+            _scope(scope), _includeOuter(includeOuter) {
+            _it = _scope->_functions.begin();
+        }
+
+        bool hasNext();
+        AstFunction* next();
+    };
+
 };
 
 class AstVisitor {
@@ -404,7 +442,7 @@ class WhileNode : public AstNode {
     WhileNode(uint32_t index,
               AstNode* whileExpr,
               BlockNode* loopBlock) :
-    AstNode(index), _whileExpr(whileExpr), 
+    AstNode(index), _whileExpr(whileExpr),
     _loopBlock(loopBlock) {
         assert(_whileExpr != 0);
         assert(_loopBlock != 0);
@@ -436,7 +474,7 @@ class IfNode : public AstNode {
            AstNode* ifExpr,
            BlockNode* thenBlock,
            BlockNode* elseBlock) :
-    AstNode(index), _ifExpr(ifExpr), 
+    AstNode(index), _ifExpr(ifExpr),
     _thenBlock(thenBlock), _elseBlock(elseBlock) {
         assert(_ifExpr != 0);
         assert(_thenBlock != 0);
@@ -465,27 +503,63 @@ class IfNode : public AstNode {
     COMMON_NODE_FUNCTIONS(IfNode);
 };
 
+class ReturnNode : public AstNode {
+    AstNode* _returnExpr;
+
+  public:
+    ReturnNode(uint32_t index,
+              AstNode* returnExpr) :
+    AstNode(index), _returnExpr(returnExpr) {
+    }
+
+    AstNode* returnExpr() const {
+        return _returnExpr;
+    }
+
+    virtual void visitChildren(AstVisitor* visitor) const {
+        returnExpr()->visit(visitor);
+    }
+
+    COMMON_NODE_FUNCTIONS(ReturnNode);
+};
+
 class FunctionNode : public AstNode {
     const string _name;
-    AstNode* _args;
+    vector<pair<VarType,string> > _signature;
     BlockNode* _body;
 
   public:
     FunctionNode(uint32_t index,
                  const string& name,
-                 AstNode* args,
+                 // Element 0 is return type.
+                 vector<pair<VarType,string> >& signature,
                  BlockNode* body) :
-    AstNode(index), _name(name), _args(args), _body(body) {
-        assert(_args != 0);
+    AstNode(index), _name(name), _body(body) {
         assert(_body != 0);
+        assert(signature.size() > 0);
+        for (uint32_t i = 0; i < signature.size(); i++) {
+          _signature.push_back(signature[i]);
+        }
     }
 
     const string& name() const {
         return _name;
     }
 
-    AstNode* args() const {
-        return _args;
+    VarType returnType() const {
+        return _signature[0].first;
+    }
+
+    uint32_t parametersNumber() const {
+        return _signature.size() - 1;
+    }
+
+    VarType parameterType(uint32_t index) const {
+        return _signature[index + 1].first;
+    }
+
+    const string& parameterName(uint32_t index) const {
+        return _signature[index + 1].second;
     }
 
     BlockNode* body() const {
@@ -493,11 +567,45 @@ class FunctionNode : public AstNode {
     }
 
     virtual void visitChildren(AstVisitor* visitor) const {
-        args()->visit(visitor);
         body()->visit(visitor);
     }
 
     COMMON_NODE_FUNCTIONS(FunctionNode);
+};
+
+class CallNode : public AstNode {
+    const string _name;
+    vector<AstNode*> _parameters;
+
+public:
+   CallNode(uint32_t index,
+                    const string& name,
+                    vector<AstNode*>& parameters) :
+       AstNode(index), _name(name) {
+        for (uint32_t i = 0; i < parameters.size(); i++) {
+          _parameters.push_back(parameters[i]);
+        }
+    }
+
+    const string& name() const {
+        return _name;
+    }
+
+    uint32_t parametersNumber() const {
+        return _parameters.size();
+    }
+
+    AstNode* parameterAt(uint32_t index) const {
+        return _parameters[index];
+    }
+
+    virtual void visitChildren(AstVisitor* visitor) const {
+        for (uint32_t i = 0; i < parametersNumber(); i++) {
+            parameterAt(i)->visit(visitor);
+        }
+    }
+
+    COMMON_NODE_FUNCTIONS(CallNode);
 };
 
 class PrintNode : public AstNode {

@@ -6,6 +6,7 @@
 #include <string>
 #include <cassert>
 #include <vector>
+#include <map>
 
 namespace mathvm {
 
@@ -15,7 +16,7 @@ using namespace std;
         DO(INVALID, "Invalid instruction.", 1)                          \
         DO(DLOAD, "Load double on TOS, inlined into insn stream.", 9)   \
         DO(ILOAD, "Load int on TOS, inlined into insn stream.", 9)      \
-        DO(SLOAD, "Load string reference on TOS, pointer inlined into insn stream.", 9)   \
+        DO(SLOAD, "Load string reference on TOS, next two bytes - constant id.", 3)   \
         DO(DLOAD0, "Load double 0 on TOS.", 1)                          \
         DO(ILOAD0, "Load int 0 on TOS.", 1)                             \
         DO(DLOAD1, "Load double 1 on TOS.", 1)                          \
@@ -32,6 +33,9 @@ using namespace std;
         DO(IDIV, "Divide 2 ints on TOS (upper to lower), push value back.", 1) \
         DO(DNEG, "Negate double on TOS.", 1)                            \
         DO(INEG, "Negate int on TOS.", 1)                               \
+        DO(IPRINT, "Pop and print integer TOS.", 1)                     \
+        DO(DPRINT, "Pop and print double TOS.", 1)                      \
+        DO(SPRINT, "Pop and print string TOS.", 1)                      \
         DO(I2D,  "Convert int on TOS to double.", 1)                    \
         DO(D2I,  "Convert double on TOS to int.", 1)                    \
         DO(SWAP, "Swap 2 topmost values.", 1)                           \
@@ -42,8 +46,8 @@ using namespace std;
         DO(STOREDVAR, "Pop TOS and store to double variable, whose id inlined to insn stream.", 2) \
         DO(STOREIVAR, "Pop TOS and store to int variable, whose id inlined to insn stream.", 2) \
         DO(STORESVAR, "Pop TOS and store to string variable, whose id inlined to insn stream.", 2) \
-        DO(DCMP, "Compare 2 topmost doubles, pushing libc-stryle comparator value cmp(lower, upper) as integer.", 1) \
-        DO(ICMP, "Compare 2 topmost ints, pushing libc-stryle comparator value cmp(lower, upper) as integer.", 1) \
+        DO(DCMP, "Compare 2 topmost doubles, pushing libc-stryle comparator value cmp(upper, lower) as integer.", 1) \
+        DO(ICMP, "Compare 2 topmost ints, pushing libc-stryle comparator value cmp(upper, lower) as integer.", 1) \
         DO(JA, "Jump always, next two bytes - signed offset of jump destination.", 3) \
         DO(IFICMPNE, "Compare two topmost integers and jump if upper != lower, next two bytes - signed offset of jump destination.", 3) \
         DO(IFICMPE, "Compare two topmost integers and jump if upper == lower, next two bytes - signed offset of jump destination.", 3) \
@@ -53,6 +57,8 @@ using namespace std;
         DO(IFICMPLE, "Compare two topmost integers and jump if upper <= lower, next two bytes - signed offset of jump destination.", 3) \
         DO(DUMP, "Dump value on TOS, without removing it.", 1)        \
         DO(STOP, "Stop execution.", 1)                                  \
+        DO(CALL, "Call function, next two bytes - unsigned function id.", 3) \
+        DO(RETURN, "Return to call location", 1) \
         DO(BREAK, "Breakpoint for the debugger.", 1)
 
 typedef enum {
@@ -64,6 +70,7 @@ typedef enum {
 
 typedef enum {
     VT_INVALID = 0,
+    VT_VOID,
     VT_DOUBLE,
     VT_INT,
     VT_STRING
@@ -167,24 +174,6 @@ class Var {
     }
 
     void print();
-};
-
-class Code {
-  public:
-    virtual ~Code() {}
-    /** 
-     * Execute this code with passed parameters, and update vars
-     * in array with new values from topmost scope, if code says so.
-     */
-    virtual Status* execute(vector<Var*> vars) = 0;
-};
-
-class Translator {
-  public:
-    static Translator* create(const string& impl = "");
-
-    virtual ~Translator() {}
-    virtual Status* translate(const string& program, Code* *code) = 0;
 };
 
 class Bytecode;
@@ -323,6 +312,18 @@ class Bytecode {
         setTyped<int16_t>(index, value);
     }
 
+    uint16_t getUInt16(uint32_t index) const {
+        return getTyped<uint16_t>(index);
+    }
+
+    void addUInt16(uint16_t value) {
+        addTyped<uint16_t>(value);
+    }
+
+    void setUInt16(uint32_t index, uint16_t value) {
+        setTyped<uint16_t>(index, value);
+    }
+
     void addInt32(int32_t value) {
         addTyped<int32_t>(value);
     }
@@ -346,9 +347,80 @@ class Bytecode {
     void dump() const;
 };
 
+class AstFunction;
+class TranslatedFunction {
+    AstFunction* _function;
+    uint16_t _id;
+
+public:
+    TranslatedFunction(AstFunction* function) :
+    _function(function), _id(0) {
+    }
+
+    virtual ~TranslatedFunction() {
+    }
+
+    const string& name() const;
+    VarType returnType() const;
+    VarType parameterType(uint32_t index) const;
+    uint32_t parametersNumber() const;
+
+    void assignId(uint16_t);
+    uint16_t id() const { return _id; }
+};
+
+class BytecodeFunction : public TranslatedFunction {
+    Bytecode _bytecode;
+
+public:
+    BytecodeFunction(AstFunction* function) :
+      TranslatedFunction(function) {
+    }
+
+    Bytecode* bytecode() {
+      return &_bytecode;
+    }
+};
+
+class Code {
+    typedef map<string, uint16_t> FunctionMap;
+    typedef map<string, uint16_t> ConstantMap;
+
+    vector<TranslatedFunction*> _functions;
+    vector<string> _constants;
+    FunctionMap _functionById;
+    ConstantMap _constantById;
+    
+public:
+    Code();
+    virtual ~Code();
+
+    uint16_t addFunction(TranslatedFunction* function);
+    TranslatedFunction* functionById(uint16_t index) const;
+    TranslatedFunction* functionByName(const string& name) const;
+
+    uint16_t makeStringConstant(const string& str);
+    const string& constantById(uint16_t id) const;
+
+    /**
+     * Execute this code with passed parameters, and update vars
+     * in array with new values from topmost scope, if code says so.
+     */
+    virtual Status* execute(vector<Var*> vars) = 0;
+};
+
+class Translator {
+  public:
+    static Translator* create(const string& impl = "");
+
+    virtual ~Translator() {}
+    virtual Status* translate(const string& program, Code* *code) = 0;
+};
+
 // Utility functions.
 char* loadFile(const char* file);
 void positionToLineOffset(const string& text,
                           uint32_t position, uint32_t& line, uint32_t& offset);
+
 }
 #endif // _MATHVM_H

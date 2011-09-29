@@ -43,6 +43,10 @@ TokenKind Parser::currentToken() {
   return _currentToken;
 }
 
+TokenKind Parser::lookaheadToken(uint32_t count) {
+    return _tokens.kindAt(_currentTokenIndex + count);
+}
+
 string Parser::currentTokenValue() {
     TokenKind kind = currentToken();
     if (kind == tIDENT || kind == tDOUBLE || kind == tINT || kind == tSTRING) {
@@ -75,7 +79,7 @@ void Parser::error(const char* format, ...) {
     int pos = 0;
     va_list args;
     va_start(args, format);
-    
+
     vsnprintf(_msgBuffer + pos, sizeof(_msgBuffer) - pos, format, args);
     throw _msgBuffer;
 }
@@ -85,7 +89,6 @@ void Parser::pushScope() {
     Scope* newScope = new Scope(_currentScope);
     _currentScope = newScope;
 }
-
 
 void Parser::popScope() {
     Scope* parentScope = _currentScope->parent();
@@ -109,9 +112,65 @@ Status* Parser::parseTopLevel() {
     return 0;
 }
 
+static inline bool isAssignment(TokenKind token) {
+  return (token == tASSIGN) ||
+         (token == tINCRSET) ||
+         (token == tDECRSET);
+}
+
+AstNode* Parser::parseStatement() {
+    if (isKeyword(currentTokenValue())) {
+      if (currentTokenValue() == "function") {
+          return parseFunction();
+      } else if (currentTokenValue() == "for") {
+          return parseFor();
+      } else if (currentTokenValue() == "if") {
+          return parseIf();
+      } else if (currentTokenValue() == "while") {
+          return parseWhile();
+      } else if (currentTokenValue() == "print") {
+          return parsePrint();
+      } else if (currentTokenValue() == "int") {
+          return parseDeclaration(VT_INT);
+      } else if (currentTokenValue() == "double") {
+          return parseDeclaration(VT_DOUBLE);
+      } else if (currentTokenValue() == "string") {
+          return parseDeclaration(VT_STRING);
+      } else if (currentTokenValue() == "return") {
+          return parseReturn();
+      } else {
+          cout << "unhandled keyword " << currentTokenValue() << endl;
+          assert(false);
+          return 0;
+      }
+    } 
+    if ((currentToken() == tIDENT) && isAssignment(lookaheadToken(1))) {
+        return parseAssignment();
+    }
+    return parseExpression();
+}
+
+CallNode* Parser::parseCall() {
+    uint32_t tokenIndex = _currentTokenIndex;
+    assert(currentToken() == tIDENT);
+    const string& callee = currentTokenValue();
+    consumeToken();
+    ensureToken(tLPAREN);
+    vector<AstNode*> args;
+    while (currentToken() != tRPAREN) {
+        args.push_back(parseExpression());
+        if (currentToken() == tCOMMA) {
+            consumeToken();
+        }
+    }
+    ensureToken(tRPAREN);
+
+    return new CallNode(tokenIndex, callee, args);
+}
+
 StoreNode* Parser::parseAssignment() {
     assert(currentToken() == tIDENT);
-    AstVar* lhs = _currentScope->lookup(currentTokenValue());
+    AstVar* lhs = _currentScope->lookupVariable(currentTokenValue());
     if (lhs == 0) {
         error("undeclared variable: %s", currentTokenValue().c_str());
     }
@@ -137,21 +196,11 @@ StoreNode* Parser::parseAssignment() {
     return result;
 }
 
-AstNode* Parser::parseArgList() {
-    ensureToken(tLBRACE);
-    while (!currentToken() == tRBRACE) {
-        consumeToken();
-    }
-    ensureToken(tRBRACE);
-    return 0;
-}
-
-
 PrintNode* Parser::parsePrint() {
     uint32_t token = _currentToken;
     ensureKeyword("print");
     ensureToken(tLPAREN);
-    
+
     PrintNode* result = new PrintNode(token);
     while (currentToken() != tRPAREN) {
         AstNode* operand = parseExpression();
@@ -165,18 +214,83 @@ PrintNode* Parser::parsePrint() {
     return result;
 }
 
-AstNode* Parser::parseFunction() {
+static VarType nameToType(const string& typeName) {
+    if (typeName == "int") {
+        return VT_INT;
+    }
+    if (typeName == "double") {
+        return VT_DOUBLE;
+    }
+    if (typeName == "string") {
+        return VT_STRING;
+    }
+    if (typeName == "void") {
+        return VT_VOID;
+    }
+    return VT_INVALID;
+}
+
+FunctionNode* Parser::parseFunction() {
+    uint32_t tokenIndex = _currentTokenIndex;
     ensureKeyword("function");
 
     if (currentToken() != tIDENT) {
         error("identifier expected");
     }
-    const string& name = currentTokenValue();
-    AstNode* params = parseArgList();
-    BlockNode* body = parseBlock(true);
+    const string& returnTypeName = currentTokenValue();
+    VarType returnType = nameToType(returnTypeName);
+    if (returnType == VT_INVALID) {
+      error("wrong return type");
+    }
+    consumeToken();
 
-    return new FunctionNode(_currentTokenIndex,
-                            name, params, body);
+    if (currentToken() != tIDENT) {
+        error("name expected");
+    }
+    const string& name = currentTokenValue();
+    consumeToken();
+
+    vector<pair<VarType, string> > signature;
+    signature.push_back(pair<VarType, string>(returnType, "return"));
+
+    ensureToken(tLPAREN);
+    while (currentToken() != tRPAREN) {
+        const string& parameterTypeName = currentTokenValue();
+        VarType parameterType = nameToType(parameterTypeName);
+        if (parameterType == VT_INVALID) {
+            error("wrong parameter type");
+        }
+        consumeToken();
+        const string& parameterName = currentTokenValue();
+        if (currentToken() != tIDENT) {
+            error("identifier expected");
+        }
+        consumeToken();
+        signature.push_back(pair<VarType, string>(parameterType, parameterName));
+        if (currentToken() == tCOMMA) {
+            consumeToken();
+        }
+    }
+    ensureToken(tRPAREN);
+
+    pushScope();
+    for (uint32_t i = 1; i < signature.size(); i++) {
+        _currentScope->declareVariable(signature[i].second, signature[i].first);
+    }
+    BlockNode* body = parseBlock(true);
+    
+    if (body->nodes() == 0 ||
+        !(body->nodeAt(body->nodes() - 1)->isReturnNode())) {
+      body->add(new ReturnNode(0, 0));
+    }
+    
+    popScope();
+
+    FunctionNode* result = new FunctionNode(tokenIndex, name, signature, body);
+    _currentScope->declareFunction(result);
+
+    // We don't add function node into AST.
+    return 0;
 }
 
 ForNode* Parser::parseFor() {
@@ -197,7 +311,7 @@ ForNode* Parser::parseFor() {
     ensureToken(tRPAREN);
 
     BlockNode* forBody = parseBlock(true);
-    AstVar* forVar = forBody->scope()->lookup(varName);
+    AstVar* forVar = forBody->scope()->lookupVariable(varName);
 
     return new ForNode(token, forVar, inExpr, forBody);
 }
@@ -231,6 +345,17 @@ IfNode* Parser::parseIf() {
     return new IfNode(token, ifExpr, thenBlock, elseBlock);
 }
 
+ReturnNode* Parser::parseReturn() {
+    uint32_t token = _currentTokenIndex;
+    ensureKeyword("return");
+
+    AstNode* returnExpr = 0;
+    if (lookaheadToken(1) != tSEMICOLON) {
+        returnExpr = parseExpression();
+    }
+    return new ReturnNode(token, returnExpr);
+}
+
 BlockNode* Parser::parseBlock(bool needBraces) {
     if (needBraces) {
         ensureToken(tLBRACE);
@@ -247,35 +372,11 @@ BlockNode* Parser::parseBlock(bool needBraces) {
              consumeToken();
              continue;
          }
-         if (currentToken() != tIDENT) {
-             throw "identifier expected";
-         }
-         if (isKeyword(currentTokenValue())) {
-             if (currentTokenValue() == "function") {
-                 block->add(parseFunction());
-             } else if (currentTokenValue() == "for") {
-                 block->add(parseFor());
-             } else if (currentTokenValue() == "if") {
-                 block->add(parseIf());
-             } else if (currentTokenValue() == "while") {
-                 block->add(parseWhile());
-             }else if (currentTokenValue() == "print") {
-                 block->add(parsePrint());
-             } else if (currentTokenValue() == "int") {
-                 parseDeclaration(VT_INT);
-                 continue;
-             } else if (currentTokenValue() == "double") {
-                 parseDeclaration(VT_DOUBLE);
-                 continue;
-             } else if (currentTokenValue() == "string") {
-                 parseDeclaration(VT_STRING);
-                 continue;
-             } else {
-                 cout << "unhandled keyword " << currentTokenValue() << endl;
-                 assert(false);
-             }
-         } else {
-             block->add(parseAssignment());
+         AstNode* statement = parseStatement();
+         // Ignore statements that doesn't result in AST nodes, such
+         // as variable or function declaration.
+         if (statement != 0) {
+             block->add(statement);
          }
      }
 
@@ -288,11 +389,13 @@ BlockNode* Parser::parseBlock(bool needBraces) {
      return block;
 }
 
-void Parser::parseDeclaration(VarType type) {
+AstNode* Parser::parseDeclaration(VarType type) {
+    // Skip type.
     ensureToken(tIDENT);
-    _currentScope->declare(currentTokenValue(), type);
+    _currentScope->declareVariable(currentTokenValue(), type);
     ensureToken(tIDENT);
     ensureToken(tSEMICOLON);
+    return 0;
 }
 
 static inline bool isUnaryOp(TokenKind token) {
@@ -312,7 +415,7 @@ AstNode* Parser::parseUnary() {
         consumeToken();
         return new UnaryOpNode(_currentTokenIndex, op, parseUnary());
     } else if (currentToken() == tIDENT) {
-        AstVar* var = _currentScope->lookup(currentTokenValue());
+        AstVar* var = _currentScope->lookupVariable(currentTokenValue());
         if (var == 0) {
             error("undeclared variable: %s", currentTokenValue().c_str());
         }
@@ -342,6 +445,9 @@ AstNode* Parser::parseUnary() {
         AstNode* expr = parseExpression();
         ensureToken(tRPAREN);
         return expr;
+    } else if (currentToken() == tIDENT && lookaheadToken(1) == tLPAREN) {
+        AstNode* expr = parseCall();
+        return expr;
     } else {
         assert(false);
         return 0;
@@ -366,6 +472,9 @@ AstNode* Parser::parseBinary(int minPrecedence) {
 }
 
 AstNode* Parser::parseExpression() {
+    if (currentToken() == tIDENT && lookaheadToken(1) == tLPAREN) {
+        return parseCall();
+    }
     return parseBinary(tokenPrecedence(tOR));
 }
 
