@@ -1,3 +1,4 @@
+#include <iostream>
 #include <stack>
 
 #include "mathvm.h"
@@ -6,6 +7,7 @@
 // ================================================================================
 
 namespace mathvm {
+  /*
   RTVar pack(int i) {
     RTVar v;
 
@@ -33,6 +35,7 @@ namespace mathvm {
     v.s = s;
     return v;
   }
+  
 
   int64_t unpackI(RTVar v) {
     return v.i;
@@ -45,8 +48,11 @@ namespace mathvm {
   char* unpackS(RTVar v) {
     return v.s;
   }
+  */
 
   // --------------------------------------------------------------------------------
+
+  typedef int16_t offset_t;
 
   Bytecode* BytecodeInterpreter::bytecode() {
     return &code;
@@ -71,46 +77,45 @@ namespace mathvm {
     uint32_t ip = 0;
     std::stack<RTVar> stack;
 
-    while (ip <= code.length()) {
+    while (ip < code.length()) {
       uint8_t opcode = code.get(ip);
 
       switch (opcode) {
         // Load instructions
       case BC_ILOAD:
-        stack.push(pack(code.getInt64(ip + 1)));
+        stack.push(RTVar(code.getInt64(ip + 1)));
         break;
 
       case BC_ILOAD0:
-        stack.push(pack(0));
+        stack.push(RTVar(0));
         break;
 
       case BC_ILOAD1:
-        stack.push(pack(1));
+        stack.push(RTVar(1));
         break;
 
       case BC_ILOADM1:
-        stack.push(pack(-1));
+        stack.push(RTVar(-1));
         break;
 
-
       case BC_DLOAD:
-        stack.push(pack(code.getDouble(ip + 1)));
+        stack.push(RTVar(code.getDouble(ip + 1)));
         break;
 
       case BC_DLOAD0:
-        stack.push(pack(0.0));
+        stack.push(RTVar(0.0));
         break;
 
       case BC_DLOAD1:
-        stack.push(pack(1.0));
+        stack.push(RTVar(1.0));
         break;
 
       case BC_DLOADM1:
-        stack.push(pack(-1.0));
+        stack.push(RTVar(-1.0));
         break;
 
       case BC_SLOAD:
-        stack.push(pack((char*)code.getInt64(ip + 1)));
+        stack.push(RTVar((char*)code.getInt64(ip + 1)));
         break;
 
         // Arithmetics
@@ -118,36 +123,44 @@ namespace mathvm {
       case BC_IADD: {
         int64_t op1, op2;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
-        stack.push(pack(op1 + op2));
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
+        stack.push(RTVar(op1 + op2));
       }
         break;
 
       case BC_ISUB: {
         int64_t op1, op2;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
-        stack.push(pack(op1 - op2));
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
+        stack.push(RTVar(op2 - op1));
       }
         break;
 
       case BC_IMUL: {
         int64_t op1, op2;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
-        stack.push(pack(op1*op2));
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
+        stack.push(RTVar(op1*op2));
       }
         break;
 
       case BC_IDIV: {
         int64_t op1, op2;
         
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
-        stack.push(pack(op1/op2));
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
+        stack.push(RTVar(op2/op1));
+      }
+        break;
+
+      case BC_INEG: {
+        int64_t op;
+
+        op = stack.top().getInt(); stack.pop();
+        stack.push(RTVar(-op));
       }
         break;
 
@@ -155,44 +168,44 @@ namespace mathvm {
       case BC_DADD: {
         double op1, op2;
 
-        op1 = unpackD(stack.top()); stack.pop();
-        op2 = unpackD(stack.top()); stack.pop();
-        stack.push(pack(op1 + op2));
+        op1 = stack.top().getDouble(); stack.pop();
+        op2 = stack.top().getDouble(); stack.pop();
+        stack.push(RTVar(op1 + op2));
       }
         break;
 
       case BC_DSUB: {
         double op1, op2;
 
-        op1 = unpackD(stack.top()); stack.pop();
-        op2 = unpackD(stack.top()); stack.pop();
-        stack.push(pack(op1 - op2));
+        op1 = stack.top().getDouble(); stack.pop();
+        op2 = stack.top().getDouble(); stack.pop();
+        stack.push(RTVar(op2 - op1));
       }
         break;
 
       case BC_DMUL: {
         double op1, op2;
 
-        op1 = unpackD(stack.top()); stack.pop();
-        op2 = unpackD(stack.top()); stack.pop();
-        stack.push(pack(op1*op2));
+        op1 = stack.top().getDouble(); stack.pop();
+        op2 = stack.top().getDouble(); stack.pop();
+        stack.push(RTVar(op1*op2));
       }
         break;
 
       case BC_DDIV: {
         double op1, op2;
 
-        op1 = unpackD(stack.top()); stack.pop();
-        op2 = unpackD(stack.top()); stack.pop();
-        stack.push(pack(op1/op2));
+        op1 = stack.top().getDouble(); stack.pop();
+        op2 = stack.top().getDouble(); stack.pop();
+        stack.push(RTVar(op2/op1));
       }
         break;
 
       case BC_DNEG: {
         double op;
 
-        op = unpackD(stack.top()); stack.pop();
-        stack.push(pack(-op));
+        op = stack.top().getDouble(); stack.pop();
+        stack.push(RTVar(-op));
       }
         break;
 
@@ -201,15 +214,15 @@ namespace mathvm {
       case BC_I2D: {
         int64_t op;
 
-        op = unpackI(stack.top()); stack.pop();
-        stack.push(pack((double)op));
+        op = stack.top().getInt(); stack.pop();
+        stack.push(RTVar((double)op));
       }
 
       case BC_D2I: {
         double op;
 
-        op = unpackI(stack.top()); stack.pop();
-        stack.push(pack((int64_t)op));
+        op = stack.top().getInt(); stack.pop();
+        stack.push(RTVar((int64_t)op));
       }
 
         // Stack operations
@@ -254,15 +267,15 @@ namespace mathvm {
       case BC_DCMP: {
         double op1, op2;
 
-        op1 = unpackD(stack.top()); stack.pop();
-        op2 = unpackD(stack.top()); stack.pop();
+        op1 = stack.top().getDouble(); stack.pop();
+        op2 = stack.top().getDouble(); stack.pop();
         
         if (op1 > op2) {
-          stack.push(pack(1));
+          stack.push(RTVar(1));
         } else if (op1 == op2) {
-          stack.push(pack(0));
+          stack.push(RTVar(0));
         } else {
-          stack.push(pack(-1));
+          stack.push(RTVar(-1));
         }
       }
         break;
@@ -270,15 +283,15 @@ namespace mathvm {
       case BC_ICMP: {
         int64_t op1, op2;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
         
         if (op1 > op2) {
-          stack.push(pack(1));
+          stack.push(RTVar(1));
         } else if (op1 == op2) {
-          stack.push(pack(0));
+          stack.push(RTVar(0));
         } else {
-          stack.push(pack(-1));
+          stack.push(RTVar(-1));
         }
       }
         break;
@@ -286,20 +299,20 @@ namespace mathvm {
         // Jumps
 
       case BC_JA: {
-        int32_t offset = code.getTyped<int32_t>(ip + 1);
+        offset_t offset = code.getTyped<offset_t>(ip + 1);
         ip += offset;        
       }
         break;
 
       case BC_IFICMPNE: {
         int64_t op1, op2;
-        int32_t offset;
+        offset_t offset;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
 
         if (op1 != op2) {        
-          offset = code.getTyped<int32_t>(ip + 1);
+          offset = code.getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -307,13 +320,13 @@ namespace mathvm {
 
       case BC_IFICMPE: {
         int64_t op1, op2;
-        int32_t offset;
+        offset_t offset;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
 
         if (op1 == op2) {        
-          offset = code.getTyped<int32_t>(ip + 1);
+          offset = code.getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -321,13 +334,13 @@ namespace mathvm {
 
       case BC_IFICMPG: {
         int64_t op1, op2;
-        int32_t offset;
+        offset_t offset;
+        
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
-
-        if (op1 > op2) {        
-          offset = code.getTyped<int32_t>(ip + 1);
+        if (op2 > op1) {        
+          offset = code.getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -335,13 +348,13 @@ namespace mathvm {
 
       case BC_IFICMPGE: {
         int64_t op1, op2;
-        int32_t offset;
+        offset_t offset;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
 
-        if (op1 != op2) {        
-          offset = code.getTyped<int32_t>(ip + 1);
+        if (op2 >= op1) {        
+          offset = code.getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -349,13 +362,13 @@ namespace mathvm {
 
       case BC_IFICMPL: {
         int64_t op1, op2;
-        int32_t offset;
+        offset_t offset;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
 
-        if (op1 < op2) {        
-          offset = code.getTyped<int32_t>(ip + 1);
+        if (op2 < op1) {        
+          offset = code.getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -363,19 +376,42 @@ namespace mathvm {
 
       case BC_IFICMPLE: {
         int64_t op1, op2;
-        int32_t offset;
+        offset_t offset;
 
-        op1 = unpackI(stack.top()); stack.pop();
-        op2 = unpackI(stack.top()); stack.pop();
+        op1 = stack.top().getInt(); stack.pop();
+        op2 = stack.top().getInt(); stack.pop();
 
-        if (op1 <= op2) {        
-          offset = code.getTyped<int32_t>(ip + 1);
+        if (op2 <= op1) {        
+          offset = code.getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
         break;
 
+      case BC_DUMP: {
+        RTVar &v = stack.top();
+
+        switch (v.type()) {
+        case VT_INT:
+          std::cout << v.getInt();
+          break;
+
+        case VT_DOUBLE:
+          std::cout << v.getDouble();
+          break;
+
+        case VT_STRING:
+          std::cout << v.getString();
+          break;
+        
+        default:
+          break;
+        }
+      }
+        break;
+
       default:
+        assert(0);
         break;
       }
 
