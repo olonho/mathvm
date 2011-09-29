@@ -1,11 +1,7 @@
-#include <iostream>
-#include <sstream>
-
 #include "BCodeVisitor.h"
 
 BCodeVisitor::BCodeVisitor(std::ostream& o)
     : stream(o)
-    , id_counter(1) //0 is reserved
     {}
 
 //FIXME:replace generating of INVLID instruction with compilation error message
@@ -14,9 +10,9 @@ void BCodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
     node->left()->visit(this);
     node->right()->visit(this);
     //determine type
-    NodeInfo& n = saveInfo(node, newId(), mathvm::VT_INVALID);
-    NodeInfo& nl = getInfo(node->left());
-    NodeInfo& nr = getInfo(node->right());
+    NodeInfo& n = saveNodeInfo(node, mathvm::VT_INVALID);
+    NodeInfo& nl = loadNodeInfo(node->left());
+    NodeInfo& nr = loadNodeInfo(node->right());
     mathvm::VarType resType;
     //mathvm::Instruction instruction;
     std::string instruction;
@@ -35,7 +31,7 @@ void BCodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
         if (nr.type == mathvm::VT_INT) {
             stream << "SWAP" << std::endl;
             stream << "I2D"  << std::endl;
-            stream << "SWAP" << std::endl; 
+            stream << "SWAP" << std::endl;
         }
     }
     n.type = resType;
@@ -44,29 +40,30 @@ void BCodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
 
 void BCodeVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
     node->operand()->visit(this);
-    NodeInfo& n = saveInfo(node, newId(), mathvm::VT_INVALID);
-    NodeInfo& nop = getInfo(node->operand());
+    NodeInfo& n = saveNodeInfo(node, mathvm::VT_INVALID);
+    NodeInfo& nop = loadNodeInfo(node->operand());
     if (nop.type == mathvm::VT_INT && node->kind() == mathvm::tNOT) {
         n.type = mathvm::VT_INT;
-        stream << "ILOAD0"  << std::endl;        
-        stream << "IFICMPNE +3"  << std::endl;        
-        stream << "ILOAD1"  << std::endl;//!FALSE 
-        stream << "JA +2"  << std::endl;        
+        stream << "ILOAD0"  << std::endl;
+        stream << "IFICMPNE +3"  << std::endl;
+        stream << "ILOAD1"  << std::endl;//!FALSE
+        stream << "JA +2"  << std::endl;
         stream << "ILOAD0"  << std::endl;//!TRUE
     } else if (nop.type == mathvm::VT_INT && node->kind() == mathvm::tSUB) {
         n.type = mathvm::VT_INT;
         stream << "INEG" << std::endl;
     } else {
-        stream << "ERROR in typing" << std::endl;
-        stream << nop.type << " " << tokenOp(node->kind()) << std::endl;
-        stream << "Exiting..." << std::endl;
+        stream << "INVALID" << std::endl;
         return;
     }    
 }
 
 void BCodeVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {    
-    stream << "SLOAD (int64_t)my_strdup('" << node->literal() << "')" << std::endl;
-    saveInfo(node, 0, mathvm::VT_STRING);
+    //store string literal in memory
+    //uint16_t new_id = makeStringConstant()
+    uint16_t new_id = 0;
+    stream << "SLOAD " << "StringConstantId"  << std::endl;
+    saveNodeInfo(node, mathvm::VT_STRING, (size_t)new_id, BCodeVisitor::NT_SCONST);
 }
 
 void BCodeVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
@@ -74,17 +71,17 @@ void BCodeVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
     str << node->literal();
     std::string s = str.str();
     stream << "DLOAD " << s << std::endl;
-    saveInfo(node, 0, mathvm::VT_DOUBLE);
+    saveNodeInfo(node, mathvm::VT_DOUBLE);
 }
 
 void BCodeVisitor::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
-    stream << "ILOAD " << node->literal()  << std::endl;
-    saveInfo(node, 0, mathvm::VT_INT);
+    stream << "ILOAD " << node->literal() << std::endl;
+    saveNodeInfo(node, mathvm::VT_INT);
 }
 
 void BCodeVisitor::visitLoadNode(mathvm::LoadNode* node) {
-    NodeInfo& var = getInfo(node->var());
-    saveInfo(node, 0, var.type);
+    NodeInfo& var = loadNodeInfo(node->var());
+    saveNodeInfo(node, var.type);
     switch(var.type) {
         case mathvm::VT_INT:
             stream << "LOADIVAR " << var.id << std::endl;
@@ -103,9 +100,9 @@ void BCodeVisitor::visitLoadNode(mathvm::LoadNode* node) {
 void BCodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
     node->value()->visit(this);
     
-    NodeInfo& val = getInfo(node->value());
-    NodeInfo& var = getInfo(node->var());
-    saveInfo(node, 0, var.type);
+    NodeInfo& val = loadNodeInfo(node->value());
+    NodeInfo& var = loadNodeInfo(node->var());
+    saveNodeInfo(node, var.type);
 
     if (val.type != var.type && 
         var.type != mathvm::VT_DOUBLE &&
@@ -117,7 +114,7 @@ void BCodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
     if (var.type != val.type)
         stream << "I2D"  << std::endl;
 
-    //var.type == val.type (on stack)
+    //now var.type == val.type (on stack)
     switch(node->op()) {
         case mathvm::tASSIGN:
             if (var.type == mathvm::VT_INT)
@@ -167,7 +164,7 @@ void BCodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
 
 void BCodeVisitor::visitForNode(mathvm::ForNode* node) {
     //this is OLD, NOT WORKING
-    mathvm::BinaryOpNode* inExpr = 
+    /*mathvm::BinaryOpNode* inExpr = 
         dynamic_cast<mathvm::BinaryOpNode*>(node->inExpr());
     if (!inExpr)
         stream << "fail::visitForNode" << std::endl;
@@ -185,7 +182,7 @@ void BCodeVisitor::visitForNode(mathvm::ForNode* node) {
     stream << "push " << node->var()->name() << std::endl;
     stream << "IFICMPG  +sizeof_block" << std::endl;
     node->body()->visit(this);
-    stream << "JA -(current-" << cmp_addr  << ")" << std::endl;
+    stream << "JA -(current-" << cmp_addr  << ")" << std::endl;*/
 }
 
 void BCodeVisitor::visitWhileNode(mathvm::WhileNode* node) {
@@ -205,19 +202,28 @@ void BCodeVisitor::visitBlockNode(mathvm::BlockNode* node) {
     mathvm::Scope::VarIterator it(node->scope());
     while(it.hasNext()) {
         mathvm::AstVar* curr = it.next();
-        saveInfo(node, newId(), curr->type());
+        saveNodeInfo(curr, curr->type(), newVarId(), BCodeVisitor::NT_VAR);
     }
     node->visitChildren(this);
 }
 
-void BCodeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
-    node->name();
-    node->args()->visit(this);
-    node->body()->visit(this);
+void BCodeVisitor::visitCallNode(mathvm::CallNode* node) {
+
 }
 
+void BCodeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
+    //node->name();
+    //node->args()->visit(this);
+    //node->body()->visit(this);
+}
+
+void BCodeVisitor::visitReturnNode(mathvm::ReturnNode* node) {
+
+}
+
+
 void BCodeVisitor::visitPrintNode(mathvm::PrintNode* node) {
-    saveInfo(node, 0, mathvm::VT_INVALID);
+    saveNodeInfo(node, mathvm::VT_INVALID);
     for (uint32_t i = 0; i < node->operands(); ++i) {
         node->operandAt(i)->visit(this);
         stream << "DUMP "  << std::endl;
@@ -225,24 +231,26 @@ void BCodeVisitor::visitPrintNode(mathvm::PrintNode* node) {
     }
 }
 
-size_t BCodeVisitor::newId() {
-    return id_counter++;
+size_t BCodeVisitor::newVarId() {
+    static size_t counter = 1; //0 is reserved for non stored nodes
+    return counter++;
 }
 
-BCodeVisitor::NodeInfo& BCodeVisitor::saveInfo(const void* node, size_t id, mathvm::VarType type) {
+BCodeVisitor::NodeInfo& BCodeVisitor::saveNodeInfo(const void* node, mathvm::VarType type, 
+                                                   size_t id, BCodeVisitor::NodeType nodeType) {
     NodeInfo& n = nodeInfoMap[node];
     n.id = id;
     n.type = type;
-    //n.node = node;
+    n.nodeType = nodeType;
     return n;
 }
 
-BCodeVisitor::NodeInfo& BCodeVisitor::getInfo(const void* node) {
+BCodeVisitor::NodeInfo& BCodeVisitor::loadNodeInfo(const void* node) {
     return nodeInfoMap[node];
 }
 
 int BCodeVisitor::genInstrBinNode(const BCodeVisitor::NodeInfo &a, const BCodeVisitor::NodeInfo &b, 
-                                     mathvm::TokenKind op, mathvm::VarType& resType, std::string& instruction) {
+                                  mathvm::TokenKind op, mathvm::VarType& resType, std::string& instruction) {
     //the most readable solution - switches
     using namespace mathvm;
     if (a.type == VT_INT && b.type == VT_INT) {
