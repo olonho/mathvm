@@ -19,6 +19,7 @@ class Parser {
 
     void error(const char* msg, ...);
     TokenKind currentToken();
+    TokenKind lookaheadToken(uint32_t count);
     string currentTokenValue();
     void consumeToken();
     void ensureToken(TokenKind token);
@@ -28,18 +29,20 @@ class Parser {
     void popScope();
 
     Status* parseTopLevel();
+    AstNode* parseStatement();
+    CallNode* parseCall();
     StoreNode* parseAssignment();
     AstNode* parseExpression();
     AstNode* parseUnary();
     AstNode* parseBinary(int minPrecedence);
-    AstNode* parseFunction();
+    FunctionNode* parseFunction();
     PrintNode* parsePrint();
-    AstNode* parseArgList();
     ForNode* parseFor();
     WhileNode* parseWhile();
     IfNode*  parseIf();
+    ReturnNode* parseReturn();
     BlockNode* parseBlock(bool needBraces);
-    void parseDeclaration(VarType type);
+    AstNode* parseDeclaration(VarType type);
 
     static int64_t parseInt(const string& str);
     static double  parseDouble(const string& str);

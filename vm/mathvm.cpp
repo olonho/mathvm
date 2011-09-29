@@ -1,4 +1,5 @@
 #include "mathvm.h"
+#include "ast.h"
 
 #include <iostream>
 
@@ -21,6 +22,35 @@ void Label::bind(uint32_t address) {
         _code->setInt16(relocBci, offset);
     }
     _relocations.clear();
+}
+
+static const char* bcName(Instruction insn, size_t& length) {
+    static const struct {
+        const char* name;
+        Instruction insn;
+        size_t length;
+    } names[] = {
+#define BC_NAME(b, d, l) {#b, BC_##b, l},
+        FOR_BYTECODES(BC_NAME)
+    };
+
+    for (size_t i = 0; names[i].insn != BC_LAST; i++) {
+        if (insn == names[i].insn) {
+            length = names[i].length;
+            return names[i].name;
+        }
+    }
+
+    assert(false);
+    return 0;
+}
+
+void Bytecode::dump() const {
+    for (size_t bci = 0; bci < length();) {
+        size_t length;
+        cout << bci << ": " << bcName(getInsn(bci), length) << endl;
+        bci += length;
+    }
 }
 
 void Bytecode::addBranch(Instruction insn, Label& target) {
@@ -65,6 +95,81 @@ void Var::print() {
         default:
             assert(false);
     }
+}
+
+Code::Code() {
+    _constants.push_back("");
+}
+
+Code::~Code() {
+    for (uint32_t i = 0; i < _functions.size(); i++) {
+        delete _functions[i];
+    }
+}
+
+uint16_t Code::addFunction(TranslatedFunction* function) {
+    uint16_t id = _functions.size();
+    _functions.push_back(function);
+    _functionById[function->name()] = id;
+    function->assignId(id);
+    return id;
+}
+
+TranslatedFunction* Code::functionById(uint16_t id) const {
+    if (id >= _functions.size()) {
+        return 0;
+    }
+    return _functions[id];
+}
+
+TranslatedFunction* Code::functionByName(const string& name) const {
+    FunctionMap::const_iterator it = _functionById.find(name);
+    if (it == _functionById.end()) {
+        return 0;
+    }
+    return functionById((*it).second);
+}
+
+uint16_t Code::makeStringConstant(const string& str) {
+    ConstantMap::iterator it = _constantById.find(str);
+    if (it != _constantById.end()) {
+        return (*it).second;
+    }
+    uint16_t id = _constants.size();
+    _constantById[str] = id;
+    _constants.push_back(str);
+    return id;
+}
+
+const string& Code::constantById(uint16_t id) const {
+    if (id >= _constants.size()) {
+        return _constants[0];
+    }
+    return _constants[id];
+}
+
+
+const string& TranslatedFunction::name() const {
+    return _function->name();
+}
+
+VarType TranslatedFunction::returnType() const {
+    return _function->returnType();
+}
+
+VarType TranslatedFunction::parameterType(uint32_t index) const {
+    return _function->parameterType(index);
+}
+
+uint32_t TranslatedFunction::parametersNumber() const {
+    return _function->parametersNumber();
+}
+
+void TranslatedFunction::assignId(uint16_t id) {
+    assert(_id == 0);
+    assert(_function->isTop() || id != 0);
+
+    _id = id;
 }
 
 }
