@@ -7,48 +7,6 @@
 // ================================================================================
 
 namespace mathvm {
-  /*
-  RTVar pack(int i) {
-    RTVar v;
-
-    v.i = i;
-    return v;
-  }
-
-  RTVar pack(int64_t i) {
-    RTVar v;
-
-    v.i = i;
-    return v;
-  }
-
-  RTVar pack(double d) {
-    RTVar v;
-
-    v.d = d;
-    return v;
-  }
-
-  RTVar pack(char *s) {
-    RTVar v;
-
-    v.s = s;
-    return v;
-  }
-  
-
-  int64_t unpackI(RTVar v) {
-    return v.i;
-  }
-
-  double unpackD(RTVar v) {
-    return v.d;
-  }
-  
-  char* unpackS(RTVar v) {
-    return v.s;
-  }
-  */
 
   // --------------------------------------------------------------------------------
 
@@ -115,7 +73,7 @@ namespace mathvm {
         break;
 
       case BC_SLOAD:
-        stack.push(RTVar((char*)code.getInt64(ip + 1)));
+        stack.push(RTVar((char*)string_pool[code.getInt16(ip + 1)].c_str()));
         break;
 
         // Arithmetics
