@@ -45,6 +45,8 @@ namespace mathvm {
     std::map<AstNode*, VarType> node_type;
     BytecodeInterpreter *interpreter;
 
+    std::map<std::string, uint16_t> string_const;
+
 
 
     void put(const AstVar* v) {
@@ -369,11 +371,19 @@ namespace mathvm {
 
 
     VISIT(StringLiteralNode) {
-      strings->push_back(node->literal());
+      std::map<std::string, uint16_t>::const_iterator it;
+      uint16_t id;
 
+      it = string_const.find(node->literal());
+      if (it == string_const.end()) {
+        strings->push_back(node->literal());
+        id = string_const[node->literal()] = strings->size() - 1;        
+      } else {
+        id = it->second;
+      }
+      
       code->add(BC_SLOAD);
-      const char* s = strings->back().c_str();
-      put((unsigned char*)&s, sizeof(char*));
+      code->addUInt16(id);
 
       node_type[node] = VT_STRING;
     }
