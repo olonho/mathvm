@@ -1,10 +1,10 @@
---- a/ast.h     2011-10-01 01:35:13.000000000 +0400
-+++ b/ast.h     2011-10-01 01:35:56.000000000 +0400
+--- mathvm-read-only/include/ast.h	2011-10-01 12:25:16.000000000 +0400
++++ mathvm/include/ast.h	2011-10-01 01:35:56.000000000 +0400
 @@ -115,6 +115,7 @@
-    uint32_t parametersNumber() const;
-    Scope* owner() const { return _owner; }
-    bool isTop() const { return _function == 0; }
+     uint32_t parametersNumber() const;
+     Scope* owner() const { return _owner; }
+     bool isTop() const { return _function == 0; }
 +    FunctionNode* function() { return _function; }
-
-    static const string top_name;
-    static const string invalid;
+   
+     static const string top_name;
+     static const string invalid;

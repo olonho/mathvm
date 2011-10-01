@@ -9,22 +9,19 @@ BASH         = $(shell which bash)
 
 include $(VM_ROOT)/common.mk
 
-#LAB = $(BIN)/$(PROGNAME)
 MVM = $(BIN)/mvm
 
 all: $(MVM)
 
 ast-patched:
-	patch -d $(VM_ROOT) -p1 < ast.patch
+	patch -d $(VM_ROOT) -p2 < ast.patch
 	touch ast-patched
 
 $(MVM): ast-patched $(OUT) $(MATHVM_OBJ) $(USER_OBJS) $(USER_HEADERS)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJS) $(THREAD_LIB)
 
 tests:
-	ln -s $(VM_ROOT)/tests
+	ln -s $(VM_ROOT)/tests .
 
-test: $(MVM)
+test: tests $(MVM)
 	$(RUN_TESTS)
-#	$(BASH) -c "if [[ !(-e tests) ]]; then ln -s $(VM_ROOT)/tests .; fi"
-#	unlink ./tests
