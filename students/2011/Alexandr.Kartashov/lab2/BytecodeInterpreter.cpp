@@ -10,10 +10,33 @@ namespace mathvm {
 
   // --------------------------------------------------------------------------------
 
+  struct CallStackEntry {
+    CallStackEntry(Bytecode* c, uint32_t ip) {
+      oldCode = c;
+      oldIP = ip;
+    }
+
+    void restore(Bytecode** c, uint32_t* ip) {
+      *c = oldCode;
+      *ip = oldIP;
+    }
+
+    Bytecode* oldCode;
+    uint32_t oldIP;
+  };
+
+  static int opcode_len[] = {
+#define OPCODE_LEN(b, d, l) l,
+    FOR_BYTECODES(OPCODE_LEN)
+#undef OPCODE_LEN
+  };
+
   typedef int16_t offset_t;
 
+  // --------------------------------------------------------------------------------
+
   Bytecode* BytecodeInterpreter::bytecode() {
-    return &code;
+    return &_code;
   }
 
   StringPool *BytecodeInterpreter::strings() {
@@ -21,27 +44,34 @@ namespace mathvm {
   }
 
   void BytecodeInterpreter::setVarPoolSize(unsigned int pool_sz) {
-    var_pool.reserve(pool_sz);
+    _varPool.resize(pool_sz);
   }
 
-  static int opcode_len[] = {
-#define OPCODE_LEN(b, d, l) l,
-    FOR_BYTECODES(OPCODE_LEN)
-#undef OPCODE_LEN
-  };
+
+  void BytecodeInterpreter::createFunction(Bytecode** code, uint16_t* id, FunArgs** args) {
+    _functions.push_back(Function());
+    *code = &_functions.back().code;
+    *id = _functions.size() - 1;
+    *args = &_functions.back().args;
+  }
     
 
   Status* BytecodeInterpreter::execute(vector<Var*> vars) {
+    Bytecode *code;
     uint32_t ip = 0;
     std::stack<RTVar> stack;
+    std::stack<CallStackEntry> callStack;
+    int stop = 0;
 
-    while (ip < code.length()) {
-      uint8_t opcode = code.get(ip);
+    code = &_code;
+
+    while (ip < code->length() && !stop) {
+      uint8_t opcode = code->get(ip);
 
       switch (opcode) {
         // Load instructions
       case BC_ILOAD:
-        stack.push(RTVar(code.getInt64(ip + 1)));
+        stack.push(RTVar(code->getInt64(ip + 1)));
         break;
 
       case BC_ILOAD0:
@@ -57,7 +87,7 @@ namespace mathvm {
         break;
 
       case BC_DLOAD:
-        stack.push(RTVar(code.getDouble(ip + 1)));
+        stack.push(RTVar(code->getDouble(ip + 1)));
         break;
 
       case BC_DLOAD0:
@@ -73,7 +103,7 @@ namespace mathvm {
         break;
 
       case BC_SLOAD:
-        stack.push(RTVar((char*)string_pool[code.getInt16(ip + 1)].c_str()));
+        stack.push(RTVar((char*)string_pool[code->getInt16(ip + 1)].c_str()));
         break;
 
         // Arithmetics
@@ -206,8 +236,8 @@ namespace mathvm {
       case BC_LOADIVAR: {
         int8_t id;
 
-        id = code.get(ip + 1);
-        stack.push(var_pool[id]);
+        id = code->get(ip + 1);
+        stack.push(_varPool[id]);
       }
         break;
 
@@ -215,8 +245,8 @@ namespace mathvm {
       case BC_STOREIVAR: {
         int8_t id;
 
-        id = code.get(ip + 1);
-        var_pool[id] = stack.top(); stack.pop();
+        id = code->get(ip + 1);
+        _varPool[id] = stack.top(); stack.pop();
       }
         break;
 
@@ -257,7 +287,7 @@ namespace mathvm {
         // Jumps
 
       case BC_JA: {
-        offset_t offset = code.getTyped<offset_t>(ip + 1);
+        offset_t offset = code->getTyped<offset_t>(ip + 1);
         ip += offset;        
       }
         break;
@@ -270,7 +300,7 @@ namespace mathvm {
         op2 = stack.top().getInt(); stack.pop();
 
         if (op1 != op2) {        
-          offset = code.getTyped<offset_t>(ip + 1);
+          offset = code->getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -284,7 +314,7 @@ namespace mathvm {
         op2 = stack.top().getInt(); stack.pop();
 
         if (op1 == op2) {        
-          offset = code.getTyped<offset_t>(ip + 1);
+          offset = code->getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -298,7 +328,7 @@ namespace mathvm {
         op2 = stack.top().getInt(); stack.pop();
 
         if (op2 > op1) {        
-          offset = code.getTyped<offset_t>(ip + 1);
+          offset = code->getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -312,7 +342,7 @@ namespace mathvm {
         op2 = stack.top().getInt(); stack.pop();
 
         if (op2 >= op1) {        
-          offset = code.getTyped<offset_t>(ip + 1);
+          offset = code->getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -326,7 +356,7 @@ namespace mathvm {
         op2 = stack.top().getInt(); stack.pop();
 
         if (op2 < op1) {        
-          offset = code.getTyped<offset_t>(ip + 1);
+          offset = code->getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -340,7 +370,7 @@ namespace mathvm {
         op2 = stack.top().getInt(); stack.pop();
 
         if (op2 <= op1) {        
-          offset = code.getTyped<offset_t>(ip + 1);
+          offset = code->getTyped<offset_t>(ip + 1);
           ip += offset;
         }
       }
@@ -366,6 +396,30 @@ namespace mathvm {
           break;
         }
       }
+        break;
+
+      case BC_CALL: {
+        uint16_t id = code->getUInt16(ip + 1);
+
+        ip += 3;
+        callStack.push(CallStackEntry(code, ip));
+        code = &_functions[id].code;
+        ip = 0;
+
+        for (int i = _functions[id].args.size() - 1; i >= 0; --i) {
+          _varPool[_functions[id].args[i].varId] = stack.top(); 
+          stack.pop();
+        }
+      }
+        continue;
+
+      case BC_RETURN:
+        callStack.top().restore(&code, &ip);
+        callStack.pop();
+        continue;
+
+      case BC_STOP:
+        stop = 1;
         break;
 
       default:

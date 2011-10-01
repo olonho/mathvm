@@ -11,6 +11,15 @@
 namespace mathvm {
   typedef std::vector<std::string> StringPool;
 
+  struct FunArg {
+    const std::string* name;
+    int8_t varId;
+  };
+
+  typedef std::vector<FunArg> FunArgs;
+
+  // --------------------------------------------------------------------------------
+
   class RTVar {
   public:
     RTVar() {
@@ -69,17 +78,25 @@ namespace mathvm {
 
 
   class BytecodeInterpreter : public Code {
+    struct Function {
+      Bytecode code;
+      FunArgs args;
+    };
+
   public:
     void setVarPoolSize(unsigned int);
 
     Status* execute(vector<Var*> vars);
     
-    Bytecode *bytecode();
-    StringPool *strings();
+    Bytecode* bytecode();
+    StringPool* strings();
+
+    void createFunction(Bytecode** code, uint16_t* id, FunArgs** args);
     
   private:
-    std::vector<RTVar> var_pool;
+    std::vector<RTVar> _varPool;
+    std::vector<Function> _functions;
     StringPool string_pool;
-    Bytecode code;
+    Bytecode _code;
   };
 }

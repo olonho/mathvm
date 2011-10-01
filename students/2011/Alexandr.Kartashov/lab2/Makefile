@@ -14,13 +14,17 @@ MVM = $(BIN)/mvm
 
 all: $(MVM)
 
-$(MVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJS) $(USER_HEADERS)
+ast-patched:
+	patch -d $(VM_ROOT) -p1 < ast.patch
+	touch ast-patched
+
+$(MVM): ast-patched $(OUT) $(MATHVM_OBJ) $(USER_OBJS) $(USER_HEADERS)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJS) $(THREAD_LIB)
 
+tests:
+	ln -s $(VM_ROOT)/tests
+
 test: $(MVM)
-	echo $(BASH)
-
-	$(BASH) -c "if [[ !(-e tests) ]]; then ln -s $(VM_ROOT)/tests .; fi"
 	$(RUN_TESTS)
-
+#	$(BASH) -c "if [[ !(-e tests) ]]; then ln -s $(VM_ROOT)/tests .; fi"
 #	unlink ./tests

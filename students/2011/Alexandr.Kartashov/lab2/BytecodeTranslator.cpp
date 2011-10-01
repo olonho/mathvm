@@ -18,39 +18,69 @@ namespace mathvm {
   class BytecodeGenerator : public AstVisitor {
     class VarNum {
     public:
-      void add(const AstVar* var) {
-        vars.push_back(var);
-        num_map.insert(make_pair(var, vars.size() - 1));
+      int16_t add(const AstVar* var) {
+        _vars.push_back(var);
+        _numMap.insert(make_pair(var, _vars.size() - 1));
+        return _vars.size() - 1;
+      }
+
+      bool exists(const AstVar* var) {
+        return _numMap.find(var) != _numMap.end();
       }
       
       unsigned int getId(const AstVar* var) {
-        return num_map.find(var)->second;
+        //if (_numMap.find(var) != _numMap.end()) {
+        return _numMap.find(var)->second;
+          //}
+        /*
+        else {
+        return add(var);
+        }
+        */
       }
 
       unsigned int size() {
-        return num_map.size();
+        return _numMap.size();
       }
 
     private:
-      std::vector<const AstVar*> vars;
-      std::map<const AstVar*, unsigned int> num_map;
+      std::vector<const AstVar*> _vars;
+      std::map<const AstVar*, unsigned int> _numMap;
     };
+
+    
 
   private:
     Bytecode* code;
-    AstNode* root;
+    AstNode* _root;
     StringPool *strings;
 
-    VarNum num;
+    VarNum _num;
     std::map<AstNode*, VarType> node_type;
-    BytecodeInterpreter *interpreter;
+    BytecodeInterpreter *_interpreter;
 
     std::map<std::string, uint16_t> string_const;
+    std::map<std::string, uint16_t> _functions;
 
+    FunArgs* _args;
+    size_t _argNum;
 
+    // --------------------------------------------------------------------------------
 
     void put(const AstVar* v) {
-      code->add((uint8_t)num.getId(v));
+      if (_num.exists(v)) {
+        code->add((uint8_t)_num.getId(v));
+      } else {
+        // This is a function argument
+
+        for (size_t i = 0; i < _argNum; ++i) {
+          if (v->name() == *((*_args)[i].name)) {
+            (*_args)[i].varId = (uint8_t)_num.add(v);
+            code->add((*_args)[i].varId);
+            break;
+          }
+        }             
+      }
     }
 
     void put(unsigned char* buf, size_t size) {
@@ -61,15 +91,16 @@ namespace mathvm {
 
 
   public:
-    BytecodeGenerator(AstNode* _root) { 
-      root = _root;
-      interpreter = new BytecodeInterpreter;
-      code = interpreter->bytecode();
-      strings = interpreter->strings();
+    BytecodeGenerator(AstNode* root) { 
+      _root = root;
+      _interpreter = new BytecodeInterpreter;
+      code = _interpreter->bytecode();
+      strings = _interpreter->strings();
 
-      root->visit(this);
+      _root->visit(this);
+      code->add(BC_STOP);
 
-      interpreter->setVarPoolSize(num.size());
+      _interpreter->setVarPoolSize(_num.size());
       
       /*
       for (size_t i = 0; i < code->length(); ++i) {
@@ -80,7 +111,7 @@ namespace mathvm {
     }
 
     Code *getCode() {
-      return interpreter;
+      return _interpreter;
     }
 
 
@@ -459,7 +490,7 @@ namespace mathvm {
     VISIT(ForNode) {
       uint32_t jmp_pos;
 
-      num.add(node->var());
+      _num.add(node->var());
       
       node->inExpr()->asBinaryOpNode()->left()->visit(this);
 
@@ -532,20 +563,37 @@ namespace mathvm {
     
     VISIT(BlockNode) {
       Scope::VarIterator vi(node->scope());
+      Scope::FunctionIterator fi(node->scope());
       AstVar *v;
       
       while (vi.hasNext()) {
         v = vi.next();    
-        num.add(v);
+        _num.add(v);
+      }
+
+      while (fi.hasNext()) {
+        Bytecode* old_code = code; // Hope there're no nested functions :)
+        uint16_t id;
+        FunctionNode *node = fi.next()->function();
+
+        _interpreter->createFunction(&code, &id, &_args);
+        _functions[node->name()] = id;
+
+        _argNum = node->parametersNumber();
+        _args->resize(_argNum);
+        for (size_t i = 0; i < _argNum; ++i) {
+          (*_args)[i].name = &node->parameterName(i);
+        }
+
+        node->body()->visit(this);
+
+        code = old_code;
       }
 
       node->visitChildren(this);
     }
 
-    VISIT(FunctionNode) {
-      // TODO
-    }
-    
+
     VISIT(PrintNode) {
       for (size_t i = 0; i < node->operands(); i++) {
         node->operandAt(i)->visit(this);
@@ -555,6 +603,18 @@ namespace mathvm {
       }
     }
 
+    VISIT(CallNode) {
+      node->visitChildren(this);
+      
+      code->add(BC_CALL);
+      code->addUInt16(_functions[node->name()]);
+    }
+
+    VISIT(ReturnNode) {
+      node->visitChildren(this);
+      code->add(BC_RETURN);
+    }
+
 #undef VISIT
 
   };
@@ -562,13 +622,6 @@ namespace mathvm {
   // --------------------------------------------------------------------------------  
 
   class BytecodeTranslator : public Translator {
-    class DummyCode : public Code {
-    public:
-      Status* execute(vector<Var*> vars) { 
-        return 0;
-      }
-    };
-
   public:
     Status* translate(const string& program, Code** code) {
       Parser parser;
