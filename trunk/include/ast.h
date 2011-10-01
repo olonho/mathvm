@@ -525,7 +525,9 @@ class ReturnNode : public AstNode {
     }
 
     virtual void visitChildren(AstVisitor* visitor) const {
-        returnExpr()->visit(visitor);
+        if (returnExpr()) {
+            returnExpr()->visit(visitor);
+        }
     }
 
     COMMON_NODE_FUNCTIONS(ReturnNode);
