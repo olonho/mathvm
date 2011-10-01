@@ -1,6 +1,10 @@
-#include <vector>
 #include <iostream>
 #include "MyCode.h"
+
+MyCode::MyCode() {
+    using namespace mathvm;
+    addFunction(new TranslatedFunction(new AstFunction(0, 0)));
+}
 
 mathvm::Status* MyCode::execute(std::vector<mathvm::Var*> vars) {
     //FIXME: implement me!
