@@ -1,11 +1,13 @@
 #pragma once
 #include <mathvm.h>
+#include <ast.h>
 #include <vector>
 
 class MyCode: public mathvm::Code {
     mathvm::Bytecode bytecode;
     std::vector<uint16_t> functionIds;
 public:
+    MyCode();
     virtual mathvm::Status* execute(std::vector<mathvm::Var*> vars);
     const mathvm::Bytecode& getBytecode() const { return bytecode; }
     mathvm::Bytecode& getBytecode() { return bytecode; }

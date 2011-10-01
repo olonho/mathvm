@@ -355,7 +355,7 @@ void CodeVisitor::visitPrintNode(mathvm::PrintNode* node) {
 }
 
 size_t CodeVisitor::newVarId() {
-    static size_t counter = 1; //0 is reserved for non stored nodes
+    static size_t counter = 1; //0 is reserved for non var and str const nodes
     if (counter > 255) {
         transError("Limit for number variables (255) is exceeded");
     }
