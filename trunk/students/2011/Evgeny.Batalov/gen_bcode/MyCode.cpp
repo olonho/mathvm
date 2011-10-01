@@ -1,4 +1,5 @@
 #include <vector>
+#include <iostream>
 #include "MyCode.h"
 
 mathvm::Status* MyCode::execute(std::vector<mathvm::Var*> vars) {
@@ -13,6 +14,7 @@ void MyCode::dump() const {
     for(; fit != functionIds.end(); ++fit) {
         TranslatedFunction *ft = functionById(*fit);
         BytecodeFunction *fb = dynamic_cast<BytecodeFunction*>(ft);
+        std::cout << std::endl  << fb->name() << ":"  << std::endl;
         fb->bytecode()->dump();
     }
 }

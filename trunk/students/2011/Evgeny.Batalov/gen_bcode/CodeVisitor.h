@@ -22,9 +22,14 @@ class CodeVisitor: public mathvm::AstVisitor {
         mathvm::VarType type;
         NodeType nodeType;
         size_t id;
+        size_t index; //index for example for function parameter
     };
  
     std::map<const void*, NodeInfo> nodeInfoMap;   
+    typedef  std::map<std::string, NodeInfo> ParameterNameInfoMap;
+    typedef std::map<std::string, ParameterNameInfoMap > FuncVarsMap;
+    FuncVarsMap funcVars;
+    std::string curFuncName;
     MyCode code;
     mathvm::BlockNode *curBlock;
     mathvm::Bytecode  *curBytecode;
@@ -37,10 +42,15 @@ class CodeVisitor: public mathvm::AstVisitor {
     NodeInfo& saveNodeInfo(const void* node, mathvm::VarType type,
                            size_t id = 0, CodeVisitor::NodeType nodeType = CodeVisitor::NT_OTHER);
     NodeInfo& loadNodeInfo(const void* node);
+    NodeInfo& loadParameterInfo(const std::string& fName, const std::string& pName);
+    NodeInfo& loadParameterInfo(const std::string& fName, size_t pName);
+    NodeInfo& saveParameterInfo(const std::string& fName, const std::string& pName, 
+                                                          const NodeInfo& info);
 
     size_t newVarId();
 
-    void genInstrBinNode(const NodeInfo &a, const NodeInfo &b, mathvm::TokenKind op, mathvm::VarType& resType);
+    void procBinNode(const NodeInfo &a, const NodeInfo &b, mathvm::TokenKind op, mathvm::VarType& resType);
+    void putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl);
 public:
     CodeVisitor();
     void  translate(mathvm::AstNode* node) { node->visit(this); cCode().addByte(mathvm::BC_STOP); }
