@@ -85,6 +85,13 @@ FOR_NODES(FORWARD_DECLARATION)
 #undef FORWARD_DECLARATION
 
 class Scope;
+/**
+ * This class represents variable in AST tree, without actual
+ * binding to particular storage. It's up to implementation
+ * to decide a logic for storing variables in memory.
+ * Generally, every variable must be guaranteed to be available 
+ * for at least lifetime of its scope.
+ */
 class AstVar {
     const string _name;
     VarType _type;
@@ -114,8 +121,9 @@ class AstFunction {
     const string& parameterName(uint32_t index) const;
     uint32_t parametersNumber() const;
     Scope* owner() const { return _owner; }
+    Scope* scope() const;
     bool isTop() const { return _function == 0; }
-  
+    FunctionNode* node() const { assert(!isTop()); return _function; }
     static const string top_name;
     static const string invalid;
 };

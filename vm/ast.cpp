@@ -52,6 +52,11 @@ uint32_t AstFunction::parametersNumber() const {
     return _function->parametersNumber();
 }
 
+Scope* AstFunction::scope() const {
+    assert(!isTop());
+    return _function->body()->scope()->parent();
+}
+
 BlockNode::~BlockNode() {
     delete _scope;
 }
