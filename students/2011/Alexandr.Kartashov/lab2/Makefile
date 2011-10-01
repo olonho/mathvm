@@ -14,7 +14,7 @@ MVM = $(BIN)/mvm
 all: $(MVM)
 
 ast-patched:
-	patch -d $(VM_ROOT) -p2 < ast.patch
+	patch -d $(VM_ROOT)/include -p2 < ast.patch
 	touch ast-patched
 
 $(MVM): ast-patched $(OUT) $(MATHVM_OBJ) $(USER_OBJS) $(USER_HEADERS)
