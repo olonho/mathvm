@@ -1,7 +1,7 @@
 #include <iostream> 
 
 #include "parse.h"
-#include "BCodeVisitor.h"
+#include "CodeVisitor.h"
 
 
 int main(int argc, char* argv[]) {
@@ -11,7 +11,8 @@ int main(int argc, char* argv[]) {
     }
     mathvm::Parser p;
     parseFile(p, argv[1]);
-    BCodeVisitor v(std::cout);
-    v.show(p.top());
+    CodeVisitor v;
+    v.translate(p.top());
+    v.getMyCode().dump();
     return 0;
 }
