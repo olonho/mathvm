@@ -230,6 +230,22 @@ static VarType nameToType(const string& typeName) {
     return VT_INVALID;
 }
 
+static inline AstNode* defaultReturnExpr(VarType type) {
+    switch (type) {
+        case VT_INT:
+            return new IntLiteralNode(0, 0);
+        case VT_DOUBLE:
+            return new DoubleLiteralNode(0, 0.0);
+        case VT_STRING:
+            return new StringLiteralNode(0, "");
+        case VT_VOID:
+            return 0;
+      default:
+            assert(false);
+            return 0;
+    }
+}
+
 FunctionNode* Parser::parseFunction() {
     uint32_t tokenIndex = _currentTokenIndex;
     ensureKeyword("function");
@@ -281,7 +297,7 @@ FunctionNode* Parser::parseFunction() {
     
     if (body->nodes() == 0 ||
         !(body->nodeAt(body->nodes() - 1)->isReturnNode())) {
-      body->add(new ReturnNode(0, 0));
+        body->add(new ReturnNode(0, defaultReturnExpr(returnType)));
     }
     
     popScope();
@@ -350,7 +366,7 @@ ReturnNode* Parser::parseReturn() {
     ensureKeyword("return");
 
     AstNode* returnExpr = 0;
-    if (lookaheadToken(1) != tSEMICOLON) {
+    if (currentToken() != tSEMICOLON) {
         returnExpr = parseExpression();
     }
     return new ReturnNode(token, returnExpr);
