@@ -54,7 +54,7 @@ void Translator::putVar(const std::string& var) {
 }
 
 void Translator::triple(mathvm::Instruction i) {
-    mathvm::Label label, label1;
+    mathvm::Label label(&code), label1(&code);
     code.addBranch(i, label);
     code.add(mathvm::BC_ILOAD0);
     code.addBranch(mathvm::BC_JA, label1);
@@ -69,7 +69,7 @@ void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
     if (node->kind() == tOR || node->kind() == tAND) {
         checkTypeInt(node->left());
         code.add(BC_ILOAD0);
-        Label label, label1;
+        Label label(&code), label1(&code);
         code.addBranch(node->kind() == tOR ? BC_IFICMPE : BC_IFICMPNE, label);
         code.add(node->kind() == tOR ? BC_ILOAD1 : BC_ILOAD0);
         code.addBranch(BC_JA, label1);
@@ -81,26 +81,13 @@ void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
         }
         return;
     }
-    uint32_t right_pos = code.current();
     node->right()->visit(this);
     VarType right = currentType;
     currentType = VT_INVALID;
-    uint32_t left_pos = code.current();
     node->left()->visit(this);
     VarType left = currentType;
     switch (node->kind()) {
         case tEQ: case tNEQ:
-            if (left == VT_STRING || right == VT_STRING) {
-                if (left == right) {
-                    break;
-                } else {
-                    if (left == VT_STRING) {
-                        typeMismatch("string", node->right(), right);
-                    } else {
-                        typeMismatch("string", node->left(), left);
-                    }
-                }
-            }
         case tGT: case tGE: case tLT: case tLE:
         case tADD: case tSUB: case tMUL: case tDIV:
             if (left != VT_INT && left != VT_DOUBLE) {
@@ -114,23 +101,10 @@ void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
                     currentType = VT_DOUBLE;
                     code.add(BC_I2D);
                 } else {
-                    if (node->kind() == tSUB || node->kind() == tDIV) {
-                        std::vector<uint8_t> v;
-                        uint32_t i = right_pos, j = right_pos;
-                        for (; i < left_pos; ++i) {
-                            v.push_back(code.get(i));
-                        }
-                        for (i = left_pos; i < code.current(); ++i, ++j) {
-                            code.set(j, code.get(i));
-                        }
-                        for (i = 0; i < v.size(); ++i, ++j) {
-                            code.set(j, v[i]);
-                        }
-                        code.add(BC_I2D);
+                    code.add(BC_SWAP);
+                    code.add(BC_I2D);
+                    if (node->kind() != tADD && node->kind() != tMUL) {
                         code.add(BC_SWAP);
-                    } else {
-                        code.add(BC_SWAP);
-                        code.add(BC_I2D);
                     }
                 }
             }
@@ -140,7 +114,7 @@ void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
     if (currentType == VT_DOUBLE) {
         switch (node->kind()) {
             case tEQ: case tNEQ: case tGT: case tGE: case tLT: case tLE:
-                code.add(BC_DCMP);
+                code.add(BC_DCMP); currentType = VT_INT;
             default:;
         }
         switch (node->kind()) {
@@ -289,7 +263,7 @@ void Translator::visitForNode(mathvm::ForNode* node) {
     checkTypeInt(in->left());
     code.add(mathvm::BC_STOREIVAR);
     putVar(node->var()->name());
-    mathvm::Label start, end;
+    mathvm::Label start(&code), end(&code);
     code.bind(start);
     checkTypeInt(in->right());
     code.add(mathvm::BC_LOADIVAR);
@@ -302,7 +276,7 @@ void Translator::visitForNode(mathvm::ForNode* node) {
 }
 
 void Translator::visitWhileNode(mathvm::WhileNode* node) {
-    mathvm::Label start, end;
+    mathvm::Label start(&code), end(&code);
     code.bind(start);
     mathvm::IntLiteralNode* in =
         dynamic_cast<mathvm::IntLiteralNode*>(node->whileExpr());
@@ -324,12 +298,12 @@ void Translator::visitWhileNode(mathvm::WhileNode* node) {
 void Translator::visitIfNode(mathvm::IfNode* node) {
     checkTypeInt(node->ifExpr());
     code.add(mathvm::BC_ILOAD0);
-    mathvm::Label label;
+    mathvm::Label label(&code);
     code.addBranch(mathvm::BC_IFICMPE, label);
     node->thenBlock()->visit(this);
     currentType = mathvm::VT_INVALID;
     if (node->elseBlock()) {
-        mathvm::Label label1;
+        mathvm::Label label1(&code);
         code.addBranch(mathvm::BC_JA, label1);
         code.bind(label);
         node->elseBlock()->visit(this);
@@ -345,7 +319,7 @@ void Translator::visitBlockNode(mathvm::BlockNode* node) {
     while (it.hasNext()) {
         if (overflow) {
             throwError("I'm sorry, Dave. I'm afraid you exceeded the limit of"
-                " variables which is %d", (unsigned long long)1 + VarInt(-1));
+                " variables which is %d.", (unsigned long long)1 + VarInt(-1));
         }
         vars[it.next()->name()].push_back(currentVar++);
         if (!currentVar) {

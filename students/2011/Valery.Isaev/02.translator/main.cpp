@@ -6,7 +6,7 @@
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        std::cerr << "Usage: show FILE" << std::endl;
+        std::cerr << "Usage: translator FILE" << std::endl;
         return 1;
     }
     mathvm::Parser p;
@@ -14,10 +14,11 @@ int main(int argc, char* argv[]) {
     Dumper dumper;
     Translator t(dumper);
     mathvm::Status r = t.translate(p.top());
-    if (r.isError()) {
+    if (r.isOk()) {
+        std::vector<mathvm::Var*> v;
+        dumper.execute(v);
+    } else {
         std::cerr << r.getError() << std::endl;
     }
-    std::vector<mathvm::Var*> v;
-    dumper.execute(v);
     return 0;
 }
