@@ -21,10 +21,10 @@ void PrintVisitor::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 void PrintVisitor::visitStringLiteralNode( mathvm::StringLiteralNode* node )
 {
 	cout << "\'";
-	for(int i = 0; i < node->literal().size(); ++i) {
+	for(uint32_t i = 0; i < node->literal().size(); ++i) {
 		char c = node->literal()[i];
 		switch (c) {
-		case '\n' : cout << "\\n";
+		case '\n' : cout << "\\n"; break;
 		default: cout << c;
 		}	
 	};
@@ -96,6 +96,8 @@ void PrintVisitor::visitBlockNode( mathvm::BlockNode* node )
 			case VT_DOUBLE : varTypeStr = "double"; break;
 			case VT_INT : varTypeStr = "int"; break;
 			case VT_STRING : varTypeStr = "string"; break;
+			case VT_INVALID : ;
+			case VT_VOID: ;
 		}
 		cout << varTypeStr << " " << var->name() << ";\n";
 	}
@@ -111,7 +113,7 @@ void PrintVisitor::visitPrintNode( mathvm::PrintNode* node )
 {
 	cout << "print(";
 	uint32_t count = node->operands();
-	for (int i = 0; i < count; ++i) {
+	for (uint32_t i = 0; i < count; ++i) {
 		if (i != 0) {
 			cout << ", ";
 		}
