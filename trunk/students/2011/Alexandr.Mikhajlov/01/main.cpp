@@ -6,7 +6,6 @@
 
 #include "parser.h"
 #include "ByteCodeGenerator.h"
-#include "BytecodeInterpreter.h"
 
 using namespace std;
 using namespace mathvm;
@@ -32,14 +31,7 @@ int main(int argc, char** argv)
 		ByteCodeGenerator * generator = new ByteCodeGenerator;
     generator->visit(parser->top());
     generator->Dump();
-    cout << "-------Output--------\n";
-
-    BytecodeInterpreter interpreter;
-    *interpreter.bytecode() = *generator->GetBytecode();
-    interpreter.setVarPoolSize(256);
-    *interpreter.strings() = generator->GetStringsVector();
-    interpreter.execute(std::vector<Var*>());
-    
+  
     delete generator;
 	}
 	else 
@@ -56,8 +48,6 @@ int main(int argc, char** argv)
 	}
 
 	delete parser;
-
-  system("pause");
 
 	return 0;
 }

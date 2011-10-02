@@ -51,6 +51,8 @@ void ByteCodeGenerator::visitUnaryOpNode( mathvm::UnaryOpNode* node )
     if (operandType == VT_DOUBLE) throw TranslationException("Invalid argument type for NOT command");
     myBytecode.addInsn(BC_ILOAD0);
     DoIFICMP(BC_IFICMPE);
+  default:
+    break;
   }
 
   myNodeTypes[node] = operandType;
@@ -338,6 +340,8 @@ bool ByteCodeGenerator::TryDoArithmetics( mathvm::BinaryOpNode * node, mathvm::V
   case tDIV:
     BytecodeDiv(expectedType);
     return true;
+  default:
+    return false;
   }
   return false;
 }
