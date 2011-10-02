@@ -15,6 +15,8 @@ const char* tests[] =
     , "../../../../tests/sub.mvm"
     , "../../../../tests/var.mvm"
     , "../../../../tests/while.mvm"
+    , "../../../../tests/priority.mvm"
+    , "../../../../tests/additional/function.mvm"
     };
 
 int main() {

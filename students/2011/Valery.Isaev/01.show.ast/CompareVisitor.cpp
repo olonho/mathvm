@@ -107,6 +107,14 @@ void CompareVisitor::visitBlockNode(mathvm::BlockNode* node) {
         TEST(v->type() == v1->type())
         TEST(v->name() == v1->name())
     }
+    mathvm::Scope::FunctionIterator it2(node->scope());
+    mathvm::Scope::FunctionIterator it3(a->scope());
+    while (it2.hasNext()) {
+        TEST(it3.hasNext())
+        mathvm::AstFunction *v = it2.next(), *v1 = it3.next();
+        another = v1->node();
+        v->node()->visit(this);
+    }
     TEST(!it1.hasNext())
     for (uint32_t i = 0; i < node->nodes(); ++i) {
         REC(nodeAt(i))
@@ -116,13 +124,35 @@ void CompareVisitor::visitBlockNode(mathvm::BlockNode* node) {
 void CompareVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
     INIT(FunctionNode)
     CHECK(name)
-    REC(args())
     REC(body())
+    CHECK(parametersNumber)
+    for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
+        TEST(node->parameterType(i) == a->parameterType(i))
+        TEST(node->parameterName(i) == a->parameterName(i))
+    }
 }
 
 void CompareVisitor::visitPrintNode(mathvm::PrintNode* node) {
     INIT(PrintNode)
     for (uint32_t i = 0; i < node->operands(); ++i) {
         REC(operandAt(i))
+    }
+}
+
+void CompareVisitor::visitReturnNode(mathvm::ReturnNode* node) {
+    INIT(ReturnNode)
+    if (node->returnExpr() && a->returnExpr()) {
+        REC(returnExpr())
+    } else {
+        CHECK(returnExpr)
+    }
+}
+
+void CompareVisitor::visitCallNode(mathvm::CallNode* node) {
+    INIT(CallNode)
+    CHECK(name)
+    CHECK(parametersNumber)
+    for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
+        REC(parameterAt(i))
     }
 }
