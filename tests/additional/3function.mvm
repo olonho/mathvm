@@ -1,0 +1,20 @@
+int a;
+
+if (1 > 0.2) {
+   print(1);
+}
+
+function int ff(int a) {
+   return a + 1;
+}
+
+function int ff1(int a) {
+   return a + 1;
+}
+
+function int ff2(int x, int a) {
+   return ff1(x);
+}
+
+a = 2;
+print ('ff(2) = ', ff(2), '\n');
