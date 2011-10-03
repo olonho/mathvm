@@ -6,56 +6,71 @@
 #include <sstream>
 #include <iostream>
 #include <stdlib.h>
+#include <exception>
 #include <mathvm.h>
 #include <visitors.h>
 #include "MyCode.h"
 
 class CodeVisitor: public mathvm::AstVisitor {
 
-    enum NodeType {
-        NT_VAR,
-        NT_SCONST,
-        NT_OTHER
-    };
+    MyCode code;
+    mathvm::FunctionNode* topFuncNode;
 
     struct NodeInfo {
         mathvm::VarType type;
-        NodeType nodeType;
+    };
+
+    struct VarInfo {
+        std::string name;
+        mathvm::VarType type;
         size_t id;
-        size_t index; //index for example for function parameter
+    };
+
+    struct ParamInfo {
+        std::string name;
+        mathvm::VarType type;
+        size_t id;
+        size_t index;
     };
  
-    std::map<const void*, NodeInfo> nodeInfoMap;   
-    typedef  std::map<std::string, NodeInfo> ParameterNameInfoMap;
-    typedef std::map<std::string, ParameterNameInfoMap > FuncVarsMap;
-    FuncVarsMap funcVars;
-    std::string curFuncName;
-    MyCode code;
-    mathvm::BlockNode *curBlock;
-    mathvm::Bytecode  *curBytecode;
+    typedef std::map<mathvm::AstNode*, NodeInfo> NodeInfoMap;
+    typedef std::vector<VarInfo> VarDefs;
+    typedef std::map<std::string, VarDefs> VarInfoMap;
+    typedef std::map<std::string, ParamInfo> FuncParams;
+    typedef std::map<std::string, FuncParams> FuncParamsMap;
 
+    NodeInfoMap nodeInfo;
+    VarInfoMap varInfo;
+    FuncParamsMap funcParams;
+
+    mathvm::Bytecode  *curBytecode;
+    mathvm::BlockNode *curBlock;
     mathvm::Bytecode&  cCode()  { return *curBytecode; }
-    mathvm::BlockNode& cBlock() { return *curBlock; }
+    mathvm::BlockNode& cBlock() { return *curBlock;    }
 
     void transError(std::string str = "");
 
-    NodeInfo& saveNodeInfo(const void* node, mathvm::VarType type,
-                           size_t id = 0, CodeVisitor::NodeType nodeType = CodeVisitor::NT_OTHER);
-    NodeInfo& loadNodeInfo(const void* node);
-    NodeInfo& loadParameterInfo(const std::string& fName, const std::string& pName);
-    NodeInfo& loadParameterInfo(const std::string& fName, size_t pName);
-    NodeInfo& saveParameterInfo(const std::string& fName, const std::string& pName, 
-                                                          const NodeInfo& info);
+    void setNodeInfo(mathvm::AstNode* node, mathvm::VarType type);
+    NodeInfo& getNodeInfo(mathvm::AstNode* node);
+
+    void setVarInfo(std::string name, size_t id, mathvm::VarType type);
+    VarInfo& getVarInfo(std::string name);
+
+    ParamInfo& getParamInfo(const std::string& fName, const std::string& pName);
+    ParamInfo& getParamInfo(const std::string& fName, size_t index);
+    void setParamInfo(const std::string& fName, ParamInfo& info);
+
+    void pushFuncParams(const std::string& fName);
+    void popFuncParams(const std::string& fName);
 
     size_t newVarId();
-
+    void checkFunction(std::string fName);
     void procBinNode(const NodeInfo &a, const NodeInfo &b, mathvm::TokenKind op, mathvm::VarType& resType);
     void putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl);
 public:
-    CodeVisitor();
-    void  translate(mathvm::AstNode* node) { node->visit(this); cCode().addByte(mathvm::BC_STOP); }
-    const mathvm::Code& getCode() const { return code; }
-    const MyCode& getMyCode()     const { return code; }
+    CodeVisitor(mathvm::BlockNode* top);
+    void  translate();
+    MyCode& getCode() { return code; }
 
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(mathvm::type* node);
@@ -63,4 +78,16 @@ public:
 #undef VISITOR_FUNCTION
 };
 
+class TranslationException : public std::exception {
+    std::string error;
+public:
+    TranslationException(const std::string& err)
+        :   error(err) 
+        {}
+    virtual const char* what() {
+        return error.c_str();
+    }
+
+    virtual ~TranslationException() throw() {}
+};
 
