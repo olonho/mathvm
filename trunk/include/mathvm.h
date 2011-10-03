@@ -357,8 +357,7 @@ public:
     _function(function), _id(0) {
     }
 
-    virtual ~TranslatedFunction() {
-    }
+    virtual ~TranslatedFunction();
 
     const string& name() const;
     VarType returnType() const;

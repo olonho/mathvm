@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
     }
     delete translateStatus;
     delete translator;
+    delete [] expr;
 
     return 0;
 }
