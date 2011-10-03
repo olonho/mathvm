@@ -5,10 +5,10 @@ USER_CFLAGS = -ggdb3
 
 include $(VM_ROOT)/common.mk
 
-all: $(OUT) $(BIN)/gen_code
+all: $(OUT) $(BIN)/main
 
-DEPS = $(MATHVM_OBJ) parse.h CodeVisitor.h $(OBJ)/CodeVisitor.o MyCode.h $(OBJ)/MyCode.o
+DEPS = $(MATHVM_OBJ) parse.h CodeVisitor.h $(OBJ)/CodeVisitor.o MyCode.h $(OBJ)/MyCode.o MyTranslator.h
 
-$(BIN)/gen_code: $(DEPS) $(OBJ)/gen_code.o
-	$(CXX) $(USER_FLAGS) -o $@ $(MATHVM_OBJ) $(THREAD_LIB) $(OBJ)/gen_code.o $(OBJ)/CodeVisitor.o $(OBJ)/MyCode.o
+$(BIN)/main: $(DEPS) $(OBJ)/main.o
+	$(CXX) $(USER_FLAGS) -o $@ $(MATHVM_OBJ) $(THREAD_LIB) $(OBJ)/main.o $(OBJ)/CodeVisitor.o $(OBJ)/MyCode.o
 

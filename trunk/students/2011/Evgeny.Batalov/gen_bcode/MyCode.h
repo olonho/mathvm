@@ -4,13 +4,12 @@
 #include <vector>
 
 class MyCode: public mathvm::Code {
-    mathvm::Bytecode bytecode;
     std::vector<uint16_t> functionIds;
 public:
     MyCode();
     virtual mathvm::Status* execute(std::vector<mathvm::Var*> vars);
-    const mathvm::Bytecode& getBytecode() const { return bytecode; }
-    mathvm::Bytecode& getBytecode() { return bytecode; }
     void addFunctionId(uint16_t id) { functionIds.push_back(id); }
+    uint16_t funcIdByIndex(size_t idx) { return functionIds[idx]; }
+    size_t funcCount() { return functionIds.size(); }
     void dump() const;
 };

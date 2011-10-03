@@ -1,7 +1,7 @@
 #!/bin/bash
 make
 
-VM=./build/bin/gen_code
+VM=./build/bin/main
 SRCS=../../../../tests
 
 for src in $SRCS/*.mvm 

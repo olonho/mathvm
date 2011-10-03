@@ -1,34 +1,65 @@
 #include "CodeVisitor.h"
 
-CodeVisitor::CodeVisitor() {
-    curBytecode = &code.getBytecode();
-    //code.addFunction(new mathvm::TranslatedFunction((mathvm::AstFunction*)0));
+CodeVisitor::CodeVisitor(mathvm::BlockNode* top) {
+    using namespace mathvm;
+    //it is better to make this then trying to avoid asserts
+    //and write stange code
+    code.addFunction(new TranslatedFunction(new AstFunction(0, 0)));
+
+    std::vector<std::pair<VarType, std::string> > signature;
+    signature.push_back(std::pair<VarType, std::string>(VT_VOID, "return"));
+
+    topFuncNode = new FunctionNode(0, AstFunction::top_name, signature, top);
+    //AstFunction* astFunc = new AstFunction(0, top->scope());
+    //BytecodeFunction *bcFunction = new BytecodeFunction(astFunc);
+    //uint16_t id = code.addFunction(bcFunction);
+    //code.addFunctionId(id);
+    //curBytecode = bcFunction->bytecode();
+    curBlock = top;
+}
+
+void CodeVisitor::translate() { 
+    using namespace mathvm;
+    topFuncNode->visit(this);
+
+    if (code.funcCount() > 0) {
+        BytecodeFunction* topFunc = 
+            dynamic_cast<BytecodeFunction*>(code.functionById(code.funcIdByIndex(0)));
+        topFunc->bytecode()->addByte(mathvm::BC_STOP);
+    }
 }
 
 void CodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {    
     using namespace mathvm;
-    Label lazyLabel(&cCode());
-    node->left()->visit(this);
-    putLazyLogic(node->kind(), lazyLabel);
-    node->right()->visit(this);
-    cCode().bind(lazyLabel);
-    //determine type
-    NodeInfo& n = saveNodeInfo(node, mathvm::VT_INVALID);
-    NodeInfo& nl = loadNodeInfo(node->left());
-    NodeInfo& nr = loadNodeInfo(node->right());
-    mathvm::VarType resType;
+    VarType resType;
+    
+    if (node->kind() == tOR || node->kind() == tAND) {
+        Label lazyLabel(&cCode());
+        node->left()->visit(this);
+        putLazyLogic(node->kind(), lazyLabel);
+        node->right()->visit(this);
+        cCode().bind(lazyLabel);
+    } else {
+        //TOS: left, right
+        node->right()->visit(this);
+        node->left()->visit(this);
+    }
+    
+    NodeInfo& nl = getNodeInfo(node->left());
+    NodeInfo& nr = getNodeInfo(node->right());
     
     procBinNode(nl, nr, node->kind(), resType);
-    n.type = resType;
+    setNodeInfo(node, resType);
 }
 
 void CodeVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
     using namespace mathvm;
+    VarType resType;
     node->operand()->visit(this);
-    NodeInfo& n = saveNodeInfo(node, mathvm::VT_INVALID);
-    NodeInfo& nop = loadNodeInfo(node->operand());
-    if (nop.type == mathvm::VT_INT && node->kind() == mathvm::tNOT) {
-        n.type = mathvm::VT_INT;
+
+    NodeInfo& nop = getNodeInfo(node->operand());
+    if (nop.type == VT_INT && node->kind() == tNOT) {
+        resType = VT_INT;        
         Label lblFalse(&cCode()); //addres where result of negation will be false
         Label lblTrue (&cCode()); //addres where result of negation will be true
         cCode().addByte(BC_ILOAD0);
@@ -38,15 +69,16 @@ void CodeVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
         cCode().bind(lblFalse);
         cCode().addByte(BC_ILOAD0);
         cCode().bind(lblTrue);
-    } else if (nop.type == mathvm::VT_INT && node->kind() == mathvm::tSUB) {
-        n.type = mathvm::VT_INT;
+    } else if (nop.type == VT_INT && node->kind() == tSUB) {
+        resType = VT_INT;
         cCode().addByte(BC_INEG);
-    } else if (nop.type == mathvm::VT_DOUBLE && node->kind() == mathvm::tSUB) {
-        n.type = mathvm::VT_DOUBLE;
+    } else if (nop.type == VT_DOUBLE && node->kind() == tSUB) {
+        resType = VT_DOUBLE;
         cCode().addByte(BC_DNEG);
     } else {
         transError("Unary operation: " + std::string(tokenOp(node->kind())));
     }    
+    setNodeInfo(node, resType);
 }
 
 void CodeVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {    
@@ -61,58 +93,57 @@ void CodeVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
     uint16_t newId = code.makeStringConstant(s);
     cCode().addByte(BC_SLOAD);
     cCode().addUInt16(newId);
-    saveNodeInfo(node, mathvm::VT_STRING, (size_t)newId, CodeVisitor::NT_SCONST);
+    setNodeInfo(node, VT_STRING);
 }
 
 void CodeVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
     using namespace mathvm;
     cCode().addByte(BC_DLOAD);
     cCode().addDouble(node->literal());
-    saveNodeInfo(node, mathvm::VT_DOUBLE);
+    setNodeInfo(node, VT_DOUBLE);
 }
 
 void CodeVisitor::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
     using namespace mathvm;
     cCode().addByte(BC_ILOAD);
     cCode().addInt64(node->literal());
-    saveNodeInfo(node, mathvm::VT_INT);
+    setNodeInfo(node, VT_INT);
 }
 
 void CodeVisitor::visitLoadNode(mathvm::LoadNode* node) {
-    using namespace mathvm;
-    NodeInfo& var = loadNodeInfo(node->var());
-    saveNodeInfo(node, var.type);
+    using namespace mathvm;    
+    VarInfo& var = getVarInfo(node->var()->name());
+    setNodeInfo(node, var.type);
+
     switch(var.type) {
-        case mathvm::VT_INT:
+        case VT_INT:
             cCode().addByte(BC_LOADIVAR);
             cCode().addByte((uint8_t)var.id);
             break;
-        case mathvm::VT_DOUBLE:
+        case VT_DOUBLE:
             cCode().addByte(BC_LOADDVAR);
             cCode().addByte((uint8_t)var.id);
             break;
-        case mathvm::VT_STRING:
+        case VT_STRING:
             cCode().addByte(BC_LOADSVAR);
             cCode().addByte((uint8_t)var.id);
             break;
         default:
-           transError("Loading variable " + node->var()->name() +
-                      " which type is invalid");
+           transError("Loading variable " + node->var()->name() + " which type is invalid");
     }
 }
 
 void CodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
-    using namespace mathvm;
-    
-    node->value()->visit(this);
-    
-    NodeInfo& val = loadNodeInfo(node->value());
-    NodeInfo& var = loadNodeInfo(node->var());
-    saveNodeInfo(node, var.type);
+    using namespace mathvm;    
+    setNodeInfo(node, VT_VOID);
+
+    node->value()->visit(this);    
+    NodeInfo& val = getNodeInfo(node->value());
+    VarInfo& var = getVarInfo(node->var()->name());
 
     if (val.type != var.type && 
-        var.type != mathvm::VT_DOUBLE &&
-        val.type != mathvm::VT_INT) {
+        var.type != VT_DOUBLE &&
+        val.type != VT_INT) {
         transError(std::string("store op: types are not equal and not a conversion") +
                    "from int to double. Var: " + node->var()->name());
     }
@@ -123,16 +154,16 @@ void CodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
 
     //now var.type == val.type (on stack)
     switch(node->op()) {
-        case mathvm::tASSIGN:
-            if (var.type == mathvm::VT_INT) {
+        case tASSIGN:
+            if (var.type == VT_INT) {
                 cCode().addByte(BC_STOREIVAR); 
                 cCode().addByte((uint8_t)var.id);
             }
-            else if (var.type == mathvm::VT_DOUBLE) {
+            else if (var.type == VT_DOUBLE) {
                 cCode().addByte(BC_STOREDVAR); 
                 cCode().addByte((uint8_t)var.id);
             }
-            else if (var.type == mathvm::VT_STRING) {
+            else if (var.type == VT_STRING) {
                 cCode().addByte(BC_STORESVAR);
                 cCode().addByte((uint8_t)var.id);
             }
@@ -140,15 +171,15 @@ void CodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
                 transError("Assigning to invalid type");
             }
             break;
-        case mathvm::tINCRSET:
-            if (var.type == mathvm::VT_INT) {
+        case tINCRSET:
+            if (var.type == VT_INT) {
                 cCode().addByte(BC_LOADIVAR); 
                 cCode().addByte((uint8_t)var.id);
                 cCode().addByte(BC_IADD);
                 cCode().addByte(BC_STOREIVAR);
                 cCode().addByte((uint8_t)var.id);
             }
-            else if (var.type == mathvm::VT_DOUBLE) {
+            else if (var.type == VT_DOUBLE) {
                 cCode().addByte(BC_LOADDVAR); 
                 cCode().addByte((uint8_t)var.id);
                 cCode().addByte(BC_DADD);
@@ -159,19 +190,17 @@ void CodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
                 transError("+= to invalid type");
             }
             break;
-        case mathvm::tDECRSET:
-             if (var.type == mathvm::VT_INT) {
+        case tDECRSET:
+             if (var.type == VT_INT) {
                 cCode().addByte(BC_LOADIVAR); 
                 cCode().addByte((uint8_t)var.id);
-                cCode().addByte(BC_SWAP);
                 cCode().addByte(BC_ISUB);
                 cCode().addByte(BC_STOREIVAR);
                 cCode().addByte((uint8_t)var.id);
             }
-            else if (var.type == mathvm::VT_DOUBLE) {
+            else if (var.type == VT_DOUBLE) {
                 cCode().addByte(BC_LOADDVAR); 
                 cCode().addByte((uint8_t)var.id);
-                cCode().addByte(BC_SWAP);
                 cCode().addByte(BC_DSUB);
                 cCode().addByte(BC_STOREDVAR);
                 cCode().addByte((uint8_t)var.id);
@@ -181,21 +210,28 @@ void CodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
             }
             break;
         default:
-            transError();
+            transError("only =, +=, -= are permitted");
     }
 }
 
 void CodeVisitor::visitForNode(mathvm::ForNode* node) {
-    using namespace mathvm;
+    using namespace mathvm;    
+    BinaryOpNode* op = dynamic_cast<BinaryOpNode*>(node->inExpr());
+    if (!op)
+        transError("for node needs binary operation to evaluate");
+    if (op->kind() != tRANGE)
+        transError("for node needs range ... operation to evaluate");
+
+    setNodeInfo(node, VT_VOID);
     
     Label lblLoopCheck(&cCode());
     Label lblEnd(&cCode());
     
-    NodeInfo& nvar = loadNodeInfo(node->var());
+    VarInfo& var = getVarInfo(node->var()->name());
     //TOS: min, max
     node->inExpr()->visit(this);
     cCode().addByte(BC_STOREIVAR);
-    cCode().addByte((uint8_t)nvar.id);
+    cCode().addByte((uint8_t)var.id);
     cCode().addByte(BC_POP);
     
     cCode().bind(lblLoopCheck);
@@ -203,22 +239,22 @@ void CodeVisitor::visitForNode(mathvm::ForNode* node) {
     //TOS: min. max
     cCode().addByte(BC_POP);
     cCode().addByte(BC_LOADIVAR);
-    cCode().addByte((uint8_t)nvar.id);
+    cCode().addByte((uint8_t)var.id);
     cCode().addBranch(BC_IFICMPG, lblEnd);  
     node->body()->visit(this);
     cCode().addByte(BC_LOADIVAR);
-    cCode().addByte((uint8_t)nvar.id);
+    cCode().addByte((uint8_t)var.id);
     cCode().addByte(BC_ILOAD1);
     cCode().addByte(BC_IADD);
     cCode().addByte(BC_STOREIVAR);
-    cCode().addByte((uint8_t)nvar.id);
+    cCode().addByte((uint8_t)var.id);
     cCode().addBranch(BC_JA, lblLoopCheck);
     cCode().bind(lblEnd);
-
 }
 
 void CodeVisitor::visitWhileNode(mathvm::WhileNode* node) {
     using namespace mathvm;
+    setNodeInfo(node, VT_VOID);
 
     Label lblWhile(&cCode());
     Label lblEnd(&cCode());
@@ -232,8 +268,7 @@ void CodeVisitor::visitWhileNode(mathvm::WhileNode* node) {
 }
 
 void CodeVisitor::visitIfNode(mathvm::IfNode* node) {
-    using namespace mathvm;
-    
+    using namespace mathvm;    
     Label lblElse(&cCode());
     node->ifExpr()->visit(this);
     cCode().addByte(BC_ILOAD0);
@@ -247,21 +282,17 @@ void CodeVisitor::visitIfNode(mathvm::IfNode* node) {
 
 void CodeVisitor::visitBlockNode(mathvm::BlockNode* node) {
     using namespace mathvm;
-    BlockNode *parentBlock = &cBlock();
+    BlockNode* parentBlock = &cBlock();
     curBlock = node;
     mathvm::Scope::VarIterator it(node->scope());
+
     while(it.hasNext()) {
         mathvm::AstVar* curr = it.next();
-        saveNodeInfo(curr, curr->type(), newVarId(), CodeVisitor::NT_VAR);
-    }
-    
+        setVarInfo(curr->name(), newVarId(), curr->type());
+    }    
     mathvm::Scope::FunctionIterator fit(node->scope());
     while(fit.hasNext()) {
-        //fit.next()->function()->visit(this);
-        //FIXME:no method function - use HACK
-        size_t* ptr1 = (size_t*)fit.next();
-        FunctionNode* ptr2 = (FunctionNode*)(*ptr1);
-        ptr2->visit(this);
+        fit.next()->node()->visit(this);
     }
 
     node->visitChildren(this);
@@ -270,16 +301,19 @@ void CodeVisitor::visitBlockNode(mathvm::BlockNode* node) {
 
 void CodeVisitor::visitCallNode(mathvm::CallNode* node) {
     using namespace mathvm;
-    curFuncName = node->name();
+    checkFunction(node->name());
     TranslatedFunction *f = code.functionByName(node->name());
-    saveNodeInfo(node, f->returnType(), 0, NT_OTHER);
+    setNodeInfo(node, f->returnType());
     
     for (uint32_t i = 0; i < node->parametersNumber(); i++) {
+        
         node->parameterAt(i)->visit(this);
-        NodeInfo& nparValue = loadNodeInfo(node->parameterAt(i));
+        NodeInfo& nparValue = getNodeInfo(node->parameterAt(i));
+        
         if (f->parameterType(i) != nparValue.type) {
             transError("Incompatible types of incoming parameters for " + f->name() + " function");
         }
+
         switch(f->parameterType(i)) {
             case VT_INT:
                 cCode().addByte(BC_STOREIVAR);
@@ -293,50 +327,55 @@ void CodeVisitor::visitCallNode(mathvm::CallNode* node) {
             default:
                 transError("passing parameter with uknown type to function " + f->name());
         }
-        cCode().addByte(loadParameterInfo(node->name(), i).id);
+        cCode().addByte(getParamInfo(node->name(), i).id);
     }
     cCode().addByte(BC_CALL);
     cCode().addUInt16(f->id());
-    curFuncName = "";
 }
 
 void CodeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
     using namespace mathvm;
-
-    Bytecode* parentBytecode = &cCode();
+    
     AstFunction *astFunc = new AstFunction(node, cBlock().scope());
     BytecodeFunction *func = new BytecodeFunction(astFunc);
     code.addFunction(func);
-    code.addFunctionId(func->id()); 
-    curBytecode = func->bytecode();
+    code.addFunctionId(func->id());
+    funcParams[astFunc->name()]; //add func to params
+
     for(uint32_t i = 0; i < func->parametersNumber(); ++i) {
-        NodeInfo npar;
-        npar.id = newVarId();
-        npar.type = func->parameterType(i);
-        npar.index = i;
-        npar.nodeType = NT_VAR;
-        saveParameterInfo(astFunc->name(), astFunc->parameterName(i), npar);
+        ParamInfo par;
+        par.id = newVarId();
+        par.type = func->parameterType(i);
+        par.index = i;
+        par.name = astFunc->parameterName(i);
+        setParamInfo(astFunc->name(), par);
     }
-    curFuncName = astFunc->name();
+
+    Bytecode* parentBytecode = &cCode();
+    curBytecode = func->bytecode();
+    pushFuncParams(astFunc->name());
+
     node->body()->visit(this);
+    
+    popFuncParams(astFunc->name());
     curBytecode = parentBytecode;
-    curFuncName = "";
 }
 
 void CodeVisitor::visitReturnNode(mathvm::ReturnNode* node) {
     using namespace mathvm;
-    
+    setNodeInfo(node, VT_VOID);
+
     node->returnExpr()->visit(this);
-    saveNodeInfo(node, VT_VOID);
     cCode().addByte(BC_RETURN);
 }
 
 void CodeVisitor::visitPrintNode(mathvm::PrintNode* node) {
     using namespace mathvm;
-    saveNodeInfo(node, mathvm::VT_INVALID);
+    setNodeInfo(node, VT_VOID);
+
     for (uint32_t i = 0; i < node->operands(); ++i) {
         node->operandAt(i)->visit(this);
-        NodeInfo& nop = loadNodeInfo(node->operandAt(i));
+        NodeInfo& nop = getNodeInfo(node->operandAt(i));
         switch (nop.type) {
             case VT_INT:
                 cCode().addByte(BC_IPRINT);
@@ -362,50 +401,113 @@ size_t CodeVisitor::newVarId() {
     return counter++;
 }
 
-CodeVisitor::NodeInfo& CodeVisitor::saveNodeInfo(const void* node, mathvm::VarType type, 
-                                                 size_t id, CodeVisitor::NodeType nodeType) {
-    NodeInfo& n = nodeInfoMap[node];
-    n.id = id;
+void CodeVisitor::setNodeInfo(mathvm::AstNode* node, mathvm::VarType type) {
+    NodeInfo& n = nodeInfo[node];
     n.type = type;
-    n.nodeType = nodeType;
-    return n;
 }
 
-CodeVisitor::NodeInfo& CodeVisitor::loadNodeInfo(const void* node) {
-        
-    if (nodeInfoMap.find(node) == nodeInfoMap.end()) {
-        //transError("node info not found");
-        mathvm::AstVar* var = (mathvm::AstVar*)node;
-        return loadParameterInfo(curFuncName, var->name()); 
+CodeVisitor::NodeInfo& CodeVisitor::getNodeInfo(mathvm::AstNode* node) {
+    NodeInfoMap::iterator it = nodeInfo.find(node);
+    if (it != nodeInfo.end()) {
+        return it->second;
     }
-    NodeInfo& n = nodeInfoMap.find(node)->second;
-    return n;
-}
-
-CodeVisitor::NodeInfo& CodeVisitor::loadParameterInfo(const std::string& fName, const std::string& pName) {
-    return funcVars[fName][pName];
-}
-
-CodeVisitor::NodeInfo& CodeVisitor::loadParameterInfo(const std::string& fName, size_t pName) {
-    ParameterNameInfoMap& m = funcVars[fName];
-    for(ParameterNameInfoMap::iterator it = m.begin(); it != m.end(); ++it) {
-        if (it->second.index == pName)
-            return it->second;
-    }
-    transError("parameter for function " + fName  +  " not found");
+    transError("NodeInfo for AstNode not found");
     return *(NodeInfo*)0;
 }
 
-CodeVisitor::NodeInfo& CodeVisitor::saveParameterInfo(const std::string& fName, const std::string& pName, 
-                                                      const NodeInfo& info) {
-    return funcVars[fName][pName] = info;
+void CodeVisitor::setVarInfo(std::string name, size_t id, mathvm::VarType type) {
+    VarInfo var;
+    var.name = name;
+    var.id = id;
+    var.type = type;
+
+    VarDefs& vd = varInfo[var.name];
+    VarDefs::iterator it = vd.begin();
+    for(;it != vd.end(); ++it) {
+        if (it->id == id) {
+            *it = var;
+            return;
+        }
+    }
+    vd.push_back(var);
+}
+
+CodeVisitor::VarInfo& CodeVisitor::getVarInfo(std::string name) {
+    VarInfoMap::iterator it = varInfo.find(name);
+    if (it != varInfo.end()) {
+        return it->second.back();
+    }
+    transError("variable " + name  +  " is undeclared");
+    return *(VarInfo*)0;
+}
+
+
+void CodeVisitor::checkFunction(std::string fName) {
+    FuncParamsMap::const_iterator f = funcParams.find(fName);
+    if (f == funcParams.end())
+        transError("function " + fName + " is undefined");
+}
+
+void CodeVisitor::pushFuncParams(const std::string& fName) {
+    checkFunction(fName);
+    FuncParams& fParams = funcParams[fName];
+    FuncParams::iterator it = fParams.begin();
+    for(; it != fParams.end(); ++it) {
+        VarInfo v;
+        v.name = it->second.name;
+        v.id = it->second.id;
+        v.type = it->second.type;
+        varInfo[v.name].push_back(v);
+    }
+}
+void CodeVisitor::popFuncParams(const std::string& fName) {
+    checkFunction(fName);
+    FuncParams& fParams = funcParams[fName];
+    FuncParams::iterator it = fParams.begin();
+    for(; it != fParams.end(); ++it) {
+        varInfo[it->second.name].pop_back();
+    }
+}
+
+
+CodeVisitor::ParamInfo& CodeVisitor::getParamInfo(const std::string& fName, size_t index) {
+    checkFunction(fName);
+    FuncParams& f = funcParams[fName];
+   
+    for(FuncParams::iterator it = f.begin(); it != f.end(); ++it) {
+        if (it->second.index == index) {
+            return it->second;
+        }
+    }
+    
+    transError("parameter for function " + fName  +  " not found");
+    return *(ParamInfo*)0;
+}
+
+CodeVisitor::ParamInfo& CodeVisitor::getParamInfo(const std::string& fName, const std::string& pName) {
+    checkFunction(fName);
+    FuncParams& f = funcParams[fName];
+    FuncParams::iterator p = f.find(pName);
+    if (p != f.end()) {
+        return p->second;
+    }
+
+    transError("parameter " + pName  +  " for function " + fName  +  " not found");
+    return *(ParamInfo*)0;
+}
+
+void CodeVisitor::setParamInfo(const std::string& fName, CodeVisitor::ParamInfo& info) {
+    checkFunction(fName);
+    FuncParams& f = funcParams[fName];
+    f[info.name] = info;
 }
 
 void CodeVisitor::transError(std::string str) { 
     cCode().addByte(mathvm::BC_INVALID);
     cCode().dump();
-    std::cout << "Error in translation (" << str << ")" << std::endl;   
-    exit(-1); 
+    throw TranslationException("Error during translation: " + str + "\n");
+    //std::cerr << "Error during translation (" << str << ")" << std::endl;   
+    //exit(-1); 
 }
 
 void CodeVisitor::putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl) {
@@ -430,9 +532,8 @@ void CodeVisitor::putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl) {
 }
 
 void  CodeVisitor::procBinNode(const CodeVisitor::NodeInfo &a, const CodeVisitor::NodeInfo &b, 
-                                  mathvm::TokenKind op, mathvm::VarType& resType) {
+                               mathvm::TokenKind op, mathvm::VarType& resType) {
     using namespace mathvm;
-    
     //Type conversion on TOS from int to double
     //Type checking for op is performed lately
     if (a.type != b.type && a.type != VT_STRING && b.type != VT_STRING) {
@@ -495,15 +596,15 @@ void  CodeVisitor::procBinNode(const CodeVisitor::NodeInfo &a, const CodeVisitor
             case tLE:
                 if (op == tEQ)
                     cCode().addBranch(BC_IFICMPE, lblTrue);
-                if (op == tNEQ)
+                else if (op == tNEQ)
                     cCode().addBranch(BC_IFICMPNE, lblTrue);
-                if (op == tGT)
+                else if (op == tGT)
                     cCode().addBranch(BC_IFICMPG, lblTrue);
-                if (op == tLT)
+                else if (op == tLT)
                     cCode().addBranch(BC_IFICMPL, lblTrue);
-                if (op == tGE)
+                else if (op == tGE)
                     cCode().addBranch(BC_IFICMPGE, lblTrue);
-                if (op == tLE)
+                else if (op == tLE)
                     cCode().addBranch(BC_IFICMPLE, lblTrue);
                 cCode().addByte(BC_ILOAD0);
                 cCode().addBranch(BC_JA, lblFalse);
@@ -512,8 +613,7 @@ void  CodeVisitor::procBinNode(const CodeVisitor::NodeInfo &a, const CodeVisitor
                 cCode().bind(lblFalse);
                 break;
             case tRANGE:
-                //change order from max,min to min,max
-                cCode().addByte(BC_SWAP);
+                //left on TOS and then right yet
                 break;
             default:
                 transError(std::string("operation ") + tokenOp(op) + " on int and int is not permitted");
@@ -541,20 +641,21 @@ void  CodeVisitor::procBinNode(const CodeVisitor::NodeInfo &a, const CodeVisitor
             case tLT:
             case tGE:
             case tLE:
+                //pseudocode says that DCMP returns -1 if left > right and 1 if left < right
                 cCode().addByte(BC_DCMP);
                 cCode().addByte(BC_ILOAD0);
                 if (op == tEQ)
                     cCode().addBranch(BC_IFICMPE, lblTrue);
-                if (op == tNEQ)
+                else if (op == tNEQ)
                     cCode().addBranch(BC_IFICMPNE, lblTrue);
-                if (op == tGT)
-                    cCode().addBranch(BC_IFICMPG, lblTrue);
-                if (op == tLT)
+                else if (op == tGT)
                     cCode().addBranch(BC_IFICMPL, lblTrue);
-                if (op == tGE)
-                    cCode().addBranch(BC_IFICMPGE, lblTrue);
-                if (op == tLE)
+                else if (op == tLT)
+                    cCode().addBranch(BC_IFICMPG, lblTrue);
+                else if (op == tGE)
                     cCode().addBranch(BC_IFICMPLE, lblTrue);
+                else if (op == tLE)
+                    cCode().addBranch(BC_IFICMPGE, lblTrue);
                 
                 cCode().addByte(BC_ILOAD0);
                 cCode().addBranch(BC_JA, lblFalse);
