@@ -7,15 +7,18 @@ using namespace std;
 
 void PrintVisitor::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 {
+	cout << "(";
 	node->left()->visit(this);
 	cout << " " << tokenOp(node->kind()) << " ";
-	node->right()->visit(this);	
+	node->right()->visit(this);
+	cout << ")";
 }
 
 void PrintVisitor::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 {
-	cout << tokenOp(node->kind()) << " ";
+	cout << tokenOp(node->kind()) << "(";
 	node->visitChildren(this);
+	cout << ")";
 }
 
 void PrintVisitor::visitStringLiteralNode( mathvm::StringLiteralNode* node )
