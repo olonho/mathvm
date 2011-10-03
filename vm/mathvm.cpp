@@ -34,11 +34,9 @@ static const char* bcName(Instruction insn, size_t& length) {
         FOR_BYTECODES(BC_NAME)
     };
 
-    for (size_t i = 0; names[i].insn != BC_LAST; i++) {
-        if (insn == names[i].insn) {
-            length = names[i].length;
-            return names[i].name;
-        }
+    if (insn >= BC_INVALID && insn < BC_LAST) {
+        length = names[insn].length;
+        return names[insn].name;
     }
 
     assert(false);
@@ -48,7 +46,41 @@ static const char* bcName(Instruction insn, size_t& length) {
 void Bytecode::dump() const {
     for (size_t bci = 0; bci < length();) {
         size_t length;
-        cout << bci << ": " << bcName(getInsn(bci), length) << endl;
+        Instruction insn = getInsn(bci);
+        cout << bci << ": ";
+        const char* name = bcName(insn, length);
+        switch (insn) {
+            case BC_DLOAD:
+                cout << name << " " << getDouble(bci + 1);
+                break;
+            case BC_ILOAD:
+                cout << name << " " << getInt64(bci + 1);
+                break;
+            case BC_SLOAD:
+                cout << name << " @" << getInt16(bci + 1);
+                break;
+            case BC_CALL:
+            case BC_LOADDVAR:
+            case BC_STOREDVAR:
+            case BC_LOADIVAR:
+            case BC_STOREIVAR:
+            case BC_LOADSVAR:
+            case BC_STORESVAR:
+                cout << name << " @" << getInt16(bci + 1);
+                break;
+            case BC_IFICMPNE:
+            case BC_IFICMPE:
+            case BC_IFICMPG:
+            case BC_IFICMPGE:
+            case BC_IFICMPL:
+            case BC_IFICMPLE:
+            case BC_JA:
+              cout << name << " " << getInt16(bci + 1) + bci + 1;
+              break;
+          default:
+                cout << name;
+        }
+        cout << endl;
         bci += length;
     }
 }
