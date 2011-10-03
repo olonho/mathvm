@@ -181,6 +181,12 @@ const string& Code::constantById(uint16_t id) const {
 }
 
 
+TranslatedFunction::~TranslatedFunction() {
+  if (_function) {
+    delete _function;
+  }
+}
+
 const string& TranslatedFunction::name() const {
     return _function->name();
 }
