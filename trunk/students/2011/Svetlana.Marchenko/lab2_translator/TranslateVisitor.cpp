@@ -3,21 +3,22 @@
  using namespace mathvm;
  
  void TranslateVisitor::visitBlockNode(mathvm::BlockNode* node) {
-	 Scope blockScope = node->scope();
+	 Scope* blockScope = node->scope();
 	 Scope::VarIterator varIt(blockScope);
-	 for (; varIt.hasNext(); varIt.next()) {
-		 _varTable.addVar(varIt->name());
-	 }
+   while (varIt.hasNext()) {
+     AstVar* astVar = varIt.next();
+     _varTable.addVar(astVar->name());
+   }
 	 node->visitChildren(this);
  }
  
  void TranslateVisitor::visitIfNode(mathvm::IfNode* node) {
-	 Label thenLabel;
-	 Label endLabel;
+	 Label thenLabel(&_byteCode);
+	 Label endLabel(&_byteCode);
 	 
 	 node->ifExpr()->visit(this);
 	 _byteCode.addInsn(BC_ILOAD1);
-	 _byteCode.addBranch(BC_IFCMPE, thenLabel);
+	 _byteCode.addBranch(BC_IFICMPE, thenLabel);
 	 
 	 if (node->elseBlock() != NULL) {
 		 node->elseBlock()->visit(this);
@@ -31,21 +32,22 @@
  }
  
  void TranslateVisitor::visitWhileNode(mathvm::WhileNode* node) {
-	 Label endLabel;
-	 Label loopLabel;
+	 Label endLabel(&_byteCode);
+	 Label loopLabel(&_byteCode);
 	 
 	 _byteCode.bind(loopLabel);
 	 node->whileExpr()->visit(this);
 	 _byteCode.addInsn(BC_ILOAD0);
 	 _byteCode.addBranch(BC_IFICMPE, endLabel);
 	 node->loopBlock()->visit(this);
-	 _byteCode.addInsn(BC_JA, loopLabel);
+	 _byteCode.addBranch(BC_JA, loopLabel);
 	 _byteCode.bind(endLabel);
  }
  
   void TranslateVisitor::visitLoadNode(mathvm::LoadNode* node) {
 	  VarType type = node->var()->type();
 	  int varId = _varTable.getIdByName(node->var()->name());
+    _operandType = type;
 	  switch (type) {
 		  case VT_INVALID:
 		    _byteCode.addInsn(BC_INVALID);
@@ -66,36 +68,39 @@
   void TranslateVisitor::visitStoreNode(mathvm::StoreNode* node) {
 	  VarType varType = node->var()->type();
 	  TokenKind tokenKind = node->op();
-	  AstNode* valueNode = node->value;
+	  AstNode* valueNode = node->value();
 	  int varId = _varTable.getIdByName(node->var()->name());
 	  
 	  switch (varType) {
 		  case VT_STRING:
-			if ((valueNode->isStringLiteralNode()) 
+        valueNode->visit(this);
+			  if ((_operandType == VT_STRING) 
 					&& (tokenKind == tASSIGN)) {
-				valueNode->visit(this);
+				
 				_byteCode.addInsn(BC_STORESVAR);
 				_byteCode.addByte((uint8_t)varId);
 			} else {
 				_byteCode.addInsn(BC_INVALID);
 			}
 		    break;
-		  case VT_INT: 
-			if (valueNode->isIntLiteralNode() || valueNode->isDoubleLiteralNode()) {
-				valueNode->visit(this);
+		  case VT_INT:
+        valueNode->visit(this);
+			  if (_operandType==VT_INT || _operandType==VT_DOUBLE) {
+				
 				if (valueNode->isDoubleLiteralNode())
 					_byteCode.addInsn(BC_D2I);
 				switch (tokenKind) {
 					case tASSIGN:
 						break;
 					case tINCRSET:
-						_byteCode.addInst(BC_LOADIVAR);
+						_byteCode.addInsn(BC_LOADIVAR);
 						_byteCode.addByte((uint8_t)varId);
 						_byteCode.addInsn(BC_IADD);
 						break;
 					case tDECRSET:
-						_byteCode.addInst(BC_LOADIVAR);
+						_byteCode.addInsn(BC_LOADIVAR);
 						_byteCode.addByte((uint8_t)varId);
+            _byteCode.addInsn(BC_SWAP);
 						_byteCode.addInsn(BC_ISUB);
 						break;
 				}
@@ -106,20 +111,21 @@
 			}
 			break;
 		  case VT_DOUBLE:
-			if (valueNode->isDoubleLiteralNode() || valueNode->isIntLiteralNode()) {
-				valueNode->visit(this);
+        valueNode->visit(this);
+			  if (_operandType == VT_DOUBLE || _operandType == VT_INT) {
+				
 				if (valueNode->isIntLiteralNode())
 					_byteCode.addInsn(BC_I2D);
 				switch (tokenKind) {
 					case tASSIGN:
 						break;
 					case tINCRSET:
-						_byteCode.addInst(BC_LOADDVAR);
+						_byteCode.addInsn(BC_LOADDVAR);
 						_byteCode.addByte((uint8_t)varId);
 						_byteCode.addInsn(BC_DADD);
 						break;
 					case tDECRSET:
-						_byteCode.addInst(BC_LOADDVAR);
+						_byteCode.addInsn(BC_LOADDVAR);
 						_byteCode.addByte((uint8_t)varId);
 						_byteCode.addInsn(BC_DSUB);
 						break;
@@ -146,9 +152,9 @@
 				break;
 			  case tNOT:
 				if (isInt) {
-					Label thenLabel;
-					Label endLabel;
-					node->visitChildren();
+					Label thenLabel(&_byteCode);
+					Label endLabel(&_byteCode);
+					node->visitChildren(this);
 					_byteCode.addInsn(BC_ILOAD0);
 					_byteCode.addBranch(BC_IFICMPE, thenLabel);
 					_byteCode.addInsn(BC_ILOAD1);
@@ -170,13 +176,13 @@
 	 TokenKind opKind = node->kind();
 	 VarType leftType;
 	 VarType rightType;
-	 Label returnTrueLabel;
-	 Label returnFalseLabel;
-	 Label endLabel;
+	 Label returnTrueLabel(&_byteCode);
+	 Label returnFalseLabel(&_byteCode);
+	 Label endLabel(&_byteCode);
 	 
 	 node->left()->visit(this);
 	 leftType = _operandType;
-	 if (leftType == VT_INVALID || leftType == VT_STRING) {
+   if (leftType == VT_INVALID || leftType == VT_STRING) {
 		_byteCode.addInsn(BC_INVALID);
 		_byteCode.addBranch(BC_JA, endLabel);
 	 }
@@ -219,50 +225,60 @@
 		switch (opKind) {
 			case tEQ:
 				_byteCode.addInsn(BC_ILOAD0);
-				_byteCode.addInsn(BC_IFICMPE, returnTrueLabel);
+				_byteCode.addBranch(BC_IFICMPE, returnTrueLabel);
 				break;
 			case tNEQ:
 				_byteCode.addInsn(BC_ILOAD0);
-				_byteCode.addInsn(BC_IFICMPNE, returnTrueLabel);
-				break;
-			case tGT:
-				_byteCode.addInsn(BC_ILOAD1);
-				_byteCode.addInsn(BC_IFICMPE, returnTrueLabel);
-				break;
-			case tGE:
-				_byteCode.addInsn(BC_ILOADM1);
 				_byteCode.addBranch(BC_IFICMPNE, returnTrueLabel);
 				break;
-			case tLT:
+			case tGT:
 				_byteCode.addInsn(BC_ILOADM1);
 				_byteCode.addBranch(BC_IFICMPE, returnTrueLabel);
 				break;
-			case tLE:
+			case tGE:
 				_byteCode.addInsn(BC_ILOAD1);
 				_byteCode.addBranch(BC_IFICMPNE, returnTrueLabel);
 				break;
+			case tLT:
+				_byteCode.addInsn(BC_ILOAD1);
+				_byteCode.addBranch(BC_IFICMPE, returnTrueLabel);
+				break;
+			case tLE:
+				_byteCode.addInsn(BC_ILOADM1);
+				_byteCode.addBranch(BC_IFICMPNE, returnTrueLabel);
+				break;
 		}
-		_byteCode.bind(returnFalseLabel);
 		_byteCode.addInsn(BC_ILOAD0);
 		_byteCode.addBranch(BC_JA, endLabel);
 	}
+
+  if (opKind == tOR || opKind == tAND) {
+    _byteCode.bind(returnFalseLabel);
+    _byteCode.addInsn(BC_ILOAD0);
+    _byteCode.addBranch(BC_JA, endLabel);
+
+  }
+
 	
 	switch (opKind) {
 		case tADD:
 			isInt ? _byteCode.addInsn(BC_IADD): _byteCode.addInsn(BC_DADD);
+      _byteCode.addBranch(BC_JA, endLabel);
 			break;
 		case tSUB:
 			isInt ? _byteCode.addInsn(BC_ISUB): _byteCode.addInsn(BC_DSUB);
+      _byteCode.addBranch(BC_JA, endLabel);
 			break;
 		case tMUL:
 			isInt ? _byteCode.addInsn(BC_IMUL): _byteCode.addInsn(BC_DMUL);
+      _byteCode.addBranch(BC_JA, endLabel);
 			break;
 		case tDIV:
 			isInt ? _byteCode.addInsn(BC_IDIV): _byteCode.addInsn(BC_DDIV);
+      _byteCode.addBranch(BC_JA, endLabel);
 			break;
 		
 	}
-	_byteCode.addBranch(BC_JA, endLabel);
 	_byteCode.bind(returnTrueLabel);
 	_byteCode.addInsn(BC_ILOAD1);
 	_byteCode.bind(endLabel);
@@ -293,8 +309,8 @@
 	VarType varType = node->var()->type();
 	if (varType != VT_INT)
 		_byteCode.addInsn(BC_INVALID);
-	std::string varName = node->var()->name()
-	_varTable.addVar(varName);
+	std::string varName = node->var()->name();
+	//_varTable.addVar(varName);
 	uint8_t varId = (uint8_t)_varTable.getIdByName(varName);
 	
 	
@@ -309,37 +325,75 @@
 	_byteCode.addInsn(BC_STOREIVAR);
 	_byteCode.addByte(varId);
 	
-	Label startLoopLabel, endLabel;
+	Label startLoopLabel(&_byteCode), endLabel(&_byteCode);
 	_byteCode.bind(startLoopLabel);
 	inBinOp->right()->visit(this);
 	if (_operandType != VT_INT) 
 		_byteCode.addInsn(BC_INVALID);
 	_byteCode.addInsn(BC_LOADIVAR);
 	_byteCode.addByte(varId);
-	_byteCode.addBranch(BC_IFICMPGE, endLabel);
+	_byteCode.addBranch(BC_IFICMPL, endLabel);
 	node->body()->visit(this);
+  _byteCode.addInsn(BC_LOADIVAR);
+  _byteCode.addByte(varId);
+  _byteCode.addInsn(BC_ILOAD1);
+  _byteCode.addInsn(BC_IADD);
+  _byteCode.addInsn(BC_STOREIVAR);
+  _byteCode.addByte(varId);
 	_byteCode.addBranch(BC_JA, startLoopLabel);
 	_byteCode.bind(endLabel);
  }
  
  void TranslateVisitor::visitPrintNode(mathvm::PrintNode* node) {
 	for(int i = 0; i < node->operands(); ++i) {
-		AstNode* node = node->operandAt(i);
-		if(node->isStringLiteralNode()) {
-			node->visit(this);
-			_byteCode.addInsn(BC_SPRINT);
-		}
-		if(node->isIntLiteralNode()) {
-			node->visit(this);
-			_byteCode.addInsn(BC_IPRINT);
-		}
-		if(node->isDoubleLiteralNode()) {
-			node->visit(this);
-			_byteCode.addInsn(BC_DPRINT);
-		}
+		AstNode* astNode = node->operandAt(i);
+    astNode->visit(this);
+    switch(_operandType) {
+      
+      case VT_STRING : _byteCode.addInsn(BC_SPRINT); break;
+      case VT_INT : _byteCode.addInsn(BC_IPRINT); break;
+      case VT_DOUBLE : _byteCode.addInsn(BC_DPRINT); break;
+      default:;
+    }
 	}
  }
   
  void TranslateVisitor::visitFunctionNode(mathvm::FunctionNode* node) {}
-  
+
+ void TranslateVisitor::visit( mathvm::BlockNode * rootNode )
+ {
+   rootNode->visit(this);
+ }
+
+ void TranslateVisitor::visitCallNode(CallNode* node) {}
+
+ void TranslateVisitor::visitReturnNode(ReturnNode* node) {}
+
+ mathvm::Bytecode* TranslateVisitor::GetBytecode()
+ {
+   return &_byteCode;
+ }
+
+ std::vector<std::string> TranslateVisitor::GetStringsVector()
+ {
+   vector<string> result;
+   for (uint16_t i = 0; i < 256; ++i) {
+     string s = _code.constantById(i);
+     result.push_back(s);
+   }
+   return result;
+ }
+
+ void TranslateVisitor::dump()
+ {
+   _byteCode.dump();
+ }
+
+
+
+
+
+
+
+
 
