@@ -1,11 +1,17 @@
+#pragma once
+
 #include <map>
 #include <string>
+#include <stdio.h>
 
 using std::map;
 using std::string;
 
+typedef unsigned char uint8_t;
+
+
 class VarTable {
-	map<string, uint8> _vars;
+	map<string, uint8_t> _vars;
 	uint8_t _counter;
 	public:
 		VarTable(): 
