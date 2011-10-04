@@ -57,16 +57,18 @@ void Bytecode::dump() const {
                 cout << name << " " << getInt64(bci + 1);
                 break;
             case BC_SLOAD:
-                cout << name << " @" << getInt16(bci + 1);
+                cout << name << " @" << getUInt16(bci + 1);
                 break;
             case BC_CALL:
+                cout << name << " @" << getUInt16(bci + 1);
+                break;
             case BC_LOADDVAR:
             case BC_STOREDVAR:
             case BC_LOADIVAR:
             case BC_STOREIVAR:
             case BC_LOADSVAR:
             case BC_STORESVAR:
-                cout << name << " @" << getInt16(bci + 1);
+                cout << name << " @" << getByte(bci + 1);
                 break;
             case BC_IFICMPNE:
             case BC_IFICMPE:
