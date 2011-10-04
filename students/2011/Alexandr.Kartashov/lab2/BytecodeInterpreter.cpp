@@ -23,6 +23,7 @@ namespace mathvm {
 
     Bytecode* oldCode;
     uint32_t oldIP;
+    std::vector<RTVar> locals;
   };
 
   static int opcode_len[] = {
@@ -380,15 +381,15 @@ namespace mathvm {
         RTVar &v = stack.top();
 
         switch (v.type()) {
-        case VT_INT:
+        case RVT_INT:
           std::cout << v.getInt();
           break;
 
-        case VT_DOUBLE:
+        case RVT_DOUBLE:
           std::cout << v.getDouble();
           break;
 
-        case VT_STRING:
+        case RVT_STRING:
           std::cout << v.getString();
           break;
         

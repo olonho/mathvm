@@ -101,13 +101,6 @@ namespace mathvm {
       code->add(BC_STOP);
 
       _interpreter->setVarPoolSize(_num.size());
-      
-      /*
-      for (size_t i = 0; i < code->length(); ++i) {
-        printf("%02X ", code->get(i));
-      }
-      printf("\n");
-      */
     }
 
     Code *getCode() {
@@ -572,9 +565,9 @@ namespace mathvm {
       }
 
       while (fi.hasNext()) {
-        Bytecode* old_code = code; // Hope there're no nested functions :)
+        Bytecode* old_code = code;
         uint16_t id;
-        FunctionNode *node = fi.next()->function();
+        FunctionNode *node = fi.next()->node();
 
         _interpreter->createFunction(&code, &id, &_args);
         _functions[node->name()] = id;

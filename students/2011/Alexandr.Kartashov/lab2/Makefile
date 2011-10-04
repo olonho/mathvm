@@ -17,7 +17,7 @@ ast-patched:
 	patch -d $(VM_ROOT)/include -p2 < ast.patch
 	touch ast-patched
 
-$(MVM): ast-patched $(OUT) $(MATHVM_OBJ) $(USER_OBJS) $(USER_HEADERS)
+$(MVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJS) $(USER_HEADERS)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJS) $(THREAD_LIB)
 
 tests:

@@ -20,59 +20,68 @@ namespace mathvm {
 
   // --------------------------------------------------------------------------------
 
+  enum RTVarType {
+    RVT_INVALID,
+    RVT_DOUBLE,
+    RVT_INT,
+    RVT_STRING,
+    RVT_LOCAL
+  };
+
   class RTVar {
   public:
     RTVar() {
-      _t = VT_INVALID;
+      _t = RVT_INVALID;
     }
 
     RTVar(int i) {
-      _t = VT_INT;
+      _t = RVT_INT;
       _u.i = i;
     }
 
     RTVar(int64_t i) {
-      _t = VT_INT;
+      _t = RVT_INT;
       _u.i = i;
     }
 
     RTVar(double d) {
-      _t = VT_DOUBLE;
+      _t = RVT_DOUBLE;
       _u.d = d;
     }
 
     RTVar(char *s) {
-      _t = VT_STRING;
+      _t = RVT_STRING;
       _u.s = s;
     }
 
-    VarType type() const { return _t; }
+    RTVarType type() const { return _t; }
 
     int64_t getInt() const {
-      assert(_t == VT_INT);
+      assert(_t == RVT_INT);
 
       return _u.i;
     }
 
     double getDouble() const {
-      assert(_t == VT_DOUBLE);
+      assert(_t == RVT_DOUBLE);
 
       return _u.d;
     }
 
     const char *getString() const {
-      assert(_t == VT_STRING);
+      assert(_t == RVT_STRING);
 
       return _u.s;
     }
 
   private:
-    VarType _t;
+    RTVarType _t;
 
     union {
-      int64_t i;
-      double  d;
-      char*   s;
+      int64_t  i;
+      double   d;
+      char*    s;
+      uint16_t localId;
     } _u;
   };
 
