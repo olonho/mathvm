@@ -61,6 +61,8 @@
 		  case VT_STRING:
 			_byteCode.addInsn(BC_LOADSVAR);
 			break;
+		  default:
+			break;
 	  }
 	  _byteCode.addByte((uint8_t)varId);
   }
@@ -103,6 +105,8 @@
 						_byteCode.addInsn(BC_SWAP);
 						_byteCode.addInsn(BC_ISUB);
 						break;
+					default:
+						break;
 				}
 				_byteCode.addInsn(BC_STOREIVAR);
 				_byteCode.addByte((uint8_t)varId);
@@ -129,6 +133,8 @@
 						_byteCode.addByte((uint8_t)varId);
 						_byteCode.addInsn(BC_DSUB);
 						break;
+					default:
+						break;
 				}
 				_byteCode.addInsn(BC_STOREDVAR);
 				_byteCode.addByte((uint8_t)varId);
@@ -137,6 +143,7 @@
 		  case VT_INVALID:
 			throw TranslationException("Couldn`t store into double variable: Invalid operands type to store");
 			break;
+		  default:;
 		  }
  
   }
@@ -165,6 +172,8 @@
 				} else {
 					throw TranslationException("Operand type is invalid: could not apply logic not to not int variable");
 				}
+				break;
+			default:
 				break;
 		  }
 	  } else {
@@ -245,6 +254,8 @@
 				_byteCode.addInsn(BC_ILOADM1);
 				_byteCode.addBranch(BC_IFICMPNE, returnTrueLabel);
 				break;
+			default:
+				break;
 		}
 		_byteCode.addInsn(BC_ILOAD0);
 		_byteCode.addBranch(BC_JA, endLabel);
@@ -261,20 +272,22 @@
 	switch (opKind) {
 		case tADD:
 			isInt ? _byteCode.addInsn(BC_IADD): _byteCode.addInsn(BC_DADD);
-      _byteCode.addBranch(BC_JA, endLabel);
+			_byteCode.addBranch(BC_JA, endLabel);
 			break;
 		case tSUB:
 			isInt ? _byteCode.addInsn(BC_ISUB): _byteCode.addInsn(BC_DSUB);
-      _byteCode.addBranch(BC_JA, endLabel);
+			_byteCode.addBranch(BC_JA, endLabel);
 			break;
 		case tMUL:
 			isInt ? _byteCode.addInsn(BC_IMUL): _byteCode.addInsn(BC_DMUL);
-      _byteCode.addBranch(BC_JA, endLabel);
+			_byteCode.addBranch(BC_JA, endLabel);
 			break;
 		case tDIV:
 			isInt ? _byteCode.addInsn(BC_IDIV): _byteCode.addInsn(BC_DDIV);
-      _byteCode.addBranch(BC_JA, endLabel);
+			_byteCode.addBranch(BC_JA, endLabel);
 			break;
+		default:
+				break;
 		
 	}
 	_byteCode.bind(returnTrueLabel);
@@ -342,7 +355,7 @@
  }
  
  void TranslateVisitor::visitPrintNode(mathvm::PrintNode* node) {
-	for(int i = 0; i < node->operands(); ++i) {
+	for(size_t i = 0; i < node->operands(); ++i) {
 		AstNode* astNode = node->operandAt(i);
     astNode->visit(this);
     switch(_operandType) {
@@ -385,12 +398,3 @@
  {
    _byteCode.dump();
  }
-
-
-
-
-
-
-
-
-
