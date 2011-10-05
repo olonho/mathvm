@@ -19,7 +19,6 @@ class Translator: public mathvm::AstVisitor {
     void putVar(const std::string& var);
     void checkTypeInt(mathvm::AstNode* expr);
     void triple(mathvm::Instruction i);
-//    void visitLogicNode(mathvm::AstNode* expr);
 public:
     Translator(Bytecode& c);
     mathvm::Status translate(mathvm::AstNode* node);
