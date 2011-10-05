@@ -11,7 +11,7 @@ all: $(LAB1)
 
 $(OBJ)/main$(OBJ_SUFF) $(OBJ)/AstShowVisitor$(OBJ_SUFF) : AstShowVisitor.h
 
-$(LAB0): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
+$(LAB1): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(THREAD_LIB) 
 
 test: $(LAB1)

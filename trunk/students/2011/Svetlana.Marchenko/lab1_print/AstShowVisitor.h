@@ -8,7 +8,7 @@
 class AstShowVisitor: public mathvm::AstVisitor {
 	std::ostream& _outputStream;
 		
-	const std::string& getTypeName(mathvm::VarType type);
+	std::string getTypeName(mathvm::VarType type);
 	
 public:
 	AstShowVisitor(std::ostream& o):
@@ -16,7 +16,7 @@ public:
 	}
     
 #define VISITOR_FUNCTION(type, name) \
-    virtual void visit##type(type* node) {}
+    virtual void visit##type(mathvm::type* node);
 
     FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
