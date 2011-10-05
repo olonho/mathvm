@@ -28,8 +28,9 @@ void AstShowVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
 }
 
 void AstShowVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
-	_outputStream << tokenOp(node->kind());
+	_outputStream << << "( " << tokenOp(node->kind());
 	node->operand()->visit(this);
+	_outputStream << " )";
 }
 
 void AstShowVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
