@@ -23,4 +23,5 @@ void parseFile(mathvm::Parser& p, const char* file) {
         exit(1);
     }
     parseExpr(p, expr);
+    delete [] expr;
 }

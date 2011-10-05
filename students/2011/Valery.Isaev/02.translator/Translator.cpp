@@ -271,6 +271,12 @@ void Translator::visitForNode(mathvm::ForNode* node) {
     code.addBranch(mathvm::BC_IFICMPGE, end);
     node->body()->visit(this);
     currentType = mathvm::VT_INVALID;
+    code.add(mathvm::BC_LOADIVAR);
+    putVar(node->var()->name());
+    code.add(mathvm::BC_ILOAD1);
+    code.add(mathvm::BC_IADD);
+    code.add(mathvm::BC_STOREIVAR);
+    putVar(node->var()->name());
     code.addBranch(mathvm::BC_JA, start);
     code.bind(end);
 }
@@ -338,6 +344,11 @@ void Translator::visitBlockNode(mathvm::BlockNode* node) {
 
 void Translator::visitFunctionNode(mathvm::FunctionNode* node) {
     // pysch
+//    mathvm::BytecodeFunction* fun =
+//        new mathvm::BytecodeFunction(new mathvm::AstFunction(node, 0));
+//    code.addFunction(fun);
+//    Translator tr(*fun->bytecode());
+//    tr.translate(node->body());
 }
 
 void Translator::visitPrintNode(mathvm::PrintNode* node) {
@@ -361,8 +372,10 @@ void Translator::visitReturnNode(mathvm::ReturnNode* node) {
 }
 
 void Translator::visitCallNode(mathvm::CallNode* node) {
-    currentType = mathvm::VT_INT;
     // pysch
+    currentType = mathvm::VT_INT;
+//     mathvm::TranslatedFunction* fun = code.functionByName(node->name());
+//     currentType = fun->returnType();
 }
 
 mathvm::Status Translator::translate(mathvm::AstNode* node) {
