@@ -26,3 +26,14 @@ public:
     void dump();
 
 };
+
+struct TranslationException {
+  
+  TranslationException(std::string const& message) : _message(message) {}
+  
+  virtual std::string what() const { return _message; }
+  
+private:
+  std::string _message;
+};
+
