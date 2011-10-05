@@ -50,7 +50,7 @@
     _operandType = type;
 	  switch (type) {
 		  case VT_INVALID:
-		    _byteCode.addInsn(BC_INVALID);
+		    throw TranslationException("Type of variable is invalid");
 			break;
 		  case VT_DOUBLE: 
 			_byteCode.addInsn(BC_LOADDVAR);
@@ -80,11 +80,11 @@
 				_byteCode.addInsn(BC_STORESVAR);
 				_byteCode.addByte((uint8_t)varId);
 			} else {
-				_byteCode.addInsn(BC_INVALID);
+				throw TranslationException("Couldn`t process any other operations with strings except assign");
 			}
 		    break;
 		  case VT_INT:
-        valueNode->visit(this);
+			  valueNode->visit(this);
 			  if (_operandType==VT_INT || _operandType==VT_DOUBLE) {
 				
 				if (valueNode->isDoubleLiteralNode())
@@ -100,14 +100,14 @@
 					case tDECRSET:
 						_byteCode.addInsn(BC_LOADIVAR);
 						_byteCode.addByte((uint8_t)varId);
-            _byteCode.addInsn(BC_SWAP);
+						_byteCode.addInsn(BC_SWAP);
 						_byteCode.addInsn(BC_ISUB);
 						break;
 				}
 				_byteCode.addInsn(BC_STOREIVAR);
 				_byteCode.addByte((uint8_t)varId);
 			} else {
-				_byteCode.addInsn(BC_INVALID);
+				throw TranslationException("Couldn`t store into int variable: Invalid operands type to store");
 			}
 			break;
 		  case VT_DOUBLE:
@@ -135,7 +135,7 @@
 			}
 			break;
 		  case VT_INVALID:
-			_byteCode.addInsn(BC_INVALID);
+			throw TranslationException("Couldn`t store into double variable: Invalid operands type to store");
 			break;
 		  }
  
@@ -163,12 +163,12 @@
 					_byteCode.addInsn(BC_ILOAD0);
 					_byteCode.bind(endLabel);					
 				} else {
-					_byteCode.addInsn(BC_INVALID);
+					throw TranslationException("Operand type is invalid: could not apply logic not to not int variable");
 				}
 				break;
 		  }
 	  } else {
-		  _byteCode.addInsn(BC_INVALID);
+		  throw TranslationException("Operand type is invalid: could not apply unary operations to not int or double variable");
 	  }
   }
  
@@ -182,9 +182,8 @@
 	 
 	 node->left()->visit(this);
 	 leftType = _operandType;
-   if (leftType == VT_INVALID || leftType == VT_STRING) {
-		_byteCode.addInsn(BC_INVALID);
-		_byteCode.addBranch(BC_JA, endLabel);
+	 if (leftType == VT_INVALID || leftType == VT_STRING) {
+		throw TranslationException("Invalid left operand type: only int or double types can be used for binary operations ");
 	 }
 	 
 	 if (opKind == tOR && leftType == VT_INT) {
@@ -200,8 +199,7 @@
 	 node->right()->visit(this);
 	 rightType = _operandType;
 	 if (rightType == VT_INVALID || rightType == VT_STRING) {
-		_byteCode.addInsn(BC_INVALID);
-		_byteCode.addBranch(BC_JA, endLabel);
+		throw TranslationException("Invalid right operand type: only int or double types can be used for binary operations ");
 	 }
 	 
 	 if ((opKind == tOR || opKind == tAND) && rightType == VT_INT) {
@@ -308,20 +306,19 @@
  void TranslateVisitor::visitForNode(mathvm::ForNode* node) {
 	VarType varType = node->var()->type();
 	if (varType != VT_INT)
-		_byteCode.addInsn(BC_INVALID);
+		throw TranslationException("Invalid variable operand type for expression: only int type can be used");
 	std::string varName = node->var()->name();
-	//_varTable.addVar(varName);
 	uint8_t varId = (uint8_t)_varTable.getIdByName(varName);
 	
 	
 	BinaryOpNode* inBinOp = dynamic_cast<BinaryOpNode*>(node->inExpr());
 	if (!inBinOp || inBinOp->kind() != tRANGE) 
-		_byteCode.addInsn(BC_INVALID);
+		throw TranslationException("Invalid binary operation for expression: only range operation can be used in for expression");
 	
 	inBinOp->left()->visit(this);
 	if (_operandType != VT_INT)
-		_byteCode.addInsn(BC_INVALID);
-		
+		throw TranslationException("Invalid left operand type: only int type can be used for range operation");
+		 
 	_byteCode.addInsn(BC_STOREIVAR);
 	_byteCode.addByte(varId);
 	
@@ -329,7 +326,7 @@
 	_byteCode.bind(startLoopLabel);
 	inBinOp->right()->visit(this);
 	if (_operandType != VT_INT) 
-		_byteCode.addInsn(BC_INVALID);
+		throw TranslationException("Invalid right operand type: only int type can be used for range operation");
 	_byteCode.addInsn(BC_LOADIVAR);
 	_byteCode.addByte(varId);
 	_byteCode.addBranch(BC_IFICMPL, endLabel);
