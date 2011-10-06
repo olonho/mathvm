@@ -37,11 +37,11 @@ void AstToBytecode::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 		}
 		return;
 	}
-	node->left()->visit(this);
-	VarType leftType = _lastType;
-	_lastType = VT_INVALID;
 	node->right()->visit(this);
 	VarType rightType = _lastType;
+	_lastType = VT_INVALID;
+	node->left()->visit(this);
+	VarType leftType = _lastType;
 	switch(opKind) {
 		case tADD :
 		case tSUB :
@@ -54,20 +54,20 @@ void AstToBytecode::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 		case tGE :
 		case tLE :
 			if (leftType != VT_INT && leftType != VT_DOUBLE) {
-				throwException("Invalid type of left node");
+				throwException("Invalid type of left operand");
 			}
 			if (rightType != VT_INT && rightType != VT_DOUBLE) {
-				throwException("Invalid type of right node");
+				throwException("Invalid type of right operand");
 			}
 			if (leftType != rightType) {				
-				if (rightType == VT_INT) {
+				if (leftType == VT_INT) {
 					_bytecode.addInsn(BC_I2D);
-					rightType = VT_DOUBLE;
+					leftType = VT_DOUBLE;
 				}
 				else {
 					_bytecode.addInsn(BC_SWAP);
 					_bytecode.addInsn(BC_I2D);
-					leftType = VT_DOUBLE;
+					rightType = VT_DOUBLE;
 					_bytecode.addInsn(BC_SWAP);
 				}
 				_lastType = VT_DOUBLE;
@@ -75,7 +75,7 @@ void AstToBytecode::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 		default: throwException("Invalid binary operation");
 	}
 	if (_lastType == VT_DOUBLE) {
-		switch(opKind) {
+		switch (opKind) {
 			case tEQ :
 			case tNEQ :
 			case tGT :
@@ -83,19 +83,37 @@ void AstToBytecode::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 			case tGE :
 			case tLE :
 				_bytecode.addInsn(BC_DCMP); break;
+				_lastType = VT_INT;
 			default: ;
 		}
-		switch(opKind) {
+		switch (opKind) {
 			case tNEQ : break;
 			case tEQ : _bytecode.addInsn(BC_ILOAD0); checkIfInsn(BC_IFICMPE); break;
-				// check operand order. change left-right order in stack
 			case tGT : _bytecode.addInsn(BC_ILOADM1); checkIfInsn(BC_IFICMPE); break;
 			case tLT : _bytecode.addInsn(BC_ILOAD1); checkIfInsn(BC_IFICMPE); break;
 			case tGE : _bytecode.addInsn(BC_ILOAD1); checkIfInsn(BC_IFICMPNE); break;
 			case tLE : _bytecode.addInsn(BC_ILOADM1); checkIfInsn(BC_IFICMPNE); break;
-
+			case tADD : _bytecode.addInsn(BC_DADD); break;
+			case tSUB : _bytecode.addInsn(BC_DSUB); break;
+			case tMUL : _bytecode.addInsn(BC_DMUL); break;
+			case tDIV : _bytecode.addInsn(BC_DDIV); break;
+			default : ; 
 		}
-
+	}
+	else {
+		switch (opKind) {
+			case tNEQ : checkIfInsn(BC_IFICMPNE); break;
+			case tEQ : checkIfInsn(BC_IFICMPE); break;
+			case tGT : checkIfInsn(BC_IFICMPG); break;
+			case tLT : checkIfInsn(BC_IFICMPL); break;
+			case tGE : checkIfInsn(BC_IFICMPGE); break;
+			case tLE : checkIfInsn(BC_IFICMPLE); break;
+			case tADD : _bytecode.addInsn(BC_IADD); break;
+			case tSUB : _bytecode.addInsn(BC_ISUB); break;
+			case tMUL : _bytecode.addInsn(BC_IMUL); break;
+			case tDIV : _bytecode.addInsn(BC_IDIV); break;
+			default : ; 
+		}
 	}
 	
 }
@@ -125,28 +143,57 @@ void AstToBytecode::visitStringLiteralNode( mathvm::StringLiteralNode* node )
 	_bytecode.addInsn(BC_SLOAD);
 	uint16_t strConstantId = _code.makeStringConstant(node->literal());
 	_bytecode.addInt16(strConstantId);
+	_lastType = VT_STRING;
 }
 
 void AstToBytecode::visitDoubleLiteralNode( mathvm::DoubleLiteralNode* node )
 {
 	_bytecode.addInsn(BC_DLOAD);
 	_bytecode.addDouble(node->literal());
+	_lastType = VT_DOUBLE;
 }
 
 void AstToBytecode::visitIntLiteralNode( mathvm::IntLiteralNode* node )
 {
 	_bytecode.addInsn(BC_ILOAD);
 	_bytecode.addInt64(node->literal());
+	_lastType = VT_INT;
 } 
 
 void AstToBytecode::visitLoadNode( mathvm::LoadNode* node )
 {
-
+	switch (node->var()->type()) {
+		case VT_INT : _bytecode.addInsn(BC_ILOAD); break;
+		case VT_DOUBLE : _bytecode.addInsn(BC_DLOAD); break;
+		case VT_STRING : _bytecode.addInsn(BC_SLOAD); break;
+		default: throwException("Unknown type of variable " + node->var()->name());
+	}
+	insertVarId(node->var()->name());
+	_lastType = node->var()->type();
 }
 
 void AstToBytecode::visitStoreNode( mathvm::StoreNode* node )
 {
-
+	node->value()->visit(this);
+	if (_lastType != node->var()->type()) {
+		if (_lastType == VT_DOUBLE && node->var()->type() == VT_INT) {
+			_bytecode.addInsn(BC_D2I);
+		}
+		else if (_lastType == VT_INT && node->var()->type() == VT_DOUBLE) {
+			_bytecode.addInsn(BC_I2D);
+		}
+		else {
+			throwException("Incompatible types in assigning");
+		}
+	}
+	switch (node->var()->type()) {
+		case VT_INT : _bytecode.addInsn(BC_STOREIVAR); break;
+		case VT_DOUBLE : _bytecode.addInsn(BC_STOREDVAR); break;
+		case VT_STRING : _bytecode.addInsn(BC_STORESVAR); break;
+		default : throwException("Invalid variable type");
+	}
+	insertVarId(node->var()->name());
+	_lastType = VT_INVALID;
 }
 
 void AstToBytecode::visitForNode( mathvm::ForNode* node )
@@ -168,7 +215,7 @@ void AstToBytecode::visitBlockNode( mathvm::BlockNode* node )
 {
 	Scope::VarIterator it(node->scope());
 	while (it.hasNext()) {
-		
+		it.next()->		
 	}
 }
 
@@ -199,13 +246,13 @@ void AstToBytecode::insertData( const void *data, size_t size )
 	}
 }
 
-void AstToBytecode::insertVar( const std::string &name )
+void AstToBytecode::insertVarId( const std::string &name )
 {
 	vector<VarInt> &v = _vars[name];
 	if (v.empty()) {
 		throwException("Undefined variable " + name);
 	}
-	insertData(&v.back(), sizeof VarInt);
+	insertData(&v.back(), sizeof(VarInt));
 }
 
 void AstToBytecode::throwException( const std::string &what )
