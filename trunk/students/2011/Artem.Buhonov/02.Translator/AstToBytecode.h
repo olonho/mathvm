@@ -25,6 +25,18 @@ public:
 	virtual void visitBlockNode(mathvm::BlockNode* node);
 	virtual void visitFunctionNode(mathvm::FunctionNode* node);
 	virtual void visitPrintNode(mathvm::PrintNode* node);
+	void dump() {
+		_bytecode.dump();
+	}
+	void generate(mathvm::AstNode *root) {
+		root->visit(this);
+		_bytecode.addInsn(mathvm::BC_STOP);
+	}
+	mathvm::Bytecode *getBytecode() {
+		return &_bytecode;
+	}
+
+
 private:
 	void insertData(const void *data, size_t size);
 	void insertVarId(const std::string &name);
