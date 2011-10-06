@@ -47,6 +47,7 @@ class BytecodeVisitor : public AstVisitor {
     Code* code_;
     Bytecode* bcode_;
     VarMap var_map_;
+    VarType last_var_type_;
     std::vector<VarType> var_types_;
  public:
     BytecodeVisitor(Code* code)

@@ -24,7 +24,7 @@ Status* BytecodeTranslator::translate(
   (*code)->addFunction(function);
   BytecodeVisitor* visitor = new BytecodeVisitor(*code);
   visitor->visitBlockNode(top);
-  //puts("Visited");
+  function->bytecode()->add(BC_STOP);
   function->bytecode()->dump();
   delete parser;
   delete parser_status;
