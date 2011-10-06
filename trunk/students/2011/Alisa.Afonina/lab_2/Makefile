@@ -1,7 +1,7 @@
 ROOT   = .
 VM_ROOT = ../../../..
 #USER_DEFS = -j8
-USER_OBJ = $(OBJ)/main$(OBJ_SUFF) $(OBJ)/translator$(OBJ_SUFF)
+USER_OBJ = $(OBJ)/main$(OBJ_SUFF) $(OBJ)/mytranslator$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
