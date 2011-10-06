@@ -11,7 +11,7 @@ class MyCode : public mathvm::Code
 class AstToBytecode : public mathvm::AstVisitor
 {
 public:
-
+	AstToBytecode() : _currentFreeVarId(0), _lastType(mathvm::VT_INVALID) {}
 	virtual void visitBinaryOpNode(mathvm::BinaryOpNode* node);
 	virtual void visitUnaryOpNode(mathvm::UnaryOpNode* node);
 	virtual void visitStringLiteralNode(mathvm::StringLiteralNode* node);
@@ -27,15 +27,17 @@ public:
 	virtual void visitPrintNode(mathvm::PrintNode* node);
 private:
 	void insertData(const void *data, size_t size);
-	void insertVar(const std::string &name);
+	void insertVarId(const std::string &name);
 	void throwException(const std::string &what);
 	void checkTypeInt(mathvm::AstNode *node);
 	void checkIfInsn(mathvm::Instruction insn);
 	std::string typeToString(mathvm::VarType type);
 	typedef uint8_t VarInt;
 	std::map<std::string, std::vector<VarInt> > _vars;
+	int _currentFreeVarId;
 	mathvm::Bytecode _bytecode;
 	mathvm::VarType _lastType;
 	MyCode _code;
+	static const int VARS_LIMIT = 256;
 };
 
