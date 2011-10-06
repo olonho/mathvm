@@ -1,6 +1,15 @@
 #pragma once
 #include <map>
 
+class GeneratingException {
+	std::string _message;  
+public:
+	GeneratingException(std::string const& message) : _message(message) {}
+	virtual std::string message() const {
+		return _message;
+	}
+};
+
 class VarTable {
 	std :: map<mathvm :: AstVar const *, int> _map;
 	public : 
@@ -27,24 +36,27 @@ class GeneratingVisitor : public mathvm::AstVisitor {
     mathvm :: Bytecode bytecode;
     VarTable varTable;
     mathvm :: VarType previousType; //last operation type
-    static std::string getTypeName(mathvm::VarType type);
     GeneratedCode code;
 	
 public:
 	GeneratingVisitor(){} 
+		
+#define VISITOR_FUNCTION(type, name) \
+	virtual void visit##type(mathvm::type* node);
 	
-#define VISIT_FUNCTION(type, name) \
-	void visit##type(mathvm::type* node);
-	FOR_NODES(VISIT_FUNCTION)
-#undef VISIT_FUNCTION
-   
+	FOR_NODES(VISITOR_FUNCTION)
+#undef VISITOR_FUNCTION
+
+	void visit(mathvm::BlockNode* node);
+	void dump();
     mathvm :: Code* getCode() {
 		code.setBytecode(bytecode);
 		return &code;
 	}
-	void getIfResult(mathvm :: Label& end, mathvm :: Instruction insn, mathvm :: Instruction ifinsn);
-	void visit(mathvm::BlockNode* node);
-	void dump();
+	void getIfResult(mathvm :: Label& end,
+					 mathvm :: Instruction insn,
+					 mathvm :: Instruction ifinsn);
+	
 	mathvm :: Bytecode * getBytecode();
 	std::vector<std::string> getStringsVector();
 };

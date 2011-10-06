@@ -23,7 +23,11 @@ int main(int argc, char** argv)
   if (status == NULL) 
   {
       GeneratingVisitor visitor;
-      visitor.visit(parser->top());
+      try {
+		visitor.visit(parser->top());
+	  } catch (GeneratingException e){
+		  cout << e.message();
+	  }
       visitor.dump();
       
       /*cout << "-------Output--------\n";
