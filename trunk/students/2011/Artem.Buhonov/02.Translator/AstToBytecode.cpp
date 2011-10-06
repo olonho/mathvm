@@ -186,6 +186,19 @@ void AstToBytecode::visitStoreNode( mathvm::StoreNode* node )
 			throwException("Incompatible types in assigning");
 		}
 	}
+	TokenKind binaryOp = tUNDEF;	
+	switch (node->op()) {
+		case tASSIGN : break;
+		case tINCRSET : binaryOp = tADD; break;
+		case tDECRSET : binaryOp = tSUB; break;
+		default : throwException("Invalid assignment operation");
+	}
+
+	if (node->op() == tINCRSET || node->op() == tDECRSET) {
+		LoadNode varNode(0, node->var());
+		BinaryOpNode binaryOpNode(0, binaryOp, &varNode, node->value());
+		binaryOpNode.visit(this);
+	}
 	switch (node->var()->type()) {
 		case VT_INT : _bytecode.addInsn(BC_STOREIVAR); break;
 		case VT_DOUBLE : _bytecode.addInsn(BC_STOREDVAR); break;
@@ -198,24 +211,80 @@ void AstToBytecode::visitStoreNode( mathvm::StoreNode* node )
 
 void AstToBytecode::visitForNode( mathvm::ForNode* node )
 {
-
+	BinaryOpNode *inBinaryNode = node->inExpr()->asBinaryOpNode();
+	if (inBinaryNode == NULL) {
+		throwException("\"In\" expression is invalid");
+	}
+	if (inBinaryNode->left()->asIntLiteralNode() == NULL || inBinaryNode->right()->asIntLiteralNode()) {
+		throwException("\"For\" bounds must be integer constant");
+	}
+	inBinaryNode->left()->visit(this);
+	_bytecode.addInsn(BC_STOREIVAR);
+	insertVarId(node->var()->name());
+	Label lStart(&_bytecode), lEnd(&_bytecode);
+	_bytecode.bind(lStart);
+	inBinaryNode->right()->visit(this);
+	_bytecode.addInsn(BC_LOADIVAR);
+	insertVarId(node->var()->name());
+	_bytecode.addBranch(BC_IFICMPG, lEnd);
+	node->body()->visit(this);
+	IntLiteralNode unit(0, 1);
+	StoreNode incrNode(0, node->var(), &unit, tINCRSET);
+	incrNode.visit(this);
+	_bytecode.addBranch(BC_JA, lStart);
+	_bytecode.bind(lEnd);
 }
 
 void AstToBytecode::visitWhileNode( mathvm::WhileNode* node )
 {
-
+	Label lCond(&_bytecode), lEnd(&_bytecode);
+	_bytecode.bind(lCond);
+	node->whileExpr()->visit(this);
+	if (_lastType != VT_INT) {
+		throwException("\"While\" condition must have int type");
+	}
+	_bytecode.addInsn(BC_ILOAD0);
+	_bytecode.addBranch(BC_IFICMPE, lEnd);
+	node->loopBlock()->visit(this);
+	_bytecode.addBranch(BC_JA, lCond);
+	_bytecode.bind(lEnd);
 }
 
 void AstToBytecode::visitIfNode( mathvm::IfNode* node )
 {
-
+	node->ifExpr()->visit(this);
+	if (_lastType != VT_INT) {
+		throwException("\"If\" condition must have int type");
+	}
+	Label lEnd(&_bytecode), lElse(&_bytecode);
+	_bytecode.addInsn(BC_ILOAD0);
+	_bytecode.addBranch(BC_IFICMPE, lElse);
+	node->thenBlock()->visit(this);		
+	if (node->elseBlock() != NULL) {
+		_bytecode.addBranch(BC_JA, lEnd);
+		_bytecode.bind(lElse);
+		node->elseBlock()->visit(this);
+	}
+	else {
+		_bytecode.bind(lElse);
+	}
+	_bytecode.bind(lEnd);
 }
 
 void AstToBytecode::visitBlockNode( mathvm::BlockNode* node )
 {
-	Scope::VarIterator it(node->scope());
-	while (it.hasNext()) {
-		it.next()->		
+	Scope::VarIterator it1(node->scope());
+	while (it1.hasNext()) {
+		if (_currentFreeVarId == VARS_LIMIT) {
+			throwException("Variables limit was reached");
+		}
+		_vars[it1.next()->name()].push_back(_currentFreeVarId++);
+	}
+	node->visitChildren(this);
+	Scope::VarIterator it2(node->scope());
+	while (it2.hasNext()) {
+		_vars[it2.next()->name()].pop_back();
+		_currentFreeVarId--;
 	}
 }
 
@@ -266,7 +335,6 @@ void AstToBytecode::checkTypeInt( mathvm::AstNode *node )
 	if (_lastType != VT_INT) {
 		throwException(string("Type mismatch: expected int, but got ") + typeToString(_lastType));
 	}
-	_lastType = VT_INVALID;
 }
 
 std::string AstToBytecode::typeToString( mathvm::VarType type )
