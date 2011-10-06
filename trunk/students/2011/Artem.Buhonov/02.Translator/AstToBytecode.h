@@ -1,7 +1,18 @@
 #pragma once
 #include "ast.h"
 #include <vector>
+#include <string>
 #include "mathvm.h"
+
+class Exception 
+{
+public:
+	Exception() {}
+	Exception(const std::string &what) : _what(what) {}
+	const std::string& what() { return _what; }
+private:
+	std::string _what;
+};
 
 class MyCode : public mathvm::Code 
 {

@@ -326,7 +326,7 @@ void AstToBytecode::insertVarId( const std::string &name )
 
 void AstToBytecode::throwException( const std::string &what )
 {
-	throw std::exception(what.c_str());
+	throw Exception(what);
 }
 
 void AstToBytecode::checkTypeInt( mathvm::AstNode *node )
