@@ -89,7 +89,7 @@ class Scope;
  * This class represents variable in AST tree, without actual
  * binding to particular storage. It's up to implementation
  * to decide a logic for storing variables in memory.
- * Generally, every variable must be guaranteed to be available 
+ * Generally, every variable must be guaranteed to be available
  * for at least lifetime of its scope.
  */
 class AstVar {
@@ -97,7 +97,7 @@ class AstVar {
     VarType _type;
     Scope* _owner;
   public:
-  AstVar(const string& name, VarType type, Scope* owner) :
+    AstVar(const string& name, VarType type, Scope* owner) :
     _name(name), _type(type), _owner(owner) {
     }
     const string& name() const { return _name; }
@@ -113,7 +113,9 @@ class AstFunction {
   public:
     AstFunction(FunctionNode* function, Scope* owner) :
         _function(function), _owner(owner) {
+          assert(_function != 0);
     }
+    ~AstFunction();
 
     const string& name() const;
     VarType returnType() const;
@@ -122,8 +124,7 @@ class AstFunction {
     uint32_t parametersNumber() const;
     Scope* owner() const { return _owner; }
     Scope* scope() const;
-    bool isTop() const { return _function == 0; }
-    FunctionNode* node() const { assert(!isTop()); return _function; }
+    FunctionNode* node() const { return _function; }
     static const string top_name;
     static const string invalid;
 };
@@ -135,16 +136,24 @@ class Scope {
     VarMap _vars;
     FunctionMap _functions;
     Scope* _parent;
+    vector<Scope*> _children;
 
   public:
     Scope(Scope* parent): _parent(parent) {}
     ~Scope();
+
+    uint32_t childScopeNumber() { return _children.size(); }
+    Scope* childScopeAt(uint32_t index) { return _children[index]; }
+    void addChildScope(Scope* scope) { _children.push_back(scope); }
 
     void declareVariable(const string& name, VarType type);
     void declareFunction(FunctionNode* node);
 
     AstVar* lookupVariable(const string& name);
     AstFunction* lookupFunction(const string& name);
+
+    uint32_t variablesCount() const { return _vars.size(); }
+    uint32_t functionsCount() const { return _functions.size(); }
 
     Scope* parent() const { return _parent; }
 
@@ -208,6 +217,9 @@ class AstNode {
 
     virtual void visit(AstVisitor* visitor) = 0;
     virtual void visitChildren(AstVisitor* visitor) const = 0;
+    uint32_t position() const {
+        return _index;
+    }
 
 #define CHECK_FUNCTION(type, name)                  \
     virtual bool is##type() const { return false; } \
@@ -367,8 +379,6 @@ class StoreNode : public AstNode {
 
     COMMON_NODE_FUNCTIONS(StoreNode);
 };
-
-class Scope;
 
 class BlockNode : public AstNode {
     vector<AstNode*> _nodes;

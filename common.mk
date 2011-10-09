@@ -1,12 +1,20 @@
 OUT    = $(ROOT)/build
-OBJ    = $(OUT)/obj
-BIN    = $(OUT)/bin
+ifeq ($(OPT),)
+ CFLAGS = -g
+ OBJ    = $(OUT)/debug
+ BIN    = $(OUT)/debug
+else
+ OBJ    = $(OUT)/opt
+ BIN    = $(OUT)/opt
+ CFLAGS = -O2
+endif
+
 MATHVM = $(BIN)/mvm
 MATHVMTGZ = ../MathVM.tgz
 
 CC         = gcc
 CXX        = g++
-CFLAGS     = -g -Wall -Werror -D_REENTRANT $(USER_CFLAGS)
+CFLAGS     += -Wall -Werror -D_REENTRANT $(USER_CFLAGS)
 INCLUDE    = -I$(VM_ROOT)/include
 VM_INCLUDE = -I$(VM_ROOT)/vm
 USER_INCLUDE = -I$(ROOT)
@@ -22,13 +30,14 @@ MATHVM_OBJ = \
         $(OBJ)/scanner$(OBJ_SUFF) \
         $(OBJ)/utils$(OBJ_SUFF)
 
-default: all
+default: $(OUT) all
 
 tar:
 	rm -f $(MATHVMTGZ)
-	tar czf $(MATHVMTGZ) ../mathvm-public
+	tar czf $(MATHVMTGZ) ../MathVM
 
 $(OBJ)/%$(OBJ_SUFF): $(VM_ROOT)/vm/%.cpp \
+	$(OUT) \
 	$(VM_ROOT)/include/ast.h $(VM_ROOT)/include/mathvm.h \
         $(VM_ROOT)/include/visitors.h \
         $(VM_ROOT)/vm/scanner.h $(VM_ROOT)/vm/parser.h \
@@ -36,13 +45,14 @@ $(OBJ)/%$(OBJ_SUFF): $(VM_ROOT)/vm/%.cpp \
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
 $(OBJ)/%$(OBJ_SUFF): $(ROOT)/%.cpp \
+	$(OUT) \
 	$(VM_ROOT)/include/ast.h $(VM_ROOT)/include/mathvm.h \
 	$(VM_ROOT)/include/visitors.h \
 	$(VM_ROOT)/vm/scanner.h $(VM_ROOT)/vm/parser.h \
 	$(VM_ROOT)/common.mk $(USER_DEPS)
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
-$(ROOT)/$(OUT):
+$(OUT):
 	mkdir -p $(OUT)
 	mkdir -p $(OBJ)
 	mkdir -p $(BIN)

@@ -43,24 +43,24 @@ static const char* bcName(Instruction insn, size_t& length) {
     return 0;
 }
 
-void Bytecode::dump() const {
+void Bytecode::dump(ostream& out) const {
     for (size_t bci = 0; bci < length();) {
         size_t length;
         Instruction insn = getInsn(bci);
-        cout << bci << ": ";
+        out << bci << ": ";
         const char* name = bcName(insn, length);
         switch (insn) {
             case BC_DLOAD:
-                cout << name << " " << getDouble(bci + 1);
+                out << name << " " << getDouble(bci + 1);
                 break;
             case BC_ILOAD:
-                cout << name << " " << getInt64(bci + 1);
+                out << name << " " << getInt64(bci + 1);
                 break;
             case BC_SLOAD:
-                cout << name << " @" << getUInt16(bci + 1);
+                out << name << " @" << getUInt16(bci + 1);
                 break;
             case BC_CALL:
-                cout << name << " @" << getUInt16(bci + 1);
+                out << name << " *" << getUInt16(bci + 1);
                 break;
             case BC_LOADDVAR:
             case BC_STOREDVAR:
@@ -68,7 +68,16 @@ void Bytecode::dump() const {
             case BC_STOREIVAR:
             case BC_LOADSVAR:
             case BC_STORESVAR:
-                cout << name << " @" << getByte(bci + 1);
+                out << name << " @" << getUInt16(bci + 1);
+                break;
+            case BC_LOADCTXDVAR:
+            case BC_STORECTXDVAR:
+            case BC_LOADCTXIVAR:
+            case BC_STORECTXIVAR:
+            case BC_LOADCTXSVAR:
+            case BC_STORECTXSVAR:
+                out << name << " @" << getUInt16(bci + 1)
+                    << ":" << getUInt16(bci + 3);
                 break;
             case BC_IFICMPNE:
             case BC_IFICMPE:
@@ -77,12 +86,12 @@ void Bytecode::dump() const {
             case BC_IFICMPL:
             case BC_IFICMPLE:
             case BC_JA:
-              cout << name << " " << getInt16(bci + 1) + bci + 1;
-              break;
+                out << name << " " << getInt16(bci + 1) + bci + 1;
+                break;
           default:
-                cout << name;
+                out << name;
         }
-        cout << endl;
+        out << endl;
         bci += length;
     }
 }
@@ -97,8 +106,8 @@ void Bytecode::addBranch(Instruction insn, Label& target) {
     }
 }
 
-Var::Var(VarType type, const string& name, VarKind kind) :
-    _type(type), _kind(kind) {
+Var::Var(VarType type, const string& name) :
+    _type(type) {
     _name = string(name);
     switch (type) {
     case VT_DOUBLE:
@@ -182,34 +191,40 @@ const string& Code::constantById(uint16_t id) const {
     return _constants[id];
 }
 
+void Code::disassemble(ostream& out, FunctionFilter* filter) {
+    for (uint32_t i = 0; i < _functions.size(); i++) {
+        TranslatedFunction* function = _functions[i];
+        bool match = filter ? filter->matches(function) : true;
+        if (match) {
+            out << "function [" << function->id() << "] "
+                << typeToName(function->returnType())
+                << " " << function->name() << "(";
+            for (uint32_t i = 0; i < function->parametersNumber(); i++) {
+                out << function->parameterType(i);
+                if (i + 1 < function->parametersNumber()) {
+                    out << ", ";
+                }
+            }
+            out << ")" << endl;
+            function->disassemble(out);
+        }
+    }
+}
 
-TranslatedFunction::~TranslatedFunction() {
-  if (_function) {
-    delete _function;
+TranslatedFunction::TranslatedFunction(AstFunction* function) :
+  _id(INVALID_ID),
+  _locals(0), _params(function->parametersNumber()),
+  _name(function->name()) {
+  _signature.push_back(pair<VarType, string>
+                       (function->returnType(), "return"));
+
+  for (uint32_t i = 0; i < function->parametersNumber(); i++) {
+      _signature.push_back(pair<VarType, string>
+                           (function->parameterType(i), function->parameterName(i)));
   }
 }
 
-const string& TranslatedFunction::name() const {
-    return _function->name();
-}
-
-VarType TranslatedFunction::returnType() const {
-    return _function->returnType();
-}
-
-VarType TranslatedFunction::parameterType(uint32_t index) const {
-    return _function->parameterType(index);
-}
-
-uint32_t TranslatedFunction::parametersNumber() const {
-    return _function->parametersNumber();
-}
-
-void TranslatedFunction::assignId(uint16_t id) {
-    assert(_id == 0);
-    assert(_function->isTop() || id != 0);
-
-    _id = id;
+TranslatedFunction::~TranslatedFunction() {
 }
 
 }

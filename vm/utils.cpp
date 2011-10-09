@@ -22,10 +22,10 @@ char* loadFile(const char* file) {
 
     off_t size = statBuf.st_size;
     uint8_t* result = new uint8_t[size + 1];
-    
+
     int rv = read(fd, result, size);
     assert(rv == size);
-    result[size] = '\0';    
+    result[size] = '\0';
 
     return (char*)result;
 }
@@ -48,6 +48,33 @@ void positionToLineOffset(const string& text,
         line_start = pos;
         current_line++;
     }
+}
+
+const char* typeToName(VarType type) {
+    switch (type) {
+        case VT_INT: return "int";
+        case VT_DOUBLE: return "double";
+        case VT_STRING: return "string";
+        case VT_VOID: return "void";
+        default: return "invalid";
+    }
+}
+
+
+VarType nameToType(const string& typeName) {
+    if (typeName == "int") {
+        return VT_INT;
+    }
+    if (typeName == "double") {
+       return VT_DOUBLE;
+    }
+    if (typeName == "string") {
+        return VT_STRING;
+    }
+    if (typeName == "void") {
+        return VT_VOID;
+    }
+    return VT_INVALID;
 }
 
 } // namespace mathvm
