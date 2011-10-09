@@ -71,4 +71,4 @@ interfaces.
                 Building.
 
   Build shall be pretty straightforward, just type 'make' in command
- line (known to work with MacOS and Linux).
+ line (known to work with MacOS and Linux). Use 'make OPT=1' for an optimized build.
