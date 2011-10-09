@@ -32,6 +32,7 @@ public:
 
 #define VISITOR_FUNCTION(type, name)            \
     virtual void visit##type(type* node) {      \
+      assert(!node->isFunctionNode());          \
       node->visitChildren(this);                \
       delete node;                              \
     }
@@ -52,10 +53,12 @@ public:
 #undef VISITOR_FUNCTION
 };
 
-class VarAllocator;
+class InterpreterCodeImpl;
+class VarStorage;
 class BytecodeTranslatorImpl : public Translator {
-    Status* translateBytecode(const string& program, Bytecode* *bc,
-                              VarAllocator* *vars);
+    Status* translateBytecode(const string& program,
+                              InterpreterCodeImpl* *code,
+                              VarStorage* *vars);
 
   public:
     BytecodeTranslatorImpl() {

@@ -1,8 +1,10 @@
 #include "mathvm.h"
 
 #include <stdio.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
-#include <iostream> 
+#include <iostream>
 
 using namespace mathvm;
 using namespace std;
@@ -16,7 +18,7 @@ int main(int argc, char** argv) {
     }
 
     const char* expr = "double x; double y;"
-                        "x += 8.0; y = 2.0;" 
+                        "x += 8.0; y = 2.0;"
                         "print('Hello, x=',x,' y=',y,'\n');"
         ;
     bool isDefaultExpr = true;
@@ -41,22 +43,13 @@ int main(int argc, char** argv) {
                "error '%s'\n",
                line, offset,
                translateStatus->getError().c_str());
-#if 0
-        if (position != Status::INVALID_POSITION) {
-            printf("%s\n", expr);
-            for (uint32_t i = 0; i < position; i++) {
-                printf(" ");
-            }
-            printf("^\n");
-        }
-#endif
     } else {
         assert(code != 0);
         vector<Var*> vars;
 
         if (isDefaultExpr) {
             Var* xVar = new Var(VT_DOUBLE, "x");
-            Var* yVar = new Var(VT_DOUBLE, "y");            
+            Var* yVar = new Var(VT_DOUBLE, "y");
             vars.push_back(xVar);
             vars.push_back(yVar);
             xVar->setDoubleValue(42.0);
@@ -67,7 +60,10 @@ int main(int argc, char** argv) {
                    execStatus->getError().c_str());
         } else {
             if (isDefaultExpr) {
-                printf("x evaluated to %f\n", vars[0]->getDoubleValue());
+              printf("x evaluated to %f\n", vars[0]->getDoubleValue());
+              for (uint32_t i = 0; i < vars.size(); i++) {
+                delete vars[i];
+              }
             }
         }
         delete code;
@@ -75,7 +71,10 @@ int main(int argc, char** argv) {
     }
     delete translateStatus;
     delete translator;
-    delete [] expr;
+
+    if (!isDefaultExpr) {
+      delete [] expr;
+    }
 
     return 0;
 }

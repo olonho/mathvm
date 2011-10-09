@@ -1,7 +1,6 @@
 #include "ast.h"
 #include "mathvm.h"
 #include "parser.h"
-#include "visitors.h"
 
 #include <iostream>
 #include <stdio.h>
@@ -14,9 +13,6 @@ Parser::Parser() {
 }
 
 Parser::~Parser() {
-    DeleteVisitor terminator;
-    terminator.performDelete(_top);
-
     delete _topmostScope;
 }
 
@@ -29,7 +25,7 @@ Status* Parser::parseProgram(const string& code) {
     return parseTopLevel();
 }
 
-BlockNode* Parser::top() const {
+AstFunction* Parser::top() const {
     return _top;
 }
 
@@ -76,17 +72,16 @@ void  Parser::ensureKeyword(const string& keyword) {
 }
 
 void Parser::error(const char* format, ...) {
-    int pos = 0;
     va_list args;
     va_start(args, format);
-
-    vsnprintf(_msgBuffer + pos, sizeof(_msgBuffer) - pos, format, args);
+    vsnprintf(_msgBuffer, sizeof(_msgBuffer), format, args);
+    va_end(args);
     throw _msgBuffer;
 }
 
-
 void Parser::pushScope() {
     Scope* newScope = new Scope(_currentScope);
+    _currentScope->addChildScope(newScope);
     _currentScope = newScope;
 }
 
@@ -97,18 +92,24 @@ void Parser::popScope() {
 }
 
 Status* Parser::parseTopLevel() {
+    BlockNode* topBlock = 0;
     _currentToken = tUNDEF;
     _currentTokenIndex = 0;
     _topmostScope = _currentScope = new Scope(0);
     _top = 0;
     try {
-        _top = parseBlock(false);
+        topBlock = parseBlock(false);
     } catch (char* error) {
         return new Status(error, _tokens.positionOf(_currentTokenIndex));
     }
-
-    //AstDumper dumper; dumper.dump(top());
-
+    assert(topBlock != 0);
+    // Make pseudo-function for top level code.
+    vector<pair<VarType,string> > signature;
+    signature.push_back(pair<VarType,string>(VT_VOID, "return"));
+    _topmostScope->declareFunction(
+      new FunctionNode(0, AstFunction::top_name,
+                       signature, topBlock));
+    _top = _topmostScope->lookupFunction(AstFunction::top_name);
     return 0;
 }
 
@@ -143,7 +144,7 @@ AstNode* Parser::parseStatement() {
           assert(false);
           return 0;
       }
-    } 
+    }
     if ((currentToken() == tIDENT) && isAssignment(lookaheadToken(1))) {
         return parseAssignment();
     }
@@ -214,22 +215,6 @@ PrintNode* Parser::parsePrint() {
     return result;
 }
 
-static VarType nameToType(const string& typeName) {
-    if (typeName == "int") {
-        return VT_INT;
-    }
-    if (typeName == "double") {
-        return VT_DOUBLE;
-    }
-    if (typeName == "string") {
-        return VT_STRING;
-    }
-    if (typeName == "void") {
-        return VT_VOID;
-    }
-    return VT_INVALID;
-}
-
 static inline AstNode* defaultReturnExpr(VarType type) {
     switch (type) {
         case VT_INT:
@@ -294,12 +279,12 @@ FunctionNode* Parser::parseFunction() {
         _currentScope->declareVariable(signature[i].second, signature[i].first);
     }
     BlockNode* body = parseBlock(true);
-    
+
     if (body->nodes() == 0 ||
         !(body->nodeAt(body->nodes() - 1)->isReturnNode())) {
         body->add(new ReturnNode(0, defaultReturnExpr(returnType)));
     }
-    
+
     popScope();
 
     FunctionNode* result = new FunctionNode(tokenIndex, name, signature, body);
@@ -430,6 +415,9 @@ AstNode* Parser::parseUnary() {
         TokenKind op = currentToken();
         consumeToken();
         return new UnaryOpNode(_currentTokenIndex, op, parseUnary());
+    } else if (currentToken() == tIDENT && lookaheadToken(1) == tLPAREN) {
+        AstNode* expr = parseCall();
+        return expr;
     } else if (currentToken() == tIDENT) {
         AstVar* var = _currentScope->lookupVariable(currentTokenValue());
         if (var == 0) {
@@ -460,9 +448,6 @@ AstNode* Parser::parseUnary() {
         consumeToken();
         AstNode* expr = parseExpression();
         ensureToken(tRPAREN);
-        return expr;
-    } else if (currentToken() == tIDENT && lookaheadToken(1) == tLPAREN) {
-        AstNode* expr = parseCall();
         return expr;
     } else {
         assert(false);

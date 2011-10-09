@@ -3,10 +3,12 @@
 
 #include <stdint.h>
 
-#include <string>
 #include <cassert>
-#include <vector>
+#include <iostream>
 #include <map>
+#include <iostream>
+#include <string>
+#include <vector>
 
 namespace mathvm {
 
@@ -19,6 +21,7 @@ using namespace std;
         DO(SLOAD, "Load string reference on TOS, next two bytes - constant id.", 3)   \
         DO(DLOAD0, "Load double 0 on TOS.", 1)                          \
         DO(ILOAD0, "Load int 0 on TOS.", 1)                             \
+        DO(SLOAD0, "Load empty string on TOS.", 1)                      \
         DO(DLOAD1, "Load double 1 on TOS.", 1)                          \
         DO(ILOAD1, "Load int 1 on TOS.", 1)                             \
         DO(DLOADM1, "Load double -1 on TOS.", 1)                        \
@@ -40,12 +43,42 @@ using namespace std;
         DO(D2I,  "Convert double on TOS to int.", 1)                    \
         DO(SWAP, "Swap 2 topmost values.", 1)                           \
         DO(POP, "Remove topmost value.", 1)                             \
-        DO(LOADDVAR, "Load double from variable, whose id inlined to insn stream, push on TOS.", 2) \
-        DO(LOADIVAR, "Load int from variable, whose id inlined to insn stream, push on TOS.", 2) \
-        DO(LOADSVAR, "Load string from variable, whose id inlined to insn stream, push on TOS.", 2) \
-        DO(STOREDVAR, "Pop TOS and store to double variable, whose id inlined to insn stream.", 2) \
-        DO(STOREIVAR, "Pop TOS and store to int variable, whose id inlined to insn stream.", 2) \
-        DO(STORESVAR, "Pop TOS and store to string variable, whose id inlined to insn stream.", 2) \
+        DO(LOADDVAR0, "Load double from variable 0, push on TOS.", 1)   \
+        DO(LOADDVAR1, "Load double from variable 1, push on TOS.", 1)   \
+        DO(LOADDVAR2, "Load double from variable 2, push on TOS.", 1)   \
+        DO(LOADDVAR3, "Load double from variable 3, push on TOS.", 1)   \
+        DO(LOADIVAR0, "Load int from variable 0, push on TOS.", 1)      \
+        DO(LOADIVAR1, "Load int from variable 1, push on TOS.", 1)      \
+        DO(LOADIVAR2, "Load int from variable 2, push on TOS.", 1)      \
+        DO(LOADIVAR3, "Load int from variable 3, push on TOS.", 1)      \
+        DO(LOADSVAR0, "Load string from variable 0, push on TOS.", 1)   \
+        DO(LOADSVAR1, "Load string from variable 1, push on TOS.", 1)   \
+        DO(LOADSVAR2, "Load string from variable 2, push on TOS.", 1)   \
+        DO(LOADSVAR3, "Load string from variable 3, push on TOS.", 1)   \
+        DO(STOREDVAR0, "Pop TOS and store to double variable 0.", 1)    \
+        DO(STOREDVAR1, "Pop TOS and store to double variable 1.", 1)    \
+        DO(STOREDVAR2, "Pop TOS and store to double variable 0.", 1)    \
+        DO(STOREDVAR3, "Pop TOS and store to double variable 3.", 1)    \
+        DO(STOREIVAR0, "Pop TOS and store to int variable 0.", 1)       \
+        DO(STOREIVAR1, "Pop TOS and store to int variable 1.", 1)       \
+        DO(STOREIVAR2, "Pop TOS and store to int variable 0.", 1)       \
+        DO(STOREIVAR3, "Pop TOS and store to int variable 3.", 1)       \
+        DO(STORESVAR0, "Pop TOS and store to string variable 0.", 1)    \
+        DO(STORESVAR1, "Pop TOS and store to string variable 1.", 1)    \
+        DO(STORESVAR2, "Pop TOS and store to string variable 0.", 1)    \
+        DO(STORESVAR3, "Pop TOS and store to string variable 3.", 1)    \
+        DO(LOADDVAR, "Load double from variable, whose 2-byte is id inlined to insn stream, push on TOS.", 3) \
+        DO(LOADIVAR, "Load int from variable, whose 2-byte id is inlined to insn stream, push on TOS.", 3) \
+        DO(LOADSVAR, "Load string from variable, whose 2-byte id is inlined to insn stream, push on TOS.", 3) \
+        DO(STOREDVAR, "Pop TOS and store to double variable, whose 2-byte id is inlined to insn stream.", 3) \
+        DO(STOREIVAR, "Pop TOS and store to int variable, whose 2-byte id is inlined to insn stream.", 3) \
+        DO(STORESVAR, "Pop TOS and store to string variable, whose 2-byte id is inlined to insn stream.", 3) \
+        DO(LOADCTXDVAR, "Load double from variable, whose 2-byte context and 2-byte id inlined to insn stream, push on TOS.", 5) \
+        DO(LOADCTXIVAR, "Load int from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5) \
+        DO(LOADCTXSVAR, "Load string from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5) \
+        DO(STORECTXDVAR, "Pop TOS and store to double variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
+        DO(STORECTXIVAR, "Pop TOS and store to int variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
+        DO(STORECTXSVAR, "Pop TOS and store to string variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
         DO(DCMP, "Compare 2 topmost doubles, pushing libc-stryle comparator value cmp(upper, lower) as integer.", 1) \
         DO(ICMP, "Compare 2 topmost ints, pushing libc-stryle comparator value cmp(upper, lower) as integer.", 1) \
         DO(JA, "Jump always, next two bytes - signed offset of jump destination.", 3) \
@@ -76,10 +109,7 @@ typedef enum {
     VT_STRING
 } VarType;
 
-typedef enum {
-    VK_INTERNAL, // if variable is created by runtime.
-    VK_EXTERNAL  // if variable is externally created.
-} VarKind;
+const uint16_t INVALID_ID = 0xffff;
 
 class Status {
     bool _ok;
@@ -120,7 +150,6 @@ class Status {
 
 class Var {
     VarType _type;
-    VarKind _kind;
     string _name;
     union {
         double _doubleValue;
@@ -129,7 +158,7 @@ class Var {
     };
 
   public:
-    Var(VarType type, const string& name, VarKind kind = VK_EXTERNAL);
+    Var(VarType type, const string& name);
 
     void setDoubleValue(double value) {
         assert(_type == VT_DOUBLE);
@@ -167,10 +196,6 @@ class Var {
 
     VarType type() const {
         return _type;
-    }
-
-    VarKind kind() const {
-        return _kind;
     }
 
     void print();
@@ -344,28 +369,43 @@ class Bytecode {
         return Label(this, current());
     }
 
-    void dump() const;
+    void dump(ostream& out) const;
 };
 
 class AstFunction;
 class TranslatedFunction {
-    AstFunction* _function;
     uint16_t _id;
-
+    uint16_t _locals;
+    uint16_t _params;
+    const string _name;
+    vector<pair<VarType,string> > _signature;
 public:
-    TranslatedFunction(AstFunction* function) :
-    _function(function), _id(0) {
-    }
-
+    TranslatedFunction(AstFunction* function);
     virtual ~TranslatedFunction();
 
-    const string& name() const;
-    VarType returnType() const;
-    VarType parameterType(uint32_t index) const;
-    uint32_t parametersNumber() const;
+    const string& name() const { return _name; }
+    VarType returnType() const {
+        return _signature[0].first;
+    }
+    VarType parameterType(uint32_t index) const {
+        return _signature[index + 1].first;
+    }
+    const string& parameterName(uint32_t index) const {
+        return _signature[index + 1].second;
+    }
+    uint16_t parametersNumber() const { return _params; }
 
-    void assignId(uint16_t);
+    void setLocalsNumber(uint16_t locals) {
+      _locals = locals;
+    }
+    uint32_t localsNumber() const { return _locals; }
+
+    void assignId(uint16_t id) {
+      assert(_id == INVALID_ID);
+      _id = id;
+    }
     uint16_t id() const { return _id; }
+    virtual void disassemble(ostream& out) const = 0;
 };
 
 class BytecodeFunction : public TranslatedFunction {
@@ -373,12 +413,21 @@ class BytecodeFunction : public TranslatedFunction {
 
 public:
     BytecodeFunction(AstFunction* function) :
-      TranslatedFunction(function) {
+        TranslatedFunction(function) {
     }
 
     Bytecode* bytecode() {
-      return &_bytecode;
+        return &_bytecode;
     }
+
+    virtual void disassemble(ostream& out) const {
+        _bytecode.dump(out);
+    }
+};
+
+class FunctionFilter {
+  public:
+    virtual bool matches(TranslatedFunction* function) = 0;
 };
 
 class Code {
@@ -389,7 +438,7 @@ class Code {
     vector<string> _constants;
     FunctionMap _functionById;
     ConstantMap _constantById;
-    
+
 public:
     Code();
     virtual ~Code();
@@ -405,7 +454,13 @@ public:
      * Execute this code with passed parameters, and update vars
      * in array with new values from topmost scope, if code says so.
      */
-    virtual Status* execute(vector<Var*> vars) = 0;
+    virtual Status* execute(vector<Var*>& vars) = 0;
+
+    /**
+     * Disassemble all functions, or only matching filter, and dump disssembled
+     * output to the stream.
+     */
+    virtual void disassemble(ostream& out = cout, FunctionFilter* filter = 0);
 };
 
 class Translator {
@@ -420,6 +475,8 @@ class Translator {
 char* loadFile(const char* file);
 void positionToLineOffset(const string& text,
                           uint32_t position, uint32_t& line, uint32_t& offset);
+const char* typeToName(VarType type);
+VarType nameToType(const string& typeName);
 
 }
 #endif // _MATHVM_H

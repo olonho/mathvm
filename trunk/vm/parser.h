@@ -9,7 +9,7 @@ namespace mathvm {
 
 // We implement simple top down parser.
 class Parser {
-    BlockNode* _top;
+    AstFunction* _top;
     Scope* _currentScope;
     Scope* _topmostScope;
     TokenList _tokens;
@@ -51,7 +51,7 @@ class Parser {
     ~Parser();
 
     Status* parseProgram(const string& code);
-    BlockNode* top() const;
+    AstFunction* top() const;
 };
 
 }
