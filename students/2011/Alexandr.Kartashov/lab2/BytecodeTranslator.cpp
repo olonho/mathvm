@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <string.h>
+#include <assert.h>
 
 #include "mathvm.h"
 #include "parser.h"
@@ -14,45 +15,142 @@
 // ================================================================================
 
 namespace mathvm {
-
-  class BytecodeGenerator : public AstVisitor {
-    class VarNum {
+  class VarNum {
     public:
-      int16_t add(const AstVar* var) {
-        _vars.push_back(var);
-        _numMap.insert(make_pair(var, _vars.size() - 1));
-        return _vars.size() - 1;
-      }
+    int16_t add(const AstVar* var) {
+      _vars.push_back(var);
+      _numMap.insert(make_pair(var, _vars.size() - 1));
+      return _vars.size() - 1;
+    }
 
-      bool exists(const AstVar* var) {
-        return _numMap.find(var) != _numMap.end();
-      }
+    bool exists(const AstVar* var) {
+      return _numMap.find(var) != _numMap.end();
+    }
       
-      unsigned int getId(const AstVar* var) {
-        //if (_numMap.find(var) != _numMap.end()) {
-        return _numMap.find(var)->second;
-          //}
-        /*
-        else {
-        return add(var);
-        }
-        */
-      }
+    unsigned int getId(const AstVar* var) {
+      return _numMap.find(var)->second;
+    }
 
-      unsigned int size() {
-        return _numMap.size();
-      }
+    unsigned int size() const {
+      return _numMap.size();
+    }
 
-    private:
-      std::vector<const AstVar*> _vars;
-      std::map<const AstVar*, unsigned int> _numMap;
-    };
+    unsigned int next() const {
+      return _numMap.size();
+    }
 
-    
+    unsigned int current() const {
+      return _numMap.size() - 1;
+    }
 
   private:
+    std::vector<const AstVar*> _vars;
+    std::map<const AstVar*, unsigned int> _numMap;
+  };
+
+
+#define VISIT(type)                             \
+  void visit##type(type* node)
+
+
+  class ScopeWalker : public AstVisitor {
+    typedef std::map<AstVar*, uint16_t> Locals;
+
+    VarNum* _varMap;
+    size_t _size;
+
+
+  public:
+    ScopeWalker() { 
+      _size = 0;
+    }
+
+    void collectLocals(VarNum* varMap, AstNode* function) {
+      _varMap = varMap;
+      function->visitChildren(this);
+    }
+
+    size_t size() const {
+      return _size;
+    }
+
+    VISIT(BinaryOpNode) {
+      return;
+    }
+
+    VISIT(UnaryOpNode) {
+      return;
+    }
+
+    VISIT(StringLiteralNode) {
+      return;
+    }
+
+    VISIT(DoubleLiteralNode) {
+      return;
+    }
+    
+    VISIT(IntLiteralNode) {
+      return;
+    }
+    
+    VISIT(LoadNode) {
+      return;
+    }
+   
+    VISIT(StoreNode) {
+      return;
+    }
+
+    VISIT(ForNode) {
+      node->visitChildren(this);
+    }
+
+    VISIT(WhileNode) {
+      node->visitChildren(this);
+    }
+    
+    VISIT(IfNode) {
+      node->visitChildren(this);
+    }
+          
+    VISIT(BlockNode) {
+      Scope::VarIterator vi(node->scope());
+      AstVar *v;
+
+      while (vi.hasNext()) {
+        v = vi.next();
+        _varMap->add(v);
+        _size++;
+      }
+      
+      node->visitChildren(this);
+    }
+    
+    VISIT(FunctionNode) {
+      node->visitChildren(this);
+    }
+     
+    VISIT(ReturnNode) {
+      return;
+    }
+     
+    VISIT(CallNode) {
+      return;
+    }
+
+    VISIT(PrintNode) {
+      return;
+    }
+  };
+
+  //--------------------------------------------------------------------------------
+
+
+  class BytecodeGenerator : public AstVisitor {
+  private:
     Bytecode* code;
-    AstNode* _root;
+    BlockNode* _root;
     StringPool *strings;
 
     VarNum _num;
@@ -60,7 +158,9 @@ namespace mathvm {
     BytecodeInterpreter *_interpreter;
 
     std::map<std::string, uint16_t> string_const;
-    std::map<std::string, uint16_t> _functions;
+    std::map<AstFunction*, uint16_t> _functions;
+
+    BlockNode* _curBlock;
 
     FunArgs* _args;
     size_t _argNum;
@@ -68,20 +168,24 @@ namespace mathvm {
     // --------------------------------------------------------------------------------
 
     void put(const AstVar* v) {
-      if (_num.exists(v)) {
-        code->add((uint8_t)_num.getId(v));
-      } else {
+      assert(_num.exists(v));
+      uint16_t vid = (uint16_t)_num.getId(v);
+      assert(vid < _num.size());
+      code->addTyped(vid);
+        /*} else {
         // This is a function argument
 
+        
         for (size_t i = 0; i < _argNum; ++i) {
           if (v->name() == *((*_args)[i].name)) {
             (*_args)[i].varId = (uint8_t)_num.add(v);
             code->add((*_args)[i].varId);
             break;
           }
-        }             
-      }
+        } 
+        */
     }
+  
 
     void put(unsigned char* buf, size_t size) {
       for(size_t i = 0; i < size; ++i) {
@@ -91,13 +195,22 @@ namespace mathvm {
 
 
   public:
-    BytecodeGenerator(AstNode* root) { 
-      _root = root;
+    BytecodeGenerator(AstFunction* root) { 
+      ScopeWalker w;
+      BCIFunction* top;
+
+      w.collectLocals(&_num, root->node());
+      
+      //_root = root;
       _interpreter = new BytecodeInterpreter;
-      code = _interpreter->bytecode();
+      
+      _interpreter->createFunction(&top, root);
+      top->setLocalsNumber(w.size());
+ 
+      code = top->bytecode();
       strings = _interpreter->strings();
 
-      _root->visit(this);
+      root->node()->body()->visit(this);
       code->add(BC_STOP);
 
       _interpreter->setVarPoolSize(_num.size());
@@ -110,10 +223,6 @@ namespace mathvm {
 
     // Visitor interface implementation 
 
-    #define VISIT(type)                      \
-      void visit##type(type* node)
-
-    
     VarType gen_num_conversions(BinaryOpNode* node) {
       VarType l = node_type[node->left()];
       VarType r = node_type[node->right()];
@@ -264,13 +373,6 @@ namespace mathvm {
       code->addInt16(1);
       
       code->add(BC_ILOAD1); // If the condition holds
-
-      /*
-      code->add(BC_SWAP);
-      code->add(BC_POP);
-      code->add(BC_SWAP);
-      code->add(BC_POP);    // Remove arguments
-      */
       
       node_type[node] = VT_INT;       
     }
@@ -557,33 +659,49 @@ namespace mathvm {
     VISIT(BlockNode) {
       Scope::VarIterator vi(node->scope());
       Scope::FunctionIterator fi(node->scope());
-      AstVar *v;
-      
-      while (vi.hasNext()) {
-        v = vi.next();    
-        _num.add(v);
-      }
 
       while (fi.hasNext()) {
         Bytecode* old_code = code;
-        uint16_t id;
-        FunctionNode *node = fi.next()->node();
+        AstFunction* af = fi.next();
 
-        _interpreter->createFunction(&code, &id, &_args);
-        _functions[node->name()] = id;
+        /*
+        if (af->name() == "<top>") {
+          continue;
+        }
+        */
 
-        _argNum = node->parametersNumber();
-        _args->resize(_argNum);
-        for (size_t i = 0; i < _argNum; ++i) {
-          (*_args)[i].name = &node->parameterName(i);
+        Scope::VarIterator argsIt(af->scope());
+        ScopeWalker w;
+        BCIFunction* cf;
+        
+
+        //cf->setArgsNum(af->parametersNumber());
+        _interpreter->createFunction(&cf, af);
+        cf->setFirstArg(_num.next());
+
+        while (argsIt.hasNext()) {
+          AstVar* v = argsIt.next();
+          _num.add(v);
         }
 
-        node->body()->visit(this);
+        cf->setFirstLocal(_num.next());
+        w.collectLocals(&_num, af->node());
+        cf->setLocalsNumber(w.size());
+
+        uint16_t funId = _functions.size();
+        _functions[af] = funId;
+
+        code = cf->bytecode();
+        af->node()->visit(this);
 
         code = old_code;
       }
 
+
+      BlockNode* oldBlock = _curBlock;
+      _curBlock = node;
       node->visitChildren(this);
+      _curBlock = oldBlock;
     }
 
 
@@ -600,12 +718,21 @@ namespace mathvm {
       node->visitChildren(this);
       
       code->add(BC_CALL);
-      code->addUInt16(_functions[node->name()]);
+      AstFunction *af = _curBlock->scope()->lookupFunction(node->name());
+      uint16_t fid = _functions[af] + 1;
+      //assert(fid != 0 && af != NULL);
+      code->addUInt16(fid);
+
+      node_type[node] = af->returnType();
     }
 
     VISIT(ReturnNode) {
       node->visitChildren(this);
       code->add(BC_RETURN);
+    }
+
+    VISIT(FunctionNode) {
+      node->visitChildren(this);
     }
 
 #undef VISIT
