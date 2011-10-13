@@ -4,7 +4,7 @@ PROGNAME     = lab2
 USER_DEFS    = -ggdb3 -DPROGNAME="\"$(PROGNAME)\""
 USER_OBJS    = $(OBJ)/mymain$(OBJ_SUFF) $(OBJ)/BytecodeTranslator$(OBJ_SUFF) $(OBJ)/BytecodeInterpreter$(OBJ_SUFF) 
 USER_HEADERS = BytecodeInterpreter.h
-RUN_TESTS    = $(VM_ROOT)/tests/run.py
+RUN_TESTS    = tests/run.py
 BASH         = $(shell which bash)
 
 include $(VM_ROOT)/common.mk
