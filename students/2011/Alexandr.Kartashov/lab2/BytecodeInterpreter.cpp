@@ -16,25 +16,6 @@ namespace mathvm {
 
   // --------------------------------------------------------------------------------
 
-  struct CallStackEntry {
-    CallStackEntry(BCIFunction* f, uint32_t ip, size_t frame) {
-      oldFunction = f;
-      oldIP = ip;
-      oldFrame = frame;
-    }
-
-    void restore(BCIFunction** f, uint32_t* ip, size_t* frame) {
-      *f = oldFunction;
-      *ip = oldIP;
-      *frame = oldFrame;
-    }
-
-    BCIFunction* oldFunction;
-    uint32_t oldIP;
-    size_t oldFrame;
-    //std::vector<RTVar> locals;
-  };
-
   static int opcode_len[] = {
 #define OPCODE_LEN(b, d, l) l,
     FOR_BYTECODES(OPCODE_LEN)
@@ -47,7 +28,6 @@ namespace mathvm {
 
   Bytecode* BytecodeInterpreter::bytecode() {
     return NULL;
-    //return &_code;
   }
 
   StringPool *BytecodeInterpreter::strings() {
@@ -55,19 +35,12 @@ namespace mathvm {
   }
 
   void BytecodeInterpreter::setVarPoolSize(unsigned int pool_sz) {
-    _varPool.resize(pool_sz);
+    //_varPool.resize(pool_sz);
   }
 
 
   void BytecodeInterpreter::createFunction(Bytecode** code, uint16_t* id, FunArgs** args) {
     abort();
-
-    /*
-    _functions.push_back(Function());
-    *code = &_functions.back().code;
-    *id = _functions.size() - 1;
-    *args = &_functions.back().args;
-    */
   }
 
   void BytecodeInterpreter::createFunction(BCIFunction** function, AstFunction* fNode) {
@@ -75,44 +48,58 @@ namespace mathvm {
     *function = _functions.back();
   }
     
-
-  //typedef std::vector<RTVar> Stack;
-
-  void BytecodeInterpreter::createStackFrame(BCIFunction* f) {
-    /*
-    for (size_t i = 0; i < f->localsNumber(); ++i) {
-      _stack.push(_varPool[f->firstLocal() + i]);
-      }*/
+  void BytecodeInterpreter::createStackFrame() {
+    const BCIFunction* f = _callStack.back().function();
     _stack.advance(f->localsNumber()*sizeof(RTVar));
   }
 
-  void BytecodeInterpreter::leaveStackFrame(BCIFunction* f) {
+  void BytecodeInterpreter::leaveStackFrame() {
+    const BCIFunction* f = _callStack.back().function();
     _stack.reduce((f->localsNumber() + f->parametersNumber())*sizeof(RTVar));
   }
 
-  RTVar& BytecodeInterpreter::frameVar(uint16_t idx) {
-    return _stack.get<RTVar>(_framePos + idx*sizeof(RTVar));
+  RTVar& BytecodeInterpreter::frameVar(uint16_t idx, const CallStackEntry& cse) {
+    return _stack.get<RTVar>(cse.framePtr() + idx*sizeof(RTVar));
   }
 
-  RTVar& BytecodeInterpreter::arg(uint16_t idx) {
-    return _stack.get<RTVar>(_framePos + (idx - _curFun->parametersNumber())*sizeof(RTVar));
+  RTVar& BytecodeInterpreter::arg(uint16_t idx, const CallStackEntry& cse) {
+    return _stack.get<RTVar>(cse.framePtr() + (idx - cse.function()->parametersNumber())*sizeof(RTVar));
+  }
+
+  RTVar& BytecodeInterpreter::var(uint16_t id) {
+    for (CallStack::const_reverse_iterator csw = _callStack.rbegin();
+         csw != _callStack.rend();
+         ++csw) {
+
+      const BCIFunction* curFun = csw->function();
+
+      // Unwind the call stack to find the variable
+      if (curFun->localsNumber() > 0 && 
+          id >= curFun->firstLocal() && 
+          id < curFun->firstLocal() + curFun->localsNumber()) {
+        return frameVar(id - curFun->firstLocal(), *csw);
+      } else if (curFun->parametersNumber() > 0 && 
+                 id >= curFun->firstArg() && 
+                 id < curFun->firstArg() + curFun->parametersNumber()) {
+        return arg(id - curFun->firstArg(), *csw);
+      }
+    }
+
+    abort();
   }
 
 
   Status* BytecodeInterpreter::execute(std::vector<mathvm::Var*, std::allocator<Var*> >& args) {
-    Bytecode *code;
+    const Bytecode *code;
 
     uint32_t ip = 0;
-    std::stack<CallStackEntry> callStack;
+    //std::stack<CallStackEntry> callStack;
     int stop = 0;
 
-    //_stack.init();
-    _curFun = _functions[0];
-    _framePos = 0;
-
-    BCIFunction* top = _functions[0];
-    createStackFrame(top);
-    code = top->bytecode();
+    _stack.init();  // I don't know why the Stack contructor isn't called...
+    _callStack.push_back(CallStackEntry(_functions[0], 0, 0));
+    createStackFrame();
+    code = _functions[0]->bytecode();
 
     while (ip < code->length() && !stop) {
       uint8_t opcode = code->get(ip);
@@ -288,20 +275,7 @@ namespace mathvm {
         uint16_t id;
 
         id = code->getUInt16(ip + 1);
-        if (_curFun->localsNumber() > 0 && 
-            id >= _curFun->firstLocal() && 
-            id < _curFun->firstLocal() + _curFun->localsNumber()) {
-          _stack.push(frameVar(id - _curFun->firstLocal()));
-        } else {
-          if (_curFun->parametersNumber() > 0 && 
-              id >= _curFun->firstArg() && 
-              id < _curFun->firstArg() + _curFun->parametersNumber()) {
-            _stack.push(arg(id - _curFun->firstArg()));
-          } else {
-            std::cout << "References to the outer lexical scope are not supported yet" << std::endl;
-            abort();
-          }
-        }
+        _stack.push(var(id));
       }
         break;
 
@@ -310,25 +284,7 @@ namespace mathvm {
         uint16_t id;
 
         id = code->getUInt16(ip + 1);
-        if (_curFun->localsNumber() > 0 && 
-            id >= _curFun->firstLocal() &&
-            id < _curFun->firstLocal() + _curFun->localsNumber()) {
-          // A local variable is refereced
-
-          frameVar(id - _curFun->firstLocal()) = _stack.pop<RTVar>();
-        } else {
-          // An argument or a lexical scope variable is referenced
-
-          std::cout << "References to the outer lexical scope are not supported yet" << std::endl;
-          abort();
-
-          /*
-          if (curFun->parametersNumber() > 0 && id - curFun->parametersNumber() > 0) {
-            
-          }
-          */
-        }
-        //_varPool[id] = _stack.top(); _stack.pop();
+        var(id) = _stack.pop<RTVar>();
       }
         break;
 
@@ -482,39 +438,37 @@ namespace mathvm {
 
       case BC_CALL: {
         uint16_t id = code->getUInt16(ip + 1);
+        BCIFunction* f = _functions[id];
+        size_t framePos = _stack.pos();
 
         ip += 3;
-        callStack.push(CallStackEntry(_curFun, ip, _framePos));
-        _curFun = _functions[id];
-        code = _functions[id]->bytecode();
-        _framePos = _stack.pos();
-        createStackFrame(_curFun);
+        _callStack.back().oldIP = ip;
+        _callStack.push_back(CallStackEntry(f, 0, framePos));
+        createStackFrame();
+
+        code = f->bytecode();
         ip = 0;        
-        
-        /*
-        for (int i = _functions[id].args.size() - 1; i >= 0; --i) {
-          _varPool[_functions[id].args[i].varId] = _stack.top(); 
-          _stack.pop();
-        }
-        */
       }
         continue;
 
       case BC_RETURN: {
         RTVar ret;
+        const BCIFunction* f = _callStack.back().function();
         
-        if (_curFun->returnType() != VT_VOID) {
+        if (f->returnType() != VT_VOID) {
           ret = _stack.pop();
-        }
-
-        leaveStackFrame(_curFun);
-        if (_curFun->returnType() != VT_VOID) {
+          leaveStackFrame();
           _stack.push(ret);
+        } else {
+          leaveStackFrame();
         }
 
-        callStack.top().restore(&_curFun, &ip, &_framePos);
-        code = _curFun->bytecode();
-        callStack.pop();        
+        _callStack.pop_back();
+        ip = _callStack.back().oldIP;
+        
+
+        // Sorry, const...
+        code = ((BCIFunction*)_callStack.back().function())->bytecode();
       }
         continue;
 
