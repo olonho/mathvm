@@ -222,6 +222,38 @@ namespace mathvm {
     };
 
 
+    struct CallStackEntry {
+      CallStackEntry(BCIFunction* f, uint32_t ip, size_t frame) {
+        oldFunction = f;
+        oldIP = ip;
+        oldFrame = frame;
+      }
+      
+      void restore(BCIFunction** f, uint32_t* ip, size_t* frame) {
+        *f = oldFunction;
+        *ip = oldIP;
+        *frame = oldFrame;
+      }
+
+      void restore(uint32_t* ip) {
+      }
+
+      const BCIFunction* function() const {
+        return oldFunction;
+      }
+
+      size_t framePtr() const {
+        return oldFrame;
+      }
+
+      BCIFunction* oldFunction;
+      uint32_t oldIP;
+      size_t oldFrame;
+    };
+
+    typedef std::vector<CallStackEntry> CallStack;
+
+
   public:
     BytecodeInterpreter() 
       : _stack() { }
@@ -240,19 +272,21 @@ namespace mathvm {
     Status* execute(std::vector<mathvm::Var*, std::allocator<Var*> >&);
     
   private:
-    void createStackFrame(BCIFunction*);
-    void leaveStackFrame(BCIFunction*);
+    void createStackFrame();
+    void leaveStackFrame();
 
-    RTVar& frameVar(uint16_t idx);
-    RTVar& arg(uint16_t idx);
+    RTVar& frameVar(uint16_t idx, const CallStackEntry&);
+    RTVar& arg(uint16_t idx, const CallStackEntry&);
+    RTVar& var(uint16_t idx);
 
-    std::vector<RTVar> _varPool;
+    //std::vector<RTVar> _varPool;
     std::vector<BCIFunction*> _functions;
     StringPool _stringPool;
     //Bytecode _code;
-    size_t _framePos;
-    BCIFunction* _curFun;
+    //size_t _framePos;
+    //BCIFunction* _curFun;
 
     Stack _stack;
+    CallStack _callStack;
   };
 }
