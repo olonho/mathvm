@@ -351,7 +351,13 @@ void Translator::visitBlockNode(mathvm::BlockNode* node) {
         fun->node()->visit(this);
         code = code1;
     }
-    node->visitChildren(this);
+    for (uint32_t i = 0; i < node->nodes(); ++i) {
+        mathvm::CallNode* call = dynamic_cast<mathvm::CallNode*>(node->nodeAt(i));
+        node->nodeAt(i)->visit(this);
+        if (call && currentType != mathvm::VT_VOID) {
+            code->add(mathvm::BC_POP);
+        }
+    }
     for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext();) {
         delVar(it.next()->name());
     }
@@ -361,7 +367,12 @@ void Translator::visitFunctionNode(mathvm::FunctionNode* node) {
     mathvm::VarType resType = resultType;
     resultType = node->returnType();
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-        code->add(mathvm::BC_STOREDVAR);
+        switch (node->parameterType(i)) {
+            case mathvm::VT_DOUBLE: code->add(mathvm::BC_STOREDVAR); break;
+            case mathvm::VT_INT: code->add(mathvm::BC_STOREIVAR); break;
+            case mathvm::VT_STRING: code->add(mathvm::BC_STORESVAR); break;
+            default: INTERNAL_ERROR
+        }
         code->addTyped(addVar(node, node->parameterName(i)));
     }
     node->body()->visit(this);
