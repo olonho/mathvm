@@ -16,6 +16,8 @@ class Translator: public mathvm::AstVisitor {
     bool overflow;
     mathvm::VarType currentType, resultType;
     
+    VarInt addVar(mathvm::AstNode* node, const std::string& name);
+    void delVar(const std::string& name);
     void put(const void* buf, unsigned int size);
     template<class T> void putVar(mathvm::Instruction ins, T* var);
     void checkTypeInt(mathvm::AstNode* expr);
