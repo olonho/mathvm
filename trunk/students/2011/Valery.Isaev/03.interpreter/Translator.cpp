@@ -54,10 +54,7 @@ void Translator::putVar(mathvm::Instruction ins, T* node) {
     code->add(ins);
     const std::vector<VarInt>& v = vars[node->var()->name()];
     if (v.empty()) {
-        VarInt x = 0;
-        put(&x, sizeof(VarInt));
-        return;
-//        throwError(node, "Undeclared variable: %s", node->var()->name().c_str());
+        throwError(node, "Undeclared variable: %s", node->var()->name().c_str());
     }
     put(&v.back(), sizeof(VarInt));
 }
@@ -322,16 +319,28 @@ void Translator::visitIfNode(mathvm::IfNode* node) {
     }
 }
 
+Translator::VarInt Translator::addVar(mathvm::AstNode* node, const std::string& name) {
+    VarInt r = currentVar++;
+    if (overflow) {
+        throwError(node, "I'm sorry, Dave. I'm afraid you exceeded the limit of"
+            " variables which is %d.", (unsigned long long)1 + VarInt(-1));
+    }
+    if (!currentVar) {
+        overflow = true;
+    }
+    vars[name].push_back(r);
+    return r;
+}
+
+void Translator::delVar(const std::string& name) {
+    vars[name].pop_back();
+    overflow = false;
+    --currentVar;
+}
+
 void Translator::visitBlockNode(mathvm::BlockNode* node) {
     for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext();) {
-        if (overflow) {
-            throwError(node, "I'm sorry, Dave. I'm afraid you exceeded the limit of"
-                " variables which is %d.", (unsigned long long)1 + VarInt(-1));
-        }
-        vars[it.next()->name()].push_back(currentVar++);
-        if (!currentVar) {
-            overflow = true;
-        }
+        addVar(node, it.next()->name());
     }
     for (mathvm::Scope::FunctionIterator it(node->scope()); it.hasNext();) {
         mathvm::Bytecode* code1 = code;
@@ -343,19 +352,22 @@ void Translator::visitBlockNode(mathvm::BlockNode* node) {
         code = code1;
     }
     node->visitChildren(this);
-    
-    mathvm::Scope::VarIterator it(node->scope());
-    overflow = overflow && !it.hasNext();
-    while (it.hasNext()) {
-        vars[it.next()->name()].pop_back();
-        --currentVar;
+    for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext();) {
+        delVar(it.next()->name());
     }
 }
 
 void Translator::visitFunctionNode(mathvm::FunctionNode* node) {
     mathvm::VarType resType = resultType;
     resultType = node->returnType();
+    for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
+        code->add(mathvm::BC_STOREDVAR);
+        code->addTyped(addVar(node, node->parameterName(i)));
+    }
     node->body()->visit(this);
+    for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
+        delVar(node->parameterName(i));
+    }
     resultType = resType;
 }
 
