@@ -29,6 +29,10 @@ AstFunction* Parser::top() const {
     return _top;
 }
 
+const TokenList& Parser::tokens() const {
+    return _tokens;
+}
+
 TokenKind Parser::currentToken() {
   if (_currentToken == tUNDEF) {
       _currentToken = _tokens.kindAt(_currentTokenIndex);

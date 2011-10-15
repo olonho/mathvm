@@ -24,7 +24,7 @@ class TokenList {
     TokenList() {
     }
     void add(uint32_t position, TokenKind kind, const string& value = "");
-    uint32_t positionOf(uint32_t index);
+    uint32_t positionOf(uint32_t index) const;
     TokenKind kindAt(uint32_t index);
     const string valueAt(uint32_t index);
     void dump();

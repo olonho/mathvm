@@ -12,7 +12,7 @@ void TokenList::add(uint32_t position,
     _tokens.push_back(TokenInfo(kind, value, position));
 }
 
-uint32_t TokenList::positionOf(uint32_t index) {
+uint32_t TokenList::positionOf(uint32_t index) const {
     if (index >= _tokens.size()) {
         return Status::INVALID_POSITION;
     }

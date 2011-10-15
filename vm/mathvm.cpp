@@ -200,7 +200,7 @@ void Code::disassemble(ostream& out, FunctionFilter* filter) {
                 << typeToName(function->returnType())
                 << " " << function->name() << "(";
             for (uint32_t i = 0; i < function->parametersNumber(); i++) {
-                out << function->parameterType(i);
+                out << typeToName(function->parameterType(i));
                 if (i + 1 < function->parametersNumber()) {
                     out << ", ";
                 }
