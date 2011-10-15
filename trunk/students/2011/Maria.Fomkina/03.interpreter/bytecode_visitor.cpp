@@ -289,6 +289,27 @@ void BytecodeVisitor::visitBlockNode(BlockNode* node) {
   while (it->hasNext()) {
     AstVar* var = it->next();
     var_map_.AddVar(var->name());
+    switch (var->type()) { 
+      case VT_DOUBLE: {
+        bcode_->add(BC_DLOAD0);
+        bcode_->add(BC_STOREDVAR); 
+        bcode_->addInt16(var_map_.GetVarId(var->name()));
+        break;
+      }
+      case VT_INT: {
+        bcode_->add(BC_ILOAD0); 
+        bcode_->add(BC_STOREIVAR); 
+        bcode_->addInt16(var_map_.GetVarId(var->name()));
+        break;
+      }
+      case VT_STRING: {
+        bcode_->add(BC_SLOAD0); 
+        bcode_->add(BC_STORESVAR); 
+        bcode_->addInt16(var_map_.GetVarId(var->name()));
+        break;
+      }
+      default: {}
+    }
   }
   node->visitChildren(this);
   var_map_.DeleteScope();
