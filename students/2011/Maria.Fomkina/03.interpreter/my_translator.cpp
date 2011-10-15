@@ -23,12 +23,13 @@ Status* BytecodeTranslator::translate(
   BytecodeFunction* function = new BytecodeFunction(top);
   MvmCode* mvm_code = new MvmCode();
   mvm_code->addFunction(function);
+  mvm_code->makeStringConstant("");
   BytecodeVisitor* visitor = new BytecodeVisitor(mvm_code);
   visitor->visitBlockNode(top->node()->body());
   function->bytecode()->add(BC_STOP);
-  function->bytecode()->dump(std::cout);
+  //function->bytecode()->dump(std::cout);
   mvm_code->set_bytecode(function->bytecode());
-  code = (Code **)&mvm_code;
+  *code = (Code *)mvm_code;
   delete parser;
   delete parser_status;
   delete visitor;
