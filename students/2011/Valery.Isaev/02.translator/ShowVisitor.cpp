@@ -131,7 +131,7 @@ void ShowVisitor::visitBlockNode(mathvm::BlockNode* node) {
             mathvm::AstVar* v = it.next();
             TABS
             need_tabs = true;
-            stream << showType(v->type()) << ' ' << v->name() << ";\n";
+            stream << typeToName(v->type()) << ' ' << v->name() << ";\n";
         }
         if (node->nodes() || it1.hasNext()) {
             TABS
@@ -162,13 +162,13 @@ void ShowVisitor::visitBlockNode(mathvm::BlockNode* node) {
 
 void ShowVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
     TABS
-    stream << "function " << showType(node->returnType())
+    stream << "function " << typeToName(node->returnType())
         << ' ' << node->name() << '(';
     if (node->parametersNumber()) {
-        stream << showType(node->parameterType(0))
+        stream << typeToName(node->parameterType(0))
                  << ' ' << node->parameterName(0);
         for (uint32_t i = 1; i < node->parametersNumber(); ++i) {
-            stream << ", " << showType(node->parameterType(i))
+            stream << ", " << typeToName(node->parameterType(i))
                     << ' ' << node->parameterName(i);
         }
     }
@@ -209,15 +209,4 @@ void ShowVisitor::visitCallNode(mathvm::CallNode* node) {
         }
     }
     stream << ')';
-}
-
-const char* ShowVisitor::showType(mathvm::VarType t) {
-    switch (t) {
-        case mathvm::VT_DOUBLE: return "double";
-        case mathvm::VT_INT: return "int";
-        case mathvm::VT_STRING: return "string";
-        case mathvm::VT_VOID: return "void";
-        case mathvm::VT_INVALID: return "<invalid>";
-        default: return "";
-    }
 }
