@@ -19,12 +19,13 @@ void parseExpr(mathvm::Parser& p, const std::string& expr) {
     delete s;
 }
 
-void parseFile(mathvm::Parser& p, const char* file) {
+void parseFile(mathvm::Parser& p, const char* file, std::string& s) {
     char* expr = mathvm::loadFile(file);
     if (expr == 0) {
         fprintf(stderr, "Cannot read file: %s\n", file);
         exit(1);
     }
-    parseExpr(p, expr);
+    s = expr;
     delete [] expr;
+    parseExpr(p, s);
 }

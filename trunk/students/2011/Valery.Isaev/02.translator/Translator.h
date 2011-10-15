@@ -5,23 +5,26 @@
 #include <vector>
 
 #include "ast.h"
-#include "Bytecode.h"
+#include "Interpreter.h"
 
 class Translator: public mathvm::AstVisitor {
-    Bytecode& code;
-    typedef uint8_t VarInt;
+    mathvm::Bytecode* code;
+    mathvm::Code* prog;
+    typedef uint16_t VarInt;
     std::map<std::string, std::vector<VarInt> > vars;
     VarInt currentVar;
     bool overflow;
-    mathvm::VarType currentType;
+    mathvm::VarType currentType, resultType;
     
+    VarInt addVar(mathvm::AstNode* node, const std::string& name);
+    void delVar(const std::string& name);
     void put(const void* buf, unsigned int size);
-    void putVar(const std::string& var);
+    template<class T> void putVar(mathvm::Instruction ins, T* var);
     void checkTypeInt(mathvm::AstNode* expr);
     void triple(mathvm::Instruction i);
 public:
-    Translator(Bytecode& c);
-    mathvm::Status translate(mathvm::AstNode* node);
+    Translator(mathvm::Code* p);
+    mathvm::Status translate(mathvm::AstFunction* node);
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(mathvm::type* node);
     FOR_NODES(VISITOR_FUNCTION)

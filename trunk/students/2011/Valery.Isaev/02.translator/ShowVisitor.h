@@ -17,7 +17,6 @@ public:
     void visit##type(mathvm::type* node);
     FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
-    static const char* showType(mathvm::VarType t);
 };
 
 #endif
