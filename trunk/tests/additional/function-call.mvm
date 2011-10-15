@@ -1,0 +1,11 @@
+function int foo() {
+    print(1);
+    return 2;
+}
+
+function void bar() {
+    print(3);
+}
+
+foo();
+bar();
