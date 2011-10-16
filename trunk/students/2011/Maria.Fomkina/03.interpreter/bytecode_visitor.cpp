@@ -252,6 +252,10 @@ void BytecodeVisitor::visitForNode(ForNode* node) {
   bcode_->addInt16(var_map_.GetVarId(node->var()->name()));
   bcode_->add(BC_ILOAD1);
   bcode_->add(BC_IADD);
+  bcode_->add(BC_STOREIVAR);
+  bcode_->addInt16(var_map_.GetVarId(node->var()->name()));
+  bcode_->add(BC_LOADIVAR);
+  bcode_->addInt16(var_map_.GetVarId(node->var()->name()));
   bcode_->addBranch(BC_IFICMPLE, forBegin);
   var_map_.DeleteScope();    
 }
@@ -272,12 +276,12 @@ void BytecodeVisitor::visitWhileNode(WhileNode* node) {
 void BytecodeVisitor::visitIfNode(IfNode* node) {
   Label elseBranch(bcode_), ifEnd(bcode_);
   node->ifExpr()->visit(this);
-  bcode_->addInsn(BC_ILOAD0);
+  bcode_->add(BC_ILOAD0);
   bcode_->addBranch(BC_IFICMPE, elseBranch); 
   node->thenBlock()->visit(this);  
   bcode_->addBranch(BC_JA, ifEnd); 
   bcode_->bind(elseBranch);
-  node->elseBlock()->visit(this);
+  if (node->elseBlock() != NULL) node->elseBlock()->visit(this);
   bcode_->bind(ifEnd);
 }
 
