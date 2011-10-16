@@ -1,25 +1,29 @@
 MVM=./build/debug/mvm
 TEST_FILES=../../../../tests
+FILES="var literal add sub mul div priority expr for if while function"
+#FILES="while if"
 
-echo "**************Testing is started!*************"
+echo -e "\e[1;31m**************Testing is started!*************\e[0m"
 
 echo "**************Default*************************"
 echo "======= Original ======="
 echo "double x; double y;"
 echo "x += 8.0; y = 2.0;" 
 echo "print('Hello, x=',x,' y=',y,'\n');"
-echo "===== Translation ======"
+echo "======= Result ========="
 $MVM
 
-for t in $TEST_FILES/*.mvm 
+for t in $FILES 
 do
 echo
-echo "**************Testing file "$t"***************"
+echo -e "\e[1;34m**************Testing file "$t.mvm"***************\e[0m"
 echo "======= Original ======="
-cat $t
-echo "===== Translation ======"
-$MVM $t
+cat $TEST_FILES/$t.mvm
+echo "======= Prediction ====="
+cat $TEST_FILES/$t.expect
+echo "======= Result ========="
+$MVM $TEST_FILES/$t.mvm
 done
 
 echo
-echo "**************Testing is finished! ************"
+echo -e "\e[1;31m**************Testing is finished! ************\e[0m"

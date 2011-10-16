@@ -11,11 +11,12 @@ namespace mathvm {
 
 union type {
   double d;
-  uint64_t i;
+  int64_t i;
   uint16_t s;
 };
 
 Status* MvmCode::execute(vector<Var*>& vars) {
+  
   uint8_t command = 0;
   uint32_t pos = 0;
   uint16_t id;
@@ -23,12 +24,12 @@ Status* MvmCode::execute(vector<Var*>& vars) {
   std::stack<type> stack;
   type arg; 
   std::vector<double> dvar;
-  std::vector<uint64_t> ivar;
+  std::vector<int64_t> ivar;
   std::vector<uint8_t> svar;
-
+  
   while (command != BC_STOP) {
     command = bytecode_->get(pos);
-    //std::cerr << "Command " << command << " at " << pos << std::endl;
+    // std::cerr << "Command " << command << " at " << pos << std::endl;
     ++pos;
     switch (command) {
       case (BC_DLOAD): {
@@ -245,7 +246,7 @@ Status* MvmCode::execute(vector<Var*>& vars) {
       }
       case (BC_JA): {
         offset = bytecode_->getInt16(pos);
-        pos += 2 + offset;
+        pos += offset;
         break;
       }
       case (BC_IFICMPNE): {
@@ -254,7 +255,7 @@ Status* MvmCode::execute(vector<Var*>& vars) {
         stack.pop();
         type arg2 = stack.top();
         stack.pop();
-        if (arg.i != arg2.i) pos += 2 + offset;
+        if (arg.i != arg2.i) pos += offset; else pos += 2;
         break;
       }
       case (BC_IFICMPE): {
@@ -263,7 +264,7 @@ Status* MvmCode::execute(vector<Var*>& vars) {
         stack.pop();
         type arg2 = stack.top();
         stack.pop();
-        if (arg.i == arg2.i) pos += 2 + offset;
+        if (arg.i == arg2.i) pos += offset; else pos += 2;
         break;
       }
       case (BC_IFICMPG): {
@@ -272,7 +273,7 @@ Status* MvmCode::execute(vector<Var*>& vars) {
         stack.pop();
         type arg2 = stack.top();
         stack.pop();
-        if (arg.i > arg2.i) pos += 2 + offset;
+        if (arg.i > arg2.i) pos += offset; else pos += 2;
         break;
       }
       case (BC_IFICMPGE): {
@@ -281,7 +282,7 @@ Status* MvmCode::execute(vector<Var*>& vars) {
         stack.pop();
         type arg2 = stack.top();
         stack.pop();
-        if (arg.i >= arg2.i) pos += 2 + offset;
+        if (arg.i >= arg2.i) pos += offset; else pos += 2;
         break;
       }
       case (BC_IFICMPL): {
@@ -290,7 +291,7 @@ Status* MvmCode::execute(vector<Var*>& vars) {
         stack.pop();
         type arg2 = stack.top();
         stack.pop();
-        if (arg.i < arg2.i) pos += 2 + offset;
+        if (arg.i < arg2.i) pos += offset; else pos += 2;
         break;
       }
       case (BC_IFICMPLE): {
@@ -299,7 +300,7 @@ Status* MvmCode::execute(vector<Var*>& vars) {
         stack.pop();
         type arg2 = stack.top();
         stack.pop();
-        if (arg.i <= arg2.i) pos += 2 + offset;
+        if (arg.i <= arg2.i) pos += offset; else pos += 2;
         break;
       }
       case (BC_STOP): {
@@ -313,6 +314,7 @@ Status* MvmCode::execute(vector<Var*>& vars) {
 
     }
   }
+  
   return new Status();
 }
 
