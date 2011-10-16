@@ -92,7 +92,7 @@ void ByteCodeGenerator::visitLoadNode( mathvm::LoadNode* node )
     default:
       break;
   }
-  myBytecode.addByte(id);
+  myBytecode.addInt16(id);
   myNodeTypes[node] = node->var()->type();
 }
 
@@ -115,7 +115,7 @@ void ByteCodeGenerator::visitStoreNode( mathvm::StoreNode* node )
       default:
         break;
     }
-    myBytecode.addByte(id);
+    myBytecode.addInt16(id);
   } 
   else {
     if (node->var()->type() == VT_STRING) throw TranslationException("Strings can not mutate");
@@ -155,13 +155,13 @@ void ByteCodeGenerator::visitForNode( mathvm::ForNode* node )
   // init counter
   range->left()->visit(this);
   myBytecode.addInsn(BC_STOREIVAR);
-  myBytecode.addByte(varId);
+  myBytecode.addInt16(varId);
 
   myBytecode.bind(lCheck);
     
   // counter >= right
   myBytecode.addInsn(BC_LOADIVAR);
-  myBytecode.addByte(varId);
+  myBytecode.addInt16(varId);
   range->right()->visit(this);
   myBytecode.addBranch(BC_IFICMPG, lEnd);
 
@@ -169,11 +169,11 @@ void ByteCodeGenerator::visitForNode( mathvm::ForNode* node )
 
   // increment counter
   myBytecode.addInsn(BC_LOADIVAR);
-  myBytecode.addByte(varId);
+  myBytecode.addInt16(varId);
   myBytecode.addInsn(BC_ILOAD1);
   myBytecode.addInsn(BC_IADD);
   myBytecode.addInsn(BC_STOREIVAR);
-  myBytecode.addByte(varId);
+  myBytecode.addInt16(varId);
   
   myBytecode.addBranch(BC_JA, lCheck);
 
@@ -231,7 +231,7 @@ void ByteCodeGenerator::visitBlockNode( mathvm::BlockNode* node )
 
 void ByteCodeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
 {
-
+  node->body()->visit(this);
 }
 
 void ByteCodeGenerator::visitPrintNode( mathvm::PrintNode* node )
@@ -245,7 +245,7 @@ void ByteCodeGenerator::visitPrintNode( mathvm::PrintNode* node )
 
 void ByteCodeGenerator::Dump()
 {
-  myBytecode.dump();
+  myBytecode.dump(cout);
 }
 
 void ByteCodeGenerator::BytecodeAdd( VarType expectedType )
@@ -318,11 +318,10 @@ mathvm::VarType ByteCodeGenerator::DeduceBinaryOperationType( mathvm::VarType le
   return result;
 }
 
-void ByteCodeGenerator::visit( mathvm::BlockNode* rootNode )
+void ByteCodeGenerator::visit( mathvm::AstFunction * main )
 {
-  rootNode->visit(this);
-  myBytecode.addInsn(BC_STOP);
-  myCode.SetMainBytecode(myBytecode);
+  main->node()->visit(this);
+  BytecodeFunction * bfun = new BytecodeFunction(main);
 }
 
 bool ByteCodeGenerator::TryDoArithmetics( mathvm::BinaryOpNode * node, mathvm::VarType expectedType )
@@ -434,7 +433,7 @@ void ByteCodeGenerator::LoadVar( mathvm::AstVar const * var )
   else {
     throw TranslationException("Unable to load variable: unsupported type");
   }
-  myBytecode.addByte(varId);
+  myBytecode.addInt16(varId);
 }
 
 void ByteCodeGenerator::StoreVar( mathvm::AstVar const * var )
@@ -453,7 +452,7 @@ void ByteCodeGenerator::StoreVar( mathvm::AstVar const * var )
   else {
     throw TranslationException("Unable to store variable: unsupported type");
   }
-  myBytecode.addByte(varId);
+  myBytecode.addInt16(varId);
 }
 
 mathvm::Bytecode* ByteCodeGenerator::GetBytecode()

@@ -12,7 +12,8 @@ private:
 };
 
 struct MyCode : mathvm::Code {
-  virtual mathvm::Status* execute(std::vector<mathvm::Var*> vars) {return NULL;}
+  virtual mathvm::Status* execute(std::vector<mathvm::Var*>& vars) {return NULL;}
+
   void SetMainBytecode(mathvm::Bytecode const & bytecode) {
     myBytecode = bytecode;
   }
@@ -43,7 +44,7 @@ struct ByteCodeGenerator : mathvm::AstVisitor
 	virtual void visitFunctionNode(mathvm::FunctionNode* node);
 	virtual void visitPrintNode(mathvm::PrintNode* node);
   
-  void visit( mathvm::BlockNode* rootNode );
+  void visit( mathvm::AstFunction * rootNode);
 
   void Dump();
   mathvm::Bytecode* GetBytecode();
