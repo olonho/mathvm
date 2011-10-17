@@ -4,8 +4,12 @@ InfoVisitor::InfoVisitor(mathvm::AstFunction* top) {
   topAstFunc = top;
 }
 
-void InfoVisitor::visit() {
+void InfoVisitor::visit() { 
+  mathvm::Scope* scope = new mathvm::Scope(0);
+  scope->declareFunction(topAstFunc->node());
+  pushScope(scope);
   topAstFunc->node()->visit(this);
+  popScope(scope);
 }
 
 void InfoVisitor::analizeError(std::string str) { 
@@ -70,21 +74,14 @@ void InfoVisitor::visitIfNode(mathvm::IfNode* node) {
 void InfoVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   using namespace mathvm;
   
-  AstFunction astFunc(node, new Scope(0));
-  FunctionContext func;
-  func.id = funcContexts.size();
-  func.funcName = astFunc.node()->name();
-  for(size_t i = 0; i < astFunc.parametersNumber(); ++i) {
-    func.parameters.push_back(astFunc.parameterName(i));
-  }
-  funcContexts.push_back(func);
-
+  FunctionContext& func = findFunc(node->name());
   size_t oldFuncId = curFuncId;
   curFuncId = func.id;
-  pushParameters(&astFunc, curFuncId);
-  node->body()->visit(this);
-  popParameters(&astFunc);
 
+  pushParameters(node, curFuncId);
+  node->body()->visit(this);
+  popParameters(node);
+  
   genClosures(funcContexts[curFuncId], funcContexts);
   curFuncId = oldFuncId;
 }
@@ -93,16 +90,26 @@ void InfoVisitor::visitBlockNode(mathvm::BlockNode* node) {
   using namespace mathvm;
   pushScope(node->scope());
   node->visitChildren(this);
+  /*
+  for(size_t i = 0; i < node->nodes(); ++i) {
+    if (node->nodeAt(i)->isFunctionNode()) 
+      node->nodeAt(i)->visit(this);
+  }
+  for(size_t i = 0; i < node->nodes(); ++i) {
+    if (!node->nodeAt(i)->isFunctionNode()) 
+      node->nodeAt(i)->visit(this);
+  }
+  */
   popScope(node->scope());
 }
 
-void InfoVisitor::pushParameters(mathvm::AstFunction* node, size_t funcId) {
+void InfoVisitor::pushParameters(mathvm::FunctionNode* node, size_t funcId) {
   for(size_t i = 0; i < node->parametersNumber(); ++i) {
     varFuncContexts[node->parameterName(i)].push_back(funcId);
   }
 }
 
-void InfoVisitor::popParameters(mathvm::AstFunction* node) {
+void InfoVisitor::popParameters(mathvm::FunctionNode* node) {
   for(size_t i = 0; i < node->parametersNumber(); ++i) {
     varFuncContexts[node->parameterName(i)].pop_back();
   }
@@ -115,8 +122,20 @@ void InfoVisitor::pushScope(mathvm::Scope* node) {
     mathvm::AstVar* var = it.next();
     funcContexts[curFuncId].locals.push_back(var->name());
     varFuncContexts[var->name()].push_back(curFuncId);
-  }     
+  }
   mathvm::Scope::FunctionIterator fit(node);
+  while(fit.hasNext()) {
+    mathvm::AstFunction* funcNode = fit.next(); 
+    FunctionContext func;
+    func.id = funcContexts.size();
+    func.funcName = funcNode->name();
+    for(size_t i = 0; i < funcNode->parametersNumber(); ++i) {
+       func.parameters.push_back(funcNode->parameterName(i));
+    }
+    funcContexts.push_back(func);
+    funcDefs[func.funcName].push_back(func.id);
+  }
+  fit = mathvm::Scope::FunctionIterator(node);
   while(fit.hasNext()) {
     fit.next()->node()->visit(this);
   }
@@ -127,8 +146,11 @@ void InfoVisitor::popScope(mathvm::Scope* node) {
   mathvm::Scope::VarIterator it(node);
   while(it.hasNext()) {
     mathvm::AstVar* var = it.next();
-    //funcContexts[curFuncId].locals.pop_back();
     varFuncContexts[var->name()].pop_back();
+  }
+  mathvm::Scope::FunctionIterator fit(node);
+  while(fit.hasNext()) {
+    funcDefs[fit.next()->name()].pop_back();
   }    
 }
 
@@ -208,13 +230,23 @@ bool symUsed(const Strings& a, const std::string& str) {
   return false;
 }
 
-FunctionContext& InfoVisitor::findFunc(std::string name) {
-  FunctionContexts::iterator it = funcContexts.begin();
-  for (; it != funcContexts.end(); ++it) {
-    if (it->funcName == name)
-      return *it;
+FunctionContext& InfoVisitor::getFunc(const std::string& name) {
+  FunctionContexts::iterator func = funcContexts.begin();
+  for(; func != funcContexts.end(); ++func) {
+    if (func->funcName == name)
+      return *func;
   }
-  throw new TranslationException("Function " + name + " is not deffined before call");
+  throw new TranslationException("Function " + name + "is not defined at all before call");
+}
+
+FunctionContext& InfoVisitor::findFunc(const std::string& name) {
+  FuncDefs::iterator funcDef = funcDefs.find(name);
+  if (funcDef == funcDefs.end())
+    throw new TranslationException("Function " + name + "is not defined at all before call");
+  if (!funcDef->second.size())
+    throw new TranslationException("Function " + name + " is not reachable from calling scope");
+
+  return funcContexts[funcDef->second.back()];
 }
 
 void InfoVisitor::print(std::ostream& out) {
