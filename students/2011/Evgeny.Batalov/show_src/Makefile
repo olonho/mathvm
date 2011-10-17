@@ -3,7 +3,7 @@ ROOT = .
 
 include $(VM_ROOT)/common.mk
 
-all: $(OUT) $(BIN)/show_src $(BIN)/tests
+all: $(OUT) $(BIN)/show_src
 
 DEPS = $(MATHVM_OBJ) parse.h $(OBJ)/ShowVisitor.o
 
