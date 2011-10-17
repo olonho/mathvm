@@ -43,6 +43,7 @@ void useSymbol(size_t userFuncId, std::string sym, size_t symFuncId, std::vector
 
 typedef std::vector<FunctionContext> FunctionContexts;
 typedef std::map<std::string, std::vector<size_t> > VarFuncContexts;
+typedef std::map<std::string, std::vector<size_t> > FuncDefs;
 
 void genClosures(FunctionContext& cont, FunctionContexts& conts);
 
@@ -51,13 +52,15 @@ class InfoVisitor: public mathvm::AstVisitor {
   mathvm::AstFunction* topAstFunc;
   FunctionContexts funcContexts;
   VarFuncContexts varFuncContexts;
+  FuncDefs funcDefs;
   size_t curFuncId;
 
   void analizeError(std::string str = "");
-  FunctionContext& findFunc(std::string name);
+  FunctionContext& findFunc(const std::string& name);//search in current scope
+  FunctionContext& getFunc(const std::string& name); //get any
 
-  void pushParameters(mathvm::AstFunction* node, size_t func);
-  void popParameters(mathvm::AstFunction* node);
+  void pushParameters(mathvm::FunctionNode* node, size_t func);
+  void popParameters(mathvm::FunctionNode* node);
   void pushScope(mathvm::Scope* node);
   void popScope(mathvm::Scope* node);
 
