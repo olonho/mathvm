@@ -97,19 +97,20 @@ void Scanner::scanNumber() {
             kind = tDOUBLE;
             continue;
         }
-        if (symbol == 'e' && 
-            (isDigit(lookAhead(pos)) || 
-             (lookAhead(pos) == '-' && isDigit(lookAhead(pos+1))))) {
+        if (symbol == 'e' &&
+            (isDigit(lookAhead(pos)) ||
+             ((lookAhead(pos) == '-' || lookAhead(pos) == '+')
+              && isDigit(lookAhead(pos+1))))) {
             kind = tDOUBLE;
             continue;
         }
         break;
     }
 
-    while (isDigit(_ch) || 
+    while (isDigit(_ch) ||
            (_ch == '.' && isDigit(lookAhead())) ||
-           (_ch == 'e' && (isDigit(lookAhead()) || lookAhead() == '-')) ||
-           (_ch == '-')
+           (_ch == 'e' && (isDigit(lookAhead()) || lookAhead() == '-' || lookAhead() == '+')) ||
+           (_ch == '-') || (_ch == '+')
         ) {
         readChar();
     }
@@ -236,7 +237,7 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
                 readChar();
                 kind = tNEQ;
             } else {
-                kind = tNOT;                
+                kind = tNOT;
             }
             break;
         case '+':
