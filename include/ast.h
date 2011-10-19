@@ -96,6 +96,7 @@ class AstVar {
     const string _name;
     VarType _type;
     Scope* _owner;
+    void* _info;
   public:
     AstVar(const string& name, VarType type, Scope* owner) :
     _name(name), _type(type), _owner(owner) {
@@ -103,6 +104,8 @@ class AstVar {
     const string& name() const { return _name; }
     VarType type() const { return _type; }
     Scope* owner() const { return _owner; }
+    void* info() const { return _info; }
+    void setInfo(void* info) { _info = info; }
 };
 
 class FunctionNode;
