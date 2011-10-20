@@ -1,30 +1,27 @@
 #pragma once
 
 #include "common.h"
+#include "Runtime.h"
 
 // ================================================================================
 
 namespace mathvm {
-  class LocalCollector : private AstVisitor {
+  class VarCollector : private AstVisitor {
     typedef std::map<AstVar*, uint16_t> Locals;
 
-    VarNum* _varMap;
-    size_t _size;
-
-
   public:
-    LocalCollector() { 
+    VarCollector() { 
       _size = 0;
     }
 
-    void collectLocals(VarNum* varMap, AstNode* node) {
-      _varMap = varMap;
+    void collect(AstNode* node, Runtime* rt) {
+      _runtime = rt;
       node->visit(this);
     }
 
-    size_t size() const {
-      return _size;
-    }
+  private:
+    Runtime* _runtime;
+    NativeFunction* _curFun;
 
   private:
     VISIT(BinaryOpNode) {
@@ -69,19 +66,47 @@ namespace mathvm {
           
     VISIT(BlockNode) {
       Scope::VarIterator vi(node->scope());
-      AstVar *v;
+      Scope::FunctionIterator fi(node->scope());
+      AstVar* v;
+      
+      while (fi.hasNext()) {
+        fi.next()->visit(this);
+      }
 
       while (vi.hasNext()) {
         v = vi.next();
-        _varMap->add(v);
-        _size++;
+        VAR_INFO(v) = new VarInfo();
+        VAR_INFO(v)->kind = VarInfo::KV_LOCAL;
+        VAR_INFO(v)->fPos = _curFun->localsNumber();
+        VAR_INFO(v)->owner = _curFun;
+
+        _curFun->setLocalsNumber(_curFun->localsNumber() + 1);
       }
       
       node->visitChildren(this);
     }
     
     VISIT(FunctionNode) {
+      NativeFunction* oldFun = _curFun;
+      Scope::VarIterator argsIt(af->scope());
+      size_t p = 0;
+
+      while (argsIt.hasNext()) {
+        AstVar* v = argsIt.next();
+
+        VAR_INFO(v) = new VarInfo();
+        VAR_INFO(v)->kind = VarInfo::KV_ARG;
+        VAR_INFO(v)->fPos = p;
+        VAR_INFO(v)->owner = _curFun;
+
+        ++p;
+      }
+
+      _curFun = _runtime->createFunction(node);
+      node->setInfo(_curFun);
       node->visitChildren(this);
+
+      _curFun = oldFun;
     }
      
     VISIT(ReturnNode) {
