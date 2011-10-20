@@ -96,7 +96,6 @@ class AstVar {
     const string _name;
     VarType _type;
     Scope* _owner;
-    void* _info;
   public:
     AstVar(const string& name, VarType type, Scope* owner) :
     _name(name), _type(type), _owner(owner) {
@@ -104,15 +103,12 @@ class AstVar {
     const string& name() const { return _name; }
     VarType type() const { return _type; }
     Scope* owner() const { return _owner; }
-    void* info() const { return _info; }
-    void setInfo(void* info) { _info = info; }
 };
 
 class FunctionNode;
 class AstFunction {
     FunctionNode* _function;
     Scope* _owner;
-
   public:
     AstFunction(FunctionNode* function, Scope* owner) :
         _function(function), _owner(owner) {
@@ -211,6 +207,7 @@ class AstVisitor {
 
 class AstNode {
     uint32_t _index;
+    void* _info;
   public:
     AstNode(uint32_t index) :
         _index(index) {
@@ -223,6 +220,9 @@ class AstNode {
     uint32_t position() const {
         return _index;
     }
+    void* info() const { return _info; }
+    void setInfo(void* info) { _info = info; }
+
 
 #define CHECK_FUNCTION(type, name)                  \
     virtual bool is##type() const { return false; } \
