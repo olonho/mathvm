@@ -30,7 +30,7 @@ union X86Bits {
 static uint8_t x86_modrm(char mod, char ro, char rm) {
   X86Bits b;
 
-  b.modrm.mod = MOD_RR;
+  b.modrm.mod = mod;
   b.modrm.ro = ro;
   b.modrm.rm = rm;
   return b.flat;

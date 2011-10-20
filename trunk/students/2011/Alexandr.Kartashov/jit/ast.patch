@@ -1,0 +1,19 @@
+--- ast.h	2011-10-20 18:20:11.000000000 +0400
++++ ast.h	2011-10-20 18:22:52.000000000 +0400
+@@ -211,6 +211,7 @@
+ 
+ class AstNode {
+     uint32_t _index;
++    void* _info;
+   public:
+     AstNode(uint32_t index) :
+         _index(index) {
+@@ -231,6 +232,8 @@
+     FOR_NODES(CHECK_FUNCTION)
+ #undef CHECK_FUNCTION
+ 
++    void setInfo(void* info) { _info = info; }
++    void* info() { return _info; }
+ };
+ 
+ class BinaryOpNode : public AstNode {
