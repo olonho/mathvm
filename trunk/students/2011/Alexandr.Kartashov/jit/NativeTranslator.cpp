@@ -10,7 +10,7 @@
 #include "visitors.h"
 
 #include "VarNum.h"
-#include "LocalCollector.h"
+#include "VarCollector.h"
 #include "Runtime.h"
 
 // ================================================================================
@@ -27,6 +27,7 @@ namespace mathvm {
      */
 
     #define REGS 12
+    #define VAR_SIZE 8
 
   private:
     Runtime *_runtime;
@@ -63,30 +64,9 @@ namespace mathvm {
 
   public:
     NativeGenerator(AstFunction* root) { 
-      LocalCollector lc;
-      VarNum vn;
+      VarCollector vc(root);
 
-      lc.collectLocals(&vn, root->node()->body());
-      if (lc.size() > REGS) {
-        ABORT("I don't know how to deal with too many local variables yet...\n");
-      }
-
-      _runtime = new Runtime;
-      _code = _runtime->createFunction(root)->code();
-
-      /*
-      _interpreter->createFunction(&top, root);
-      top->setLocalsNumber(w.size());
- 
-      code = top->bytecode();
-      strings = _interpreter->strings();
-      */
-
-      _code->push_r(RBP);
-      root->node()->body()->visit(this);
-      _code->pop_r(RBP);
-      _code->add(RET);
-      //code->add(BC_STOP);
+      root->visit(this);
     }
 
     Code *getCode() {
@@ -406,7 +386,7 @@ namespace mathvm {
         break;
 
       case VT_INT:
-        _code->mov_rr(_retReg, remap(reg(node->var())));
+        _code->mov_rm(_retReg, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos);
         break;
 
       case VT_STRING:
@@ -427,7 +407,7 @@ namespace mathvm {
       switch (node->var()->type()) {
       case VT_INT:
         if (node->op() == tASSIGN) {
-          _code->mov_rr(remap(reg(node->var())), RAX);
+          _code->mov_mr(RAX, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos);
         } else {
           ABORT("Not supported");
         }
@@ -517,60 +497,7 @@ namespace mathvm {
     */
     
     VISIT(BlockNode) {
-      LocalCollector lc;
-      VarNum vn;
-
-      lc.collectLocals(&vn, node);
-      if (lc.size() > REGS) {
-        ABORT("No way to compile this scope...\n");
-        
-        // theHardWay()...
-      }
-
-
-      // The easy way: we have a register allocation in vn ;)
-
-      for (VarNum::Map::iterator it = vn.ints().begin();
-           it != vn.ints().end();
-           ++it) {
-        it->first->userData = (char)(it->second);
-      }
-
       node->visitChildren(this);
-
-      /*
-      Scope::VarIterator vi(node->scope());
-      Scope::FunctionIterator fi(node->scope());
-
-      while (fi.hasNext()) {
-        //cf->setArgsNum(af->parametersNumber());
-        _interpreter->createFunction(&cf, af);
-        cf->setFirstArg(_num.next());
-
-        while (argsIt.hasNext()) {
-          AstVar* v = argsIt.next();
-          _num.add(v);
-        }
-
-        cf->setFirstLocal(_num.next());
-        w.collectLocals(&_num, af->node());
-        cf->setLocalsNumber(w.size());
-
-        uint16_t funId = _functions.size();
-        _functions[af] = funId;
-
-        code = cf->bytecode();
-        af->node()->visit(this);
-
-        code = old_code;
-      }
-
-
-      BlockNode* oldBlock = _curBlock;
-      _curBlock = node;
-      node->visitChildren(this);
-      _curBlock = oldBlock;
-      */
     }
 
 
@@ -600,11 +527,21 @@ namespace mathvm {
       node->visitChildren(this);
       code->add(BC_RETURN);
     }
+    */
 
     VISIT(FunctionNode) {
+      NativeFunction* f = (NativeFunction*)node->info();
+
+      _code->push_r(RBP);
+      _code->mov_rr(RSP, RBP);
+      _code->sub_rm_imm(RSP, f->localsNumber()*VAR_SIZE);
+
       node->visitChildren(this);
+
+      _code->add_rm_imm(RSP, f->localsNumber()*VAR_SIZE);
+      _code->pop_r(RBP);
+      _code->add(RET);      
     }
-    */
 
 #undef VISIT
 
