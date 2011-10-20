@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sstream>
+
 #include "common.h"
 #include "Runtime.h"
 
@@ -23,26 +25,57 @@ namespace mathvm {
 
   private:
     VISIT(BinaryOpNode) {
-      return;
+      if (NODE_INFO(node->left())->type != NODE_INFO(node->left())->type) {
+        ABORT("Type mismatch");
+      }
+
+      node->setInfo(new NodeInfo);
+      switch (node->kind()) {
+      case tEQ:
+      case tNEQ:
+      case tGT:
+      case tLT:
+      case tLE:          
+      case tOR:
+      case tAND:
+        NODE_INFO(node)->type = VAL_INT;
+        break;
+
+      default:
+        NODE_INFO(node)->type = NODE_INFO(node->left())->type;
+        break;
+      }
     }
 
     VISIT(UnaryOpNode) {
+      node->setInfo(new NodeInfo);
+      NODE_INFO(node)->type = NODE_INFO(node->operand())->type;
       return;
     }
 
     VISIT(StringLiteralNode) {
+      node->setInfo(new NodeInfo);
+      NODE_INFO(node)->type = VAL_STRING;
+      NODE_INFO(node)->string = _runtime->addString(node->literal());
+      
       return;
     }
 
     VISIT(DoubleLiteralNode) {
+      node->setInfo(new NodeInfo);
+      NODE_INFO(node)->type = VAL_DOUBLE;
       return;
     }
     
     VISIT(IntLiteralNode) {
+      node->setInfo(new NodeInfo);
+      NODE_INFO(node)->type = VAL_INT;
       return;
     }
     
     VISIT(LoadNode) {
+      node->setInfo(new NodeInfo);
+      NODE_INFO(node)->type = (ValType)node->var()->type();
       return;
     }
    
@@ -84,6 +117,44 @@ namespace mathvm {
       node->visitChildren(this);
     }
 
+    VISIT(PrintNode) {
+      std::stringstream s;
+      
+      node->setInfo(new NodeInfo);
+      node->visitChildren(this);
+      
+      for (size_t i = 0; i < node->operands(); i++) {
+        AstNode* n = node->operandAt(i);
+
+        switch (NODE_INFO(n)->type) {
+        case VAL_INT:
+          s << "%ld";
+          break;
+
+        case VAL_STRING:
+          s << NODE_INFO(n)->string;
+          break;          
+
+        case VAL_DOUBLE:
+          s << "%lf";
+          break;
+
+        default:
+          ABORT("Not supported");
+        }
+      }
+
+      NODE_INFO(node)->string = _runtime->addString(s.str());
+    }
+
+    VISIT(CallNode) {
+      node->visitChildren(this);
+    }
+
+    VISIT(ReturnNode) {
+      node->visitChildren(this);
+    }
+
     void visit(AstFunction* af) {
       NativeFunction* oldFun = _curFun;
       FunctionNode* node = af->node();
@@ -103,28 +174,11 @@ namespace mathvm {
         ++p;
       }
 
-      node->setInfo(_curFun);
+      node->setInfo(new NodeInfo);
+      NODE_INFO(node)->funRef = _curFun;
       node->visitChildren(this);
 
       _curFun = oldFun;
     }
-
-    /*
-    VISIT(FunctionNode) {
-      return;
-    }
-     
-    VISIT(ReturnNode) {
-      return;
-    }
-     
-    VISIT(CallNode) {
-      return;
-    }
-
-    VISIT(PrintNode) {
-      return;
-    }
-    */
   };
 }

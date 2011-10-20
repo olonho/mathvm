@@ -11,7 +11,7 @@ include $(VM_ROOT)/common.mk
 
 MVM  = $(BIN)/mvm
 
-all: .mathvm-patched .ast-patched $(MVM)
+all: .ast-patched $(MVM)
 
 .ast-patched:
 	patch -p0 -d $(VM_ROOT)/include < ast.patch

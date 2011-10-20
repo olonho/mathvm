@@ -2,7 +2,8 @@
 #include <map>
 #include <vector>
 
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <assert.h>
 
 #include "mathvm.h"
@@ -362,26 +363,10 @@ namespace mathvm {
     }
 
 
-    /*
     VISIT(StringLiteralNode) {
-      std::map<std::string, uint16_t>::const_iterator it;
-      uint16_t id;
-
-      it = string_const.find(node->literal());
-      if (it == string_const.end()) {
-        strings->push_back(node->literal());
-        id = string_const[node->literal()] = strings->size() - 1;        
-      } else {
-        id = it->second;
-      }
-      
-      code->add(BC_SLOAD);
-      code->addUInt16(id);
-
-      node_type[node] = VT_STRING;
+      _code->mov_r_imm(_retReg, (uint64_t)NODE_INFO(node)->string);
     }
-    */
- 
+     
 
     VISIT(LoadNode) {
       switch (node->var()->type()) {
@@ -505,16 +490,37 @@ namespace mathvm {
     }
 
 
-    /*
     VISIT(PrintNode) {
-      for (size_t i = 0; i < node->operands(); i++) {
-        node->operandAt(i)->visit(this);
-        
-        code->add(BC_DUMP);
-        code->add(BC_POP);
+      static char apr[] = { RDI, RSI, RDX, RCX, R8, R9 };
+
+      size_t argn = 0;
+      _retReg = RAX;
+
+      _code->mov_r_imm(apr[0], (uint64_t)NODE_INFO(node)->string);
+      argn = 1;
+
+      for (size_t i = 0; i < node->operands() && argn < 6; ++i) {
+        if (NODE_INFO(node->operandAt(i))->type != VAL_STRING) {
+          _retReg = apr[argn];
+          node->operandAt(i)->visit(this);
+          //_code->push_r(apr[argn]);
+
+          argn++;
+        }
       }
+
+      if (argn == 6) {
+        ABORT("Too many arguments passed");
+      }
+
+      _code->mov_r_imm(RAX, 0);
+      _code->mov_r_imm(RBX, (uint64_t)&printf);
+      _code->call_r(RBX);
+
+      //_code->add_rm_imm(RSP, (argn + 1)*VAR_SIZE);
     }
 
+    /*
     VISIT(CallNode) {
       node->visitChildren(this);
       
@@ -534,7 +540,7 @@ namespace mathvm {
     */
 
     VISIT(FunctionNode) {
-      NativeFunction* f = (NativeFunction*)node->info();
+      NativeFunction* f = NODE_INFO(node)->funRef;
       NativeCode* oldCode = _code;
 
       _code = f->code();

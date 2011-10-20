@@ -57,6 +57,8 @@ static uint8_t x86_rex(char ro, char rm, char w) {
 #define RBP 5
 #define RSI 6
 #define RDI 7
+#define R8  8
+#define R9  9
 
 // ================================================================================
 // Instruction encodings
@@ -77,3 +79,4 @@ static uint8_t x86_rex(char ro, char rm, char w) {
 #define POP_R      0x58
 #define MOV_R_IMM  0xB8
 #define RET        0xC3
+#define CALL_RM    0xFF  // RO = 2
