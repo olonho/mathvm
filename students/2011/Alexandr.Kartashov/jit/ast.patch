@@ -1,19 +1,20 @@
---- ast.h	2011-10-20 18:20:11.000000000 +0400
-+++ ast.h	2011-10-20 18:22:52.000000000 +0400
-@@ -211,6 +211,7 @@
- 
- class AstNode {
-     uint32_t _index;
+--- ast.h	2011-10-21 03:03:52.000000000 +0400
++++ ast.h	2011-10-21 03:10:47.000000000 +0400
+@@ -96,6 +96,7 @@
+     const string _name;
+     VarType _type;
+     Scope* _owner;
 +    void* _info;
    public:
-     AstNode(uint32_t index) :
-         _index(index) {
-@@ -231,6 +232,8 @@
-     FOR_NODES(CHECK_FUNCTION)
- #undef CHECK_FUNCTION
- 
+     AstVar(const string& name, VarType type, Scope* owner) :
+     _name(name), _type(type), _owner(owner) {
+@@ -103,6 +104,9 @@
+     const string& name() const { return _name; }
+     VarType type() const { return _type; }
+     Scope* owner() const { return _owner; }
++
++    void* info() const { return _info; }
 +    void setInfo(void* info) { _info = info; }
-+    void* info() { return _info; }
  };
  
- class BinaryOpNode : public AstNode {
+ class FunctionNode;

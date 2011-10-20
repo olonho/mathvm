@@ -41,12 +41,12 @@ namespace mathvm {
     }
 
     void done() {
-      _size = data().size();
+      _size = _data.size();
       _x86code = mmap(NULL, _size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-      perror("Error");
-      memcpy(_x86code, &data()[0], _size);
+      //perror("Error");
+      memcpy(_x86code, &_data[0], _size);
       mprotect(_x86code, _size, PROT_READ | PROT_EXEC);
-      data().clear();
+      _data.clear();
     }
 
     void* x86code() {
@@ -106,12 +106,20 @@ namespace mathvm {
       addInt32(v);
     }
 
+    void call_r(char r) {
+      //add(x86_rex(2, r, 1));
+      add(CALL_RM);
+      add(x86_modrm(MOD_RR, 2, r));
+    }
+
   private:
     void* _x86code;
     size_t _size;
   };
 
   typedef X86Code NativeCode;
+
+  // --------------------------------------------------------------------------------
 
   class NativeFunction : public TranslatedFunction {
   public:
@@ -150,12 +158,20 @@ namespace mathvm {
 
 
   class Runtime : public Code {
+    typedef std::vector<std::string> Strings;
+
   public:
     NativeFunction* createFunction(AstFunction* fNode);
 
     Status* execute(std::vector<mathvm::Var*, std::allocator<Var*> >& args);
 
+    const char* addString(const std::string& s) {
+      _strings.push_back(s);
+      return _strings.back().c_str();
+    }
+
   private:
     std::deque<NativeFunction*> _functions;
+    Strings _strings;
   };
 }
