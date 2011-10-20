@@ -209,7 +209,7 @@ class Label {
 public:
     static const uint32_t INVALID_BCI = 0xffffffff;
 
-    Label(Bytecode* code, uint32_t bci = INVALID_BCI) : _code(code), _bci(bci) {
+    Label(Bytecode* code = 0, uint32_t bci = INVALID_BCI) : _code(code), _bci(bci) {
     }
 
     ~Label() {
@@ -225,7 +225,7 @@ public:
         return bci() - address;
     }
 
-    void bind(uint32_t address);
+    void bind(uint32_t address, Bytecode* code = 0);
 
     bool isBound() const {
         return _bci != INVALID_BCI;
@@ -235,6 +235,7 @@ public:
 };
 
 class Bytecode {
+ protected:
     vector<uint8_t> _data;
  public:
     void put(uint32_t index, uint8_t b) {

@@ -11,15 +11,19 @@ void Label::addRelocation(uint32_t bciOfRelocation) {
     _relocations.push_back(bciOfRelocation);
 }
 
-void Label::bind(uint32_t address) {
+void Label::bind(uint32_t address, Bytecode* code) {
     assert(!isBound());
+    if (code == 0) {
+      code = _code;
+    }
+    assert(code != 0);
     _bci = address;
     for (uint32_t i = 0; i < _relocations.size(); i++) {
         uint32_t relocBci = _relocations[i];
         int32_t offset = offsetOf(relocBci);
         assert((int16_t)offset == offset);
-        assert(_code->getInt16(relocBci) == 0x1ead);
-        _code->setInt16(relocBci, offset);
+        assert(code->getInt16(relocBci) == 0x1ead);
+        code->setInt16(relocBci, offset);
     }
     _relocations.clear();
 }
