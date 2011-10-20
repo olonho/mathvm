@@ -1,8 +1,14 @@
-#include <deque>
+#pragma once
+
+#include <cstdio>
 #include <stdint.h>
 
-#include "mathvm.h"
+#include <deque>
 
+#include <sys/mman.h>
+#include <string.h>
+
+#include "mathvm.h"
 #include "x86.h"
 
 // ================================================================================
@@ -30,20 +36,37 @@ namespace mathvm {
     }
 
   public:
+    ~X86Code() {
+      munmap(_x86code, _size);
+    }
+
+    void done() {
+      _size = data().size();
+      _x86code = mmap(NULL, _size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+      perror("Error");
+      memcpy(_x86code, &data()[0], _size);
+      mprotect(_x86code, _size, PROT_READ | PROT_EXEC);
+      data().clear();
+    }
+
+    void* x86code() {
+      return _x86code;
+    }
+
     void mov_rr(char dst, char src) {
       op_rr(MOV_R_RM, dst, src);
     }
 
     void mov_rm(char dst, char base, int32_t offset) {
-      add(x86_rex(dst, base));
-      add(MOV_RM_R);
+      add(x86_rex(dst, base, 1));
+      add(MOV_R_RM);
       add(x86_modrm(MOD_RM_D32, dst, base));
       addInt32(offset);
     }
 
     void mov_mr(char src, char base, uint32_t offset) {
-      add(x86_rex(src, base));
-      add(MOV_R_RM);
+      add(x86_rex(src, base, 1));
+      add(MOV_RM_R);
       add(x86_modrm(MOD_RM_D32, src, base));
       addInt32(offset);
     }
@@ -75,17 +98,20 @@ namespace mathvm {
 
     void sub_rm_imm(char r, int32_t v) {
       op_rr(SUB_RM_IMM, 5, r);
-      putInt32(v);
+      addInt32(v);
     }
 
     void add_rm_imm(char r, int32_t v) {
       op_rr(ADD_RM_IMM, 0, r);
-      putInt32(v);
+      addInt32(v);
     }
+
+  private:
+    void* _x86code;
+    size_t _size;
   };
 
   typedef X86Code NativeCode;
-
 
   class NativeFunction : public TranslatedFunction {
   public:

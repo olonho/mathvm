@@ -40,7 +40,8 @@ namespace mathvm {
     // --------------------------------------------------------------------------------
 
     static char reg(const AstVar* v) {
-      return boost::any_cast<char>(v->userData);     
+      return 0;
+      //return boost::any_cast<char>(v->userData);     
     }
 
     static char remap(char reg) {
@@ -64,9 +65,12 @@ namespace mathvm {
 
   public:
     NativeGenerator(AstFunction* root) { 
-      VarCollector vc(root);
+      VarCollector vc;
 
-      root->visit(this);
+      _runtime = new Runtime;
+      vc.collect(root, _runtime);
+
+      root->node()->visit(this);
     }
 
     Code *getCode() {
@@ -301,7 +305,7 @@ namespace mathvm {
 
       _retReg = oldRet;
 
-      node->userData = node->left()->userData;
+      //node->userData = node->left()->userData;
     }
 
     /*
@@ -386,7 +390,7 @@ namespace mathvm {
         break;
 
       case VT_INT:
-        _code->mov_rm(_retReg, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos);
+        _code->mov_rm(_retReg, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos - 8);
         break;
 
       case VT_STRING:
@@ -407,7 +411,7 @@ namespace mathvm {
       switch (node->var()->type()) {
       case VT_INT:
         if (node->op() == tASSIGN) {
-          _code->mov_mr(RAX, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos);
+          _code->mov_mr(RAX, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos - 8);
         } else {
           ABORT("Not supported");
         }
@@ -531,9 +535,12 @@ namespace mathvm {
 
     VISIT(FunctionNode) {
       NativeFunction* f = (NativeFunction*)node->info();
+      NativeCode* oldCode = _code;
+
+      _code = f->code();
 
       _code->push_r(RBP);
-      _code->mov_rr(RSP, RBP);
+      _code->mov_rr(RBP, RSP);
       _code->sub_rm_imm(RSP, f->localsNumber()*VAR_SIZE);
 
       node->visitChildren(this);
@@ -541,6 +548,10 @@ namespace mathvm {
       _code->add_rm_imm(RSP, f->localsNumber()*VAR_SIZE);
       _code->pop_r(RBP);
       _code->add(RET);      
+
+      _code->done();
+
+      _code = oldCode;
     }
 
 #undef VISIT

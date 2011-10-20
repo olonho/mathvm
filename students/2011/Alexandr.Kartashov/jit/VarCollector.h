@@ -10,13 +10,11 @@ namespace mathvm {
     typedef std::map<AstVar*, uint16_t> Locals;
 
   public:
-    VarCollector() { 
-      _size = 0;
-    }
+    VarCollector() { }
 
-    void collect(AstNode* node, Runtime* rt) {
+    void collect(AstFunction* af, Runtime* rt) {
       _runtime = rt;
-      node->visit(this);
+      visit(af);
     }
 
   private:
@@ -70,12 +68,12 @@ namespace mathvm {
       AstVar* v;
       
       while (fi.hasNext()) {
-        fi.next()->visit(this);
+        visit(fi.next());
       }
 
       while (vi.hasNext()) {
         v = vi.next();
-        VAR_INFO(v) = new VarInfo();
+        v->setInfo(new VarInfo());
         VAR_INFO(v)->kind = VarInfo::KV_LOCAL;
         VAR_INFO(v)->fPos = _curFun->localsNumber();
         VAR_INFO(v)->owner = _curFun;
@@ -85,16 +83,19 @@ namespace mathvm {
       
       node->visitChildren(this);
     }
-    
-    VISIT(FunctionNode) {
+
+    void visit(AstFunction* af) {
       NativeFunction* oldFun = _curFun;
+      FunctionNode* node = af->node();
       Scope::VarIterator argsIt(af->scope());
       size_t p = 0;
+
+      _curFun = _runtime->createFunction(af);
 
       while (argsIt.hasNext()) {
         AstVar* v = argsIt.next();
 
-        VAR_INFO(v) = new VarInfo();
+        v->setInfo(new VarInfo());
         VAR_INFO(v)->kind = VarInfo::KV_ARG;
         VAR_INFO(v)->fPos = p;
         VAR_INFO(v)->owner = _curFun;
@@ -102,11 +103,15 @@ namespace mathvm {
         ++p;
       }
 
-      _curFun = _runtime->createFunction(node);
       node->setInfo(_curFun);
       node->visitChildren(this);
 
       _curFun = oldFun;
+    }
+
+    /*
+    VISIT(FunctionNode) {
+      return;
     }
      
     VISIT(ReturnNode) {
@@ -120,5 +125,6 @@ namespace mathvm {
     VISIT(PrintNode) {
       return;
     }
+    */
   };
 }

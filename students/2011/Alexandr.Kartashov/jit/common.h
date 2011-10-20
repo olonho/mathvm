@@ -3,8 +3,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "mathvm.h"
-
 // ================================================================================
 
 #define VISIT(type)                             \
@@ -17,18 +15,20 @@
 
 // --------------------------------------------------------------------------------
 
-class NativeFunction;
+namespace mathvm {
+  class NativeFunction;
 
-struct VarInfo {
-  enum Kind {
-    KV_LOCAL,
-    KV_ARG
+  struct VarInfo {
+    enum Kind {
+      KV_LOCAL,
+      KV_ARG
+    };
+    
+    Kind kind;
+    int fPos;
+    NativeFunction* owner;
   };
+}
 
-  Kind kind;
-  int fPos;
-  NativeFunction* owner;
-};
-
-#define VAR_INFO(v) ((VarInfo*)(v->_info))
+#define VAR_INFO(v) ((VarInfo*)(v->info()))
 

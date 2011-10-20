@@ -2,7 +2,7 @@
 
 // ================================================================================
 
-extern "C" void icall(const void* p);
+typedef void (*CompiledFunc)(void);
 
 namespace mathvm {
   NativeFunction* Runtime::createFunction(AstFunction* fNode) {
@@ -12,7 +12,10 @@ namespace mathvm {
   }
 
   Status* Runtime::execute(std::vector<mathvm::Var*, std::allocator<Var*> >& args) { 
-    icall(&_functions[0]->code()->data()[0]);
+    NativeCode* c = _functions[0]->code();
+    //c->put(0, 0);
+    CompiledFunc f = (CompiledFunc)c->x86code();
+    f();
 
     return NULL;
   }
