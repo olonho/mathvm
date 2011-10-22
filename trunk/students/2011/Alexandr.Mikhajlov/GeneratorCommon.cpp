@@ -4,8 +4,8 @@ using namespace mathvm;
 
 bool VariableScopeManager::IsVarOnStack( mathvm::AstVar const * var ) const
 {
-  StackType::const_reverse_iterator it = myScopeStack.crbegin();
-  for (; it != myScopeStack.crend(); ++it) {
+  StackType::const_reverse_iterator it = myScopeStack.rbegin();
+  for (; it != myScopeStack.rend(); ++it) {
     if ((*it)->VarExists(var->name())) return true;
   }
   return false;
@@ -13,8 +13,8 @@ bool VariableScopeManager::IsVarOnStack( mathvm::AstVar const * var ) const
 
 bool VariableScopeManager::IsFunctionVisible( std::string const& functionName ) const
 {
-  StackType::const_reverse_iterator it = myScopeStack.crbegin();
-  for (; it != myScopeStack.crend(); ++it) {
+  StackType::const_reverse_iterator it = myScopeStack.rbegin();
+  for (; it != myScopeStack.rend(); ++it) {
     if ((*it)->FunctionExists(functionName)) return true;
   }
   return false;
@@ -41,8 +41,8 @@ void VariableScopeManager::PushScope( mathvm::Scope* scope )
 
 VarId VariableScopeManager::GetVariableId( mathvm::AstVar const* var )
 {
-  StackType::const_reverse_iterator it = myScopeStack.crbegin();
-  for (; it != myScopeStack.crend(); ++it) {
+  StackType::const_reverse_iterator it = myScopeStack.rbegin();
+  for (; it != myScopeStack.rend(); ++it) {
     if ((*it)->VarExists(var->name())) {
       VarId vid = (*it)->GetVariableId(var->name());
       return vid;
@@ -143,12 +143,12 @@ mathvm::AstFunction const * VariableScopeManager::GetFunctionDeclaration( std::s
 
 
 
-BlockScope::BlockScope( mathvm::Scope* scope, FunctionScope* parentFunction ) : myScope(scope), myParentFunction(parentFunction)
+BlockScope::BlockScope( mathvm::Scope* scope, FunctionScope* parentFunction ) : myParentFunction(parentFunction), myScope(scope) 
 {
   DeclareVariables();
 }
 
-BlockScope::BlockScope(mathvm::Scope* scope) : myScope(scope), myParentFunction(NULL)
+BlockScope::BlockScope(mathvm::Scope* scope) : myParentFunction(NULL), myScope(scope) 
 {
 
 }
@@ -200,7 +200,7 @@ void BlockScope::DeclareVariables()
   }
 }
 
-FunctionScope::FunctionScope( FunctionID const & id, mathvm::Scope * bodyScope ) : myId(id), myTotalVariablesNum(0), BlockScope(bodyScope)
+FunctionScope::FunctionScope( FunctionID const & id, mathvm::Scope * bodyScope ) : BlockScope(bodyScope), myTotalVariablesNum(0), myId(id) 
 {
   myParentFunction = this;
 

@@ -32,10 +32,11 @@ int main(int argc, char** argv)
     try {
       generator->Translate(parser->top());
       Code* code = generator->GetCode();
-      code->disassemble();
-      cout << "----running program----\n";
-      code->execute(vector<Var*>());
-      cout << "\n---------done----------\n";
+      //code->disassemble();
+      //cout << "----running program----\n";
+			vector<Var*> v;
+      code->execute(v);
+      //cout << "\n---------done----------\n";
     }
 		catch (TranslationException & ex) {
       cout << "Translation error: " << ex.what() << endl;
@@ -56,7 +57,7 @@ int main(int argc, char** argv)
 	}
 
 	delete parser;
-  system("pause");
+  //system("pause");
 
 	return 0;
 }

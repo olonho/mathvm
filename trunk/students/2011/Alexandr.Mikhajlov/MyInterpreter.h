@@ -30,7 +30,7 @@ struct StackFrame {
   uint32_t ip;
   StackFrame * prevFrame;
   uint16_t functionId;
-  StackFrame(uint16_t variablesNum, uint16_t functionId) : functionId(functionId), ip(0), prevFrame(NULL) {
+  StackFrame(uint16_t variablesNum, uint16_t functionId) :  ip(0), prevFrame(NULL), functionId(functionId) {
     vars.resize(variablesNum);
   }
 };

@@ -103,7 +103,7 @@ private:
 };
 
 struct ExtendedBytecodeFunction : mathvm::BytecodeFunction {
-  ExtendedBytecodeFunction(FunctionScope const * functionScope) : myVariablesNum(functionScope->GetTotalVariablesNum()), mathvm::BytecodeFunction(functionScope->GetAstFunction()) {
+  ExtendedBytecodeFunction(FunctionScope const * functionScope) : mathvm::BytecodeFunction(functionScope->GetAstFunction()), myVariablesNum(functionScope->GetTotalVariablesNum()) {
     mathvm::AstFunction* fun = functionScope->GetAstFunction();
     for (uint32_t i = 0; i < fun->parametersNumber(); ++i) {
       myArgumentTypes.push_back(fun->parameterType(i));

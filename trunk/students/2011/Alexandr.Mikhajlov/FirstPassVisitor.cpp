@@ -115,8 +115,6 @@ void FirstPassVisitor::visitPrintNode( mathvm::PrintNode* node )
     op->visit(this);
   }
   myNodeTypes[node] = VT_INVALID;
-
-  char const * t = typeid(1.5 && 2.5).name();
 }
 
 void FirstPassVisitor::visitFunctionNode( mathvm::FunctionNode* node )
