@@ -27,12 +27,12 @@ void PresentationVisitor::visitStringLiteralNode( mathvm::StringLiteralNode* nod
 {
   std::string s = node->literal();
   myStream << "\'";
-  for_each(s.begin(), s.end(), [this](char c) {
+  /*for_each(s.begin(), s.end(), [this](char c) {
     switch(c) {
       case '\n': myStream << "\\n"; break;
       default: myStream << c;
     }
-  });
+  });*/
   myStream << "\'";
 }
 
@@ -139,6 +139,7 @@ std::string PresentationVisitor::getTypeName( mathvm::VarType type )
     case VT_INT: return "int";
     case VT_STRING: return "string";
     case VT_INVALID: return "";
+    case VT_VOID: return "void";
   }
   return "";
 }

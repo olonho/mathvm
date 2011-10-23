@@ -21,7 +21,7 @@ int main(int argc, char** argv)
   if (status == NULL) 
   {
       PresentationVisitor *visitor = new PresentationVisitor(std::cout);
-      parser->top()->visit(visitor);
+      parser->top()->node()->visit(visitor);
   }
   else 
   {

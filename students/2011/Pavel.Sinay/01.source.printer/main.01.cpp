@@ -16,10 +16,11 @@ int main(int argc, char **argv) {
 
 	mathvm::Parser parser;// = new mathvm::Parser;
 	char* code = mathvm::loadFile(argv[1]);
+	//std::cout << code << std::endl;
 	mathvm::Status* status = parser.parseProgram(code);
 	if (status == NULL) {
 		//PresentationVisitor *visitor = new PresentationVisitor(std::cout);
-		VisitorSourcePrinter visitor;
+		VisitorSourcePrinter visitor(std::cout);
 		parser.top()->node()->visit(&visitor);
 	}
 	else {
@@ -33,6 +34,9 @@ int main(int argc, char **argv) {
 					status->getError().c_str());
 		}
 	}
+
+	delete code;
+	delete status;
 
 	return 0;
 }

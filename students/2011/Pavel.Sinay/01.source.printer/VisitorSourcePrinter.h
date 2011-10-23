@@ -9,10 +9,12 @@
 #define VISITORSOURCEPRINTER_H_
 
 #include "ast.h"
+#include "mathvm.h"
+#include <iostream>
 
 class VisitorSourcePrinter: public mathvm::AstVisitor {
 public:
-	VisitorSourcePrinter();
+	VisitorSourcePrinter(std::ostream &msg_stream);
 	virtual ~VisitorSourcePrinter();
 
 	virtual void visitBinaryOpNode(mathvm::BinaryOpNode* node);
@@ -28,6 +30,10 @@ public:
 	virtual void visitBlockNode(mathvm::BlockNode* node);
 	virtual void visitFunctionNode(mathvm::FunctionNode* node);
 	virtual void visitPrintNode(mathvm::PrintNode* node);
+
+private:
+	std::ostream &m_stream;
+	std::string varTypeToStr(mathvm::VarType type);
 };
 
 #endif /* VISITORSOURCEPRINTER_H_ */
