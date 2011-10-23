@@ -1,7 +1,7 @@
 MVM=./build/debug/mvm
 TEST_FILES=../../../../tests
-FILES="var literal add sub mul div priority expr for if while function"
-#FILES="while if"
+#FILES="var literal add sub mul div priority expr for if while function"
+FILES="function"
 
 echo -e "\e[1;31m**************Testing is started!*************\e[0m"
 
