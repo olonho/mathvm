@@ -1,6 +1,8 @@
 #include "bytecode_visitor.h"
 #include <cstdio>
 #include <cstdlib>
+#include "mvm_code.h"
+#include "mathvm.h"
 
 namespace mathvm {
   
@@ -309,6 +311,11 @@ void BytecodeVisitor::visitBlockNode(BlockNode* node) {
       default: {}
     }
   }
+  Scope::FunctionIterator *fit = new Scope::FunctionIterator(scope);
+  while (fit->hasNext()) {
+    FunctionNode* func = fit->next()->node();
+    func->visit(this);
+  }
   node->visitChildren(this);
   var_map_.DeleteScope();
 }
@@ -328,15 +335,52 @@ void BytecodeVisitor::visitPrintNode(PrintNode* node) {
 }
 
 void BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
-  // TBD
+  uint16_t id = ((MvmCode*)code_)->_functionids.size();
+  ((MvmCode*)code_)->_functionids.insert(std::make_pair(node->name(), id));  
+  BytecodeFunction* func = new BytecodeFunction(
+      new AstFunction(node, node->body()->scope()));
+  code_->addFunction(func);
+  Bytecode* temp = bcode_;
+  bcode_ = ((BytecodeFunction *)code_->functionById(id))->bytecode();
+  var_map_.AddScope();
+  for (int32_t i = node->parametersNumber() - 1; i > -1; --i) {
+    var_map_.AddVar(node->parameterName(i));
+    switch (node->parameterType(i)) {
+      case VT_DOUBLE: {
+        bcode_->add(BC_STOREDVAR); 
+        bcode_->addInt16(var_map_.GetVarId(node->parameterName(i)));
+        break;
+      }
+      case VT_INT: {
+        bcode_->add(BC_STOREIVAR); 
+        bcode_->addInt16(var_map_.GetVarId(node->parameterName(i)));
+        break;
+      }
+      case VT_STRING: {
+        bcode_->add(BC_STORESVAR); 
+        bcode_->addInt16(var_map_.GetVarId(node->parameterName(i)));
+        break;
+      }
+      default: {}
+    }
+  }
+  node->body()->visit(this);
+  bcode_ = temp;
+  var_map_.DeleteScope();
 }
 
 void BytecodeVisitor::visitReturnNode(ReturnNode* node) {
-  // TBD
+  if (node->returnExpr()) {
+    node->returnExpr()->visit(this);
+  }
+  bcode_->add(BC_RETURN);
 }
 
 void BytecodeVisitor::visitCallNode(CallNode* node) {
-  // TBD
+  uint16_t id = ((MvmCode *)code_)->_functionids[node->name()];
+  node->visitChildren(this);
+  bcode_->add(BC_CALL);
+  bcode_->addInt16(id);
 }
 
 }

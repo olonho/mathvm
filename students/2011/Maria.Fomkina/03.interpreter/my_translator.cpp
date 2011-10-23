@@ -31,7 +31,7 @@ Status* BytecodeTranslator::translate(
   mvm_code->set_bytecode(function->bytecode());
   *code = (Code *)mvm_code;
   delete parser;
-  delete parser_status;
+  delete parser_status;  
   delete visitor;
   return new Status();
 }

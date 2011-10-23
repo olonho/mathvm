@@ -49,10 +49,11 @@ class BytecodeVisitor : public AstVisitor {
     VarMap var_map_;
     VarType last_var_type_;
     std::vector<VarType> var_types_;
+    std::stack<std::pair<Bytecode*, uint32_t> > call_stack;
  public:
     BytecodeVisitor(Code* code)
         : code_(code), bcode_(((BytecodeFunction *)(
-            code->functionById(0)))->bytecode())  {
+            code->functionById(0)))->bytecode()) {
     }
     virtual ~BytecodeVisitor() {
     }
