@@ -27,10 +27,6 @@ void compare_operation(Bytecode *bcode_, TokenKind kind,
   bcode_->bind(is_true);
   bcode_->add(BC_ILOAD1);
   bcode_->bind(next);
-  bcode_->add(BC_SWAP);
-  bcode_->add(BC_POP);
-  bcode_->add(BC_SWAP);
-  bcode_->add(BC_POP);
 }
 
 void logic_operation(Bytecode *bcode_, TokenKind kind,
@@ -44,41 +40,39 @@ void logic_operation(Bytecode *bcode_, TokenKind kind,
   }
   if (kind == tOR) {
     bcode_->add(BC_ILOAD0);
-    // compare left arg with 0 
-    // if left arg is 0 then check right arg
     bcode_->addBranch(BC_IFICMPE, check_right);
+    bcode_->add(BC_POP);
+    bcode_->add(BC_ILOAD1);
+    bcode_->bind(check_right);
+    bcode_->add(BC_ILOAD0);
+    bcode_->addBranch(BC_IFICMPE, final);
+    bcode_->add(BC_ILOAD1);
+    bcode_->addBranch(BC_JA, next);
+    bcode_->bind(final);
+    bcode_->add(BC_ILOAD0);
+    bcode_->bind(next);
   }
   if (kind == tAND) {
     bcode_->add(BC_ILOAD0);
-    // compare left arg with 0 
-    // if left arg is not 0 then check right arg
     bcode_->addBranch(BC_IFICMPNE, check_right);
-    // if left arg is 0 then return it  
+    bcode_->add(BC_POP);
+    bcode_->add(BC_ILOAD0);
+    bcode_->bind(check_right);
+    bcode_->add(BC_ILOAD0);
+    bcode_->addBranch(BC_IFICMPNE, final);
+    bcode_->add(BC_ILOAD0);
+    bcode_->addBranch(BC_JA, next);
+    bcode_->bind(final);
+    bcode_->add(BC_ILOAD1);
+    bcode_->bind(next);
   }
-  bcode_->add(BC_POP); 
-  bcode_->add(BC_SWAP);
-  bcode_->add(BC_POP);
-  bcode_->addBranch(BC_JA, next);
-  // check right arg
-  bcode_->bind(check_right);
-  bcode_->add(BC_SWAP);
-  bcode_->add(BC_POP);
-  // if right arg is 0 the result will be 0 
-  bcode_->addBranch(BC_IFICMPE, final);
-  // if right arg is not 0 return it
-  bcode_->add(BC_POP);
-  bcode_->addBranch(BC_JA, next);
-  // return 0
-  bcode_->bind(final);
-  bcode_->add(BC_SWAP);
-  bcode_->add(BC_POP);
-  bcode_->bind(next);
 }
 
 // ******************************************************** //
 void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
-  node->right()->visit(this);
   node->left()->visit(this);
+  node->right()->visit(this);
+  bcode_->add(BC_SWAP);
   switch (last_var_type_) {
     case VT_INT: {
       switch (node->kind()) {

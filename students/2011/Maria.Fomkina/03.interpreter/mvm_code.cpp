@@ -29,7 +29,8 @@ Status* MvmCode::execute(vector<Var*>& vars) {
   
   while (command != BC_STOP) {
     command = bytecode_->get(pos);
-    // std::cerr << "Command " << command << " at " << pos << std::endl;
+    // std::cerr << "Command " << command << " at " << pos << " stack " 
+    //           << stack.size() << std::endl;
     ++pos;
     switch (command) {
       case (BC_DLOAD): {
