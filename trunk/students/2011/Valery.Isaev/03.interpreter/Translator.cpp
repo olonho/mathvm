@@ -6,6 +6,21 @@
 #include "Translator.h"
 #include "ShowVisitor.h"
 
+class MyFunction: public mathvm::BytecodeFunction {
+    std::vector<std::string> vars;
+public:
+    MyFunction(mathvm::AstFunction* f): mathvm::BytecodeFunction(f) {}
+    const std::vector<std::string>& freeVars() const { return vars; }
+};
+
+/* Stack frame:
+ * --------------
+ * Parameters
+ * Free vars
+ * Return address
+ * Local vars
+ */
+
 #define INTERNAL_ERROR \
     throwError(node, "Internal error at %s:%d", __FILE__, __LINE__);
 
@@ -52,11 +67,11 @@ void Translator::put(const void* buf_, unsigned int size) {
 template<class T>
 void Translator::putVar(mathvm::Instruction ins, T* node) {
     code->add(ins);
-    const std::vector<VarInt>& v = vars[node->var()->name()];
-    if (v.empty()) {
+    std::map<std::string, VarInt>::iterator it = vars.find(node->var()->name());
+    if (it == vars.end()) {
         throwError(node, "Undeclared variable: %s", node->var()->name().c_str());
     }
-    put(&v.back(), sizeof(VarInt));
+    put(&*it, sizeof(VarInt));
 }
 
 void Translator::triple(mathvm::Instruction i) {
@@ -124,7 +139,7 @@ void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
             default:;
         }
         switch (node->kind()) {
-            case tNEQ: break;
+            case tNEQ: code->add(BC_ILOAD0); triple(BC_IFICMPNE); break;
             case tEQ: code->add(BC_ILOAD0); triple(BC_IFICMPE); break;
             case tGT: code->add(BC_ILOADM1); triple(BC_IFICMPE); break;
             case tGE: code->add(BC_ILOAD1); triple(BC_IFICMPNE); break;
@@ -328,59 +343,50 @@ Translator::VarInt Translator::addVar(mathvm::AstNode* node, const std::string& 
     if (!currentVar) {
         overflow = true;
     }
-    vars[name].push_back(r);
-    return r;
+    return vars[name] = r;
 }
 
-void Translator::delVar(const std::string& name) {
-    vars[name].pop_back();
-    overflow = false;
-    --currentVar;
-}
+/* Stack frame:
+ * --------------
+ * Parameters
+ * Free vars
+ * Return address
+ * Local vars
+ */
 
 void Translator::visitBlockNode(mathvm::BlockNode* node) {
     for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext();) {
         addVar(node, it.next()->name());
     }
     for (mathvm::Scope::FunctionIterator it(node->scope()); it.hasNext();) {
-        mathvm::Bytecode* code1 = code;
         mathvm::AstFunction* fun = it.next();
-        mathvm::BytecodeFunction* bfun = new mathvm::BytecodeFunction(fun);
+        MyFunction* bfun = new MyFunction(fun);
         prog->addFunction(bfun);
-        code = bfun->bytecode();
-        fun->node()->visit(this);
-        code = code1;
+        Translator trans(prog);
+        trans.code = bfun->bytecode();
+        for (uint32_t i = 0; i < fun->parametersNumber(); ++i) {
+            trans.addVar(node, fun->parameterName(i));
+        }
+        for (uint32_t i = 0; i < bfun->freeVars().size(); ++i) {
+            trans.addVar(node, bfun->freeVars()[i]);
+        }
+        ++trans.currentVar;
+        fun->node()->body()->visit(&trans);
     }
     for (uint32_t i = 0; i < node->nodes(); ++i) {
         mathvm::CallNode* call = dynamic_cast<mathvm::CallNode*>(node->nodeAt(i));
         node->nodeAt(i)->visit(this);
-        if (call && currentType != mathvm::VT_VOID) {
+        if (call && prog->functionByName(call->name())->returnType() != mathvm::VT_VOID) {
             code->add(mathvm::BC_POP);
         }
     }
     for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext();) {
-        delVar(it.next()->name());
+        overflow = false;
+        break;
     }
 }
 
-void Translator::visitFunctionNode(mathvm::FunctionNode* node) {
-    mathvm::VarType resType = resultType;
-    resultType = node->returnType();
-    for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-        switch (node->parameterType(i)) {
-            case mathvm::VT_DOUBLE: code->add(mathvm::BC_STOREDVAR); break;
-            case mathvm::VT_INT: code->add(mathvm::BC_STOREIVAR); break;
-            case mathvm::VT_STRING: code->add(mathvm::BC_STORESVAR); break;
-            default: INTERNAL_ERROR
-        }
-        code->addTyped(addVar(node, node->parameterName(i)));
-    }
-    node->body()->visit(this);
-    for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-        delVar(node->parameterName(i));
-    }
-    resultType = resType;
-}
+void Translator::visitFunctionNode(mathvm::FunctionNode* node) { INTERNAL_ERROR }
 
 void Translator::visitPrintNode(mathvm::PrintNode* node) {
     for (uint32_t i = 0; i < node->operands(); ++i) {
@@ -458,4 +464,11 @@ mathvm::Status Translator::translate(mathvm::AstFunction* fun) {
         return e;
     }
     return mathvm::Status();
+}
+
+void Translator::getVarMap(mathvm::AstFunction* fun, std::map<std::string, VarInt>& varMap) {
+    uint64_t var = 0;
+    for (mathvm::Scope::VarIterator it(fun->node()->body()->scope()); it.hasNext();) {
+        varMap[it.next()->name()] = var++;
+    }
 }

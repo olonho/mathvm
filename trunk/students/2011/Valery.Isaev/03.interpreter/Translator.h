@@ -17,14 +17,14 @@ class Translator: public mathvm::AstVisitor {
     mathvm::VarType currentType, resultType;
     
     VarInt addVar(mathvm::AstNode* node, const std::string& name);
-    void delVar(const std::string& name);
     void put(const void* buf, unsigned int size);
     template<class T> void putVar(mathvm::Instruction ins, T* var);
     void checkTypeInt(mathvm::AstNode* expr);
     void triple(mathvm::Instruction i);
 public:
     Translator(mathvm::Code* p);
-    mathvm::Status translate(mathvm::AstFunction* node);
+    mathvm::Status translate(mathvm::AstFunction* fun);
+    static void getVarMap(mathvm::AstFunction* fun, std::map<std::string, VarInt>& varMap);
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(mathvm::type* node);
     FOR_NODES(VISITOR_FUNCTION)

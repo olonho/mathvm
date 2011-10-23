@@ -3,12 +3,9 @@ ROOT = .
 
 include $(VM_ROOT)/common.mk
 
-all: $(OUT) $(BIN)/translator
+all: $(OUT) $(BIN)/interpreter
 
-COMMON = $(MATHVM_OBJ) $(OBJ)/Translator.o $(OBJ)/ShowVisitor.o
-COMMON_BLD = $(COMMON) $(THREAD_LIB)
-COMMON_TRG = $(COMMON) parse.cpp
-COMMON_TRG = $(COMMON) parse.cpp Translator.h
+COMMON = $(MATHVM_OBJ) $(OBJ)/Translator.o $(OBJ)/ShowVisitor.o $(OBJ)/Interpreter.o
 
-$(BIN)/translator: $(OBJ)/main.o $(COMMON_TRG)
-	$(CXX) -o $@ $< $(COMMON_BLD)
+$(BIN)/interpreter: $(OBJ)/main.o $(COMMON) parse.cpp Translator.h
+	$(CXX) -o $@ $< $(COMMON) $(THREAD_LIB)

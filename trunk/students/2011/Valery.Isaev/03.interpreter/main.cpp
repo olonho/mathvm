@@ -15,6 +15,7 @@ int main(int argc, char* argv[]) {
     Translator t(&interp);
     mathvm::Status r = t.translate(p.top());
     if (r.isOk()) {
+        Translator::getVarMap(p.top(), interp.varMap());
         std::vector<mathvm::Var*> v;
         interp.execute(v);
     } else {
