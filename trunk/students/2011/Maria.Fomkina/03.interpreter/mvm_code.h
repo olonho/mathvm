@@ -6,12 +6,15 @@
 #include <cstdio>
 #include <string>
 #include <iostream>
+#include <map>
 
 namespace mathvm {
   
 class MvmCode : public Code {
  public:
-    MvmCode() {}
+    MvmCode() {
+      _functionids.insert(std::make_pair("<top>", 0));
+    }
 
     ~MvmCode() {}
 
@@ -23,6 +26,8 @@ class MvmCode : public Code {
 
  private:
     Bytecode* bytecode_;
+ public:
+    std::map<string, uint16_t> _functionids;
   };
 
 }

@@ -26,11 +26,12 @@ Status* MvmCode::execute(vector<Var*>& vars) {
   std::vector<double> dvar;
   std::vector<int64_t> ivar;
   std::vector<uint8_t> svar;
+  std::stack<std::pair<Bytecode*, uint32_t> > call_stack;
   
   while (command != BC_STOP) {
     command = bytecode_->get(pos);
-    // std::cerr << "Command " << command << " at " << pos << " stack " 
-    //           << stack.size() << std::endl;
+    //std::cerr << "Command " << command << " at " << pos << " stack " 
+    //          << stack.size() << std::endl;
     ++pos;
     switch (command) {
       case (BC_DLOAD): {
@@ -307,8 +308,20 @@ Status* MvmCode::execute(vector<Var*>& vars) {
       case (BC_STOP): {
         break;
       }
-        // BC_CALL
-        // BC_RETURN
+      case (BC_CALL): {
+        uint16_t id = bytecode_->getInt16(pos);
+        pos += 2; 
+        call_stack.push(std::make_pair(bytecode_, pos));
+        bytecode_ = ((BytecodeFunction *)functionById(id))->bytecode();
+        pos = 0;
+        break;
+      }
+      case (BC_RETURN): {
+        bytecode_ = call_stack.top().first;
+        pos = call_stack.top().second;
+        call_stack.pop();
+        break;
+      }
       default: {
         printf("Unrecognized command!\n");
       }
