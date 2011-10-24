@@ -5,28 +5,10 @@
 
 #include "Translator.h"
 #include "ShowVisitor.h"
-
-class MyFunction: public mathvm::BytecodeFunction {
-    std::vector<const mathvm::AstVar*> vars;
-    std::vector<mathvm::AstNode*> nodes;
-public:
-    MyFunction(mathvm::AstFunction* f): mathvm::BytecodeFunction(f) {}
-    template<class T> void addFreeVar(T* t) {
-        for (uint32_t i = 0; i < vars.size(); ++i) {
-            if (vars[i]->name() == t->var()->name()) {
-                return;
-            }
-        }
-        nodes.push_back(t);
-        vars.push_back(t->var());
-    }
-    uint32_t freeVars() const { return vars.size(); }
-    const mathvm::AstVar* varAt(uint32_t i) const { return vars[i]; }
-    mathvm::AstNode* nodeAt(uint32_t i) { return nodes[i]; }
-};
+#include "BytecodeFunction.h"
 
 class FreeVarsVisitor: public mathvm::AstVisitor {
-    MyFunction* fun;
+    BytecodeFunction* fun;
     std::vector<std::string> exclude;
     template<class T> void addFreeVar(T* t) {
         for (uint32_t i = 0; i < exclude.size(); ++i) {
@@ -37,7 +19,7 @@ class FreeVarsVisitor: public mathvm::AstVisitor {
         fun->addFreeVar(t);
     }
 public:
-    FreeVarsVisitor(MyFunction* _fun, mathvm::AstFunction* v): fun(_fun) {
+    FreeVarsVisitor(BytecodeFunction* _fun, mathvm::AstFunction* v): fun(_fun) {
         v->node()->visit(this);
     }
     void visitBinaryOpNode(mathvm::BinaryOpNode* node) { node->visitChildren(this); }
@@ -78,14 +60,6 @@ public:
         }
     }
 };
-
-/* Stack frame:
- * --------------
- * Parameters
- * Free vars
- * Return address
- * Local vars
- */
 
 #define INTERNAL_ERROR \
     throwError(node, "Internal error at %s:%d", __FILE__, __LINE__);
@@ -423,39 +397,30 @@ void Translator::delVar(const std::string& name) {
     --currentVar;
 }
 
-/* Stack frame:
- * --------------
- * Parameters
- * Free vars
- * Return address
- * Local vars
- */
-
 void Translator::visitBlockNode(mathvm::BlockNode* node) {
     for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext();) {
         addVar(node, it.next()->name());
     }
     for (mathvm::Scope::FunctionIterator it(node->scope()); it.hasNext();) {
         mathvm::AstFunction* fun = it.next();
-        MyFunction* bfun = new MyFunction(fun);
+        BytecodeFunction* bfun = new BytecodeFunction(fun);
         FreeVarsVisitor(bfun, fun);
         prog->addFunction(bfun);
         Translator trans(prog);
         trans.code = bfun->bytecode();
         trans.resultType = fun->returnType();
+        ++trans.currentVar;
         for (uint32_t i = 0; i < fun->parametersNumber(); ++i) {
             trans.addVar(node, fun->parameterName(i));
         }
         for (uint32_t i = 0; i < bfun->freeVars(); ++i) {
             trans.addVar(node, bfun->varAt(i)->name());
         }
-        ++trans.currentVar;
         fun->node()->body()->visit(&trans);
     }
     for (uint32_t i = 0; i < node->nodes(); ++i) {
-        mathvm::CallNode* call = dynamic_cast<mathvm::CallNode*>(node->nodeAt(i));
         node->nodeAt(i)->visit(this);
-        if (call && prog->functionByName(call->name())->returnType() != mathvm::VT_VOID) {
+        if (dynamic_cast<mathvm::CallNode*>(node->nodeAt(i))) {
             code->add(mathvm::BC_POP);
         }
     }
@@ -501,11 +466,12 @@ void Translator::visitReturnNode(mathvm::ReturnNode* node) {
         }
     }
     currentType = mathvm::VT_INVALID;
+    code->add(mathvm::BC_STOREDVAR0);
     code->add(mathvm::BC_RETURN);
 }
 
 void Translator::visitCallNode(mathvm::CallNode* node) {
-    MyFunction* fun = static_cast<MyFunction*>(prog->functionByName(node->name()));
+    BytecodeFunction* fun = static_cast<BytecodeFunction*>(prog->functionByName(node->name()));
     if (!fun) {
         throwError(node, "Undeclared function: %s", node->name().c_str());
     }
@@ -562,11 +528,4 @@ mathvm::Status Translator::translate(mathvm::AstFunction* fun) {
         return e;
     }
     return mathvm::Status();
-}
-
-void Translator::getVarMap(mathvm::AstFunction* fun, std::map<std::string, VarInt>& varMap) {
-    uint64_t var = 0;
-    for (mathvm::Scope::VarIterator it(fun->node()->body()->scope()); it.hasNext();) {
-        varMap[it.next()->name()] = var++;
-    }
 }
