@@ -26,7 +26,6 @@ class Translator: public mathvm::AstVisitor {
 public:
     Translator(mathvm::Code* p);
     mathvm::Status translate(mathvm::AstFunction* fun);
-    static void getVarMap(mathvm::AstFunction* fun, std::map<std::string, VarInt>& varMap);
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(mathvm::type* node);
     FOR_NODES(VISITOR_FUNCTION)
