@@ -8,6 +8,7 @@
 #include "BytecodeFunction.h"
 
 class FreeVarsVisitor: public mathvm::AstVisitor {
+    uint32_t loc;
     BytecodeFunction* fun;
     std::vector<std::string> exclude;
     template<class T> void addFreeVar(T* t) {
@@ -19,8 +20,9 @@ class FreeVarsVisitor: public mathvm::AstVisitor {
         fun->addFreeVar(t);
     }
 public:
-    FreeVarsVisitor(BytecodeFunction* _fun, mathvm::AstFunction* v): fun(_fun) {
+    FreeVarsVisitor(BytecodeFunction* _fun, mathvm::AstFunction* v): loc(0), fun(_fun) {
         v->node()->visit(this);
+        fun->setLocalsNumber(loc);
     }
     void visitBinaryOpNode(mathvm::BinaryOpNode* node) { node->visitChildren(this); }
     void visitUnaryOpNode(mathvm::UnaryOpNode* node) { node->visitChildren(this); }
@@ -28,8 +30,18 @@ public:
     void visitWhileNode(mathvm::WhileNode* node) { node->visitChildren(this); }
     void visitPrintNode(mathvm::PrintNode* node) { node->visitChildren(this); }
     void visitCallNode(mathvm::CallNode* node) { node->visitChildren(this); }
-    void visitIfNode(mathvm::IfNode* node) { node->visitChildren(this); }
     void visitLoadNode(mathvm::LoadNode* node) { addFreeVar(node); }
+    void visitIfNode(mathvm::IfNode* node) {
+        node->ifExpr()->visit(this);
+        uint32_t loc1 = loc;
+        node->thenBlock()->visit(this);
+        if (node->elseBlock()) {
+            uint32_t loc2 = loc;
+            loc = loc1;
+            node->elseBlock()->visit(this);
+            if (loc2 > loc) loc = loc2;
+        }
+    }
     void visitStoreNode(mathvm::StoreNode* node) {
         node->visitChildren(this);
         addFreeVar(node);
@@ -49,11 +61,14 @@ public:
     }
     void visitBlockNode(mathvm::BlockNode* node) {
         for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext();) {
+            ++loc;
             exclude.push_back(it.next()->name());
         }
+        uint32_t loc1 = loc;
         for (mathvm::Scope::FunctionIterator it(node->scope()); it.hasNext();) {
             it.next()->node()->visit(this);
         }
+        loc = loc1;
         node->visitChildren(this);
         for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext(); it.next()) {
             exclude.pop_back();
@@ -519,7 +534,8 @@ void Translator::visitCallNode(mathvm::CallNode* node) {
 
 mathvm::Status Translator::translate(mathvm::AstFunction* fun) {
     try {
-        mathvm::BytecodeFunction* main = new mathvm::BytecodeFunction(fun);
+        BytecodeFunction* main = new BytecodeFunction(fun);
+        FreeVarsVisitor(main, fun);
         prog->addFunction(main);
         code = main->bytecode();
         fun->node()->body()->visit(this);

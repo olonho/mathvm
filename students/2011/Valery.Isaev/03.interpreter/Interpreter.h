@@ -21,6 +21,7 @@ class Interpreter: public mathvm::Code {
     typedef struct {
         CodePtr code_ptr;
         Value* vars_ptr;
+        Value* stack_ptr;
     } StackEntry;
     typedef uint16_t VarInt;
     Value* Stack;

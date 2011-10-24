@@ -19,13 +19,13 @@ Interpreter::~Interpreter() {
 
 mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
     disassemble();
+    BytecodeFunction* fun = static_cast<BytecodeFunction*>(functionById(0));
     Value tmp;
     CodePtr code;
-    Value* stack = Stack;
-    Value* vars = stack;
+    Value* vars = Stack;
+    Value* stack = vars + fun->localsNumber();
     StackEntry* call_stack = CallStack;
-    code.pInsn = static_cast<BytecodeFunction*>
-        (functionById(0))->bytecode()->bytecode();
+    code.pInsn = fun->bytecode()->bytecode();
     
     using namespace mathvm;
     while (1) switch (*code.pInsn++) {
@@ -60,56 +60,57 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
     case BC_IFICMPLE: stack->vInt -= 2; if ((stack + 1)->vInt <= stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
-    case BC_DADD: { tmp.vDouble = (--stack)->vDouble;
-                    (stack - 1)->vDouble += tmp.vDouble;
-                  } break;
-    case BC_IADD: { tmp.vInt = (--stack)->vInt;
-                    (stack - 1)->vInt += tmp.vInt;
-                  } break;
-    case BC_DSUB: { tmp.vDouble = (--stack)->vDouble;
-                    (stack - 1)->vDouble = tmp.vDouble - (stack - 1)->vDouble;
-                  } break;
-    case BC_ISUB: { tmp.vInt = (--stack)->vInt;
-                    (stack - 1)->vInt = tmp.vInt - (stack - 1)->vInt;
-                  } break;
-    case BC_DMUL: { tmp.vDouble = (--stack)->vDouble;
-                    (stack - 1)->vDouble *= tmp.vDouble;
-                  } break;
-    case BC_IMUL: { tmp.vInt = (--stack)->vInt;
-                    (stack - 1)->vInt *= tmp.vInt;
-                  } break;
-    case BC_DDIV: { tmp.vDouble = (--stack)->vDouble;
-                    (stack - 1)->vDouble = tmp.vDouble / (stack - 1)->vDouble;
-                  } break;
-    case BC_IDIV: { tmp.vInt = (--stack)->vInt;
-                    (stack - 1)->vInt = tmp.vInt / (stack - 1)->vInt;
-                  } break;
-    case BC_SWAP: { tmp = *(stack - 2);
-                    *(stack - 2) = *(stack - 1);
-                    *(stack - 1) = tmp;
-                  } break;
-    case BC_DCMP: { tmp.vDouble = (--stack)->vDouble;
-                    (stack - 1)->vInt = tmp.vDouble < (stack - 1)->vDouble ? 1
-                        : tmp.vDouble == (stack -1 )->vDouble ? 0 : -1;
-                  } break;
+    case BC_DADD: tmp.vDouble = (--stack)->vDouble;
+                  (stack - 1)->vDouble += tmp.vDouble;
+                  break;
+    case BC_IADD: tmp.vInt = (--stack)->vInt;
+                  (stack - 1)->vInt += tmp.vInt;
+                  break;
+    case BC_DSUB: tmp.vDouble = (--stack)->vDouble;
+                  (stack - 1)->vDouble = tmp.vDouble - (stack - 1)->vDouble;
+                  break;
+    case BC_ISUB: tmp.vInt = (--stack)->vInt;
+                  (stack - 1)->vInt = tmp.vInt - (stack - 1)->vInt;
+                  break;
+    case BC_DMUL: tmp.vDouble = (--stack)->vDouble;
+                  (stack - 1)->vDouble *= tmp.vDouble;
+                  break;
+    case BC_IMUL: tmp.vInt = (--stack)->vInt;
+                  (stack - 1)->vInt *= tmp.vInt;
+                  break;
+    case BC_DDIV: tmp.vDouble = (--stack)->vDouble;
+                  (stack - 1)->vDouble = tmp.vDouble / (stack - 1)->vDouble;
+                  break;
+    case BC_IDIV: tmp.vInt = (--stack)->vInt;
+                  (stack - 1)->vInt = tmp.vInt / (stack - 1)->vInt;
+                  break;
+    case BC_SWAP: tmp = *(stack - 2);
+                  *(stack - 2) = *(stack - 1);
+                  *(stack - 1) = tmp;
+                  break;
+    case BC_DCMP: tmp.vDouble = (--stack)->vDouble;
+                  (stack - 1)->vInt = tmp.vDouble < (stack - 1)->vDouble ? 1
+                      : tmp.vDouble == (stack -1 )->vDouble ? 0 : -1;
+                  break;
     case BC_LOADDVAR: case BC_LOADIVAR: case BC_LOADSVAR:
                     *stack++ = vars[*code.pVar++]; break;
     case BC_STOREDVAR0: case BC_STOREIVAR0: case BC_STORESVAR0:
                     *vars = *--stack; break;
     case BC_STOREDVAR: case BC_STOREIVAR: case BC_STORESVAR:
                     vars[*code.pVar++] = *--stack; break;
-    case BC_CALL: { call_stack->code_ptr = code;
-                    call_stack->vars_ptr = vars;
-                    ++call_stack;
-                    ::BytecodeFunction* fun = static_cast< ::BytecodeFunction*>
-                        (functionById(*code.pVar++));
-                    vars = stack - (fun->parametersNumber() + fun->freeVars() + 1);
-                    code.pInsn = fun->bytecode()->bytecode();
-                    break;
-                  }
+    case BC_CALL: call_stack->code_ptr = code;
+                  call_stack->vars_ptr = vars;
+                  call_stack->stack_ptr = stack;
+                  ++call_stack;
+                  fun = static_cast< ::BytecodeFunction*>(functionById(*code.pVar++));
+                  vars = stack - (fun->parametersNumber() + fun->freeVars() + 1);
+                  stack += fun->localsNumber();
+                  code.pInsn = fun->bytecode()->bytecode();
+                  break;
     case BC_RETURN: --call_stack;
                     code = call_stack->code_ptr;
                     vars = call_stack->vars_ptr;
+                    stack = call_stack->vars_ptr;
                     break;
     }
 }
