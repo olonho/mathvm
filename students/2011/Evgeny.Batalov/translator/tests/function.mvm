@@ -21,6 +21,12 @@ function int f(int y) {
       int a;
       int b;
       int c;
+      if (a > b) {
+        int a;
+        int b;
+        b = 0;
+        c = 0;
+      }
       return x + 1 + abc + f2(9);
 
       function int f3(int y) {
