@@ -71,7 +71,14 @@ void VisitorSourcePrinter::visitUnaryOpNode(mathvm::UnaryOpNode *node) {
 
 void VisitorSourcePrinter::visitFunctionNode(mathvm::FunctionNode *node) {
 	//m_stream << "<function node> " << std::endl;
-	node->visitChildren(this);
+	m_stream << "function "  << varTypeToStr(node->returnType())
+			<< " " << node->name() << " (";
+
+	m_stream << ") {" << std::endl;
+	//node->body() parametersNumber()
+	node->body()->visit(this);
+	//node->visitChildren(this);
+	m_stream << "}" << std::endl;
 }
 
 void VisitorSourcePrinter::visitWhileNode(mathvm::WhileNode *node) {
@@ -100,6 +107,12 @@ void VisitorSourcePrinter::visitBlockNode(mathvm::BlockNode *node) {
 		m_stream << varTypeToStr(var->type()) << " " << var->name() << ";"
 				<< std::endl;
 	}
+
+	mathvm::Scope::FunctionIterator f_it(node->scope());
+	while (f_it.hasNext()) {
+		f_it.next()->node()->visit(this);
+	}
+
 	node->visitChildren(this);
 }
 
@@ -127,6 +140,17 @@ void VisitorSourcePrinter::visitStoreNode(mathvm::StoreNode *node) {
 	m_stream << node->var()->name() << tokenOp(node->op());
 	node->value()->visit(this);
 	m_stream << ';' << std::endl;
+}
+
+void VisitorSourcePrinter::visitCallNode(mathvm::CallNode *node) {
+	m_stream << node->name() << "(";
+	for (uint32_t i = 0; i != node->parametersNumber(); ++i) {
+		node->parameterAt(i)->visit(this);
+		if (i != node->parametersNumber() - 1) {
+			m_stream << ", ";
+		}
+	}
+	m_stream << ")";
 }
 
 std::string VisitorSourcePrinter::varTypeToStr(mathvm::VarType type) {
