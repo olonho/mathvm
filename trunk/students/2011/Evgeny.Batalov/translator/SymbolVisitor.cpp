@@ -1,10 +1,10 @@
-#include "InfoVisitor.h"
+#include "SymbolVisitor.h"
 
-InfoVisitor::InfoVisitor(mathvm::AstFunction* top) {
+SymbolVisitor::InfoVisitor(mathvm::AstFunction* top) {
   topAstFunc = top;
 }
 
-void InfoVisitor::visit() { 
+void SymbolVisitor::visit() { 
   mathvm::Scope* scope = new mathvm::Scope(0);
   scope->declareFunction(topAstFunc->node());
   pushScope(scope);
@@ -12,69 +12,57 @@ void InfoVisitor::visit() {
   popScope(scope);
 }
 
-void InfoVisitor::analizeError(std::string str) { 
+void SymbolVisitor::analizeError(std::string str) { 
   throw new TranslationException("Error during code analizing: " + str + "\n");
 }
 
-void InfoVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {    
+void SymbolVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {    
   node->visitChildren(this);
 }
 
-void InfoVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
+void SymbolVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
   node->visitChildren(this);
 }
 
-void InfoVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {    
+void SymbolVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {    
   node->visitChildren(this);
 }
 
-void InfoVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
+void SymbolVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
   node->visitChildren(this);
 }
 
-void InfoVisitor::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
+void SymbolVisitor::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
   node->visitChildren(this);
 }
 
-void InfoVisitor::visitLoadNode(mathvm::LoadNode* node) {
+void SymbolVisitor::visitLoadNode(mathvm::LoadNode* node) {
   node->visitChildren(this);
-  VarFuncContexts::iterator it = varFuncContexts.find(node->var()->name());
-  if (it == varFuncContexts.end())
-    analizeError("Variable " + node->var()->name() + " is not defined");
-
-  useSymbol(curFuncId, node->var()->name(), it->second.back(), funcContexts);
+  useSymbol(curFuncId, node->var()->name(), varFuncContexts.topSymbolData(node->var()->name()), funcContexts);
 }
 
-void InfoVisitor::visitStoreNode(mathvm::StoreNode* node) {
+void SymbolVisitor::visitStoreNode(mathvm::StoreNode* node) {
   node->visitChildren(this);
-  VarFuncContexts::iterator it = varFuncContexts.find(node->var()->name());
-  if (it == varFuncContexts.end())
-    analizeError("Variable " + node->var()->name() + " is not defined");
-
-  useSymbol(curFuncId, node->var()->name(), it->second.back(), funcContexts);
+  useSymbol(curFuncId, node->var()->name(), varFuncContexts.topSymbolData(node->var()->name()), funcContexts);
 }
 
-void InfoVisitor::visitForNode(mathvm::ForNode* node) {
+void SymbolVisitor::visitForNode(mathvm::ForNode* node) {
   node->visitChildren(this);
-  VarFuncContexts::iterator it = varFuncContexts.find(node->var()->name());
-  if (it == varFuncContexts.end())
-    analizeError("Variable " + node->var()->name() + " is not defined");
-
-  useSymbol(curFuncId, node->var()->name(), it->second.back(), funcContexts);
+  useSymbol(curFuncId, node->var()->name(), varFuncContexts.topSymbolData(node->var()->name()), funcContexts);
 }
 
-void InfoVisitor::visitWhileNode(mathvm::WhileNode* node) {
+void SymbolVisitor::visitWhileNode(mathvm::WhileNode* node) {
   node->visitChildren(this);
 }
 
-void InfoVisitor::visitIfNode(mathvm::IfNode* node) {
+void SymbolVisitor::visitIfNode(mathvm::IfNode* node) {
   node->visitChildren(this);
 }
 
-void InfoVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
+void SymbolVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   using namespace mathvm;
   
-  FunctionContext& func = findFunc(node->name());
+  FunctionContext& func = funcContexts[funcDefs.topSymbolData(node->name())];
   size_t oldFuncId = curFuncId;
   curFuncId = func.id;
 
@@ -86,42 +74,32 @@ void InfoVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   curFuncId = oldFuncId;
 }
 
-void InfoVisitor::visitBlockNode(mathvm::BlockNode* node) {
+void SymbolVisitor::visitBlockNode(mathvm::BlockNode* node) {
   using namespace mathvm;
   pushScope(node->scope());
   node->visitChildren(this);
-  /*
-  for(size_t i = 0; i < node->nodes(); ++i) {
-    if (node->nodeAt(i)->isFunctionNode()) 
-      node->nodeAt(i)->visit(this);
-  }
-  for(size_t i = 0; i < node->nodes(); ++i) {
-    if (!node->nodeAt(i)->isFunctionNode()) 
-      node->nodeAt(i)->visit(this);
-  }
-  */
   popScope(node->scope());
 }
 
-void InfoVisitor::pushParameters(mathvm::FunctionNode* node, size_t funcId) {
+void SymbolVisitor::pushParameters(mathvm::FunctionNode* node, size_t funcId) {
   for(size_t i = 0; i < node->parametersNumber(); ++i) {
-    varFuncContexts[node->parameterName(i)].push_back(funcId);
+    varFuncContexts.pushSymbolData(node->parameterName(i), funcId);
   }
 }
 
-void InfoVisitor::popParameters(mathvm::FunctionNode* node) {
+void SymbolVisitor::popParameters(mathvm::FunctionNode* node) {
   for(size_t i = 0; i < node->parametersNumber(); ++i) {
-    varFuncContexts[node->parameterName(i)].pop_back();
+    varFuncContexts.popSymbolData(node->parameterName(i));
   }
 }
 
-void InfoVisitor::pushScope(mathvm::Scope* node) {
+void SymbolVisitor::pushScope(mathvm::Scope* node) {
 
   mathvm::Scope::VarIterator it(node);
   while(it.hasNext()) {
     mathvm::AstVar* var = it.next();
     funcContexts[curFuncId].locals.push_back(var->name());
-    varFuncContexts[var->name()].push_back(curFuncId);
+    varFuncContexts.pushSymbolData(var->name(), curFuncId);
   }
   mathvm::Scope::FunctionIterator fit(node);
   while(fit.hasNext()) {
@@ -133,7 +111,9 @@ void InfoVisitor::pushScope(mathvm::Scope* node) {
        func.parameters.push_back(funcNode->parameterName(i));
     }
     funcContexts.push_back(func);
-    funcDefs[func.funcName].push_back(func.id);
+    funcDefs.pushSymbolData(func.funcName, func.id);
+    funcNodeToIndex[funcNode->node()] = func.id;
+    indexToFuncNode[func.id] = funcNode->node();
   }
   fit = mathvm::Scope::FunctionIterator(node);
   while(fit.hasNext()) {
@@ -141,33 +121,33 @@ void InfoVisitor::pushScope(mathvm::Scope* node) {
   }
 }
 
-void InfoVisitor::popScope(mathvm::Scope* node) {
+void SymbolVisitor::popScope(mathvm::Scope* node) {
 
   mathvm::Scope::VarIterator it(node);
   while(it.hasNext()) {
     mathvm::AstVar* var = it.next();
-    varFuncContexts[var->name()].pop_back();
+    varFuncContexts.popSymbolData(var->name());
   }
   mathvm::Scope::FunctionIterator fit(node);
   while(fit.hasNext()) {
-    funcDefs[fit.next()->name()].pop_back();
+    funcDefs.popSymbolData(fit.next()->name());
   }    
 }
 
-void InfoVisitor::visitCallNode(mathvm::CallNode* node) {
+void SymbolVisitor::visitCallNode(mathvm::CallNode* node) {
   using namespace mathvm;
   node->visitChildren(this);
   FunctionContext& caller = funcContexts[curFuncId];
-  FunctionContext& callee = findFunc(node->name());
+  FunctionContext& callee =   funcContexts[funcDefs.topSymbolData(node->name())];
   caller.calledFuncs.push_back(callee.id); 
 }
 
-void InfoVisitor::visitReturnNode(mathvm::ReturnNode* node) {
+void SymbolVisitor::visitReturnNode(mathvm::ReturnNode* node) {
   using namespace mathvm;
   node->visitChildren(this);
 }
 
-void InfoVisitor::visitPrintNode(mathvm::PrintNode* node) {
+void SymbolVisitor::visitPrintNode(mathvm::PrintNode* node) {
   using namespace mathvm;
   node->visitChildren(this);
 }
@@ -198,24 +178,10 @@ void genClosures(FunctionContext& cont, FunctionContexts& conts) {
   }
 }
 
-void useSymbol(size_t userFuncId, std::string sym, size_t symFuncId, std::vector<FunctionContext>& contexts) {
-  FunctionContext& user = contexts[userFuncId];
-  if (user.id == symFuncId)
-    return; //for closure we are not interrested in use of local symbols 
-  if (symUsed(user.iUsedSymbols, sym))
-    return; //symbol marked in use yet
-  user.iUsedSymbols.push_back(SymbolUse(sym, symFuncId));
-  contexts[symFuncId].useMySymbol(sym, user.id);
-  if (symUsed(user.locals, sym))
-    throw new TranslationException("binding local symbol " + sym +  " as closured");
-  if (symUsed(user.parameters, sym))
-    throw new TranslationException("binding local parameter " + sym  + " as closured");
-}
-
-bool symUsed(const SymbolsUse& a, const std::string& str) {
+bool symUsed(const SymbolsUse& a, const std::string& str, size_t userId) {
   SymbolsUse::const_iterator it = a.begin();
   for(; it != a.end(); ++it) {
-    if (it->first == str)
+    if (it->first == str && it->second == userId)
       return true;
   }
   return false;
@@ -230,26 +196,7 @@ bool symUsed(const Strings& a, const std::string& str) {
   return false;
 }
 
-FunctionContext& InfoVisitor::getFunc(const std::string& name) {
-  FunctionContexts::iterator func = funcContexts.begin();
-  for(; func != funcContexts.end(); ++func) {
-    if (func->funcName == name)
-      return *func;
-  }
-  throw new TranslationException("Function " + name + "is not defined at all before call");
-}
-
-FunctionContext& InfoVisitor::findFunc(const std::string& name) {
-  FuncDefs::iterator funcDef = funcDefs.find(name);
-  if (funcDef == funcDefs.end())
-    throw new TranslationException("Function " + name + "is not defined at all before call");
-  if (!funcDef->second.size())
-    throw new TranslationException("Function " + name + " is not reachable from calling scope");
-
-  return funcContexts[funcDef->second.back()];
-}
-
-void InfoVisitor::print(std::ostream& out) {
+void SymbolVisitor::print(std::ostream& out) {
   FunctionContexts::iterator func = funcContexts.begin();
   for(; func != funcContexts.end(); ++func) {
     out << std::endl << "----------------------------------------" << std::endl;
@@ -287,4 +234,18 @@ void InfoVisitor::print(std::ostream& out) {
     }
     out << std::endl << "--------------------------------------" << std::endl;
   }
+}
+
+void useSymbol(size_t userFuncId, std::string sym, size_t symFuncId, std::vector<FunctionContext>& contexts) {
+  FunctionContext& user = contexts[userFuncId];
+  if (user.id == symFuncId)
+    return; //for closure we are not interrested in use of local symbols 
+  if (symUsed(user.iUsedSymbols, sym))
+    return; //symbol marked in use yet
+  user.iUsedSymbols.push_back(SymbolUse(sym, symFuncId));
+  contexts[symFuncId].useMySymbol(sym, user.id);
+  if (symUsed(user.locals, sym))
+    throw new TranslationException("binding local symbol " + sym +  " as closured");
+  if (symUsed(user.parameters, sym))
+    throw new TranslationException("binding local parameter " + sym  + " as closured");
 }

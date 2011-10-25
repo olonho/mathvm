@@ -5,7 +5,7 @@
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        std::cerr << "Usage: show FILE" << std::endl;
+        std::cerr << "Please supply source file" << std::endl;
         return 1;
     }
     

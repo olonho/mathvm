@@ -5,11 +5,11 @@
 #include "MyCode.h"
 #include "parse.h"
 #include "CodeVisitor.h"
-#include "InfoVisitor.h"
+#include "SymbolVisitor.h"
 
 class MyTranslator: public mathvm::Translator {
   mathvm::Status status;
-  InfoVisitor *infoVisitor;
+  SymbolVisitor *symbolVisitor;
   CodeVisitor *codeVisitor;
 
   public:
@@ -18,10 +18,10 @@ class MyTranslator: public mathvm::Translator {
       status = mathvm::Status();
       mathvm::Parser *p = new mathvm::Parser();
       parseExpr(*p, program);
-      infoVisitor = new InfoVisitor(p->top());
+      symbolVisitor = new SymbolVisitor(p->top());
       //codeVisitor = new CodeVisitor(p.top());
-      infoVisitor->visit();
-      infoVisitor->print(std::cout);
+      symbolVisitor->visit();
+      symbolVisitor->print(std::cout);
       //codeVisitor->visit();
       //codeVisitor->getCode().disassemble(std::cout);
       //*code = &codeVisitor->getCode();
