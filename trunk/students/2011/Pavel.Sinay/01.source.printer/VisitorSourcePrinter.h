@@ -30,6 +30,7 @@ public:
 	virtual void visitBlockNode(mathvm::BlockNode* node);
 	virtual void visitFunctionNode(mathvm::FunctionNode* node);
 	virtual void visitPrintNode(mathvm::PrintNode* node);
+	virtual void visitCallNode(mathvm::CallNode* node);
 
 private:
 	std::ostream &m_stream;
