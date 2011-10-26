@@ -31,10 +31,12 @@ public:
 	virtual void visitFunctionNode(mathvm::FunctionNode* node);
 	virtual void visitPrintNode(mathvm::PrintNode* node);
 	virtual void visitCallNode(mathvm::CallNode* node);
+	virtual void visitReturnNode(mathvm::ReturnNode* node);
 
 private:
 	std::ostream &m_stream;
 	std::string varTypeToStr(mathvm::VarType type);
+	void replaceSpecSymbols(std::string &str);
 };
 
 #endif /* VISITORSOURCEPRINTER_H_ */

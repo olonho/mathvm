@@ -41,7 +41,7 @@ void VisitorSourcePrinter::visitPrintNode(mathvm::PrintNode *node) {
 		}
 	}
 
-	m_stream << ");" << std::endl;
+	m_stream << ")";
 }
 
 void VisitorSourcePrinter::visitLoadNode(mathvm::LoadNode *node) {
@@ -71,14 +71,24 @@ void VisitorSourcePrinter::visitUnaryOpNode(mathvm::UnaryOpNode *node) {
 
 void VisitorSourcePrinter::visitFunctionNode(mathvm::FunctionNode *node) {
 	//m_stream << "<function node> " << std::endl;
-	m_stream << "function "  << varTypeToStr(node->returnType())
-			<< " " << node->name() << " (";
+	if (node->name() != "<top>") {
+		m_stream << "function " << varTypeToStr(node->returnType()) << " "
+				<< node->name() << " (";
 
-	m_stream << ") {" << std::endl;
-	//node->body() parametersNumber()
-	node->body()->visit(this);
-	//node->visitChildren(this);
-	m_stream << "}" << std::endl;
+		for (uint32_t i = 0; i != node->parametersNumber(); ++i) {
+			m_stream << varTypeToStr(node->parameterType(i)) << " "
+					<< node->parameterName(i);
+			if (i != node->parametersNumber() - 1) {
+				m_stream << ", ";
+			}
+		}
+
+		m_stream << ") {" << std::endl;
+		node->body()->visit(this);
+		m_stream << "}" << std::endl;
+	} else {
+		node->body()->visit(this);
+	}
 }
 
 void VisitorSourcePrinter::visitWhileNode(mathvm::WhileNode *node) {
@@ -101,19 +111,27 @@ void VisitorSourcePrinter::visitBinaryOpNode(mathvm::BinaryOpNode *node) {
 
 void VisitorSourcePrinter::visitBlockNode(mathvm::BlockNode *node) {
 	//m_stream << "<block node> " << std::endl;
-	mathvm::Scope::VarIterator it(node->scope());
-	while (it.hasNext()) {
-		mathvm::AstVar *var = it.next();
-		m_stream << varTypeToStr(var->type()) << " " << var->name() << ";"
-				<< std::endl;
-	}
-
 	mathvm::Scope::FunctionIterator f_it(node->scope());
 	while (f_it.hasNext()) {
 		f_it.next()->node()->visit(this);
 	}
 
-	node->visitChildren(this);
+	mathvm::Scope::VarIterator it(node->scope());
+	while (it.hasNext()) {
+		mathvm::AstVar *var = it.next();
+		m_stream << varTypeToStr(var->type()) << " " << var->name() << ";" << std::endl;
+	}
+
+	for (uint32_t i = 0; i != node->nodes(); ++i) {
+		node->nodeAt(i)->visit(this);
+		if (!node->nodeAt(i)->isBlockNode() && !node->nodeAt(i)->isForNode()
+				&& !node->nodeAt(i)->isWhileNode()
+				&& !node->nodeAt(i)->isIfNode()
+				&& !node->nodeAt(i)->isFunctionNode()
+				&& !node->nodeAt(i)->isStoreNode()) {
+			m_stream << ";" << std::endl;
+		}
+	}
 }
 
 void VisitorSourcePrinter::visitDoubleLiteralNode(
@@ -126,11 +144,7 @@ void VisitorSourcePrinter::visitStringLiteralNode(
 		mathvm::StringLiteralNode *node) {
 	//m_stream << "<string literal node> ";
 	std::string str = node->literal();
-	int n_pos;
-	while ((n_pos = str.find('\n')) >= 0) {
-		str.erase(n_pos, 1);
-		str.insert(n_pos, "\\n");
-	}
+	replaceSpecSymbols(str);
 	m_stream << "'" << str << "'";
 }
 
@@ -139,7 +153,6 @@ void VisitorSourcePrinter::visitStoreNode(mathvm::StoreNode *node) {
 	//node->visitChildren(this);
 	m_stream << node->var()->name() << tokenOp(node->op());
 	node->value()->visit(this);
-	m_stream << ';' << std::endl;
 }
 
 void VisitorSourcePrinter::visitCallNode(mathvm::CallNode *node) {
@@ -151,6 +164,11 @@ void VisitorSourcePrinter::visitCallNode(mathvm::CallNode *node) {
 		}
 	}
 	m_stream << ")";
+}
+
+void VisitorSourcePrinter::visitReturnNode(mathvm::ReturnNode* node) {
+	m_stream << "return ";
+	node->visitChildren(this);
 }
 
 std::string VisitorSourcePrinter::varTypeToStr(mathvm::VarType type) {
@@ -167,5 +185,19 @@ std::string VisitorSourcePrinter::varTypeToStr(mathvm::VarType type) {
 		return "string";
 	}
 	return "";
+}
+
+void VisitorSourcePrinter::replaceSpecSymbols(std::string &str)
+{
+	int n_pos;
+	while ((n_pos = str.find('\n')) >= 0) {
+		str.erase(n_pos, 1);
+		str.insert(n_pos, "\\n");
+	}
+
+	while ((n_pos = str.find('\'')) >= 0) {
+		str.erase(n_pos, 1);
+		str.insert(n_pos, "\\'");
+	}
 }
 
