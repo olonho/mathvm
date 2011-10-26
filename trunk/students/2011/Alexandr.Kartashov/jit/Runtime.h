@@ -35,6 +35,22 @@ namespace mathvm {
       add(op + (r & ~EX_BITMASK));
     }
 
+    void x86_modrm_rm_32(char ro, char rm, int32_t disp) {
+      add(x86_modrm(MOD_RM_D32, ro, rm));
+      if (rm == RSP) {
+        // It's what really intended when rm = RSP
+
+        add(0x24); // SIB byte: scale = 00, index = 100(none), base = 100 (RSP)
+      }
+      addInt32(disp);
+    }
+
+    void add3(uint32_t v) {
+      add(v & 0xFF);
+      add((v >> 8) & 0xFF);
+      add((v >> 16) & 0xFF);
+    }
+
   public:
     ~X86Code() {
       munmap(_x86code, _size);
@@ -88,6 +104,10 @@ namespace mathvm {
       op_rr2(IMUL_R_RM, dst, src);
     }
 
+    void div_r(char r) {
+      op_rr(IDIV_RM, 7, r);
+    }
+
     void push_r(char r) {
       op_r(PUSH_R, r, true, 1);
     }
@@ -110,6 +130,69 @@ namespace mathvm {
       //add(x86_rex(2, r, 1));
       add(CALL_RM);
       add(x86_modrm(MOD_RR, 2, r));
+    }
+
+    /*
+    void movlpd(char xmm, char rbase, int32_t offset) {
+      add(0x66);
+      addUInt16(MOVLPD);
+      add(x86_modrm(MOD_RM_D32, xmm, rbase));
+      addInt32(offset);
+    }
+    */
+
+    void movq_xmm_r(char xmm, char r) {
+      add(0x66);
+      add(x86_rex(xmm, r, 1));
+      addUInt16(MOVQ_XMM_RM);
+      add(x86_modrm(MOD_RR, xmm, r));
+    }
+
+    void movq_xmm_m(char xmm, char rbase, int32_t disp) {
+      add(0x66);
+      add(x86_rex(xmm, rbase, 1));
+      addUInt16(MOVQ_XMM_RM);
+      x86_modrm_rm_32(xmm, rbase, disp);
+    }
+
+    void movq_r_xmm(char xmm, char r) {
+      add(0x66);
+      add(x86_rex(xmm, r, 1));
+      addUInt16(MOVQ_RM_XMM);
+      add(x86_modrm(MOD_RR, xmm, r));
+    }
+
+    void movq_m_xmm(char xmm, char rbase, int32_t disp) {
+      add(0x66);
+      add(x86_rex(xmm, rbase, 1));
+      addUInt16(MOVQ_RM_XMM);
+      x86_modrm_rm_32(xmm, rbase, disp);
+    }
+
+    void add_xmm_xmm(char xmm1, char xmm2) {
+      add3(ADDSD);
+      add(x86_modrm(MOD_RR, xmm1, xmm2));
+    }
+
+    void sub_xmm_xmm(char xmm1, char xmm2) {
+      add3(SUBSD);      
+      add(x86_modrm(MOD_RR, xmm1, xmm2));
+    }
+
+    void mul_xmm_xmm(char xmm1, char xmm2) {
+      add3(MULSD);
+      add(x86_modrm(MOD_RR, xmm1, xmm2));
+    }
+
+    void div_xmm_xmm(char xmm1, char xmm2) {
+      add3(DIVSD);
+      add(x86_modrm(MOD_RR, xmm1, xmm2));
+    }
+
+    void neg_r(char r) {
+      add(x86_rex(r, 3, 1));
+      add(NEG_RM);
+      add(x86_modrm(MOD_RR, 3, r));
     }
 
   private:

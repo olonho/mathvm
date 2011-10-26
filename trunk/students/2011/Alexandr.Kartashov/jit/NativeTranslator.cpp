@@ -18,6 +18,13 @@
 
 namespace mathvm {
 
+#define INT_REG_POOL    0
+#define DOUBLE_REG_POOL 1
+#define POOLS 2
+
+  static const size_t poolSize[] = { INT_REGS, DOUBLE_REGS };
+  static const char poolTypes[] = { -1, -1, DOUBLE_REG_POOL, INT_REG_POOL, -1};
+
   class NativeGenerator : public AstVisitor {
     /**
      *  There's no way to use RSP and probably RBP...
@@ -27,18 +34,23 @@ namespace mathvm {
      *  We shall consider using it...
      */
 
-    #define REGS 12
+    #define REGS 16
     #define VAR_SIZE 8
 
   private:
-    Runtime *_runtime;
+    Runtime* _runtime;
     NativeCode* _code;
     char _retReg;
 
     std::map<std::string, uint16_t> _stringConst;
     std::map<AstFunction*, uint16_t> _functions;
 
+    size_t _reallocs[POOLS];
+    char _lastReg[POOLS];
+
     // --------------------------------------------------------------------------------
+
+    //static char rmaps[] = {RAX, RCX, RDX, RBX, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15};
 
     static char reg(const AstVar* v) {
       return 0;
@@ -46,9 +58,10 @@ namespace mathvm {
     }
 
     static char remap(char reg) {
-      static char rmaps[] = {3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-
-      return rmaps[(size_t)reg];
+      //static char rmaps[] = {3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+      
+      //return rmaps[(size_t)reg];
+      ABORT("Deprecated");
     }
 
     static bool isAtomic(const AstNode* node) {
@@ -64,9 +77,62 @@ namespace mathvm {
       return reg == RAX ? RCX : RAX;
     }
 
+    char allocReg(int pool = INT_REG_POOL) {
+      char prevReg = _lastReg[pool];
+
+      _lastReg[pool] = (_lastReg[pool] + 1) % poolSize[pool];
+      if (_lastReg[pool] == 0) {
+        _reallocs[pool]++;
+      }
+
+      if (_reallocs[pool] > 0) {
+        switch (pool) {
+        case INT_REG_POOL:
+          _code->push_r(prevReg);
+          break;
+
+        case DOUBLE_REG_POOL:
+          _code->sub_rm_imm(RSP, sizeof(double));
+          _code->movq_m_xmm(prevReg, RSP, sizeof(double));
+          break;
+
+        default:
+          ABORT("An infernal thing happened. It's better to turn off your computer and do exorcism...");
+          break;
+        }
+      }
+
+      return _lastReg[pool];
+    }
+
+    void deallocReg(int pool = INT_REG_POOL) {
+      if (_reallocs[pool]) {
+        switch (pool) {
+        case INT_REG_POOL:
+          _code->pop_r(_lastReg[pool]);
+          break;
+
+        case DOUBLE_REG_POOL:
+          _code->movq_xmm_m(_lastReg[pool], RSP, sizeof(double));
+          _code->add_rm_imm(RSP, sizeof(double));
+        }
+      }
+
+      _lastReg[pool]--;
+
+      if (_lastReg[pool] < 0) {
+        _lastReg[pool] = 0;
+      }
+    }
+
   public:
     NativeGenerator(AstFunction* root) { 
       VarCollector vc;
+
+      for (int i = 0; i < POOLS; ++i) {
+        _lastReg[i] = 0;
+        _reallocs[i] = 0;
+      }
 
       _runtime = new Runtime;
       vc.collect(root, _runtime);
@@ -267,32 +333,96 @@ namespace mathvm {
     
 
     VISIT(BinaryOpNode) {
+      char ptype = poolTypes[NODE_INFO(node)->type];
       char oldRet = _retReg;
       char op1 = _retReg;
-      char op2 = other(_retReg);
+      char op2; 
 
       node->left()->visit(this);
 
-      _retReg = other(_retReg);
+      op2 = allocReg(ptype);
+      _retReg = op2;
       node->right()->visit(this);
              
-
       switch(node->kind()) {
       case tADD:
-        _code->add_rr(op1, op2);
+        switch (NODE_INFO(node)->type) {
+        case VAL_INT:
+          _code->add_rr(op1, op2);
+          break;
+          
+        case VAL_DOUBLE:
+          _code->add_xmm_xmm(op1, op2);
+          break;
+
+        default:
+          ABORT("Not supported");
+        }
         break;
         
 
       case tSUB:
-        _code->sub_rr(op1, op2);
+        switch (NODE_INFO(node)->type) {
+        case VAL_INT:
+          _code->sub_rr(op1, op2);
+          break;
+          
+        case VAL_DOUBLE:
+          _code->sub_xmm_xmm(op1, op2);
+          break;
+
+        default:
+          ABORT("Not supported");
+        }
         break;
 
       case tMUL:
-        _code->mul_rr(op1, op2);
+        switch (NODE_INFO(node)->type) {
+        case VAL_INT:
+          _code->mul_rr(op1, op2);
+          break;
+          
+        case VAL_DOUBLE:
+          _code->mul_xmm_xmm(op1, op2);
+          break;
+
+        default:
+          ABORT("Not supported");
+        }
         break;
 
 
       case tDIV:
+        switch (NODE_INFO(node)->type) {
+        case VAL_INT:
+          _code->push_r(RAX);
+          _code->push_r(RDX);
+          _code->mov_rr(RAX, op1);
+          if (op2 != RDX) {
+            _code->mov_r_imm(RDX, 0);            
+            _code->div_r(op2);
+          } else {
+            char r = allocReg(INT_REG_POOL);
+            _code->mov_rr(r, RDX);
+            _code->mov_r_imm(RDX, 0);
+            _code->div_r(r);
+            deallocReg(INT_REG_POOL);
+          }
+          _code->mov_rr(oldRet, RAX);
+          _code->pop_r(RDX);
+          _code->pop_r(RAX);
+          break;
+          
+        case VAL_DOUBLE:
+          _code->div_xmm_xmm(op1, op2);
+          break;
+
+        default:
+          ABORT("Not supported");
+        }
+        break;
+
+
       case tEQ:
       case tNEQ:
       case tGT:
@@ -304,59 +434,64 @@ namespace mathvm {
         ABORT("The operation isn't supported yet");
       }
 
-      _retReg = oldRet;
+      deallocReg(ptype);
 
-      //node->userData = node->left()->userData;
+      _retReg = oldRet;
     }
 
-    /*
     VISIT(UnaryOpNode) {
       node->operand()->visit(this); 
 
-      switch (node_type[node->operand()]) {
+      switch (NODE_INFO(node->operand())->type) {
       case VT_DOUBLE:
         switch (node->kind()) {
         case tSUB:
-          code->add(BC_DNEG);
+          char r;
+
+          r = allocReg(DOUBLE_REG_POOL);
+          _code->push_r(RAX);
+          _code->movq_r_xmm(RAX, _retReg);
+          _code->movq_xmm_r(r, RAX);
+
+          _code->mov_r_imm(RAX, 0);          
+          _code->movq_xmm_r(_retReg, RAX);
+          _code->sub_xmm_xmm(_retReg, r);
+          _code->pop_r(RAX);
+          deallocReg(DOUBLE_REG_POOL);
           break;
 
         default:
-          break;
+          ABORT("Not supported");
         }
         break;
 
       case VT_INT:
         switch (node->kind()) {
         case tSUB:
-          code->add(BC_INEG);
+          _code->neg_r(_retReg);
           break;
 
         case tNOT:
-          code->add(BC_ILOAD1);
-          code->add(BC_SWAP);
-          code->add(BC_ISUB);
-          break;
-
         default:
-          break;
+          ABORT("Not supported");
         }
         break;
 
       default:
         break;
       }
-
-      node_type[node] = node_type[node->operand()];
     }
+
+    #define UINT(d) (*(int64_t*)&d)
 
     VISIT(DoubleLiteralNode) {
-      code->add(BC_DLOAD);
-      double val = node->literal();
-      code->addDouble(val);
+      double d = node->literal();
 
-      node_type[node] = VT_DOUBLE;
+      _code->push_r(RAX);
+      _code->mov_r_imm(RAX, UINT(d));
+      _code->movq_xmm_r(_retReg, RAX);
+      _code->pop_r(RAX);
     }
-    */
 
     VISIT(IntLiteralNode) {
       _code->mov_r_imm(_retReg, node->literal());
@@ -371,7 +506,7 @@ namespace mathvm {
     VISIT(LoadNode) {
       switch (node->var()->type()) {
       case VT_DOUBLE:
-        ABORT("Doubles are not supported yet");
+        _code->movq_xmm_m(_retReg, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos - 8);
         break;
 
       case VT_INT:
@@ -390,23 +525,35 @@ namespace mathvm {
     
 
     VISIT(StoreNode) {
-      _retReg = RAX;
+      VarType t = node->var()->type();
+
+      _retReg = allocReg(poolTypes[t]);
       node->visitChildren(this);
 
-      switch (node->var()->type()) {
+      switch (t) {
       case VT_INT:
         if (node->op() == tASSIGN) {
-          _code->mov_mr(RAX, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos - 8);
+          _code->mov_mr(_retReg, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos - 8);
         } else {
           ABORT("Not supported");
         }
         break;
 
       case VT_DOUBLE:
+        if (node->op() == tASSIGN) {
+          _code->movq_m_xmm(_retReg, RBP, -VAR_SIZE*VAR_INFO(node->var())->fPos - 8);
+        } else {
+          ABORT("Not supported");
+        }
+        break;
+        break;
+
       case VT_STRING:
       default:
         ABORT("Not supported");
       }
+
+      deallocReg(poolTypes[t]);
     }
     
     /*
@@ -491,31 +638,70 @@ namespace mathvm {
 
 
     VISIT(PrintNode) {
-      static char apr[] = { RDI, RSI, RDX, RCX, R8, R9 };
+      static const char iamap[] = { RDI, RSI, RDX, RCX, R8, R9 };      
+      //static const char damap[] = { XMM2, XMM3, XMM4, XMM5, XMM6, XMM7 };
+      char iReg, dReg;
+      VarType atype[INT_REGS + DOUBLE_REGS];
 
-      size_t argn = 0;
-      _retReg = RAX;
+      iReg = allocReg(INT_REG_POOL);
+      dReg = allocReg(DOUBLE_REG_POOL);
 
-      _code->mov_r_imm(apr[0], (uint64_t)NODE_INFO(node)->string);
-      argn = 1;
+      size_t iargs = 1, dargs = 0, nargs = 0;
 
-      for (size_t i = 0; i < node->operands() && argn < 6; ++i) {
-        if (NODE_INFO(node->operandAt(i))->type != VAL_STRING) {
-          _retReg = apr[argn];
+      for (size_t i = 0; i < node->operands() && iargs < 6 && dargs < 6; ++i) {
+        switch (NODE_INFO(node->operandAt(i))->type) {
+        case VAL_INT:
+          _retReg = iReg;
           node->operandAt(i)->visit(this);
-          //_code->push_r(apr[argn]);
+          _code->push_r(iReg);
 
-          argn++;
+          iargs++;
+          atype[nargs++] = VT_INT;
+          break;
+
+        case VAL_DOUBLE:
+          _retReg = dReg;
+          node->operandAt(i)->visit(this);
+          _code->movq_r_xmm(iReg, dReg);
+          _code->push_r(iReg);
+
+          dargs++;
+          atype[nargs++] = VT_DOUBLE;
+          break;
+
+        default:
+          break;
         }
       }
 
-      if (argn == 6) {
-        ABORT("Too many arguments passed");
+      if (iargs > 6 || dargs > 6) {
+        ABORT("Too many arguments are passed");
       }
 
-      _code->mov_r_imm(RAX, 0);
-      _code->mov_r_imm(RBX, (uint64_t)&printf);
-      _code->call_r(RBX);
+      _code->mov_r_imm(iamap[0], (uint64_t)NODE_INFO(node)->string);
+      _code->mov_r_imm(RAX, dargs);
+      for (int i = nargs - 1; i >= 0; i--) {
+        switch (atype[i]) {
+        case VT_INT:
+          _code->pop_r(iamap[--iargs]);
+          break;
+
+        case VT_DOUBLE:
+          _code->movq_xmm_m(--dargs, RSP, sizeof(double));
+          _code->pop_r(iReg);
+          break;
+
+        default:
+          ABORT("Not suppoted");
+          break;
+        }
+      }
+
+      _code->mov_r_imm(iReg, (uint64_t)&printf);
+      _code->call_r(iReg);
+
+      deallocReg(DOUBLE_REG_POOL);
+      deallocReg(INT_REG_POOL);
 
       //_code->add_rm_imm(RSP, (argn + 1)*VAR_SIZE);
     }
