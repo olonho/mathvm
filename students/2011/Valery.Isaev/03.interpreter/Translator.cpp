@@ -7,6 +7,9 @@
 #include "ShowVisitor.h"
 #include "BytecodeFunction.h"
 
+std::set<const mathvm::AstVar*> globals;
+uint32_t globalsNumber;
+
 class Label {
     mathvm::Label label;
     mathvm::Bytecode* code;
@@ -25,12 +28,14 @@ class FreeVarsVisitor: public mathvm::AstVisitor {
     BytecodeFunction* fun;
     std::set<std::string> exclude;
     template<class T> void addFreeVar(const T* t) {
-        if (exclude.find(t->var()->name()) == exclude.end()) {
+        if (!exclude.count(t->var()->name()) && !globals.count(t->var())) {
             fun->addFreeVar(t);
         }
     }
+    bool global;
 public:
-    FreeVarsVisitor(BytecodeFunction* _fun, mathvm::AstFunction* v): loc(0), fun(_fun) {
+    FreeVarsVisitor(BytecodeFunction* _fun, mathvm::AstFunction* v, bool g)
+    : loc(0), fun(_fun), global(g) {
         v->node()->visit(this);
         fun->setLocalsNumber(loc);
     }
@@ -78,16 +83,23 @@ public:
         std::vector<std::set<std::string>::iterator> v;
         for (mathvm::Scope::VarIterator it(node->scope()); it.hasNext();) {
             ++loc;
+            mathvm::AstVar* var = it.next();
             std::pair<std::set<std::string>::iterator, bool> p =
-                exclude.insert(it.next()->name());
+                exclude.insert(var->name());
+            if (global) {
+                globals.insert(var);
+            }
             if (p.second) {
                 v.push_back(p.first);
             }
         }
+        bool global1 = global;
+        global = false;
         uint32_t loc1 = loc, loc_max = 0;
         for (mathvm::Scope::FunctionIterator it(node->scope()); it.hasNext();) {
             it.next()->node()->visit(this);
         }
+        global = global1;
         for (uint32_t i = 0; i < node->nodes(); ++i) {
             loc = 0;
             node->nodeAt(i)->visit(this);
@@ -147,16 +159,25 @@ void Translator::put(const void* buf_, unsigned int size) {
 
 template<class T>
 void Translator::putVar(mathvm::Instruction ins, const T* node) {
-    putVar(ins, node->var()->name(), node);
+    putVar(ins, node->var(), node);
 }
 
-void Translator::putVar(mathvm::Instruction ins, const std::string& name, const mathvm::AstNode* node) {
-    code->add(ins);
-    const std::vector<VarInt>& v = vars[name];
+void Translator::putVar(mathvm::Instruction ins, const mathvm::AstVar* var, const mathvm::AstNode* node) {
+    const std::vector<VarInt>& v = vars[var->name()];
     if (v.empty()) {
-        throwError(node, "Undeclared variable: %s", name.c_str());
+        throwError(node, "Undeclared variable: %s", var->name().c_str());
     }
-    put(&v.back(), sizeof(VarInt));
+    if (globals.count(var)) {
+        switch (ins) {
+            case mathvm::BC_LOADIVAR: code->add(mathvm::BC_LOADDVAR); break;
+            case mathvm::BC_STOREIVAR: code->add(mathvm::BC_STOREDVAR); break;
+            default: INTERNAL_ERROR
+        }
+        put(&v.front(), sizeof(VarInt));
+    } else {
+        code->add(ins);
+        code->addTyped(v.back() - globalsNumber);
+    }
 }
 
 void Translator::triple(mathvm::Instruction i) {
@@ -430,16 +451,20 @@ void Translator::visitBlockNode(mathvm::BlockNode* node) {
     for (mathvm::Scope::FunctionIterator it(node->scope()); it.hasNext();) {
         mathvm::AstFunction* fun = it.next();
         BytecodeFunction* bfun = new BytecodeFunction(fun);
-        FreeVarsVisitor(bfun, fun);
+        FreeVarsVisitor(bfun, fun, false);
         prog->addFunction(bfun);
         Translator trans(prog);
         trans.code = bfun->bytecode();
         trans.resultType = fun->returnType();
+        trans.currentVar = globalsNumber;
         if (trans.resultType != mathvm::VT_VOID) {
             ++trans.currentVar;
         }
+        for (std::set<const mathvm::AstVar*>::iterator it = globals.begin(); it != globals.end(); ++it) {
+            trans.vars[(*it)->name()].push_back(vars[(*it)->name()].front());
+        }
         for (BytecodeFunction::iterator it = bfun->vars().begin(); it != bfun->vars().end(); ++it) {
-            trans.addVar(node, it->var);
+            trans.addVar(node, it->var->name());
         }
         for (uint32_t i = 0; i < fun->parametersNumber(); ++i) {
             trans.addVar(node, fun->parameterName(i));
@@ -496,7 +521,8 @@ void Translator::visitReturnNode(mathvm::ReturnNode* node) {
     }
     currentType = mathvm::VT_INVALID;
     if (resultType != mathvm::VT_VOID) {
-        code->add(mathvm::BC_STOREIVAR0);
+        code->add(mathvm::BC_STOREIVAR);
+        code->addTyped(globalsNumber);
     }
     code->add(mathvm::BC_RETURN);
 }
@@ -542,7 +568,8 @@ void Translator::visitCallNode(mathvm::CallNode* node) {
 mathvm::Status Translator::translate(mathvm::AstFunction* fun) {
     try {
         BytecodeFunction* main = new BytecodeFunction(fun);
-        FreeVarsVisitor(main, fun);
+        FreeVarsVisitor(main, fun, true);
+        globalsNumber = main->localsNumber();
         prog->addFunction(main);
         code = main->bytecode();
         fun->node()->body()->visit(this);
