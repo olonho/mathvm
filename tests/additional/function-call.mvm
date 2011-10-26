@@ -1,10 +1,10 @@
 function int foo() {
-    print(1);
+    print(1, '\n');
     return 2;
 }
 
 function void bar() {
-    print(3);
+    print(3, '\n');
 }
 
 foo();

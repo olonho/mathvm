@@ -1,6 +1,8 @@
 #ifndef _BYTECODE_FUNCTION_H_
 #define _BYTECODE_FUNCTION_H_
 
+#include <set>
+
 #include "mathvm.h"
 #include "ast.h"
 
@@ -9,23 +11,24 @@ struct Bytecode: mathvm::Bytecode {
 };
 
 class BytecodeFunction: public mathvm::TranslatedFunction {
-    Bytecode _bytecode;
-    std::vector<const mathvm::AstVar*> vars;
-    std::vector<mathvm::AstNode*> nodes;
-public:
-    BytecodeFunction(mathvm::AstFunction* f): mathvm::TranslatedFunction(f) {}
-    template<class T> void addFreeVar(T* t) {
-        for (uint32_t i = 0; i < vars.size(); ++i) {
-            if (vars[i]->name() == t->var()->name()) {
-                return;
-            }
+    struct Pair {
+        std::string var;
+        const mathvm::AstNode* node;
+        bool operator<(const Pair& p) const {
+            return var < p.var;
         }
-        nodes.push_back(t);
-        vars.push_back(t->var());
+        Pair(const std::string& _var, const mathvm::AstNode* _node)
+            : var(_var), node(_node) {}
+    };
+    Bytecode _bytecode;
+    std::set<Pair> _vars;
+public:
+    typedef std::set<Pair>::iterator iterator;
+    BytecodeFunction(mathvm::AstFunction* f): mathvm::TranslatedFunction(f) {}
+    template<class T> void addFreeVar(const T* t) {
+        _vars.insert(Pair(t->var()->name(), t));
     }
-    uint32_t freeVars() const { return vars.size(); }
-    const mathvm::AstVar* varAt(uint32_t i) const { return vars[i]; }
-    mathvm::AstNode* nodeAt(uint32_t i) { return nodes[i]; }
+    const std::set<Pair>& vars() const { return _vars; }
     Bytecode* bytecode() { return &_bytecode; }
     void disassemble(std::ostream& out) const { _bytecode.dump(out); }
 };
