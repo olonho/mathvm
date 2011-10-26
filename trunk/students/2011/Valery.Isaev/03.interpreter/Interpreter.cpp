@@ -48,17 +48,17 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
     case BC_POP: --stack; break;
     case BC_STOP: return 0;
     case BC_JA: code.pInsn += *code.pJmp; break;
-    case BC_IFICMPNE: stack->vInt -= 2; if ((stack + 1)->vInt != stack->vInt)
+    case BC_IFICMPNE: stack -= 2; if ((stack + 1)->vInt != stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
-    case BC_IFICMPE : stack->vInt -= 2; if ((stack + 1)->vInt == stack->vInt)
+    case BC_IFICMPE : stack -= 2; if ((stack + 1)->vInt == stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
-    case BC_IFICMPG : stack->vInt -= 2; if ((stack + 1)->vInt > stack->vInt)
+    case BC_IFICMPG : stack -= 2; if ((stack + 1)->vInt > stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
-    case BC_IFICMPGE: stack->vInt -= 2; if ((stack + 1)->vInt >= stack->vInt)
+    case BC_IFICMPGE: stack -= 2; if ((stack + 1)->vInt >= stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
-    case BC_IFICMPL : stack->vInt -= 2; if ((stack + 1)->vInt < stack->vInt)
+    case BC_IFICMPL : stack -= 2; if ((stack + 1)->vInt < stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
-    case BC_IFICMPLE: stack->vInt -= 2; if ((stack + 1)->vInt <= stack->vInt)
+    case BC_IFICMPLE: stack -= 2; if ((stack + 1)->vInt <= stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
     case BC_DADD: tmp.vDouble = (--stack)->vDouble;
                   (stack - 1)->vDouble += tmp.vDouble;
@@ -98,19 +98,20 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
                     *vars = *--stack; break;
     case BC_STOREDVAR: case BC_STOREIVAR: case BC_STORESVAR:
                     vars[*code.pVar++] = *--stack; break;
-    case BC_CALL: call_stack->code_ptr = code;
+    case BC_CALL: fun = static_cast< ::BytecodeFunction*>(functionById(*code.pVar++));
+                  call_stack->code_ptr = code;
                   call_stack->vars_ptr = vars;
-                  call_stack->stack_ptr = stack;
+                  call_stack->stack_ptr = stack - fun->parametersNumber();
                   ++call_stack;
-                  fun = static_cast< ::BytecodeFunction*>(functionById(*code.pVar++));
-                  vars = stack - (fun->parametersNumber() + fun->freeVars() + 1);
+                  vars = stack - (fun->parametersNumber() + fun->vars().size()
+                      + (fun->returnType() == mathvm::VT_VOID ? 0 : 1));
                   stack += fun->localsNumber();
                   code.pInsn = fun->bytecode()->bytecode();
                   break;
     case BC_RETURN: --call_stack;
                     code = call_stack->code_ptr;
                     vars = call_stack->vars_ptr;
-                    stack = call_stack->vars_ptr;
+                    stack = call_stack->stack_ptr;
                     break;
     }
 }

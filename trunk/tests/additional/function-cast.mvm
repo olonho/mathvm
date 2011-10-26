@@ -1,6 +1,6 @@
 function double bar() {
     function int foo(double x) {
-        print(x);
+        print(x, '\n');
         return 2;
     }
     
@@ -9,4 +9,4 @@ function double bar() {
     return foo(x);
 }
 
-print(bar());
+print(bar(), '\n');
