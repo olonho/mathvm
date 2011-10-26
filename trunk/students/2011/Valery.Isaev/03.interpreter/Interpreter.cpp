@@ -3,11 +3,8 @@
 #include "Interpreter.h"
 #include "BytecodeFunction.h"
 
-union VarUnion {
-    double _double;
-    int64_t _int;
-    const char* _string;
-};
+static const uint32_t STACK_SIZE = 4 * 1024 * 1024;
+static const uint32_t CALL_STACK_SIZE = 1024 * 1024;
 
 Interpreter::Interpreter(): Stack(new Value[STACK_SIZE])
     , CallStack(new StackEntry[CALL_STACK_SIZE]) { }
@@ -18,7 +15,6 @@ Interpreter::~Interpreter() {
 }
 
 mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
-    disassemble();
     BytecodeFunction* fun = static_cast<BytecodeFunction*>(functionById(0));
     Value tmp;
     CodePtr code;
@@ -47,6 +43,11 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
     case BC_I2D: (stack - 1)->vDouble = (stack - 1)->vInt; break;
     case BC_POP: --stack; break;
     case BC_STOP: return 0;
+    case BC_LOADIVAR: *stack++ = vars[*code.pVar++]; break;
+    case BC_LOADDVAR: *stack++ = Stack[*code.pVar++]; break;
+    case BC_STOREIVAR: vars[*code.pVar++] = *--stack; break;
+    case BC_STOREDVAR: Stack[*code.pVar++] = *--stack; break;
+    case BC_STOREIVAR0: *vars = *--stack; break;
     case BC_JA: code.pInsn += *code.pJmp; break;
     case BC_IFICMPNE: stack -= 2; if ((stack + 1)->vInt != stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
@@ -92,12 +93,6 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
                   (stack - 1)->vInt = tmp.vDouble < (stack - 1)->vDouble ? 1
                       : tmp.vDouble == (stack -1 )->vDouble ? 0 : -1;
                   break;
-    case BC_LOADDVAR: case BC_LOADIVAR: case BC_LOADSVAR:
-                    *stack++ = vars[*code.pVar++]; break;
-    case BC_STOREDVAR0: case BC_STOREIVAR0: case BC_STORESVAR0:
-                    *vars = *--stack; break;
-    case BC_STOREDVAR: case BC_STOREIVAR: case BC_STORESVAR:
-                    vars[*code.pVar++] = *--stack; break;
     case BC_CALL: fun = static_cast< ::BytecodeFunction*>(functionById(*code.pVar++));
                   call_stack->code_ptr = code;
                   call_stack->vars_ptr = vars;
