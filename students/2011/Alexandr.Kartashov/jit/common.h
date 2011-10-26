@@ -20,6 +20,14 @@
 namespace mathvm {
   class NativeFunction;
 
+  /*
+  namespace SSA {
+    class Node;
+  }
+  */
+
+  class FlowVar;
+
   enum ValType {
     VAL_INVALID = 0,
     VAL_VOID,
@@ -44,9 +52,13 @@ namespace mathvm {
     ValType type;
     NativeFunction* funRef;
     const char* string;
+
+    // Control flow 
+    FlowVar* result;
+
+    //SSA::Node* ssaNode;
   };
 }
 
 #define VAR_INFO(v) ((VarInfo*)(v->info()))
 #define NODE_INFO(n) ((NodeInfo*)(n->info()))
-

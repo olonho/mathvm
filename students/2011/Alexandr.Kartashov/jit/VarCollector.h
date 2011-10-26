@@ -25,6 +25,8 @@ namespace mathvm {
 
   private:
     VISIT(BinaryOpNode) {
+      node->visitChildren(this);
+
       if (NODE_INFO(node->left())->type != NODE_INFO(node->left())->type) {
         ABORT("Type mismatch");
       }
@@ -48,39 +50,35 @@ namespace mathvm {
     }
 
     VISIT(UnaryOpNode) {
+      node->visitChildren(this);
+
       node->setInfo(new NodeInfo);
       NODE_INFO(node)->type = NODE_INFO(node->operand())->type;
-      return;
     }
 
     VISIT(StringLiteralNode) {
       node->setInfo(new NodeInfo);
       NODE_INFO(node)->type = VAL_STRING;
       NODE_INFO(node)->string = _runtime->addString(node->literal());
-      
-      return;
     }
 
     VISIT(DoubleLiteralNode) {
       node->setInfo(new NodeInfo);
       NODE_INFO(node)->type = VAL_DOUBLE;
-      return;
     }
     
     VISIT(IntLiteralNode) {
       node->setInfo(new NodeInfo);
       NODE_INFO(node)->type = VAL_INT;
-      return;
     }
     
     VISIT(LoadNode) {
       node->setInfo(new NodeInfo);
       NODE_INFO(node)->type = (ValType)node->var()->type();
-      return;
     }
    
     VISIT(StoreNode) {
-      return;
+      node->visitChildren(this);
     }
 
     VISIT(ForNode) {
@@ -136,7 +134,7 @@ namespace mathvm {
           break;          
 
         case VAL_DOUBLE:
-          s << "%lf";
+          s << "%0.0lf";
           break;
 
         default:
