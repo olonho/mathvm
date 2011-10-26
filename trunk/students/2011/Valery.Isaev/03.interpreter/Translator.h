@@ -20,7 +20,7 @@ class Translator: public mathvm::AstVisitor {
     void delVar(const std::string& name);
     void put(const void* buf, unsigned int size);
     template<class T> void putVar(mathvm::Instruction ins, const T* var);
-    void putVar(mathvm::Instruction ins, const std::string& name, const mathvm::AstNode* node);
+    void putVar(mathvm::Instruction ins, const mathvm::AstVar* var, const mathvm::AstNode* node);
     void checkTypeInt(mathvm::AstNode* expr);
     void triple(mathvm::Instruction i);
 public:

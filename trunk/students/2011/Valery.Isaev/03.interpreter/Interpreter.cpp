@@ -15,6 +15,7 @@ Interpreter::~Interpreter() {
 }
 
 mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
+    disassemble();
     BytecodeFunction* fun = static_cast<BytecodeFunction*>(functionById(0));
     Value tmp;
     CodePtr code;
@@ -47,7 +48,6 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
     case BC_LOADDVAR: *stack++ = Stack[*code.pVar++]; break;
     case BC_STOREIVAR: vars[*code.pVar++] = *--stack; break;
     case BC_STOREDVAR: Stack[*code.pVar++] = *--stack; break;
-    case BC_STOREIVAR0: *vars = *--stack; break;
     case BC_JA: code.pInsn += *code.pJmp; break;
     case BC_IFICMPNE: stack -= 2; if ((stack + 1)->vInt != stack->vInt)
                         code.pInsn += *code.pJmp; else code.pInsn += 2; break;
