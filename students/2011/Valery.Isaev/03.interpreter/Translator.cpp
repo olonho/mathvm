@@ -7,6 +7,19 @@
 #include "ShowVisitor.h"
 #include "BytecodeFunction.h"
 
+class Label {
+    mathvm::Label label;
+    mathvm::Bytecode* code;
+public:
+    Label(mathvm::Bytecode* c): label(c), code(c) {}
+    ~Label() {
+        if (!label.isBound()) {
+            code->bind(label);
+        }
+    }
+    mathvm::Label& operator()() { return label; }
+};
+
 class FreeVarsVisitor: public mathvm::AstVisitor {
     uint32_t loc;
     BytecodeFunction* fun;
@@ -147,13 +160,13 @@ void Translator::putVar(mathvm::Instruction ins, const std::string& name, const 
 }
 
 void Translator::triple(mathvm::Instruction i) {
-    mathvm::Label label(code), label1(code);
-    code->addBranch(i, label);
-    code->add(mathvm::BC_ILOAD0);
-    code->addBranch(mathvm::BC_JA, label1);
-    code->bind(label);
+    Label label1(code);
+    { Label label(code);
+      code->addBranch(i, label());
+      code->add(mathvm::BC_ILOAD0);
+      code->addBranch(mathvm::BC_JA, label1());
+    }
     code->add(mathvm::BC_ILOAD1);
-    code->bind(label1);
 }
 
 void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
@@ -162,13 +175,13 @@ void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
     if (node->kind() == tOR || node->kind() == tAND) {
         checkTypeInt(node->left());
         code->add(BC_ILOAD0);
-        Label label(code), label1(code);
-        code->addBranch(node->kind() == tOR ? BC_IFICMPE : BC_IFICMPNE, label);
-        code->add(node->kind() == tOR ? BC_ILOAD1 : BC_ILOAD0);
-        code->addBranch(BC_JA, label1);
-        code->bind(label);
+        ::Label label1(code);
+        { ::Label label(code);
+          code->addBranch(node->kind() == tOR ? BC_IFICMPE : BC_IFICMPNE, label());
+          code->add(node->kind() == tOR ? BC_ILOAD1 : BC_ILOAD0);
+          code->addBranch(BC_JA, label1());
+        }
         node->right()->visit(this);
-        code->bind(label1);
         if (currentType != VT_INT) {
             typeMismatch("int", node->right(), currentType);
         }
@@ -306,12 +319,7 @@ void Translator::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
 }
 
 void Translator::visitLoadNode(mathvm::LoadNode* node) {
-    switch (node->var()->type()) {
-        case mathvm::VT_DOUBLE: putVar(mathvm::BC_LOADDVAR, node); break;
-        case mathvm::VT_INT: putVar(mathvm::BC_LOADIVAR, node); break;
-        case mathvm::VT_STRING: putVar(mathvm::BC_LOADSVAR, node); break;
-        default: INTERNAL_ERROR
-    }
+    putVar(mathvm::BC_LOADIVAR, node);
     currentType = node->var()->type();
 }
 
@@ -330,12 +338,7 @@ void Translator::visitStoreNode(mathvm::StoreNode* node) {
     if (node->var()->type() != currentType) {
         typeMismatch(typeToName(node->var()->type()), node->value(), currentType);
     }
-    switch (currentType) {
-        case mathvm::VT_DOUBLE: putVar(mathvm::BC_STOREDVAR, node); break;
-        case mathvm::VT_INT: putVar(mathvm::BC_STOREIVAR, node); break;
-        case mathvm::VT_STRING: putVar(mathvm::BC_STORESVAR, node); break;
-        default: INTERNAL_ERROR
-    }
+    putVar(mathvm::BC_STOREIVAR, node);
     currentType = mathvm::VT_INVALID;
 }
 
@@ -352,24 +355,23 @@ void Translator::visitForNode(mathvm::ForNode* node) {
     }
     checkTypeInt(in->left());
     putVar(mathvm::BC_STOREIVAR, node);
-    mathvm::Label start(code), end(code);
-    code->bind(start);
+    Label start(code), end(code);
+    code->bind(start());
     checkTypeInt(in->right());
     putVar(mathvm::BC_LOADIVAR, node);
-    code->addBranch(mathvm::BC_IFICMPG, end);
+    code->addBranch(mathvm::BC_IFICMPG, end());
     node->body()->visit(this);
     currentType = mathvm::VT_INVALID;
     putVar(mathvm::BC_LOADIVAR, node);
     code->add(mathvm::BC_ILOAD1);
     code->add(mathvm::BC_IADD);
     putVar(mathvm::BC_STOREIVAR, node);
-    code->addBranch(mathvm::BC_JA, start);
-    code->bind(end);
+    code->addBranch(mathvm::BC_JA, start());
 }
 
 void Translator::visitWhileNode(mathvm::WhileNode* node) {
-    mathvm::Label start(code), end(code);
-    code->bind(start);
+    Label start(code), end(code);
+    code->bind(start());
     mathvm::IntLiteralNode* in =
         dynamic_cast<mathvm::IntLiteralNode*>(node->whileExpr());
     if (in) {
@@ -379,30 +381,26 @@ void Translator::visitWhileNode(mathvm::WhileNode* node) {
     } else {
         checkTypeInt(node->whileExpr());
         code->add(mathvm::BC_ILOAD0);
-        code->addBranch(mathvm::BC_IFICMPE, end);
+        code->addBranch(mathvm::BC_IFICMPE, end());
     }
     node->loopBlock()->visit(this);
     currentType = mathvm::VT_INVALID;
-    code->addBranch(mathvm::BC_JA, start);
-    code->bind(end);
+    code->addBranch(mathvm::BC_JA, start());
 }
 
 void Translator::visitIfNode(mathvm::IfNode* node) {
     checkTypeInt(node->ifExpr());
     code->add(mathvm::BC_ILOAD0);
-    mathvm::Label label(code);
-    code->addBranch(mathvm::BC_IFICMPE, label);
+    Label label(code);
+    code->addBranch(mathvm::BC_IFICMPE, label());
     node->thenBlock()->visit(this);
     currentType = mathvm::VT_INVALID;
     if (node->elseBlock()) {
-        mathvm::Label label1(code);
-        code->addBranch(mathvm::BC_JA, label1);
-        code->bind(label);
+        Label label1(code);
+        code->addBranch(mathvm::BC_JA, label1());
+        code->bind(label());
         node->elseBlock()->visit(this);
         currentType = mathvm::VT_INVALID;
-        code->bind(label1);
-    } else {
-        code->bind(label);
     }
 }
 
@@ -498,7 +496,7 @@ void Translator::visitReturnNode(mathvm::ReturnNode* node) {
     }
     currentType = mathvm::VT_INVALID;
     if (resultType != mathvm::VT_VOID) {
-        code->add(mathvm::BC_STOREDVAR0);
+        code->add(mathvm::BC_STOREIVAR0);
     }
     code->add(mathvm::BC_RETURN);
 }
@@ -515,8 +513,10 @@ void Translator::visitCallNode(mathvm::CallNode* node) {
     if (fun->returnType() != mathvm::VT_VOID) {
         code->add(mathvm::BC_ILOAD0);
     }
+    std::vector<BytecodeFunction::iterator> v;
     for (BytecodeFunction::iterator it = fun->vars().begin(); it != fun->vars().end(); ++it) {
         putVar(mathvm::BC_LOADIVAR, it->var, it->node);
+        v.push_back(it);
     }
     for (uint32_t i = 0; i < fun->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
@@ -534,8 +534,8 @@ void Translator::visitCallNode(mathvm::CallNode* node) {
     code->add(mathvm::BC_CALL);
     code->addTyped(fun->id());
     currentType = fun->returnType();
-    for (BytecodeFunction::iterator it = fun->vars().begin(); it != fun->vars().end(); ++it) {
-        putVar(mathvm::BC_STOREIVAR, it->var, it->node);
+    for (int32_t i = v.size() - 1; i >= 0; --i) {
+        putVar(mathvm::BC_STOREIVAR, v[i]->var, v[i]->node);
     }
 }
 

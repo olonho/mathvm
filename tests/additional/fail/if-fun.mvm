@@ -1,0 +1,5 @@
+int x;
+function void foo() { print('hi\n'); }
+if (1) {
+    x = foo();
+}

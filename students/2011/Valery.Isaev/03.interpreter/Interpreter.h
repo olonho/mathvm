@@ -4,8 +4,6 @@
 #include "mathvm.h"
 
 class Interpreter: public mathvm::Code {
-    static const uint32_t STACK_SIZE = 4 * 1024 * 1024;
-    static const uint32_t CALL_STACK_SIZE = 1024 * 1024;
     typedef union {
         int64_t vInt;
         double vDouble;
