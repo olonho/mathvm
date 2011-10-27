@@ -10,7 +10,16 @@ using namespace mathvm;
 using namespace std;
 
 int main(int argc, char** argv) {
-    Translator* translator = Translator::create();
+    string impl = "";
+    const char* script = NULL;
+    for (int32_t i = 1; i < argc; i++) {
+      if (string(argv[i]) == "-j") {
+        impl = "jit";
+      } else {
+        script = argv[i];
+      }
+    }
+    Translator* translator = Translator::create(impl);
 
     if (translator == 0) {
         cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
@@ -23,10 +32,10 @@ int main(int argc, char** argv) {
         ;
     bool isDefaultExpr = true;
 
-    if (argc > 1) {
-        expr = loadFile(argv[1]);
+    if (script != NULL) {
+        expr = loadFile(script);
         if (expr == 0) {
-            printf("Cannot read file: %s\n", argv[1]);
+            printf("Cannot read file: %s\n", script);
             return 1;
         }
         isDefaultExpr = false;
