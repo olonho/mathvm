@@ -10,6 +10,9 @@ Translator* Translator::create(const string& impl) {
         //return new BytecodeTranslatorImpl();
         return 0;
     }
+    if (impl == "jit") {
+        //return new MachCodeTranslatorImpl();
+    }
     assert(false);
     return 0;
 }

@@ -426,6 +426,14 @@ public:
     }
 };
 
+class MachCodeFunction : public TranslatedFunction {
+public:
+    MachCodeFunction(AstFunction* function);
+    virtual ~MachCodeFunction();
+
+    virtual void disassemble(ostream& out) const;
+};
+
 class FunctionFilter {
   public:
     virtual bool matches(TranslatedFunction* function) = 0;
@@ -470,6 +478,35 @@ class Translator {
 
     virtual ~Translator() {}
     virtual Status* translate(const string& program, Code* *code) = 0;
+};
+
+class InterpreterCodeImpl;
+class MachCodeImpl;
+class VarStorage;
+class BytecodeTranslatorImpl : public Translator {
+    Status* translateBytecode(const string& program,
+                              InterpreterCodeImpl* *code,
+                              VarStorage* *vars);
+
+  public:
+    BytecodeTranslatorImpl() {
+    }
+
+    virtual ~BytecodeTranslatorImpl() {
+    }
+
+    virtual Status* translate(const string& program, Code* *code);
+};
+
+class MachCodeTranslatorImpl : public Translator {
+    Status* translateMachCode(const string& program,
+                              MachCodeImpl* *code);
+
+  public:
+    MachCodeTranslatorImpl();
+    virtual ~MachCodeTranslatorImpl();
+
+    virtual Status* translate(const string& program, Code* *code);
 };
 
 // Utility functions.

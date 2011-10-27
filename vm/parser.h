@@ -52,7 +52,7 @@ class Parser {
 
     Status* parseProgram(const string& code);
     AstFunction* top() const;
-    const TokenList& tokens() const;
+    const TokenList& tokens() const { return _tokens; }
 };
 
 }

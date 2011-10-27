@@ -53,23 +53,6 @@ public:
 #undef VISITOR_FUNCTION
 };
 
-class InterpreterCodeImpl;
-class VarStorage;
-class BytecodeTranslatorImpl : public Translator {
-    Status* translateBytecode(const string& program,
-                              InterpreterCodeImpl* *code,
-                              VarStorage* *vars);
-
-  public:
-    BytecodeTranslatorImpl() {
-    }
-
-    virtual ~BytecodeTranslatorImpl() {
-    }
-
-    virtual Status* translate(const string& program, Code* *code);
-};
-
 }
 
 #endif // _MATHVM_VISITORS_H
