@@ -330,113 +330,222 @@ namespace mathvm {
     }
     */
 
-    
+    static bool isComp(TokenKind tok) {
+      switch (tok) {
+      case tEQ:
+      case tNEQ:  
+      case tLT:
+      case tLE:
+      case tGT:
+      case tGE:
+        return true;
+
+      default:
+        return false;
+      }
+    }
+
+    static bool isArith(TokenKind tok) {
+      switch (tok) {
+      case tADD:
+      case tSUB:  
+      case tMUL:
+      case tDIV:
+        return true;
+
+      default:
+        return false;
+      }
+    }
+
+    void doubleArith(char op1, char op2, TokenKind kind) {
+      switch (kind) {
+      case tADD:
+        _code->add_xmm_xmm(op1, op2);
+        break;
+
+      case tSUB:
+        _code->sub_xmm_xmm(op1, op2);
+        break;
+
+      case tMUL:
+        _code->mul_xmm_xmm(op1, op2);
+        break;
+
+      case tDIV:
+        _code->div_xmm_xmm(op1, op2);
+        break;
+        
+      default:
+        ABORT("This shouldn't have happened...");
+      }
+    }
+
+    void intArith(char op1, char op2, TokenKind kind) {
+      switch (kind) {
+      case tADD:
+        _code->add_rr(op1, op2);
+        break;
+
+      case tSUB:
+        _code->sub_rr(op1, op2);
+        break;
+        
+      case tMUL:
+        _code->mul_rr(op1, op2);
+        break;
+
+      case tDIV:
+        _code->push_r(RAX);
+        _code->push_r(RDX);
+        _code->mov_rr(RAX, op1);
+        if (op2 != RDX) {
+          _code->mov_r_imm(RDX, 0);            
+          _code->div_r(op2);
+        } else {
+          char r = allocReg(INT_REG_POOL);
+          _code->mov_rr(r, RDX);
+          _code->mov_r_imm(RDX, 0);
+          _code->div_r(r);
+          deallocReg(INT_REG_POOL);
+        }
+        _code->mov_rr(_retReg, RAX);
+        _code->pop_r(RDX);
+        _code->pop_r(RAX);
+        break;
+        
+      default:
+        ABORT("This shouldn't have happened...");
+      }
+    }
+
+    void intComp(char op1, char op2, TokenKind kind) {
+      _code->cmp_rr(op1, op2);
+
+      switch (kind) {
+      case tEQ:
+        _code->setcc_r(_retReg, CC_E);
+        break;
+
+      case tNEQ:  
+        _code->setcc_r(_retReg, CC_NE);
+        break;
+
+      case tLT:
+        _code->setcc_r(_retReg, CC_LT);
+        break;
+
+      case tLE:
+        _code->setcc_r(_retReg, CC_LE);
+        break;
+
+      case tGT:
+        _code->setcc_r(_retReg, CC_G);
+        break;
+
+      case tGE:
+        _code->setcc_r(_retReg, CC_GE);
+        break;
+
+      default:
+        ABORT("This shouldn't have happened...");
+      }
+    }
+
+    void doubleComp(char op1, char op2, TokenKind kind) {
+      switch (kind) {
+      case tEQ:
+        _code->cmp_xmm_xmm(op1, op2, SSE_CMP_EQ);
+        
+        break;
+
+      case tNEQ:  
+        _code->cmp_xmm_xmm(op1, op2, SSE_CMP_NEQ);
+        break;
+
+      case tLT:
+        _code->cmp_xmm_xmm(op1, op2, SSE_CMP_LT);
+        break;
+
+      case tLE:
+        _code->cmp_xmm_xmm(op1, op2, SSE_CMP_LE);
+        break;
+
+      case tGT:
+        _code->cmp_xmm_xmm(op1, op2, SSE_CMP_NLE);
+        break;
+
+      case tGE:
+        _code->cmp_xmm_xmm(op1, op2, SSE_CMP_NLT);
+        break;
+        
+      default:
+        ABORT("This shouldn't have happened...");
+      }
+
+      _code->movq_r_xmm(_retReg, op1);
+      _code->test_rr(_retReg, _retReg);
+      _code->setcc_r(_retReg, CC_NE);
+    }
+
 
     VISIT(BinaryOpNode) {
-      char ptype = poolTypes[NODE_INFO(node)->type];
-      char oldRet = _retReg;
-      char op1 = _retReg;
-      char op2; 
+      ValType vtype = NODE_INFO(node)->type;
+      TokenKind kind = node->kind();
+      char ptype, oldRet, op1, op2; 
+
+      if (!isComp(node->kind())) {
+        ptype = poolTypes[NODE_INFO(node)->type];
+        oldRet = _retReg;
+        op1 = _retReg;
+      } else {
+        ptype = INT_REG_POOL;
+        op1 = allocReg(INT_REG_POOL);
+        _retReg = op1;
+      }
 
       node->left()->visit(this);
 
       op2 = allocReg(ptype);
       _retReg = op2;
       node->right()->visit(this);
-             
-      switch(node->kind()) {
-      case tADD:
-        switch (NODE_INFO(node)->type) {
-        case VAL_INT:
-          _code->add_rr(op1, op2);
-          break;
-          
-        case VAL_DOUBLE:
-          _code->add_xmm_xmm(op1, op2);
-          break;
-
-        default:
-          ABORT("Not supported");
-        }
-        break;
-        
-
-      case tSUB:
-        switch (NODE_INFO(node)->type) {
-        case VAL_INT:
-          _code->sub_rr(op1, op2);
-          break;
-          
-        case VAL_DOUBLE:
-          _code->sub_xmm_xmm(op1, op2);
-          break;
-
-        default:
-          ABORT("Not supported");
-        }
-        break;
-
-      case tMUL:
-        switch (NODE_INFO(node)->type) {
-        case VAL_INT:
-          _code->mul_rr(op1, op2);
-          break;
-          
-        case VAL_DOUBLE:
-          _code->mul_xmm_xmm(op1, op2);
-          break;
-
-        default:
-          ABORT("Not supported");
-        }
-        break;
-
-
-      case tDIV:
-        switch (NODE_INFO(node)->type) {
-        case VAL_INT:
-          _code->push_r(RAX);
-          _code->push_r(RDX);
-          _code->mov_rr(RAX, op1);
-          if (op2 != RDX) {
-            _code->mov_r_imm(RDX, 0);            
-            _code->div_r(op2);
-          } else {
-            char r = allocReg(INT_REG_POOL);
-            _code->mov_rr(r, RDX);
-            _code->mov_r_imm(RDX, 0);
-            _code->div_r(r);
-            deallocReg(INT_REG_POOL);
-          }
-          _code->mov_rr(oldRet, RAX);
-          _code->pop_r(RDX);
-          _code->pop_r(RAX);
-          break;
-          
-        case VAL_DOUBLE:
-          _code->div_xmm_xmm(op1, op2);
-          break;
-
-        default:
-          ABORT("Not supported");
-        }
-        break;
-
-
-      case tEQ:
-      case tNEQ:
-      case tGT:
-      case tLT:
-      case tLE:          
-      case tOR:
-      case tAND:
-      default:
-        ABORT("The operation isn't supported yet");
-      }
-
-      deallocReg(ptype);
 
       _retReg = oldRet;
+
+      if (isArith(kind)) {
+        switch (vtype) {
+        case VAL_INT:
+          intArith(op1, op2, kind);
+          break;
+
+        case VAL_DOUBLE:
+          doubleArith(op1, op2, kind);
+          break;
+
+        default:
+          ABORT("This shouldn't have took place...");
+        }
+      } else if (isComp(kind)) {
+        switch (vtype) {
+        case VAL_INT:
+          intComp(op1, op2, kind);
+          break;
+
+        case VAL_DOUBLE:
+          doubleComp(op1, op2, kind);
+          break;
+
+        default:
+          ABORT("This shouldn't have took place...");
+        }      
+      } else {
+        ABORT("Not supported yet");      
+      }
+             
+      deallocReg(ptype);
+      if (isComp(node->kind())) {
+        deallocReg(ptype);
+      }
     }
 
     VISIT(UnaryOpNode) {
