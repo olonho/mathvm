@@ -14,6 +14,34 @@
 // ================================================================================
 
 namespace mathvm {
+  template<typename T>
+  class NativeLabel {
+  public:    
+    NativeLabel(Bytecode* bc) {
+      _label = bc->current();
+      bc->addTyped<T>(0);
+      _bc = bc;
+    }
+
+    void bind(uint32_t offset) {
+      int32_t d = (int32_t)offset - (int32_t)_label - sizeof(T);
+      _bc->setTyped<int32_t>(_label, d);
+    }
+
+    void bind(const NativeLabel& label) {
+      int32_t d = (int32_t)label._label - (int32_t)_label - sizeof(T);
+      _bc->setTyped<int32_t>(_label, d);
+    }
+
+    uint32_t offset() const {
+      return _label;
+    }
+
+  private:
+    uint32_t _label;
+    Bytecode* _bc;
+  };
+
   class X86Code : public Bytecode {
 
     void op_rr(uint8_t op, char r1, char r2) {
@@ -193,6 +221,38 @@ namespace mathvm {
       add(x86_rex(r, 3, 1));
       add(NEG_RM);
       add(x86_modrm(MOD_RR, 3, r));
+    }
+    
+    template<typename T>
+    void jcc_rel32(const NativeLabel<T>& label, char cond) {
+      NativeLabel<int32_t> l(this);
+
+      add(x86_cond(JCC_REL32, cond));
+      l.bind(label);
+    }
+
+    void setcc_r(char r, char cond) {
+      add(x86_rex(0, r, 0));
+      add(x86_cond(SETCC_RM, cond));
+      add(x86_modrm(MOD_RR, 0, r));
+    }
+
+    void cmp_rr(char r1, char r2) {
+      add(x86_rex(r1, r2, 1));
+      add(CMP_R_RM);
+      add(x86_modrm(MOD_RR, r1, r2));      
+    }
+
+    void cmp_xmm_xmm(char r1, char r2, char pred) {
+      add3(CMPSD);
+      add(x86_modrm(r1, r2, 1));
+      add(pred);
+    }
+
+    void test_rr(char r1, char r2) {
+      add(x86_rex(r2, r1, 1));
+      add(TEST_RM_R);
+      add(x86_modrm(MOD_RR, r2, r1));
     }
 
   private:
