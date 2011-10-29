@@ -3,8 +3,7 @@
 #include "GeneratorCommon.h"
 #include <deque>
 #include "MyInterpreter.h"
-
-
+#include "FirstPassVisitor.h"
 
 struct ByteCodeGenerator : mathvm::AstVisitor
 {
@@ -26,6 +25,9 @@ struct ByteCodeGenerator : mathvm::AstVisitor
   void Translate( mathvm::AstFunction * rootNode);
   mathvm::Code* GetCode();
 
+  mathvm::VarType GetNodeType (mathvm::AstNode* node);
+
+
   ByteCodeGenerator();
   ~ByteCodeGenerator();
 
@@ -46,11 +48,15 @@ private:
   void VisitWithTypeControl(mathvm::AstNode* node, mathvm::VarType expectedType );
   void LoadVarCommand( mathvm::VarType variableType, bool isClosure, VarId const& id );
   void StoreVarCommand( mathvm::VarType variableType, bool isClosure, VarId id );
-  
+  VarId GetVariableId( mathvm::AstNode* currentNode, std::string const& varName, bool* isClosure_out = NULL);
+
+  bool TryFindVariable( ScopeInfo * info, uint16_t &id, std::string const& varName, bool &isClosure );
+
+  NodeInfo const & GetNodeInfo(mathvm::AstNode* node);
+
   Interpeter myCode;
   mathvm::Bytecode* myBytecode;
-  std::map<mathvm::AstNode const*, mathvm::VarType> myNodeTypes;
-  VariableScopeManager myScopeManager;
   mathvm::VarType myLastNodeType;
+  FirstPassVisitor myFirstPassVisitor;
 };
 

@@ -7,6 +7,9 @@ using namespace std;
 
 Status* Interpeter::execute( std::vector<mathvm::Var*>& vars )
 {
+  myCurrentFrame = NULL;
+  
+  this->AllocateFrameStack(50*1024);
   AllocateFrame(0);
 
   while (true) {
@@ -142,9 +145,9 @@ Status* Interpeter::execute( std::vector<mathvm::Var*>& vars )
 
     //-Conversions---------------------------------------------------------
     case BC_I2D:
-      myStack.top().d = (double)myStack.top().i; break; 
+      myVariablesStack[myVariablesStackIP].d = (double)myVariablesStack[myVariablesStackIP].i; break; 
     case BC_D2I:
-      myStack.top().i = (int)myStack.top().d; break;
+      myVariablesStack[myVariablesStackIP].i = (int)myVariablesStack[myVariablesStackIP].d; break;
     
     //-Printing------------------------------------------------------------
     case BC_IPRINT:
@@ -232,7 +235,6 @@ Status* Interpeter::execute( std::vector<mathvm::Var*>& vars )
     default:
       throw InterpretationException("Unknown command");
     }
-    
   }
 
   return NULL;
@@ -252,71 +254,61 @@ Interpeter::Interpeter() : myIP(0), myCurrentBytecode(NULL)
 
 void Interpeter::Push( int64_t value )
 {
-  StackVariable v;
-  v.i = value;
-  myStack.push(v);
+  myVariablesStack[++myVariablesStackIP].i = value;
 }
 
 void Interpeter::Push( double value )
 {
-  StackVariable v;
-  v.d = value;
-  myStack.push(v);
+  myVariablesStack[++myVariablesStackIP].d = value;
 }
 
 void Interpeter::Push( StackVariable const & var )
 {
-  myStack.push(var);
+  myVariablesStack[++myVariablesStackIP] = var;
 }
 
 void Interpeter::PushString( uint16_t id )
 {
-  StackVariable v;
-  v.s = this->constantById(id).c_str();
-  myStack.push(v);
+  myVariablesStack[++myVariablesStackIP].s = this->constantById(id).c_str();
 }
 
 int64_t Interpeter::PopInt()
 {
-  int64_t result = myStack.top().i;
-  myStack.pop();
-  return result;
+  return myVariablesStack[myVariablesStackIP--].i;
 }
 
 double Interpeter::PopDouble()
 {
-  double result = myStack.top().d;
-  myStack.pop();
-  return result;
+  return myVariablesStack[myVariablesStackIP--].d;
 }
 
 char const * Interpeter::PopString()
 {
-  char const * result = myStack.top().s;
-  myStack.pop();
-  return result;
+  return myVariablesStack[myVariablesStackIP--].s;
 }
 
 StackFrame* Interpeter::AllocateFrame(uint16_t functionId )
 {
-  ExtendedBytecodeFunction * fun = (ExtendedBytecodeFunction*) this->functionById(functionId);
-  StackFrame * frame = new StackFrame(fun->GetVariablesNum(), functionId);
-  if (!myFrameStack.empty()) frame->prevFrame = myFrameStack.top();
+  BytecodeFunction * fun = (BytecodeFunction*) this->functionById(functionId);
+  StackFrame * frame = AddFrame(fun->localsNumber(), functionId);
+  frame->prevFrame = myCurrentFrame;
+  if (myCurrentFrame) {
+    if (myCurrentFrame->functionId != functionId) frame->prevDifferentFrame = myCurrentFrame;
+    else frame->prevDifferentFrame = myCurrentFrame->prevDifferentFrame;
+  } 
   myIP = &frame->ip;
   assert(fun);
   myCurrentBytecode = fun->bytecode();
-  myFrameStack.push(frame);
   myCurrentFrame = frame;
 
-  std::vector<mathvm::VarType> args = fun->GetArgumentTypes();
-  for (unsigned int i = args.size(); i > 0 ; --i) {
-    switch (args[i-1]) {
+  for (unsigned int i = fun->parametersNumber(); i > 0; --i) {
+    switch (fun->parameterType(i-1)) {
     case VT_INT: myCurrentFrame->vars[i-1].i = PopInt(); break;
     case VT_DOUBLE: myCurrentFrame->vars[i-1].d = PopDouble(); break;
     case VT_STRING: myCurrentFrame->vars[i-1].s = PopString(); break;
-		default: throw InterpretationException("Invalid argument type");
     }
   }
+
   return frame;
 }
 
@@ -327,10 +319,9 @@ void Interpeter::PopCurrentFrame()
     BytecodeFunction * fun = (BytecodeFunction*)this->functionById(myCurrentFrame->prevFrame->functionId);
     myCurrentBytecode = fun->bytecode();
   }
+  myFrameStackPoolIP -= myCurrentFrame->size;
   StackFrame * temp = myCurrentFrame;
   myCurrentFrame = myCurrentFrame->prevFrame;
-  delete temp;
-  myFrameStack.pop();
 }
 
 void Interpeter::Jump( int16_t offset )
@@ -341,17 +332,14 @@ void Interpeter::Jump( int16_t offset )
 
 StackFrame* Interpeter::FindFrame( uint16_t frameId )
 {
-  static StackFrame * frameCache = NULL;
-  if (frameCache != NULL && frameCache->functionId == frameId) return frameCache;
-  
-  StackFrame* frame = myFrameStack.top();
-  do {
+  if (frameId == 0) return (StackFrame*)myFrameStackPool;
+  StackFrame* frame = myCurrentFrame;
+  while (frame) {
     if (frame->functionId == frameId) {
-      frameCache = frame;
       return frame;
     }
-    frame = frame->prevFrame;
-  } while (frame);
+    frame = frame->prevDifferentFrame;
+  }
   throw InterpretationException("Frame not found");
 }
 
@@ -368,6 +356,23 @@ void Interpeter::Print( double value )
 void Interpeter::Print( char const * value )
 {
   std::cout << value;
+}
+
+void Interpeter::AllocateFrameStack( int stackSizeInKb )
+{
+  myFrameStackPoolSize = stackSizeInKb * 1024;
+  myFrameStackPool = new char[myFrameStackPoolSize];
+  myFrameStackPoolIP = 0;
+
+  myVariablesStack = new StackVariable[1024];
+  myVariablesStackIP = -1;
+}
+
+StackFrame * Interpeter::AddFrame( uint16_t localsNumber, uint16_t functionId )
+{
+  StackFrame * result = new (&myFrameStackPool[myFrameStackPoolIP]) StackFrame(localsNumber, functionId);
+  myFrameStackPoolIP += result->size;
+  return result;
 }
 
 

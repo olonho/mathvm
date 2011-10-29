@@ -7,7 +7,7 @@ using namespace std;
 
 void ByteCodeGenerator::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 {
-  VarType expectedType = myNodeTypes[node];
+  VarType expectedType = GetNodeType(node);
   if (node->kind() == tAND || node->kind() == tOR) {
     Label lEnd(myBytecode);
     Label lFirst(myBytecode);
@@ -44,7 +44,7 @@ void ByteCodeGenerator::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 void ByteCodeGenerator::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 {
   node->operand()->visit(this);
-  VarType operandType = myNodeTypes[node->operand()];
+  VarType operandType = GetNodeType(node->operand());
 
   switch (node->kind()) {
   case tSUB: 
@@ -83,16 +83,16 @@ void ByteCodeGenerator::visitIntLiteralNode( mathvm::IntLiteralNode* node )
 
 void ByteCodeGenerator::visitLoadNode( mathvm::LoadNode* node )
 {
-  bool isClosure = myScopeManager.IsClosure(node->var()->name());
-  VarId id = myScopeManager.GetVariableId(node->var());
+  bool isClosure = false;
+  VarId id = GetVariableId(node, node->var()->name(), &isClosure);
   LoadVarCommand(node->var()->type(), isClosure, id);
   myLastNodeType = node->var()->type();
 }
 
 void ByteCodeGenerator::visitStoreNode( mathvm::StoreNode* node )
 {
-  bool isClosure = myScopeManager.IsClosure(node->var()->name());
-  VarId id = myScopeManager.GetVariableId(node->var());
+  bool isClosure = false;
+  VarId id = GetVariableId(node, node->var()->name(), &isClosure);
   VarType expectedType = node->var()->type();
 
   if (node->op() != tASSIGN) {
@@ -117,8 +117,8 @@ void ByteCodeGenerator::visitForNode( mathvm::ForNode* node )
 
   BinaryOpNode * range = node->inExpr()->asBinaryOpNode();
   if (range == NULL || range->kind() != tRANGE) throw TranslationException("Range not specified in for statement");
-  if (!myScopeManager.IsVarOnStack(node->var())) throw TranslationException("Undefined variable " + node->var()->name());
-  uint16_t varId = myScopeManager.GetVariableId(node->var()).id;
+  //if (!myScopeManager.IsVarOnStack(node->var())) throw TranslationException("Undefined variable " + node->var()->name());
+  uint16_t varId = GetVariableId(node, node->var()->name()).id;
 
   // init counter
   range->left()->visit(this);
@@ -190,23 +190,22 @@ void ByteCodeGenerator::visitIfNode( mathvm::IfNode* node )
 
 void ByteCodeGenerator::visitBlockNode( mathvm::BlockNode* node )
 {
-  myScopeManager.PushScope(node->scope());
   node->visitChildren(this);
   Scope::FunctionIterator it(node->scope());
   while(it.hasNext()) {
     AstFunction* f = it.next();
     f->node()->visit(this);
   }
-  myScopeManager.PopScope();
 }
 
 void ByteCodeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
 {
   Bytecode * prev = myBytecode;
   myBytecode = new Bytecode;
-  
-  FunctionScope const * scope = myScopeManager.GetFunctionScope(node->name());
-  ExtendedBytecodeFunction *bfun = new ExtendedBytecodeFunction(scope);
+
+  NodeInfo const & nodeInfo = GetNodeInfo(node->body());
+  BytecodeFunction *bfun = new BytecodeFunction(nodeInfo.scopeInfo->GetAstFunction());
+  bfun->setLocalsNumber(nodeInfo.scopeInfo->GetTotalVariablesNum());
   myCode.addFunction(bfun);
 
   node->body()->visit(this);
@@ -223,7 +222,7 @@ void ByteCodeGenerator::visitPrintNode( mathvm::PrintNode* node )
   for (unsigned int i = 0; i < node->operands(); ++i) {
     AstNode* op = node->operandAt(i);
     op->visit(this);
-    BytecodePrint(myNodeTypes[op]);
+    BytecodePrint(GetNodeType(op));
   }
 }
 
@@ -368,43 +367,6 @@ void ByteCodeGenerator::DoIFICMP( mathvm::Instruction operation )
   myBytecode->bind(lEnd);
 }
 
-void ByteCodeGenerator::LoadVar( mathvm::AstVar const * var )
-{
-  if (!myScopeManager.IsVarOnStack(var)) throw TranslationException("Undefined variable " + var->name());
-  uint16_t varId = myScopeManager.GetVariableId(var).id;
-  if (var->type() == VT_STRING) {
-    myBytecode->addInsn(BC_LOADSVAR);
-  } 
-  else if (var->type() == VT_INT) {
-    myBytecode->addInsn(BC_LOADIVAR);
-  }
-  else if (var->type() == VT_DOUBLE) {
-    myBytecode->addInsn(BC_LOADDVAR);
-  }
-  else {
-    throw TranslationException("Unable to load variable: unsupported type");
-  }
-  myBytecode->addInt16(varId);
-}
-
-void ByteCodeGenerator::StoreVar( mathvm::AstVar const * var )
-{
-  if (!myScopeManager.IsVarOnStack(var)) throw TranslationException("Undefined variable " + var->name());
-  uint16_t varId = myScopeManager.GetVariableId(var).id;
-  if (var->type() == VT_STRING) {
-    myBytecode->addInsn(BC_STORESVAR);
-  } 
-  else if (var->type() == VT_INT) {
-    myBytecode->addInsn(BC_STOREIVAR);
-  }
-  else if (var->type() == VT_DOUBLE) {
-    myBytecode->addInsn(BC_STOREDVAR);
-  }
-  else {
-    throw TranslationException("Unable to store variable: unsupported type");
-  }
-  myBytecode->addInt16(varId);
-}
 
 void ByteCodeGenerator::VisitWithTypeControl( AstNode* node, mathvm::VarType expectedType )
 {
@@ -422,17 +384,14 @@ mathvm::Code* ByteCodeGenerator::GetCode()
 
 void ByteCodeGenerator::Translate( mathvm::AstFunction * main )
 {
-  FirstPassVisitor fpass;
-  fpass.visit(main);
-  myNodeTypes = fpass.myNodeTypes;
-  myScopeManager = fpass.myScopeManager;
+  myFirstPassVisitor.visit(main);
 
   main->node()->visit(this);
 }
 
 void ByteCodeGenerator::visitReturnNode( mathvm::ReturnNode* node )
 {
-  if (node->returnExpr()) VisitWithTypeControl(node->returnExpr(), myNodeTypes[node]);
+  if (node->returnExpr()) VisitWithTypeControl(node->returnExpr(), GetNodeType(node));
   myBytecode->addInsn(BC_RETURN);
 }
 
@@ -440,10 +399,10 @@ void ByteCodeGenerator::visitCallNode( mathvm::CallNode* node )
 {
   for (unsigned int i = 0; i < node->parametersNumber(); ++i) {
     AstNode* n = node->parameterAt(i);
-    VisitWithTypeControl(n, myNodeTypes[n]);
+    VisitWithTypeControl(n, GetNodeType(n));
   }
   myBytecode->addInsn(BC_CALL);
-  uint16_t id = myScopeManager.GetFunctionId(node->name());
+  uint16_t id = myFirstPassVisitor.GetFunctionId(node->name());
   myBytecode->addInt16(id);
 }
 
@@ -490,6 +449,63 @@ ByteCodeGenerator::ByteCodeGenerator() : myBytecode(NULL)
 
 ByteCodeGenerator::~ByteCodeGenerator()
 {
-  myScopeManager.Cleanup();
+}
+
+mathvm::VarType ByteCodeGenerator::GetNodeType( mathvm::AstNode* node )
+{
+  return GetNodeInfo(node).nodeType;
+}
+
+VarId ByteCodeGenerator::GetVariableId( mathvm::AstNode* currentNode, std::string const& varName, bool* isClosure_out /*= NULL*/ )
+{
+  ScopeInfo * info = GetNodeInfo(currentNode).scopeInfo;
+  bool isClosure = false;
+  uint16_t id = 0;
+  while (info) {
+    if (info->TryFindVariableId(varName, id)) break;
+    if (info->IsFunction()) isClosure = true;
+    info = info->GetParent();
+  }
+
+  if (info == NULL) throw TranslationException("Undefined variable: " + varName);
+
+  VarId result;
+  result.id = id;
+  result.ownerFunction = info->GetFunctionId();
+
+  if (isClosure_out) *isClosure_out = isClosure;
+  return result;
+}
+
+NodeInfo const & ByteCodeGenerator::GetNodeInfo( mathvm::AstNode* node )
+{
+  void* p = node->info();
+  if (p == NULL) throw TranslationException("Node info is missing");
+  NodeInfo * info = (NodeInfo*)p;
+  return *info;
+}
+
+bool ByteCodeGenerator::TryFindVariable( ScopeInfo * info, uint16_t &id, std::string const& varName, bool &isClosure )
+{
+  if (info->TryFindVariableId(varName, id)) return true;
+  Scope::VarIterator it (info->GetScope());
+  while (it.hasNext()) {
+    AstVar * var = it.next();
+    if (var->name().compare(varName) == 0) {
+      id += info->GetInitialIndex();
+      return true;
+    }
+    ++id;
+  }
+
+  if (info->IsFunction()) {
+    AstFunction * ast = info->GetAstFunction();
+    for (id = 0; id < ast->parametersNumber(); ++id) {
+      if (ast->parameterName(id) == varName) return true;
+    }
+    isClosure = true;
+  }
+
+  return false;
 }
 

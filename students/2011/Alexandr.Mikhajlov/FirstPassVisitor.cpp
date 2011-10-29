@@ -8,26 +8,27 @@ using namespace mathvm;
 
 void FirstPassVisitor::visit( mathvm::AstFunction * main )
 {
-  myScopeManager.AddTopFunction(main);
+  FunctionID fid(main, 0);
+  myFunctionDeclarations[main->name()] = fid;
   main->node()->visit(this);
 }
 
 void FirstPassVisitor::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 {
   node->operand()->visit(this);
-  VarType operandType = myNodeTypes[node->operand()];
-  if (operandType == VT_STRING) throw TranslationException("ERROR: String unary operations not supported");
-  if (node->kind() == tNOT && operandType == VT_DOUBLE) throw TranslationException("ERROR: Invalid argument type for NOT command");
+  VarType operandType = GetNodeType(node->operand());
+  if (operandType == VT_STRING) throw TranslationException("String unary operations not supported");
+  if (node->kind() == tNOT && operandType == VT_DOUBLE) throw TranslationException(node, "Invalid argument type for NOT command");
 
-  myNodeTypes[node] = operandType;
+  SetNodeType(node, operandType);
 }
 
 VarType DeduceBinaryOpType(VarType leftType, VarType rightType, mathvm::BinaryOpNode* node) {
   if (leftType == VT_STRING || rightType == VT_STRING) {
-    throw TranslationException("ERROR: Binary operations with strings not supported");
+    throw TranslationException(node, "Binary operations with strings not supported");
   } 
   if (leftType == VT_INVALID || rightType == VT_INVALID)
-    throw TranslationException("ERROR: Invalid operation exception");
+    throw TranslationException(node, "Invalid operation exception");
   if (leftType == rightType) return leftType;
   if (node->kind() == tAND || node->kind() == tOR) return VT_INT;
   return VT_DOUBLE;
@@ -35,56 +36,71 @@ VarType DeduceBinaryOpType(VarType leftType, VarType rightType, mathvm::BinaryOp
 
 void FirstPassVisitor::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 {
+  if (node->kind() == tRANGE) throw TranslationException(node, "'range' statement can be placed only inside 'for'");
   node->left()->visit(this);
   node->right()->visit(this);
 
-  VarType leftType = myNodeTypes[node->left()];
-  VarType rightType = myNodeTypes[node->right()];
+  VarType leftType = GetNodeType(node->left());
+  VarType rightType = GetNodeType(node->right());
 
-  myNodeTypes[node] = DeduceBinaryOpType(leftType, rightType, node);
+  if (leftType == VT_VOID || rightType == VT_VOID)
+    throw TranslationException(node, "'%s' : illegal operand of type 'void'", tokenOp(node->kind()));
+
+
+  SetNodeType(node, DeduceBinaryOpType(leftType, rightType, node));
 }
 
 
 void FirstPassVisitor::visitStringLiteralNode( mathvm::StringLiteralNode* node )
 {
-  myNodeTypes[node] = VT_STRING;
+  SetNodeType(node, VT_STRING);
 }
 
 void FirstPassVisitor::visitDoubleLiteralNode( mathvm::DoubleLiteralNode* node )
 {
-  myNodeTypes[node] = VT_DOUBLE;
+  SetNodeType(node, VT_DOUBLE);
 }
 
 void FirstPassVisitor::visitIntLiteralNode( mathvm::IntLiteralNode* node )
 {
-  myNodeTypes[node] = VT_INT;
+  SetNodeType(node, VT_INT);
 }
 
 void FirstPassVisitor::visitLoadNode( mathvm::LoadNode* node )
 {
-  if (!myScopeManager.IsVarOnStack(node->var())) throw TranslationException("Undefined variable: " + node->var()->name());
-  myNodeTypes[node] = node->var()->type();
+  SetNodeType(node, node->var()->type());
 }
 
 void FirstPassVisitor::visitStoreNode( mathvm::StoreNode* node )
 {
-  if (!myScopeManager.IsVarOnStack(node->var())) throw TranslationException("Undefined variable: " + node->var()->name());
   node->visitChildren(this);  
-  myNodeTypes[node] = VT_INVALID;
+  CheckConversion(tokenOp(node->op()), GetNodeType(node->value()), node->var()->type(), node);
+
+  SetNodeType(node, VT_INVALID);
 }
+
+
 
 void FirstPassVisitor::visitForNode( mathvm::ForNode* node )
 {
-  node->inExpr()->visit(this);
+  BinaryOpNode * range = node->inExpr()->asBinaryOpNode();
+  if (range->kind() != tRANGE) throw TranslationException(node, "'for' : 'range' statement contains unsupported operation");
+  range->left()->visit(this);
+  range->right()->visit(this);
+
   node->body()->visit(this);
-  myNodeTypes[node] = VT_INVALID;
+
+  VarType v = node->var()->type();
+  if (v == VT_STRING || v == VT_DOUBLE ) 
+    throw TranslationException(node, "'for' : iterating variable can not be of type '%s'", typeToName(v));
+  SetNodeType(node, VT_INVALID);  
 }
 
 void FirstPassVisitor::visitWhileNode( mathvm::WhileNode* node )
 {
   node->whileExpr()->visit(this);
   node->loopBlock()->visit(this);
-  myNodeTypes[node] = VT_INVALID;
+  SetNodeType(node, VT_INVALID);
 }
 
 void FirstPassVisitor::visitIfNode( mathvm::IfNode* node )
@@ -92,20 +108,22 @@ void FirstPassVisitor::visitIfNode( mathvm::IfNode* node )
   node->ifExpr()->visit(this);
   node->thenBlock()->visit(this);
   if (node->elseBlock()) node->elseBlock()->visit(this);
-  myNodeTypes[node] = VT_INVALID;
+  SetNodeType(node, VT_INVALID);  
 }
 
 void FirstPassVisitor::visitBlockNode( mathvm::BlockNode* node )
 {
-  myScopeManager.CreateBlockScope(node->scope());
+  ScopeInfo * lastScopeInfo = myCurrentScopeInfo;
+  myCurrentScopeInfo = new ScopeInfo(node->scope(), lastScopeInfo);
+  myScopeInfos.push_back(myCurrentScopeInfo); // GC
+
+  DeclareFunctions(node->scope());
   node->visitChildren(this);
-  Scope::FunctionIterator it(node->scope());
-  while(it.hasNext()) {
-    AstFunction* f = it.next();
-    f->node()->visit(this);
-  }
-  myNodeTypes[node] = VT_INVALID;
-  myScopeManager.PopScope();
+  VisitFunctions(node->scope());
+  SetNodeType(node, VT_INVALID);
+
+  myCurrentScopeInfo->UpdateTotalVars();
+  myCurrentScopeInfo = lastScopeInfo;
 }
 
 void FirstPassVisitor::visitPrintNode( mathvm::PrintNode* node )
@@ -114,62 +132,141 @@ void FirstPassVisitor::visitPrintNode( mathvm::PrintNode* node )
     AstNode* op = node->operandAt(i);
     op->visit(this);
   }
-  myNodeTypes[node] = VT_INVALID;
+  SetNodeType(node, VT_INVALID);
 }
 
 void FirstPassVisitor::visitFunctionNode( mathvm::FunctionNode* node )
 {
-  FunctionNode* lastFunction = myCurrentFunction;
-  myCurrentFunction = node;
-
-  BlockNode * block = node->body()->asBlockNode();
-  assert(block);
-  myScopeManager.CreateFunctionScope(node, block->scope());
+  BlockNode * block = node->body();
   
+  FunctionID fid = myFunctionDeclarations[node->name()];
+  ScopeInfo* lastScopeInfo = myCurrentScopeInfo;
+
+  myCurrentScopeInfo = new ScopeInfo(block->scope(), lastScopeInfo, fid);
+  myScopeInfos.push_back(myCurrentScopeInfo); // GCs
+  
+  DeclareFunctions(block->scope());
+
   block->visitChildren(this);
 
-  Scope::FunctionIterator it(block->scope());
-  while(it.hasNext()) {
-    AstFunction* f = it.next();
-    f->node()->visit(this);
-  }
+  VisitFunctions(block->scope());
 
-  myNodeTypes[node] = myCurrentFunction->returnType(); 
-  myCurrentFunction = lastFunction;
+  SetNodeType(block, node->returnType());
 
-  myScopeManager.PopScope();
+  myCurrentScopeInfo = lastScopeInfo;
 }
 
 void FirstPassVisitor::visitReturnNode( ReturnNode* node )
 {
   VarType returnType = VT_VOID;
+  VarType currentReturnType = myCurrentScopeInfo->GetFunctionReturnType();
   if (node->returnExpr()) {
     node->returnExpr()->visit(this);
-    returnType = myNodeTypes[node->returnExpr()];
+    returnType = GetNodeType(node->returnExpr());
   } 
 
-  myNodeTypes[node] = myCurrentFunction->returnType();
+  SetNodeType(node, currentReturnType);
 
-  if (returnType == VT_INVALID) throw TranslationException("Invalid return type");
-  if (returnType != myCurrentFunction->returnType() && (returnType == VT_STRING || myCurrentFunction->returnType() == VT_STRING)) throw TranslationException((std::string)"Invalid return type: function has return type " + typeToName(myCurrentFunction->returnType()) + " while returning " + typeToName(returnType));
+  if (currentReturnType != returnType) {
+    if (currentReturnType == VT_VOID) throw TranslationException(node, "'%s' : 'void' function returning a value", myCurrentScopeInfo->GetAstFunction()->name().c_str());
+    if (returnType == VT_VOID) throw TranslationException(node, "'%s' : function must return a value", myCurrentScopeInfo->GetAstFunction()->name().c_str());
+    CheckConversion("return", returnType, currentReturnType, node);
+  }
 }
 
 void FirstPassVisitor::visitCallNode( mathvm::CallNode* node )
 {
-  if (!myScopeManager.IsFunctionVisible(node->name())) throw TranslationException("Function not found: " + node->name());
-  // TODO: validate argument types
-  AstFunction const * fun = myScopeManager.GetFunctionDeclaration(node->name());
+  FunctionDeclarationsMap::iterator it = myFunctionDeclarations.find(node->name());
+  if (it == myFunctionDeclarations.end()) throw TranslationException("Function not found");
+  AstFunction * fun = it->second.function;
   if (fun->parametersNumber() != node->parametersNumber()) throw TranslationException("ERROR: function " + node->name() + ": invalid arguments number");
   
-  myNodeTypes[node] = fun->returnType();
+  SetNodeType(node, fun->returnType());
   node->visitChildren(this);
 
   for (unsigned int i = 0; i < node->parametersNumber(); ++i) {
     AstNode* n = node->parameterAt(i);
-    if (myNodeTypes[n] != fun->parameterType(i)) {
-      if (myNodeTypes[n] == VT_STRING || fun->parameterType(i) == VT_STRING) throw TranslationException("Can not convert function parameter");
-      myNodeTypes[n] = fun->parameterType(i);
+    VarType v1 = GetNodeType(n);
+    VarType v2 = fun->parameterType(i);
+    if (v1 != v2) {
+      if (v1 == VT_STRING || v2 == VT_STRING || v1 == VT_VOID || v2 == VT_VOID) throw TranslationException(node, "'foo' : cannot convert parameter %d from '%s' to '%s'", i, typeToName(v1), typeToName(v2));
+      SetNodeType(n, fun->parameterType(i));
     }
   }
 }
+
+
+
+
+
+void FirstPassVisitor::SetNodeType( mathvm::AstNode* node, mathvm::VarType value )
+{
+  NodeInfo info(value, myCurrentScopeInfo);
+  myNodeInfos.push_back(info);
+  node->setInfo(&myNodeInfos.back());
+}
+
+mathvm::VarType FirstPassVisitor::GetNodeType( mathvm::AstNode* node )
+{
+  NodeInfo const & info = GetNodeInfo(node);
+  return info.nodeType;
+}
+
+NodeInfo const & FirstPassVisitor::GetNodeInfo( mathvm::AstNode* node )
+{
+  void* p = node->info();
+  if (p == NULL) throw TranslationException("Node info is missing");
+  NodeInfo * info = (NodeInfo*)p;
+  return *info;
+}
+
+void FirstPassVisitor::VisitFunctions( mathvm::Scope * scope )
+{
+  Scope::FunctionIterator it(scope);
+  while(it.hasNext()) {
+    AstFunction* f = it.next();
+    f->node()->visit(this);
+  }
+}
+
+void FirstPassVisitor::DeclareFunctions( mathvm::Scope * scope )
+{
+  Scope::FunctionIterator it(scope);
+  while(it.hasNext()) {
+    AstFunction* f = it.next();
+    FunctionID fid(f, myFunctionDeclarations.size());
+    myFunctionDeclarations[f->name()] = fid;
+  }
+}
+
+FirstPassVisitor::FirstPassVisitor() : myCurrentScopeInfo(NULL)
+{
+
+}
+
+FirstPassVisitor::~FirstPassVisitor()
+{
+  for (unsigned int i = 0; i < myScopeInfos.size(); ++i) {
+    delete myScopeInfos[i];
+  }
+}
+
+uint16_t FirstPassVisitor::GetFunctionId( std::string const & functionName )
+{
+  FunctionDeclarationsMap::iterator it = myFunctionDeclarations.find(functionName);
+  if (it == myFunctionDeclarations.end()) throw TranslationException("Undeclared function: " + functionName);
+  return it->second.id;
+}
+
+void FirstPassVisitor::CheckConversion( std::string const & where, mathvm::VarType fistType, mathvm::VarType secondType, mathvm::AstNode* node )
+{
+  if (fistType == VT_INVALID || secondType == VT_INVALID) {
+    throw TranslationException(node, "Internal translator error");
+  }
+
+  if (secondType != fistType && (fistType == VT_STRING || secondType == VT_STRING || fistType == VT_VOID || secondType == VT_VOID)) {
+    throw TranslationException(node, "'%s' : cannot convert from '%s' to '%s'", where.c_str(), typeToName(fistType), typeToName(secondType));
+  }
+}
+
 

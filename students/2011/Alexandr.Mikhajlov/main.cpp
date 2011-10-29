@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctime>
 
 #include "parser.h"
 #include "ByteCodeGenerator.h"
@@ -23,23 +24,26 @@ int main(int argc, char** argv)
 		cout << "Failed to open file: " << argv[1] << endl;
 		return 1;
 	}
-
 	mathvm::Parser *parser = new mathvm::Parser;
 	Status* status = parser->parseProgram(code);
+
 	if (status == NULL) 
 	{
     ByteCodeGenerator * generator = new ByteCodeGenerator;
     try {
-      generator->Translate(parser->top());
+      generator->Translate(parser->top());    
       Code* code = generator->GetCode();
-      //code->disassemble();
-      //cout << "----running program----\n";
-			vector<Var*> v;
-      code->execute(v);
-      //cout << "\n---------done----------\n";
+      code->execute(vector<Var*>());
     }
 		catch (TranslationException & ex) {
-      cout << "Translation error: " << ex.what() << endl;
+      cout << "Translation ERROR";
+      if (ex.where()) {
+        uint32_t line = 0, offset = 0;
+        positionToLineOffset(code, parser->tokens().positionOf(ex.where()->position()), line, offset);
+        cout << "(" << line << ":" << offset << "): ";
+      } 
+      else cout << ": ";
+      cout << ex.what() << endl;
     }
     delete generator;
 	}
@@ -57,7 +61,6 @@ int main(int argc, char** argv)
 	}
 
 	delete parser;
-  //system("pause");
 
 	return 0;
 }
