@@ -6,6 +6,7 @@
 #include <vector>
 #include <stdint.h>
 #include <cstdarg>
+#include <stdio.h>
 
 
 struct InterpretationException {
@@ -50,7 +51,7 @@ struct StackFrame {
   uint16_t functionId;
   size_t size;
   StackVariable* vars;
-  StackFrame(uint16_t variablesNum, uint16_t functionId) : functionId(functionId), ip(0), prevFrame(NULL), prevDifferentFrame(NULL) {
+  StackFrame(uint16_t variablesNum, uint16_t functionId) : ip(0), prevFrame(NULL), prevDifferentFrame(NULL), functionId(functionId) {
     size = sizeof(StackFrame) + variablesNum * sizeof(StackVariable);
     char* p = (char*)&vars;
     p += sizeof(vars);

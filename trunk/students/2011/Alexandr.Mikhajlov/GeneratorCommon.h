@@ -8,16 +8,14 @@
 #include <stdint.h>
 #include <set>
 #include <cstdarg>
+#include <stdio.h>
 
 
 struct TranslationException {
   TranslationException(std::string const& message) : myMessage(message), myNode(NULL) {
   }
 
-  //TranslationException(mathvm::AstNode * where, std::string const& message) : myMessage(message), myNode(where) {
-  //}
-
-  TranslationException(mathvm::AstNode * where, char* message, ...) : myNode(where){
+  TranslationException(mathvm::AstNode * where, char const * message, ...) : myNode(where){
     char buf[512];
     va_list argptr; 
     va_start(argptr, message);
