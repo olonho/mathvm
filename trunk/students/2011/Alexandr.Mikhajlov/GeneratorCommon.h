@@ -7,15 +7,33 @@
 #include <list>
 #include <stdint.h>
 #include <set>
+#include <cstdarg>
+
 
 struct TranslationException {
-  TranslationException(std::string const& message) : myMessage(message) {
+  TranslationException(std::string const& message) : myMessage(message), myNode(NULL) {
+  }
+
+  //TranslationException(mathvm::AstNode * where, std::string const& message) : myMessage(message), myNode(where) {
+  //}
+
+  TranslationException(mathvm::AstNode * where, char* message, ...) : myNode(where){
+    char buf[512];
+    va_list argptr; 
+    va_start(argptr, message);
+    vsprintf(buf, message, argptr);
+    va_end(argptr); 
+    myMessage = buf;
   }
   virtual std::string what() const {
     return myMessage;
   }
+  virtual mathvm::AstNode* where() const {
+    return myNode;
+  }
 private:
   std::string myMessage;
+  mathvm::AstNode* myNode;
 };
 
 struct VarId {
@@ -31,87 +49,68 @@ struct FunctionID {
   FunctionID() : function(NULL), id(0) {}
 };
 
-struct FunctionScope;
 
+struct ScopeInfo {
 
+  ScopeInfo * GetParent() const {return parent;}
+  mathvm::VarType GetFunctionReturnType() const {return functionId.function->returnType();}
+  void UpdateTotalVars() {
+    if (parent == NULL) return;
+    parent->totalVariablesNum = std::max<uint16_t>(parent->totalVariablesNum, parent->scope->variablesCount() + totalVariablesNum);
+  }
 
-struct BlockScope {
-  BlockScope(mathvm::Scope* scope, FunctionScope* parentFunction);
-  BlockScope(mathvm::Scope* scope);
-  virtual ~BlockScope(){}
-  bool VarExists(std::string const & name) const;
-  bool FunctionExists(std::string const & name) const;
-  void DeclareVariable( std::string const & name);
-  void DeclareFunction( FunctionID const & fid );
-  VarId GetVariableId(std::string const & name);
-  mathvm::Scope const * Scope() const {return myScope;}
-  virtual bool IsFunction() const {return false;}
+  ScopeInfo(): parent(NULL), scope(NULL), variableCounter(0), totalVariablesNum(0), isFunction(true)  {}
 
-  void DeclareVariables();
-protected:
-  FunctionScope * myParentFunction;
-  mathvm::Scope * myScope;
+  ScopeInfo(mathvm::Scope * scope, ScopeInfo * prevScopeInfo) : parent(prevScopeInfo), scope(scope), variableCounter(0),
+    totalVariablesNum(scope->variablesCount()), isFunction(false)
+  {
+    if (prevScopeInfo) {
+      functionId = prevScopeInfo->functionId;
+      variableCounter = prevScopeInfo->variableCounter + prevScopeInfo->scope->variablesCount();
+    }
+    FillVars(scope);
+  }
 
-  typedef std::map<std::string, VarId> VarIdMap;
-  typedef std::map<std::string, FunctionID> FunctionIdMap;
-  VarIdMap myVars;
-  FunctionIdMap myFunctions;
-};
-
-struct FunctionScope : BlockScope {
-  friend struct BlockScope;
-  FunctionScope(FunctionID const & id, mathvm::Scope * bodyScope);
-  uint16_t GetId() const {return myId.id;}
-  mathvm::AstFunction* GetAstFunction() const;
-  uint16_t GetTotalVariablesNum() const {return myTotalVariablesNum;}
-  virtual bool IsFunction() const {return true;}
+  ScopeInfo(mathvm::Scope * scope, ScopeInfo * prevScopeInfo, FunctionID const & functionId) : parent(prevScopeInfo), scope(scope), functionId(functionId), 
+    variableCounter(functionId.function->parametersNumber()), totalVariablesNum(scope->variablesCount() + functionId.function->parametersNumber()), isFunction(true)
+  {
+    FillVars(scope);
+  }
+  mathvm::AstFunction* GetAstFunction();
+  uint16_t GetTotalVariablesNum();
+  mathvm::Scope* GetScope() const;
+  bool IsFunction();
+  uint16_t GetFunctionId();
+  uint16_t GetInitialIndex() const;
+  bool TryFindVariableId(std::string const & name, uint16_t & outId);
 private:
-  uint16_t myTotalVariablesNum;
-  FunctionID myId;
-};
+  ScopeInfo * parent;
+  mathvm::Scope * scope;
+  FunctionID functionId;
+  uint16_t variableCounter;
+  uint16_t totalVariablesNum;
+  bool isFunction;
+  std::map<std::string, uint16_t> myVars;
+  void FillVars(mathvm::Scope* scope) {
+    if (isFunction) {
+      for (unsigned int i = 0; i < functionId.function->parametersNumber(); ++i) {
+        myVars[functionId.function->parameterName(i)] = i;
+      }
+    }
 
-struct VariableScopeManager {
-  VariableScopeManager();
-  void Cleanup();
-  bool IsVarOnStack(mathvm::AstVar const * var) const;
-  bool IsFunctionVisible(std::string const& functionName) const;
-  void CreateBlockScope(mathvm::Scope* scope);
-  void PopScope();
-  FunctionScope const * GetFunctionScope(std::string const & name);
-  void PushScope( mathvm::Scope* scope );
-  uint16_t GetFunctionId( std::string const & functionName );
-  VarId GetVariableId(mathvm::AstVar const* var);
-  bool IsClosure( std::string const & name );
-  void AddTopFunction( mathvm::AstFunction * main );
-  void CreateFunctionScope( mathvm::FunctionNode* node, mathvm::Scope *scope );
-  mathvm::VarType GetFunctionReturnType(std::string const & name);
-  mathvm::AstFunction const * GetFunctionDeclaration(std::string const & name);
+    if ((int) variableCounter + scope->variablesCount() > (uint16_t)-1) throw TranslationException("Max variables number exceeded");
 
-private:
-  typedef std::vector<BlockScope*> ScopeList;
-  typedef std::deque<BlockScope*> StackType;
-  typedef std::map<std::string, FunctionID> FunctionMap;
-  typedef std::map<std::string, FunctionScope*> FunctionScopeMap;
-  
-  ScopeList myScopes;
-  StackType myScopeStack;
-  FunctionMap myFunctionsDeclarations;
-  FunctionScopeMap myFunctionScopes;
-  
-  uint16_t myFunctionAutoIncrement;
-  FunctionScope * myCurrentFunctionScope;
-};
-
-struct ExtendedBytecodeFunction : mathvm::BytecodeFunction {
-  ExtendedBytecodeFunction(FunctionScope const * functionScope) : mathvm::BytecodeFunction(functionScope->GetAstFunction()), myVariablesNum(functionScope->GetTotalVariablesNum()) {
-    mathvm::AstFunction* fun = functionScope->GetAstFunction();
-    for (uint32_t i = 0; i < fun->parametersNumber(); ++i) {
-      myArgumentTypes.push_back(fun->parameterType(i));
+    mathvm::Scope::VarIterator it (scope);
+    for (uint16_t i = variableCounter; it.hasNext(); ++i) {
+      mathvm::AstVar* var = it.next();
+      myVars[var->name()] = i;
     }
   }
-  uint16_t GetVariablesNum() const {return myVariablesNum;}
-  std::vector<mathvm::VarType> const & GetArgumentTypes() const {return myArgumentTypes;}
-private:
-  uint16_t myVariablesNum;
-  std::vector<mathvm::VarType> myArgumentTypes;
+};
+
+struct NodeInfo {
+  mathvm::VarType nodeType;
+  ScopeInfo * scopeInfo;
+
+  NodeInfo (mathvm::VarType type, ScopeInfo * scopeInfo) : nodeType(type), scopeInfo(scopeInfo) {}
 };
