@@ -1,0 +1,57 @@
+int x;
+
+function int ff(int y) {
+  x = 100;
+  return gg(y);
+}
+
+function int gg(int y) {
+  return f(1);
+}
+
+function int f(int y) {
+    int x;
+    int abc;
+    return y + 1;
+
+  function int f1(int y) {
+      return x + 1;
+
+    function int f2(int y) {
+      int x;
+      int a;
+      int b;
+      int c;
+      if (a > b) {
+        int a;
+        int b;
+        b = 0;
+        c = 0;
+      }
+      return x + 1 + abc + f2(9);
+
+      function int f3(int y) {
+        return x + 1;
+
+        function int f4(int y) {
+          int x;
+          return x + 1 + c;
+        }   
+        
+        function int f5(int y) {
+          int x;
+          return x + 1 + a + b;
+        }
+        f4(1);
+        f5(2);
+      }
+    }
+  }
+}
+
+x = 1;
+print(x, '\n', '================', '\n');
+print ('f(2) = ', f(2), '\n');
+ff(2);
+print('ff', '\n');
+print(x, '\n');
