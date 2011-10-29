@@ -9,6 +9,12 @@ void SymbolVisitor::visit() {
   scope->declareFunction(topAstFunc->node());
   pushScope(scope);
   popScope(scope);
+  closureChanged = true;
+  while(closureChanged) {
+    closureChanged = false;
+    visitedFuncs.clear();
+    genClosures(funcContexts[0], funcContexts);
+  }
 }
 
 void SymbolVisitor::analizeError(std::string str, mathvm::AstNode* node) { 
@@ -69,7 +75,6 @@ void SymbolVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   node->body()->visit(this);
   popParameters(node);
   
-  genClosures(funcContexts[curFuncId], funcContexts);
   curFuncId = oldFuncId;
   //DEBUG("SymbolVisitor out function "  << node->name() << std::endl);
 }
@@ -152,28 +157,6 @@ void SymbolVisitor::visitPrintNode(mathvm::PrintNode* node) {
   node->visitChildren(this);
 }
 
-void genClosures(FunctionContext& cont, FunctionContexts& conts) {
-  std::vector<size_t>::iterator it = cont.calledFuncs.begin();
-  //(needForClosure of all children + iUsedSymbols) - mySymbolsUsed
-  it = cont.calledFuncs.begin();
-  SymbolsUse::iterator it1;
-  for(; it != cont.calledFuncs.end(); ++it) {
-    it1 = conts[*it].needForClosure.begin();
-    for(; it1 != conts[*it].needForClosure.end(); ++it1) {
-      if (symUsed(cont.needForClosure, it1->first) || symUsed(cont.mySymbolsUsed, it1->first)) {
-        continue;
-      } else {
-        cont.needForClosure.push_back(*it1);
-      }
-    }
-  }
-
-  it1 = cont.iUsedSymbols.begin();
-  for(; it1 != cont.iUsedSymbols.end(); ++it1) {
-    cont.needForClosure.push_back(*it1);
-  }
-}
-
 void SymbolVisitor::print(std::ostream& out) {
   FunctionContexts::iterator func = funcContexts.begin();
   for(; func != funcContexts.end(); ++func) {
@@ -197,7 +180,7 @@ void SymbolVisitor::print(std::ostream& out) {
     out << std::endl << "My symbols used:" << std::endl;
     sym_it = func->mySymbolsUsed.begin();
     for(; sym_it != func->mySymbolsUsed.end(); ++sym_it) {
-      out << sym_it->first << ",";
+      out << sym_it->first << " by " << sym_it->second  << ",";
     }
     out << std::endl << "I need for closure:" << std::endl;
     sym_it = func->needForClosure.begin();
@@ -218,7 +201,7 @@ void useSymbol(size_t userFuncId, std::string sym, size_t symFuncId, std::vector
   FunctionContext& user = contexts[userFuncId];
   if (user.id == symFuncId)
     return; //for closure we are not interrested in use of local symbols 
-  if (symUsed(user.iUsedSymbols, sym))
+  if (symUsed(user.iUsedSymbols, sym, symFuncId))
     return; //symbol marked in use yet
   user.iUsedSymbols.push_back(SymbolUse(sym, symFuncId));
   contexts[symFuncId].useMySymbol(sym, user.id);
@@ -226,4 +209,43 @@ void useSymbol(size_t userFuncId, std::string sym, size_t symFuncId, std::vector
     throw new TranslationException("binding local symbol " + sym +  " as closured", 0);
   if (symUsed(user.parameters, sym))
     throw new TranslationException("binding local parameter " + sym  + " as closured", 0);
+}
+
+void SymbolVisitor::genClosures(FunctionContext& cont, FunctionContexts& conts) {
+  visitedFuncs.insert(cont.id);
+  std::vector<size_t>::iterator it = cont.calledFuncs.begin();
+  //(needForClosure of all children + iUsedSymbols) - mySymbolsUsed
+  SymbolsUse::iterator it1;
+  
+  it1 = cont.iUsedSymbols.begin();
+  for(; it1 != cont.iUsedSymbols.end(); ++it1) {
+    if (!symUsed(cont.needForClosure, it1->first, it1->second)) {
+      DEBUG("Func " << cont.id  << " Adding " << it1->first << ":" << it1->second  
+            << " to needForClosure cause iUsedIt" << std::endl);
+      cont.needForClosure.push_back(*it1);
+      closureChanged = closureChanged || true; //:)
+    }
+  }
+
+  for(; it != cont.calledFuncs.end(); ++it) {
+    if (visitedFuncs.find(*it) == visitedFuncs.end()) {
+      genClosures(funcContexts[*it], conts);
+    }
+    it1 = conts[*it].needForClosure.begin();
+    for(; it1 != conts[*it].needForClosure.end(); ++it1) {
+      if (symUsed(cont.needForClosure, it1->first, it1->second) || 
+          (symUsed(cont.locals, it1->first) && cont.id == it1->second) ||
+          (symUsed(cont.parameters, it1->first) && cont.id == it1->second)
+          //symUsed(cont.mySymbolsUsed, it1->first, *it)
+          ) {
+        continue;
+      } else {
+        closureChanged = closureChanged || true; //:)
+        DEBUG("Func " << cont.id  << " Adding " << it1->first << ":" << it1->second  
+              << " child needForClosure cause" << std::endl 
+              << "it is not in my needForClosure and not myUsedSymbol by" << *it << std::endl);
+        cont.needForClosure.push_back(*it1);
+      }
+    }
+  }
 }

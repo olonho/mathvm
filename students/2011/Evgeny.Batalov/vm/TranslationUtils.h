@@ -2,10 +2,12 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <sys/time.h>
+#include <ctime>
 #include <ast.h>
 #include <mathvm.h>
 
-#define VERBOSE
+//#define VERBOSE
 #ifdef VERBOSE
 #define DEBUG(str) std::cerr << str
 #else
@@ -49,7 +51,7 @@ typedef std::pair<std::string, size_t> SymbolUse; //symbol used, function_id
 typedef std::vector<SymbolUse> SymbolsUse;
 
 bool symUsed(const SymbolsUse& a, const std::string& str, size_t user);
-bool symUsed(const SymbolsUse& a, const std::string& str);
+//bool symUsed(const SymbolsUse& a, const std::string& str);
 bool symUsed(const Strings& a, const std::string& str);
 
 struct FunctionContext {
@@ -77,8 +79,6 @@ struct FunctionContext {
 
 void useSymbol(size_t userFuncId, std::string sym, size_t symFuncId, std::vector<FunctionContext>& contexts);
 typedef std::vector<FunctionContext> FunctionContexts;
-void genClosures(FunctionContext& cont, FunctionContexts& conts);
-
 typedef std::map<mathvm::FunctionNode*, size_t> FunctionNodeToIndex;
 typedef std::map<size_t, mathvm::FunctionNode*> IndexToFunctionNode;
 
@@ -304,3 +304,13 @@ class MyBytecodeFunction: public mathvm::TranslatedFunction {
     _bytecode->dump(out);
   }
 };
+
+inline uint64_t getTimeMs() {
+  struct timeval tv;
+  uint64_t ret;
+  gettimeofday(&tv, NULL);
+  ret = tv.tv_usec;
+  ret /= 1000;
+  ret += (tv.tv_sec * 1000);
+  return ret;
+}

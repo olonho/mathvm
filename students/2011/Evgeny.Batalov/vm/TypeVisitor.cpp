@@ -20,7 +20,7 @@ void TypeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
 
 void TypeVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
   using namespace mathvm;
-  VarType resType;
+  VarType resType = VT_INVALID;
   node->operand()->visit(this);
   NodeInfo& nop = nodeInfo.getNodeInfo(node->operand());
   if (nop.type == VT_INT && node->kind() == tNOT) {
@@ -261,7 +261,7 @@ void TypeVisitor::visitPrintNode(mathvm::PrintNode* node) {
 }
 
 void TypeVisitor::typeError(std::string str, mathvm::AstNode* node) {
-  throw TranslationException("Type check error: " + str + "\n", node);
+  throw new TranslationException("Type check error: " + str + "\n", node);
 }
 
 mathvm::VarType TypeVisitor::binNodeType(mathvm::BinaryOpNode* node, mathvm::AstNode* left, mathvm::AstNode* right) {

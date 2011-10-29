@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <utility>
 #include <mathvm.h>
 #include <ast.h>
@@ -27,6 +28,9 @@ class SymbolVisitor: public mathvm::AstVisitor {
   void pushScope(mathvm::Scope* node);
   void popScope(mathvm::Scope* node);
 
+  std::set<size_t> visitedFuncs;
+  bool closureChanged;
+  void genClosures(FunctionContext& cont, FunctionContexts& conts);
 public:
   SymbolVisitor(mathvm::AstFunction* top);
   void visit();

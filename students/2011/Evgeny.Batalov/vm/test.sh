@@ -1,20 +1,21 @@
 #!/bin/bash
 make
 
-VM=./build/bin/main
-SRCS=../../../../tests
+VM=./build/opt/main
+SRCS=../../../../tests/additional
 
-for src in $SRCS/*/*.mvm 
+for src in $SRCS/*.mvm 
 do
 echo
 BASENAME=${src##*/}
 FNAME=${BASENAME%.*}
 #echo ${FNAME}
 
-echo "======= Working with ${src}: ================"
-cat $src
+echo "======= Running ${src}: ================"
+echo "Expected result:"
+cat ${SRCS}/${FNAME}.expect
 echo
-echo "======= Transforming ${src} to stdout ======="
+echo "Actual result:"
 $VM ${src} 
 echo
 done

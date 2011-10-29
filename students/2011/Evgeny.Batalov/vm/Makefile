@@ -2,7 +2,7 @@ VM_ROOT = ../../../..
 ROOT = .
 USER_CFLAGS = -ggdb3 
 #-DNDEBUG
-
+OPT = y
 include $(VM_ROOT)/common.mk
 
 all: $(OUT) $(BIN)/main

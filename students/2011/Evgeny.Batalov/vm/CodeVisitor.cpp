@@ -398,7 +398,7 @@ void CodeVisitor::visitPrintNode(mathvm::PrintNode* node) {
 void CodeVisitor::transError(std::string str, mathvm::AstNode* node) { 
   cCode().addByte(mathvm::BC_INVALID);
   cCode().dump(std::cerr);
-  throw TranslationException("Error during translation: " + str + "\n", node);
+  throw new TranslationException("Error during translation: " + str + "\n", node);
   //DEBUG("Error during translation (" << str << ")" << std::endl);   
   //exit(-1); 
 }
