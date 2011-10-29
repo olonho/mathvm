@@ -37,7 +37,7 @@ bool symUsed(const SymbolsUse& a, const std::string& str, size_t user) {
   }
   return false;
 }
-
+/*
 bool symUsed(const SymbolsUse& a, const std::string& str) {
   SymbolsUse::const_iterator it = a.begin();
   for(; it != a.end(); ++it) {
@@ -46,7 +46,7 @@ bool symUsed(const SymbolsUse& a, const std::string& str) {
   }
   return false;
 }
-
+*/
 bool symUsed(const Strings& a, const std::string& str) {
   Strings::const_iterator it = a.begin();
   for(; it != a.end(); ++it) {

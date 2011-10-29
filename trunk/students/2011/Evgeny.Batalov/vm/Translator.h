@@ -16,12 +16,21 @@ class MyTranslator: public mathvm::Translator {
   mathvm::Parser* parser;
 
   public:
- 
+  MyTranslator() 
+    : symbolVisitor(0)
+    , typeVistior(0)
+    , codeVisitor(0)
+    , parser(0)
+  {}
   virtual ~MyTranslator() {
-    delete symbolVisitor;
-    delete typeVistior;
-    delete codeVisitor;
-    delete parser;
+    if (symbolVisitor)
+      delete symbolVisitor;
+    if (typeVistior)
+      delete typeVistior;
+    if (codeVisitor)
+      delete codeVisitor;
+    if (parser)
+      delete parser;
   }  
 
   virtual mathvm::Status* translate(const std::string& program, mathvm::Code* *code) {
@@ -29,13 +38,15 @@ class MyTranslator: public mathvm::Translator {
   }
 
   mathvm::Status* translate(const std::string& program, Executable* *executable) {
-    //try {
+    try {
       status = mathvm::Status();
       parser = new mathvm::Parser();
       parseExpr(*parser, program);
       symbolVisitor = new SymbolVisitor(parser->top());
       symbolVisitor->visit();
+      #ifdef VERBOSE
       symbolVisitor->print(std::cout);
+      #endif
       typeVistior = new TypeVisitor(parser->top());
       typeVistior->visit();
       codeVisitor = new CodeVisitor(parser->top(), 
@@ -45,9 +56,11 @@ class MyTranslator: public mathvm::Translator {
                                     typeVistior->getNodeInfo());
 
       codeVisitor->visit();
+      #ifdef VERBOSE
       codeVisitor->getExecutable().disassemble(std::cout);
+      #endif
       *executable = &codeVisitor->getExecutable();
-    /*}
+    }
     catch (TranslationException* ex) {
       uint32_t position = 0;
       mathvm::AstNode* node = ex->getNode();
@@ -55,8 +68,8 @@ class MyTranslator: public mathvm::Translator {
         position = node->position();
       }
       status = mathvm::Status(ex->what(), position);
-      throw;
-    } */
+      //throw;
+    }
     return &status;
   }
 };
