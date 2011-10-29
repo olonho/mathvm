@@ -33,7 +33,8 @@ int main(int argc, char** argv)
     try {
       generator->Translate(parser->top());    
       Code* code = generator->GetCode();
-      code->execute(vector<Var*>());
+			vector<Var*> v;
+      code->execute(v);
     }
 		catch (TranslationException & ex) {
       cout << "Translation ERROR";

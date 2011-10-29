@@ -306,6 +306,7 @@ StackFrame* Interpeter::AllocateFrame(uint16_t functionId )
     case VT_INT: myCurrentFrame->vars[i-1].i = PopInt(); break;
     case VT_DOUBLE: myCurrentFrame->vars[i-1].d = PopDouble(); break;
     case VT_STRING: myCurrentFrame->vars[i-1].s = PopString(); break;
+		default: throw InterpretationException("Just to shut up annoying GCC warning...");
     }
   }
 
@@ -320,7 +321,6 @@ void Interpeter::PopCurrentFrame()
     myCurrentBytecode = fun->bytecode();
   }
   myFrameStackPoolIP -= myCurrentFrame->size;
-  StackFrame * temp = myCurrentFrame;
   myCurrentFrame = myCurrentFrame->prevFrame;
 }
 
