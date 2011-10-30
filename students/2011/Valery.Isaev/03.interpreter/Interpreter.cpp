@@ -4,10 +4,10 @@
 #include "BytecodeFunction.h"
 
 static const uint32_t STACK_SIZE = 4 * 1024 * 1024;
-static const uint32_t CALL_STACK_SIZE = 1024 * 1024;
+static const uint32_t CALL_STACK_SIZE = 4 * 1024 * 1024;
 
-Interpreter::Interpreter(): Stack(new Value[STACK_SIZE])
-    , CallStack(new StackEntry[CALL_STACK_SIZE]) { }
+Interpreter::Interpreter(): Stack(new Value[STACK_SIZE / sizeof(Value)])
+    , CallStack(new StackEntry[CALL_STACK_SIZE / sizeof(StackEntry)]) { }
 
 Interpreter::~Interpreter() {
     delete [] Stack;
@@ -15,7 +15,6 @@ Interpreter::~Interpreter() {
 }
 
 mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
-    disassemble();
     BytecodeFunction* fun = static_cast<BytecodeFunction*>(functionById(0));
     Value tmp;
     CodePtr code;
@@ -47,6 +46,7 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
     case BC_LOADIVAR: *stack++ = vars[*code.pVar++]; break;
     case BC_LOADDVAR: *stack++ = Stack[*code.pVar++]; break;
     case BC_STOREIVAR: vars[*code.pVar++] = *--stack; break;
+    case BC_STOREIVAR0: *vars = *--stack; break;
     case BC_STOREDVAR: Stack[*code.pVar++] = *--stack; break;
     case BC_JA: code.pInsn += *code.pJmp; break;
     case BC_IFICMPNE: stack -= 2; if ((stack + 1)->vInt != stack->vInt)
@@ -98,7 +98,7 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
                   call_stack->vars_ptr = vars;
                   call_stack->stack_ptr = stack - fun->parametersNumber();
                   ++call_stack;
-                  vars = stack - (fun->parametersNumber() + fun->vars().size()
+                  vars = stack - (fun->parametersNumber() + fun->freeVarsNumber()
                       + (fun->returnType() == mathvm::VT_VOID ? 0 : 1));
                   stack += fun->localsNumber();
                   code.pInsn = fun->bytecode()->bytecode();

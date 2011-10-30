@@ -12,12 +12,11 @@ class ShowVisitor: public mathvm::AstVisitor {
     std::ostream& stream;
 public:
     ShowVisitor(std::ostream& o);
-    void show(mathvm::AstNode* node) { node->visit(this); }
+    void show(mathvm::AstFunction* node) { node->node()->visit(this); }
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(mathvm::type* node);
     FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
-    static const char* showType(mathvm::VarType t);
 };
 
 #endif
