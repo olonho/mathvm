@@ -37,16 +37,7 @@ bool symUsed(const SymbolsUse& a, const std::string& str, size_t user) {
   }
   return false;
 }
-/*
-bool symUsed(const SymbolsUse& a, const std::string& str) {
-  SymbolsUse::const_iterator it = a.begin();
-  for(; it != a.end(); ++it) {
-    if (it->first == str)
-      return true;
-  }
-  return false;
-}
-*/
+
 bool symUsed(const Strings& a, const std::string& str) {
   Strings::const_iterator it = a.begin();
   for(; it != a.end(); ++it) {
@@ -54,4 +45,14 @@ bool symUsed(const Strings& a, const std::string& str) {
       return true;
   }
   return false;
+}
+
+const SymbolUse& findSymUse(const SymbolsUse& sUses , const std::string& sym) {
+  SymbolsUse::const_iterator it = sUses.begin();
+  for(; it != sUses.end(); ++it) {
+    if (it->first == sym){
+      return *it;
+    }
+  }
+  throw new TranslationException("No symbol " + sym + "  found", 0);
 }

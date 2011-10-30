@@ -9,10 +9,10 @@ void Interpreter::interpret() {
   cstack->ip.instr_ = main->bytecode()->raw();
   cstack->frame_beg = stack;
   UserStackItem tmp;
-
+  size_t callCount = 0;
   //Invariants: stack always points to free space (+1 from really used stack)
   //            ip points to next byte after current instruction
-  while(1) {
+  while(true) {
     switch (*cstack->ip.instr_++) {
       case BC_DLOAD:     stack++->double_      = *cstack->ip.double_++; break;
       case BC_ILOAD:     stack++->int_         = *cstack->ip.int_++; break;
@@ -86,6 +86,7 @@ void Interpreter::interpret() {
                                             (tmp.double_ == (stack - 1)->double_ ? 0 : -1);
                          break;
       case BC_CALL:      {
+                         ++callCount;
                          uint16_t func_id = *cstack->ip.var_++;
                          MyBytecodeFunction *func = executable.funcById(func_id);
                          CallStackItem tmp = *cstack;
