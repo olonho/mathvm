@@ -36,7 +36,7 @@ function int foo(int x) {
             return x + y + z;
         }
         z -= 10;
-        s = foo(x - 1);
+        s = baz();
         z += 10;
         y += s;
         z = bak(z - y + 1);
