@@ -17,6 +17,8 @@ namespace mathvm {
   template<typename T>
   class NativeLabel {
   public:    
+    NativeLabel() { }
+
     NativeLabel(Bytecode* bc) {
       _label = bc->current();
       bc->addTyped<T>(0);
@@ -28,9 +30,17 @@ namespace mathvm {
       _bc->setTyped<int32_t>(_label, d);
     }
 
+    void bind(Bytecode* bc) {
+      bind(bc->current());
+    }
+
     void bind(const NativeLabel& label) {
       int32_t d = (int32_t)label._label - (int32_t)_label - sizeof(T);
       _bc->setTyped<int32_t>(_label, d);
+    }
+
+    void bind() {
+      bind(_bc);
     }
 
     uint32_t offset() const {
@@ -225,15 +235,24 @@ namespace mathvm {
     
     template<typename T>
     void jcc_rel32(const NativeLabel<T>& label, char cond) {
-      NativeLabel<int32_t> l(this);
-
       add(x86_cond(JCC_REL32, cond));
+      NativeLabel<int32_t> l(this);
       l.bind(label);
+    }
+
+    NativeLabel<int32_t> jcc_rel32(char cond) {
+      addInt16(x86_cond(JCC_REL32, cond));
+      return NativeLabel<int32_t>(this);
+    }
+
+    NativeLabel<int32_t> jmp_rel32() {
+      add(JMP_REL32);
+      return NativeLabel<int32_t>(this);
     }
 
     void setcc_r(char r, char cond) {
       add(x86_rex(0, r, 0));
-      add(x86_cond(SETCC_RM, cond));
+      addInt16(x86_cond(SETCC_RM, cond));
       add(x86_modrm(MOD_RR, 0, r));
     }
 
@@ -253,6 +272,13 @@ namespace mathvm {
       add(x86_rex(r2, r1, 1));
       add(TEST_RM_R);
       add(x86_modrm(MOD_RR, r2, r1));
+    }
+
+    void and_r_imm8(char r, uint8_t imm) {
+      add(x86_rex(4, r, 1));
+      add(AND_RM_IMM);
+      add(x86_modrm(MOD_RR, 4, r));
+      add(imm);
     }
 
   private:

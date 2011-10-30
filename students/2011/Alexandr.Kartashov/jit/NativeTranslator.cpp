@@ -358,6 +358,17 @@ namespace mathvm {
       }
     }
 
+    static bool isLogic(TokenKind tok) {
+      switch (tok) {
+      case tAND:
+      case tOR:
+        return true;
+
+      default:
+        return false;
+      }
+    }
+
     void doubleArith(char op1, char op2, TokenKind kind) {
       switch (kind) {
       case tADD:
@@ -432,7 +443,7 @@ namespace mathvm {
         break;
 
       case tLT:
-        _code->setcc_r(_retReg, CC_LT);
+        _code->setcc_r(_retReg, CC_L);
         break;
 
       case tLE:
@@ -450,6 +461,8 @@ namespace mathvm {
       default:
         ABORT("This shouldn't have happened...");
       }
+
+      _code->and_r_imm8(_retReg, 0x7F);
     }
 
     void doubleComp(char op1, char op2, TokenKind kind) {
@@ -486,6 +499,7 @@ namespace mathvm {
       _code->movq_r_xmm(_retReg, op1);
       _code->test_rr(_retReg, _retReg);
       _code->setcc_r(_retReg, CC_NE);
+      _code->and_r_imm8(_retReg, 0x7F);
     }
 
 
@@ -493,10 +507,12 @@ namespace mathvm {
       ValType vtype = NODE_INFO(node)->type;
       TokenKind kind = node->kind();
       char ptype, oldRet, op1, op2; 
+      NativeLabel<int32_t> shortCut;
+      bool doShortcut = false;
 
+      oldRet = _retReg;
       if (!isComp(node->kind())) {
-        ptype = poolTypes[NODE_INFO(node)->type];
-        oldRet = _retReg;
+        ptype = poolTypes[NODE_INFO(node)->type];        
         op1 = _retReg;
       } else {
         ptype = INT_REG_POOL;
@@ -505,6 +521,25 @@ namespace mathvm {
       }
 
       node->left()->visit(this);
+
+      if (isLogic(kind)) {
+        doShortcut = true;
+
+        _code->test_rr(op1, op1);
+        
+        switch (kind) {
+        case tAND:
+          shortCut = _code->jcc_rel32(CC_Z);
+          break;
+
+        case tOR:
+          shortCut = _code->jcc_rel32(CC_NZ);
+          break;
+
+        default:
+          ABORT("Your proccessor is tainted...");
+        }
+      }
 
       op2 = allocReg(ptype);
       _retReg = op2;
@@ -523,7 +558,7 @@ namespace mathvm {
           break;
 
         default:
-          ABORT("This shouldn't have took place...");
+          ABORT("This shouldn't have taken place...");
         }
       } else if (isComp(kind)) {
         switch (vtype) {
@@ -536,8 +571,12 @@ namespace mathvm {
           break;
 
         default:
-          ABORT("This shouldn't have took place...");
+          ABORT("This shouldn't have taken place...");
         }      
+      } else if (isLogic(kind)) {
+        _code->test_rr(op2, op2);
+        _code->setcc_r(_retReg, CC_NZ);
+        shortCut.bind(_code);
       } else {
         ABORT("Not supported yet");      
       }
@@ -581,6 +620,10 @@ namespace mathvm {
           break;
 
         case tNOT:
+          _code->test_rr(_retReg, _retReg);
+          _code->setcc_r(_retReg, CC_E);
+          break;
+
         default:
           ABORT("Not supported");
         }
@@ -695,34 +738,29 @@ namespace mathvm {
       code->add(BC_IFICMPLE);
       code->addInt16((int16_t)jmp_pos - code->current() - 2);
     }
+    */
   
     VISIT(IfNode) {
-      uint32_t jmp_pos;
+      NativeLabel<int32_t> branchNotTaken;
 
       node->ifExpr()->visit(this);
-
-      code->add(BC_ILOAD1);
-      code->add(BC_IFICMPNE);
-      code->addInt16(0);      
-      jmp_pos = code->current();
+      _code->test_rr(_retReg, _retReg);
+      branchNotTaken = _code->jcc_rel32(CC_E);
 
       node->thenBlock()->visit(this);
       
       if (node->elseBlock()) {
-        code->add(BC_JA);
-        code->addInt16(0);
-        code->setTyped(jmp_pos - 2, (int16_t)(code->current() - jmp_pos));
+        NativeLabel<int32_t> elseCut = _code->jmp_rel32();
 
-        jmp_pos = code->current();
-
+        branchNotTaken.bind();
         node->elseBlock()->visit(this);
-        
-        code->setTyped(jmp_pos - 2, (int16_t)(code->current() - jmp_pos));
+        elseCut.bind();
       } else {
-        code->setTyped(jmp_pos - 2, (int16_t)(code->current() - jmp_pos));
-      }             
+        branchNotTaken.bind();
+      }
     }
 
+    /*
     VISIT(WhileNode) {
       uint32_t jmp_pos, cond_pos;
 
