@@ -14,7 +14,7 @@ Interpreter::~Interpreter() {
     delete [] CallStack;
 }
 
-mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
+void Interpreter::exec() {
     BytecodeFunction* fun = static_cast<BytecodeFunction*>(functionById(0));
     Value tmp;
     CodePtr code;
@@ -42,7 +42,7 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
     case BC_SPRINT: printf("%s", (--stack)->vStr); break;
     case BC_I2D: (stack - 1)->vDouble = (stack - 1)->vInt; break;
     case BC_POP: --stack; break;
-    case BC_STOP: return 0;
+    case BC_STOP: return;
     case BC_LOADIVAR: *stack++ = vars[*code.pVar++]; break;
     case BC_LOADDVAR: *stack++ = Stack[*code.pVar++]; break;
     case BC_STOREIVAR: vars[*code.pVar++] = *--stack; break;
@@ -109,4 +109,31 @@ mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars_) {
                     stack = call_stack->stack_ptr;
                     break;
     }
+}
+
+mathvm::Status* Interpreter::execute(std::vector<mathvm::Var*>& vars) {
+    for (uint32_t i = 0; i < vars.size(); ++i) {
+        std::map<std::string, uint16_t>::iterator it = _globalVarsMap.find(vars[i]->name());
+        if (it != _globalVarsMap.end()) {
+            switch (vars[i]->type()) {
+                case mathvm::VT_INT: Stack[it->second].vInt = vars[i]->getIntValue(); break;
+                case mathvm::VT_STRING: Stack[it->second].vStr = vars[i]->getStringValue(); break;
+                case mathvm::VT_DOUBLE: Stack[it->second].vDouble = vars[i]->getDoubleValue(); break;
+                default:;
+            }
+        }
+    }
+    exec();
+    for (uint32_t i = 0; i < vars.size(); ++i) {
+        std::map<std::string, uint16_t>::iterator it = _globalVarsMap.find(vars[i]->name());
+        if (it != _globalVarsMap.end()) {
+            switch (vars[i]->type()) {
+                case mathvm::VT_INT: vars[i]->setIntValue(Stack[it->second].vInt); break;
+                case mathvm::VT_STRING: vars[i]->setStringValue(Stack[it->second].vStr); break;
+                case mathvm::VT_DOUBLE: vars[i]->setDoubleValue(Stack[it->second].vDouble); break;
+                default:;
+            }
+        }
+    }
+    return 0;
 }
