@@ -54,7 +54,11 @@ static uint8_t x86_rex(char ro, char rm, char w) {
 }
 
 static uint16_t x86_cond(uint16_t insn, char cond) {
-  return insn + (cond << 8);
+  if (insn < 0xFF) {
+    return insn + cond;
+  } else {
+    return insn + (cond << 8);
+  }
 } 
 
 // ================================================================================
@@ -106,10 +110,10 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define CC_NS      8
 #define CC_P       9
 #define CC_PE      9
-#define CC_NP      0xA
-#define CC_LT      0xB
-#define CC_NGE     0xB
-#define CC_GE      0xC
+#define CC_NP      0xB
+#define CC_L       0xC
+#define CC_NGE     0xC
+#define CC_GE      0xD
 #define CC_NL      0xD
 #define CC_LE      0xE
 #define CC_NG      0xE
@@ -212,6 +216,9 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define MOV_R_RM     0x8B
 #define PUSH_R       0x50
 #define POP_R        0x58
+#define CMP_RM_IMM   0x83  // RO = 7
+#define AND_RM_IMM   0x83  // RO = 4
+#define TEST_RM_R    0x85
 #define MOV_R_IMM    0xB8
 #define RET          0xC3
 #define JMP_REL32    0xE9
@@ -220,7 +227,6 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define SUBSD        0x5C0FF2
 #define DIVSD        0x5E0FF2
 #define CMPSD        0xC20FF2
-#define TEST_RM_R    0x85
 #define IDIV_RM      0xF7  // RO = 7
 #define NEG_RM       0xF7  // RO = 3
 #define CALL_RM      0xFF  // RO = 2
