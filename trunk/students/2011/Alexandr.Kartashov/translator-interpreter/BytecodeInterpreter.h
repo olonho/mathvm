@@ -144,7 +144,7 @@ namespace mathvm {
 
 
     /* The stack model that resembles a hardware stack */
-#define STACK_SIZE 1024*1024
+#define STACK_SIZE 1024*1024*100
 
     class Stack {
     public:
@@ -270,6 +270,14 @@ namespace mathvm {
     void createFunction(BCIFunction** function, AstFunction* fNode);
 
     Status* execute(std::vector<mathvm::Var*, std::allocator<Var*> >&);
+
+    BCIFunction* function(uint32_t id) {
+      if (id < _functions.size()) {
+        return _functions[id];
+      } else {
+        return NULL;
+      }
+    }
     
   private:
     void createStackFrame();
