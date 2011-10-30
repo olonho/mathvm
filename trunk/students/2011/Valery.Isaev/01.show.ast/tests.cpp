@@ -29,7 +29,7 @@ int main() {
         v.show(p.top());
         parseExpr(p2, stream.str());
         CompareVisitor cv;
-        bool res = cv.compare(p.top(), p2.top());
+        bool res = cv.compare(p.top()->node(), p2.top()->node());
         if (!res) {
             fprintf(stderr, "%s: FAILURE\n%s\n", tests[i], stream.str().c_str());
             ++failed;
