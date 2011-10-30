@@ -24,9 +24,12 @@ class Interpreter: public mathvm::Code {
     typedef uint16_t VarInt;
     Value* Stack;
     StackEntry* CallStack;
+    std::map<std::string, uint16_t> _globalVarsMap;
+    void exec();
 public:
     Interpreter();
     ~Interpreter();
+    std::map<std::string, uint16_t>& globalVarsMap() { return _globalVarsMap; }
     mathvm::Status* execute(std::vector<mathvm::Var*>& vars);
 };
 

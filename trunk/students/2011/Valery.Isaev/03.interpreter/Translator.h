@@ -9,7 +9,7 @@
 
 class Translator: public mathvm::AstVisitor {
     mathvm::Bytecode* code;
-    mathvm::Code* prog;
+    Interpreter* prog;
     typedef uint16_t VarInt;
     std::map<std::string, std::vector<VarInt> > vars;
     VarInt currentVar;
@@ -23,7 +23,7 @@ class Translator: public mathvm::AstVisitor {
     void checkTypeInt(mathvm::AstNode* expr);
     void triple(mathvm::Instruction i);
 public:
-    Translator(mathvm::Code* p);
+    Translator(Interpreter* p);
     mathvm::Status translate(mathvm::AstFunction* fun);
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(mathvm::type* node);

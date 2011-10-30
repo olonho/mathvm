@@ -220,7 +220,7 @@ void Translator::checkTypeInt(mathvm::AstNode* expr) {
     currentType = mathvm::VT_INVALID;
 }
 
-Translator::Translator(mathvm::Code* p): prog(p), currentVar(0),
+Translator::Translator(Interpreter* p): prog(p), currentVar(0),
     overflow(false), currentType(mathvm::VT_INVALID), resultType(mathvm::VT_VOID) { }
 
 void Translator::put(const void* buf_, unsigned int size) {
@@ -632,6 +632,11 @@ mathvm::Status Translator::translate(mathvm::AstFunction* fun) {
         code = main->bytecode();
         fun->node()->body()->visit(this);
         code->add(mathvm::BC_STOP);
+        
+        uint16_t i = 0;
+        for (std::set<const mathvm::AstVar*>::iterator it = globals.begin(); it != globals.end(); ++it) {
+            prog->globalVarsMap()[(*it)->name()] = i++;
+        }
     } catch (const mathvm::Status& e) {
         return e;
     }
