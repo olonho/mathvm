@@ -1,4 +1,5 @@
-#include <stdio.h>
+#include <cstdlib>
+#include <cstdio>
 #include <iostream>
 #include <map>
 #include <vector>
@@ -144,8 +145,113 @@ namespace mathvm {
     }
   };
 
-  //--------------------------------------------------------------------------------
+  // --------------------------------------------------------------------------------
+  
+  typedef std::map<AstFunction*, uint16_t> Functions;
 
+  class FunctionCollector : public AstVisitor {
+    Functions* _functions;
+    VarNum* _num;
+    BytecodeInterpreter* _interpreter;
+
+  public:
+    FunctionCollector() { }
+
+    void collectFunctions(BytecodeInterpreter* interpreter, Functions* functions, VarNum* varNum, AstNode* root) {
+      _interpreter = interpreter;
+      _functions = functions;
+      _num = varNum;
+      root->visit(this);
+    }
+
+    VISIT(BinaryOpNode) {
+      return;
+    }
+
+    VISIT(UnaryOpNode) {
+      return;
+    }
+
+    VISIT(StringLiteralNode) {
+      return;
+    }
+
+    VISIT(DoubleLiteralNode) {
+      return;
+    }
+    
+    VISIT(IntLiteralNode) {
+      return;
+    }
+    
+    VISIT(LoadNode) {
+      return;
+    }
+   
+    VISIT(StoreNode) {
+      return;
+    }
+
+    VISIT(ForNode) {
+      node->visitChildren(this);
+    }
+
+    VISIT(WhileNode) {
+      node->visitChildren(this);
+    }
+    
+    VISIT(IfNode) {
+      node->visitChildren(this);
+    }
+          
+    VISIT(BlockNode) {
+      Scope::FunctionIterator fi(node->scope());
+
+      while (fi.hasNext()) {
+        AstFunction* af = fi.next();
+
+        Scope::VarIterator argsIt(af->scope());
+        ScopeWalker w;
+        BCIFunction* cf;
+
+        _interpreter->createFunction(&cf, af);
+        cf->setFirstArg(_num->next());
+
+        while (argsIt.hasNext()) {
+          AstVar* v = argsIt.next();
+          _num->add(v);
+        }
+
+        cf->setFirstLocal(_num->next());
+        w.collectLocals(_num, af->node());
+        cf->setLocalsNumber(w.size());
+
+        uint16_t funId = _functions->size();
+        (*_functions)[af] = funId;
+
+        af->node()->visit(this);
+      }
+    }
+    
+    VISIT(FunctionNode) {
+      node->visitChildren(this);
+    }
+     
+    VISIT(ReturnNode) {
+      return;
+    }
+     
+    VISIT(CallNode) {
+      return;
+    }
+
+    VISIT(PrintNode) {
+      return;
+    }
+  };
+
+
+  // --------------------------------------------------------------------------------
 
   class BytecodeGenerator : public AstVisitor {
   private:
@@ -158,7 +264,7 @@ namespace mathvm {
     BytecodeInterpreter *_interpreter;
 
     std::map<std::string, uint16_t> string_const;
-    std::map<AstFunction*, uint16_t> _functions;
+    Functions _functions;
 
     BlockNode* _curBlock;
 
@@ -172,18 +278,6 @@ namespace mathvm {
       uint16_t vid = (uint16_t)_num.getId(v);
       assert(vid < _num.size());
       code->addTyped(vid);
-        /*} else {
-        // This is a function argument
-
-        
-        for (size_t i = 0; i < _argNum; ++i) {
-          if (v->name() == *((*_args)[i].name)) {
-            (*_args)[i].varId = (uint8_t)_num.add(v);
-            code->add((*_args)[i].varId);
-            break;
-          }
-        } 
-        */
     }
   
 
@@ -198,14 +292,15 @@ namespace mathvm {
     BytecodeGenerator(AstFunction* root) { 
       ScopeWalker w;
       BCIFunction* top;
+      FunctionCollector fc;
+
+      _interpreter = new BytecodeInterpreter;
 
       w.collectLocals(&_num, root->node());
-      
-      //_root = root;
-      _interpreter = new BytecodeInterpreter;
-      
       _interpreter->createFunction(&top, root);
       top->setLocalsNumber(w.size());
+
+      fc.collectFunctions(_interpreter, &_functions, &_num, root->node()->body());
  
       code = top->bytecode();
       strings = _interpreter->strings();
@@ -389,7 +484,7 @@ namespace mathvm {
         code->add(BC_ILOAD0);
 
         code->add(BC_JA);
-        code->add(1);
+        code->addInt16(1);
 
         code->add(BC_ILOAD1);        
         break;
@@ -657,7 +752,7 @@ namespace mathvm {
     }
     
     VISIT(BlockNode) {
-      Scope::VarIterator vi(node->scope());
+      //Scope::VarIterator vi(node->scope());
       Scope::FunctionIterator fi(node->scope());
 
       while (fi.hasNext()) {
@@ -670,9 +765,10 @@ namespace mathvm {
         }
         */
 
+        /*
         Scope::VarIterator argsIt(af->scope());
         ScopeWalker w;
-        BCIFunction* cf;
+        
         
 
         //cf->setArgsNum(af->parametersNumber());
@@ -690,6 +786,15 @@ namespace mathvm {
 
         uint16_t funId = _functions.size();
         _functions[af] = funId;
+        */
+
+        if (_functions.find(af) == _functions.end()) {
+          std::cout << "The function " << af->node()->name() << " isn't defined!" << std::endl;
+          abort();
+        }
+
+        uint32_t id = _functions[af];
+        BCIFunction* cf = _interpreter->function(id + 1);
 
         code = cf->bytecode();
         af->node()->visit(this);
@@ -719,6 +824,12 @@ namespace mathvm {
       
       code->add(BC_CALL);
       AstFunction *af = _curBlock->scope()->lookupFunction(node->name());
+
+      if (_functions.find(af) == _functions.end()) {
+        std::cout << "The function " << af->name() << " is called without being defined!" << std::endl;
+        abort();
+      }
+
       uint16_t fid = _functions[af] + 1;
       //assert(fid != 0 && af != NULL);
       code->addUInt16(fid);
