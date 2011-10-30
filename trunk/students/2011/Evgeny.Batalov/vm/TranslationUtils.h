@@ -2,12 +2,13 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <utility>
 #include <sys/time.h>
 #include <ctime>
 #include <ast.h>
 #include <mathvm.h>
 
-//#define VERBOSE
+#define VERBOSE
 #ifdef VERBOSE
 #define DEBUG(str) std::cerr << str
 #else
@@ -51,8 +52,8 @@ typedef std::pair<std::string, size_t> SymbolUse; //symbol used, function_id
 typedef std::vector<SymbolUse> SymbolsUse;
 
 bool symUsed(const SymbolsUse& a, const std::string& str, size_t user);
-//bool symUsed(const SymbolsUse& a, const std::string& str);
 bool symUsed(const Strings& a, const std::string& str);
+const SymbolUse& findSymUse(const SymbolsUse& sUses , const std::string& sym);
 
 struct FunctionContext {
   size_t id;
@@ -86,6 +87,8 @@ typedef std::map<size_t, mathvm::FunctionNode*> IndexToFunctionNode;
 //frame: parameters, closures, locals | computational stack
 class TranslatableFunction {
   
+  typedef std::pair<std::string, uint16_t> VarIdentity; //name, owner id
+
   struct VarAddresses {
     VarAddresses() 
       : curAddr() {}
@@ -97,7 +100,7 @@ class TranslatableFunction {
     std::vector<uint16_t> addresses;
   };
 
-  typedef std::map<std::string, VarAddresses> Addresses;
+  typedef std::map<VarIdentity, VarAddresses> Addresses;
   Addresses addresses;
   FunctionContext proto;
   size_t frameSize;
@@ -114,23 +117,23 @@ public:
     uint16_t frameOffset = 0;
     DEBUG( "Creating translatable function " << proto.funcName << ":" << proto.id  << std::endl);
     for(; it != proto.parameters.end(); ++it) {
-      addresses[*it].addresses.push_back(frameOffset);
-      addresses[*it].curAddr = 0;
+      addresses[std::make_pair(*it, proto.id)].addresses.push_back(frameOffset);
+      addresses[std::make_pair(*it, proto.id)].curAddr = 0;
       DEBUG(*it << ":" << frameOffset << std::endl);
       frameOffset++;
       if (frameOffset == 0) throw new TranslationException("Var count reached maximum", 0); 
     }
     SymbolsUse::const_iterator it1 = proto.needForClosure.begin(); 
     for(;it1 != proto.needForClosure.end(); ++it1) {
-      addresses[it1->first].addresses.push_back(frameOffset);
-      addresses[it1->first].curAddr = 0;
-      DEBUG(it1->first << ":" << frameOffset << std::endl);
+      addresses[std::make_pair(it1->first, it1->second)].addresses.push_back(frameOffset);
+      addresses[std::make_pair(it1->first, it1->second)].curAddr = 0;
+      DEBUG(it1->first << " of " << it1->second << ":" << frameOffset << std::endl);
       frameOffset++;
       if (frameOffset == 0) throw new TranslationException("Var count reached maximum", 0); 
     }
     for(it = proto.locals.begin(); it != proto.locals.end(); ++it) {
-      addresses[*it].addresses.push_back(frameOffset);
-      addresses[*it].curAddr = -1;
+      addresses[std::make_pair(*it, proto.id)].addresses.push_back(frameOffset);
+      addresses[std::make_pair(*it, proto.id)].curAddr = -1;
       DEBUG(*it << ":" << frameOffset << std::endl);
       frameOffset++;
       if (frameOffset == 0) throw new TranslationException("Var count reached maximum", 0); 
@@ -147,7 +150,7 @@ public:
     Strings::const_iterator it = symbols.begin();
     for(; it != symbols.end(); ++it) {
       //DEBUG(proto.id << " Advance: " << *it  << std::endl);
-      addresses[*it].advance();
+      addresses[std::make_pair(*it, proto.id)].advance();
     }
   }
 
@@ -155,14 +158,34 @@ public:
     Strings::const_iterator it = symbols.begin();
     for(; it != symbols.end(); ++it) {
       //DEBUG(proto.id << "Go back: " << *it  << std::endl);
-      addresses[*it].goback();
+      addresses[std::make_pair(*it, proto.id)].goback();
     }
   }
-
+  //for local variables, parameters and symbols needed in context of this function 
   uint16_t getAddress(const std::string& varName) const {
-    Addresses::const_iterator it = addresses.find(varName);
+    Addresses::const_iterator it = addresses.find(std::make_pair(varName, proto.id));
+    if (it == addresses.end()) {
+      //var is not local, lookup int iUsedSymbols
+      const SymbolUse& sUse = findSymUse(proto.iUsedSymbols, varName);
+      it = addresses.find(std::make_pair(sUse.first, sUse.second));
+    }
+    if (it == addresses.end()) {
+      throw new TranslationException("Internal error", 0); 
+    }
     DEBUG("Getting address in " << proto.funcName << " of " << 
     varName << " with value " <<  it->second.addresses[it->second.curAddr]
+    << " and offset " << it->second.curAddr << std::endl);
+    return (uint16_t)it->second.addresses[it->second.curAddr];
+  }
+
+  //if you want to find address of var of other func in stack of this func
+  uint16_t getAddress(const std::string& varName, uint16_t ownerId) const {
+    Addresses::const_iterator it = addresses.find(std::make_pair(varName, ownerId));
+    if (it == addresses.end()) {
+      throw new TranslationException("Internal error", 0); 
+    }
+    DEBUG("Getting address in " << proto.funcName << " of " << 
+    varName << " owned by " << ownerId << " with value " <<  it->second.addresses[it->second.curAddr]
     << " and offset " << it->second.curAddr << std::endl);
     return (uint16_t)it->second.addresses[it->second.curAddr];
   }
@@ -186,7 +209,7 @@ public:
     SymbolsUse::const_iterator symUseIt = proto.needForClosure.begin();
     for(;symUseIt != proto.needForClosure.end(); ++symUseIt) {
       bcode.addByte(mathvm::BC_LOADIVAR);
-      bcode.addTyped(callingFunc.getAddress(symUseIt->first));
+      bcode.addTyped(callingFunc.getAddress(symUseIt->first, symUseIt->second));
     }
     //push locals
     for(strsIt = proto.locals.begin(); strsIt != proto.locals.end(); ++strsIt) {
@@ -207,7 +230,7 @@ public:
     SymbolsUse::const_reverse_iterator revSymUseIt = proto.needForClosure.rbegin(); 
     for(;revSymUseIt != proto.needForClosure.rend(); ++revSymUseIt) {
       bcode.addByte(BC_STOREIVAR);
-      bcode.addTyped(callingFunc.getAddress(revSymUseIt->first));
+      bcode.addTyped(callingFunc.getAddress(revSymUseIt->first, revSymUseIt->second));
     }
     //pop parameters
     for(strsIt = proto.parameters.begin(); strsIt != proto.parameters.end(); ++strsIt) {
