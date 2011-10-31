@@ -378,6 +378,7 @@ class TranslatedFunction {
     uint16_t _id;
     uint16_t _locals;
     uint16_t _params;
+    uint16_t _scopeId;
     const string _name;
     vector<pair<VarType,string> > _signature;
 public:
@@ -400,6 +401,11 @@ public:
       _locals = locals;
     }
     uint32_t localsNumber() const { return _locals; }
+
+    void setScopeId(uint16_t scopeId) {
+      _scopeId = scopeId;
+    }
+    uint16_t scopeId() const { return _scopeId; }
 
     void assignId(uint16_t id) {
       assert(_id == INVALID_ID);
@@ -482,11 +488,9 @@ class Translator {
 
 class InterpreterCodeImpl;
 class MachCodeImpl;
-class VarStorage;
 class BytecodeTranslatorImpl : public Translator {
     Status* translateBytecode(const string& program,
-                              InterpreterCodeImpl* *code,
-                              VarStorage* *vars);
+                              InterpreterCodeImpl* *code);
 
   public:
     BytecodeTranslatorImpl() {
