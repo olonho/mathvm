@@ -876,7 +876,7 @@ void AssemblerCore::_emitInstruction(uint32_t code, const Operand* o0, const Ope
 
 void AssemblerCore::_emitInstruction(uint32_t code, const Operand* o0, const Operand* o1, const Operand* o2) ASMJIT_NOTHROW
 {
-  const Operand* _loggerOperands[3];
+  const Operand* _loggerOperands[3] = {NULL, NULL, NULL};
 
   uint32_t bLoHiUsed = 0;
 #if defined(ASMJIT_X86)
@@ -2539,7 +2539,7 @@ sysuint_t AssemblerCore::relocCode(void* _dst, sysuint_t addressBase) const ASMJ
   for (i = 0; i < len; i++)
   {
     const RelocData& r = _relocData[i];
-    sysint_t val;
+    sysint_t val = 0;
 
 #if defined(ASMJIT_X64)
     // Whether to use trampoline, can be only used if relocation type is
