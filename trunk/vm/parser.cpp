@@ -281,7 +281,11 @@ FunctionNode* Parser::parseFunction() {
 
     pushScope();
     for (uint32_t i = 1; i < signature.size(); i++) {
-        _currentScope->declareVariable(signature[i].second, signature[i].first);
+        const string& name = signature[i].second;
+        VarType type = signature[i].first;
+        if (!_currentScope->declareVariable(name, type)) {
+            error("Formal %s already declared", name.c_str());
+        }
     }
     BlockNode* body = parseBlock(true);
 
@@ -292,6 +296,9 @@ FunctionNode* Parser::parseFunction() {
 
     popScope();
 
+    if (_currentScope->lookupFunction(name) != 0) {
+        error("Function %s already defined", name.c_str());
+    }
     FunctionNode* result = new FunctionNode(tokenIndex, name, signature, body);
     _currentScope->declareFunction(result);
 
@@ -398,7 +405,10 @@ BlockNode* Parser::parseBlock(bool needBraces) {
 AstNode* Parser::parseDeclaration(VarType type) {
     // Skip type.
     ensureToken(tIDENT);
-    _currentScope->declareVariable(currentTokenValue(), type);
+    const string& var = currentTokenValue();
+    if (!_currentScope->declareVariable(var, type)) {
+      error("Variable %s already declared", var.c_str());
+    }
     ensureToken(tIDENT);
     ensureToken(tSEMICOLON);
     return 0;

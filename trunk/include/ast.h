@@ -145,8 +145,8 @@ class Scope {
     Scope* childScopeAt(uint32_t index) { return _children[index]; }
     void addChildScope(Scope* scope) { _children.push_back(scope); }
 
-    void declareVariable(const string& name, VarType type);
-    void declareFunction(FunctionNode* node);
+    bool declareVariable(const string& name, VarType type);
+    bool declareFunction(FunctionNode* node);
 
     AstVar* lookupVariable(const string& name);
     AstFunction* lookupFunction(const string& name);
