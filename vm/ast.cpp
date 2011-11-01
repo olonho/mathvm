@@ -68,12 +68,20 @@ Scope::~Scope() {
   }
 }
 
-void Scope::declareVariable(const string& name, VarType type) {
-    _vars[name] = new AstVar(name, type, this);
+bool Scope::declareVariable(const string& name, VarType type) {
+    if (lookupVariable(name) != 0) {
+        return false;
+    }
+   _vars[name] = new AstVar(name, type, this);
+   return true;
 }
 
-void Scope::declareFunction(FunctionNode* node) {
-  _functions[node->name()] = new AstFunction(node, this);
+bool Scope::declareFunction(FunctionNode* node) {
+    if (lookupFunction(node->name()) != 0) {
+      return false;
+    }
+   _functions[node->name()] = new AstFunction(node, this);
+    return true;
 }
 
 AstVar* Scope::lookupVariable(const string& name) {
