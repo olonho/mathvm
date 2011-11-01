@@ -183,6 +183,13 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
             continue;
         }
 
+        // Skip comment.
+        if ((_ch == '/') && (lookAhead(1) == '/')) {
+            while (_ch != 0 && _ch != '\n') {
+                readChar();
+            }
+            continue;
+        }
 
         TokenKind kind;
         switch (_ch) {
