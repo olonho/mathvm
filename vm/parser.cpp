@@ -145,6 +145,9 @@ AstNode* Parser::parseStatement() {
           return 0;
       }
     }
+    if (currentToken() == tLBRACE) {
+       return parseBlock(true);
+    }
     if ((currentToken() == tIDENT) && isAssignment(lookaheadToken(1))) {
         return parseAssignment();
     }
@@ -162,6 +165,8 @@ CallNode* Parser::parseCall() {
         args.push_back(parseExpression());
         if (currentToken() == tCOMMA) {
             consumeToken();
+        } else {
+            break;
         }
     }
     ensureToken(tRPAREN);
@@ -473,9 +478,6 @@ AstNode* Parser::parseBinary(int minPrecedence) {
 }
 
 AstNode* Parser::parseExpression() {
-    if (currentToken() == tIDENT && lookaheadToken(1) == tLPAREN) {
-        return parseCall();
-    }
     return parseBinary(tokenPrecedence(tOR));
 }
 
