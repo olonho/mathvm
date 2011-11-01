@@ -861,7 +861,7 @@ void MemoryManagerPrivate::insertNode(MemNode* node) ASMJIT_NOTHROW
     MemNode* p = NULL;
     MemNode* q = t->node[1] = _root;
 
-    int dir = 0, last;
+    int dir = 0, last = 0;
 
     // Search down the tree.
     for (;;)
