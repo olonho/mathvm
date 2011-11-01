@@ -890,7 +890,7 @@ void AssemblerCore::_emitInstruction(uint32_t code, const Operand* o0, const Ope
 #endif // ASMJIT_DEBUG
 
   const Imm* immOperand = NULL;
-  uint32_t immSize;
+  uint32_t immSize = 0;
 
 #define _FINISHED() \
   goto end
