@@ -219,6 +219,8 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define CMP_RM_IMM   0x83  // RO = 7
 #define AND_RM_IMM   0x83  // RO = 4
 #define TEST_RM_R    0x85
+#define MOVS_B       0xA4
+#define MOVS_W       0xA5
 #define MOV_R_IMM    0xB8
 #define RET          0xC3
 #define JMP_REL32    0xE9
@@ -230,3 +232,5 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define IDIV_RM      0xF7  // RO = 7
 #define NEG_RM       0xF7  // RO = 3
 #define CALL_RM      0xFF  // RO = 2
+
+#define REPNE        0xF2

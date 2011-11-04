@@ -1,8 +1,10 @@
 #pragma once
 
 #include <sstream>
+#include <algorithm>
 
 #include "common.h"
+#include "compiler.h"
 #include "Runtime.h"
 
 // ================================================================================
@@ -14,24 +16,50 @@ namespace mathvm {
   public:
     VarCollector() { }
 
-    void collect(AstFunction* af, Runtime* rt) {
+    void collect(AstFunction* af, Runtime* rt, CompilerPool* pool) {
       _runtime = rt;
-      visit(af);
+      _pool = pool;
+
+      FunctionNode* node = af->node();
+      Scope::VarIterator argsIt(af->scope());
+      size_t p = 0;
+
+      _curFun = info(af->node())->funRef;
+      while (argsIt.hasNext()) {
+        AstVar* v = argsIt.next();
+
+        _pool->addInfo(v);
+        info(v)->initialized = false;
+        info(v)->kind = VarInfo::KV_ARG;
+        info(v)->fPos = p;
+        info(v)->owner = _curFun;
+
+        ++p;
+      }
+
+      node->visitChildren(this);
     }
 
   private:
     Runtime* _runtime;
+    CompilerPool* _pool;
     NativeFunction* _curFun;
 
   private:
     VISIT(BinaryOpNode) {
+      _pool->addInfo(node);
       node->visitChildren(this);
+
+      info(node)->depth = 
+        std::max(
+                 info(node->left())->depth, 
+                 info(node->right())->depth
+                 ) + 1;
 
       if (NODE_INFO(node->left())->type != NODE_INFO(node->left())->type) {
         ABORT("Type mismatch");
       }
 
-      node->setInfo(new NodeInfo);
       switch (node->kind()) {
       case tEQ:
       case tNEQ:
@@ -40,74 +68,93 @@ namespace mathvm {
       case tLE:          
       case tOR:
       case tAND:
-        NODE_INFO(node)->type = VAL_INT;
+        info(node)->type = VAL_INT;
         break;
 
       default:
-        NODE_INFO(node)->type = NODE_INFO(node->left())->type;
+        info(node)->type = info(node->left())->type;
         break;
       }
     }
 
     VISIT(UnaryOpNode) {
+      _pool->addInfo(node);
+      
       node->visitChildren(this);
 
-      node->setInfo(new NodeInfo);
-      NODE_INFO(node)->type = NODE_INFO(node->operand())->type;
+      info(node)->depth = info(node->operand())->depth + 1;
+      info(node)->type = info(node->operand())->type;
     }
 
     VISIT(StringLiteralNode) {
-      node->setInfo(new NodeInfo);
-      NODE_INFO(node)->type = VAL_STRING;
-      NODE_INFO(node)->string = _runtime->addString(node->literal());
+      _pool->addInfo(node);
+      info(node)->depth = 0;
+
+      info(node)->type = VAL_STRING;
+      info(node)->string = _runtime->addString(node->literal());
     }
 
     VISIT(DoubleLiteralNode) {
-      node->setInfo(new NodeInfo);
+      _pool->addInfo(node);
+      info(node)->depth = 0;
+
       NODE_INFO(node)->type = VAL_DOUBLE;
     }
     
     VISIT(IntLiteralNode) {
-      node->setInfo(new NodeInfo);
+      _pool->addInfo(node);
+      info(node)->depth = 0;
+
       NODE_INFO(node)->type = VAL_INT;
     }
     
     VISIT(LoadNode) {
-      node->setInfo(new NodeInfo);
-      NODE_INFO(node)->type = (ValType)node->var()->type();
+      _pool->addInfo(node);
+      info(node)->type = (ValType)node->var()->type();
+      info(node)->depth = 0;
     }
    
     VISIT(StoreNode) {
+      _pool->addInfo(node);
+      
       node->visitChildren(this);
+      info(node)->depth = info(node->value())->depth;      
+
+      info(node->var())->initialized = true;
     }
 
     VISIT(ForNode) {
+      _pool->addInfo(node);
       node->visitChildren(this);
+      info(node)->depth = 0;
     }
 
     VISIT(WhileNode) {
+      _pool->addInfo(node);
       node->visitChildren(this);
+      info(node)->depth = 0;
     }
     
     VISIT(IfNode) {
+      _pool->addInfo(node);
       node->visitChildren(this);
+      info(node)->depth = 0;
     }
           
     VISIT(BlockNode) {
       Scope::VarIterator vi(node->scope());
-      Scope::FunctionIterator fi(node->scope());
       AstVar* v;
-      
-      while (fi.hasNext()) {
-        visit(fi.next());
-      }
 
+      _pool->addInfo(node);
+      info(node)->depth = 0;
+      
       while (vi.hasNext()) {
         v = vi.next();
-        v->setInfo(new VarInfo());
-        VAR_INFO(v)->kind = VarInfo::KV_LOCAL;
-        VAR_INFO(v)->fPos = _curFun->localsNumber();
-        VAR_INFO(v)->owner = _curFun;
+        _pool->addInfo(v);
+        info(v)->initialized = false;
+        info(v)->kind = VarInfo::KV_LOCAL;
+        info(v)->fPos = _curFun->localsNumber();
+        info(v)->owner = _curFun;
 
         _curFun->setLocalsNumber(_curFun->localsNumber() + 1);
       }
@@ -118,19 +165,20 @@ namespace mathvm {
     VISIT(PrintNode) {
       std::stringstream s;
       
-      node->setInfo(new NodeInfo);
+      _pool->addInfo(node);
+      info(node)->depth = 0;
       node->visitChildren(this);
       
       for (size_t i = 0; i < node->operands(); i++) {
         AstNode* n = node->operandAt(i);
 
-        switch (NODE_INFO(n)->type) {
+        switch (info(n)->type) {
         case VAL_INT:
           s << "%ld";
           break;
 
         case VAL_STRING:
-          s << NODE_INFO(n)->string;
+          s << info(n)->string;
           break;          
 
         case VAL_DOUBLE:
@@ -142,41 +190,27 @@ namespace mathvm {
         }
       }
 
-      NODE_INFO(node)->string = _runtime->addString(s.str());
+      info(node)->string = _runtime->addString(s.str());
     }
 
     VISIT(CallNode) {
+      _pool->addInfo(node);
       node->visitChildren(this);
+
+      unsigned int d = 0;
+      for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
+        unsigned int pd = info(node->parameterAt(i))->depth;
+
+        d = (d < pd) ? pd : d;
+      }
+
+      info(node)->depth = d;
     }
 
     VISIT(ReturnNode) {
+      _pool->addInfo(node);
+      info(node)->depth = 0;
       node->visitChildren(this);
-    }
-
-    void visit(AstFunction* af) {
-      NativeFunction* oldFun = _curFun;
-      FunctionNode* node = af->node();
-      Scope::VarIterator argsIt(af->scope());
-      size_t p = 0;
-
-      _curFun = _runtime->createFunction(af);
-
-      while (argsIt.hasNext()) {
-        AstVar* v = argsIt.next();
-
-        v->setInfo(new VarInfo());
-        VAR_INFO(v)->kind = VarInfo::KV_ARG;
-        VAR_INFO(v)->fPos = p;
-        VAR_INFO(v)->owner = _curFun;
-
-        ++p;
-      }
-
-      node->setInfo(new NodeInfo);
-      NODE_INFO(node)->funRef = _curFun;
-      node->visitChildren(this);
-
-      _curFun = oldFun;
     }
   };
 }

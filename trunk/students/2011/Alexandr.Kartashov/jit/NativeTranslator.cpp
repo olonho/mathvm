@@ -12,6 +12,7 @@
 
 #include "VarNum.h"
 #include "VarCollector.h"
+#include "Flow.h"
 #include "Runtime.h"
 
 // ================================================================================
@@ -127,17 +128,20 @@ namespace mathvm {
 
   public:
     NativeGenerator(AstFunction* root) { 
+      CompilerPool pool;
       VarCollector vc;
-
+      
       for (int i = 0; i < POOLS; ++i) {
         _lastReg[i] = 0;
         _reallocs[i] = 0;
       }
 
       _runtime = new Runtime;
-      vc.collect(root, _runtime);
+      vc.collect(root, _runtime, &pool);
 
-      root->node()->visit(this);
+      Flow flow(root, &pool);
+
+      //root->node()->visit(this);
     }
 
     Code *getCode() {
