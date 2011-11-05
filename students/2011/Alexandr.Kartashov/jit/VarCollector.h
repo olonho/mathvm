@@ -14,7 +14,9 @@ namespace mathvm {
     typedef std::map<AstVar*, uint16_t> Locals;
 
   public:
-    VarCollector() { }
+    VarCollector(AstFunction* af, Runtime* rt, CompilerPool* pool) { 
+      collect(af, rt, pool);
+    }
 
     void collect(AstFunction* af, Runtime* rt, CompilerPool* pool) {
       _runtime = rt;

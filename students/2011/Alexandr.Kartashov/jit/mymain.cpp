@@ -14,6 +14,8 @@ int main(int argc, char** argv) {
   Translator* translator = Translator::create();
   const char *expr;
 
+  printf("Starting\n");
+
   if (argc > 1) {
     expr = loadFile(argv[1]);
     if (expr == 0) {

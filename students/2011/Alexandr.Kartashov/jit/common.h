@@ -39,40 +39,51 @@ namespace mathvm {
   class FlowVar {
   public:
     enum Storage {
-      STOR_REGISTER,
-      STOR_STACK
+      STOR_INVALID,
+      STOR_REGISTER,  // _storIdx --- the register assinged to the variable
+      STOR_SPILL,     // _storIdx --- the index of the frame bucket
+      STOR_CONST,     // _const is valid
+      STOR_LOCAL      // _avar is valid
     };
 
     FlowVar() {
       _type = VT_INVALID;
       _avar = NULL;
+      _stor = STOR_INVALID;
     }
 
     void init(const AstVar* v) {
       _type = v->type();
       _avar = v;
+      _stor = STOR_LOCAL;
     }
 
     void init(int64_t v) {
       _type = VT_INT;
       _const.intConst = v;
+      _stor = STOR_CONST;
+      _avar = NULL;
     }
 
     void init(double v) {
       _type = VT_DOUBLE;
       _const.doubleConst = v;
+      _stor = STOR_CONST;
+      _avar = NULL;
     }
 
     VarType _type;
     const AstVar* _avar;
+    const FlowVar* _nextArg;
+    const FlowVar* _prevArg;
 
     union {
       int64_t intConst;
       double doubleConst;
     } _const;
 
-    Storege stor;
-    unsigned int storIdx;
+    Storage _stor;
+    unsigned int _storIdx;
   };
 
   // --------------------------------------------------------------------------------
@@ -81,6 +92,7 @@ namespace mathvm {
     enum Type {
       ASSIGN,
       CONST,
+      COPY,
       PUSH,
 
       ADD,
@@ -99,6 +111,7 @@ namespace mathvm {
       OR,
       NOT,
 
+      SYS_CALL,
       CALL,
       PRINT,
       RETURN
@@ -124,6 +137,11 @@ namespace mathvm {
           struct {
             const char* fun;
           } call;
+
+          struct {
+            FlowVar* from;
+            FlowVar* to;
+          } copy;
         } u;        
       } op;
 
@@ -141,8 +159,13 @@ namespace mathvm {
       } localBranch;
 
       struct {
+        size_t args;
         PrintNode* ref;
       } print;
+
+      struct {
+        FlowVar* firstArg;
+      } sysCall;
     } u;
 
     bool isAssign() const {
@@ -181,7 +204,7 @@ namespace mathvm {
     int fPos;
     NativeFunction* owner;
     FlowVar* fv;
-    bool init;
+    bool initialized;
   };
 
   struct NodeInfo {

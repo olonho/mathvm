@@ -211,18 +211,22 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define ADD_RM_IMM 0x81  // RO = 0
 // </OddInstructionEncoding>
 
+#define XOR_R_RM     0x33
 #define CMP_R_RM     0x3B
-#define MOV_RM_R     0x89
-#define MOV_R_RM     0x8B
 #define PUSH_R       0x50
 #define POP_R        0x58
+#define PUSH_IMM     0x68
 #define CMP_RM_IMM   0x83  // RO = 7
 #define AND_RM_IMM   0x83  // RO = 4
 #define TEST_RM_R    0x85
+#define MOV_RM_R     0x89
+#define MOV_R_RM     0x8B
 #define MOVS_B       0xA4
 #define MOVS_W       0xA5
 #define MOV_R_IMM    0xB8
 #define RET          0xC3
+#define MOV_RM_IMM   0xC7  // RO = 0
+#define CALL_REL32   0xE8
 #define JMP_REL32    0xE9
 #define ADDSD        0x580FF2
 #define MULSD        0x590FF2
