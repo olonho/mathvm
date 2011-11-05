@@ -1,5 +1,6 @@
 #include <map>
 
+#include "ast.h"
 #include "Runtime.h"
 
 // ================================================================================
@@ -39,12 +40,12 @@ namespace mathvm {
 
     switch (v->type()) {
     case VT_INT:
-      i = getIntValue();
+      i = v->getIntValue();
       return i;
 
     case VT_DOUBLE:
-      d = getDoubleValue();
-      return *(size_t*)d;
+      d = v->getDoubleValue();
+      return *(size_t*)&d;
       
     default:
       ABORT("Not supported");
@@ -54,10 +55,7 @@ namespace mathvm {
   }
 
   static void unsquash(size_t val, Var* var) {
-    double d;
-    int64_t i;
-
-    switch (v->type()) {
+    switch (var->type()) {
     case VT_INT:
       var->setIntValue((int64_t)val);
       break;
@@ -74,7 +72,7 @@ namespace mathvm {
   Status* Runtime::execute(std::vector<mathvm::Var*, std::allocator<Var*> >& args) { 
     size_t* argFrame = new size_t[_topArgMap.size()];
 
-    for (int i = 0; i < args.size(); ++i) {
+    for (uint32_t i = 0; i < args.size(); ++i) {
       if (_topArgMap.find(args[i]->name()) == _topArgMap.end()) {
         ABORT("Invalid argument name");
       }
@@ -86,7 +84,7 @@ namespace mathvm {
     TopFunc f = (TopFunc)c->x86code();
     f(argFrame);
 
-    for (int i = 0; i < args.size(); ++i) {
+    for (uint32_t i = 0; i < args.size(); ++i) {
       unsquash(argFrame[_topArgMap[args[i]->name()]], args[i]);
     }
 

@@ -1,7 +1,7 @@
 VM_ROOT      = ../../../..
 ROOT         = .
 LOCAL_INC    = -I$(ROOT)/..
-USER_DEFS    = -ggdb3 -DUSER_DATA_FIELD $(LOCAL_INC)
+USER_DEFS    = -ggdb3 -DUSER_DATA_FIELD $(LOCAL_INC) -Wno-unused-function
 USER_OBJS    = $(OBJ)/mymain$(OBJ_SUFF) $(OBJ)/NativeTranslator$(OBJ_SUFF) $(OBJ)/Runtime$(OBJ_SUFF)
 USER_HEADERS = $(shell ls *.h)
 RUN_TESTS    = tests/run.py

@@ -12,8 +12,10 @@
 
 #include "VarNum.h"
 #include "VarCollector.h"
+#include "FunctionCollector.h"
 #include "Flow.h"
 #include "Runtime.h"
+#include "NativeGenerator2.h"
 
 // ================================================================================
 
@@ -129,17 +131,22 @@ namespace mathvm {
   public:
     NativeGenerator(AstFunction* root) { 
       CompilerPool pool;
-      VarCollector vc;
       
+      /*
       for (int i = 0; i < POOLS; ++i) {
         _lastReg[i] = 0;
         _reallocs[i] = 0;
       }
+      */
 
       _runtime = new Runtime;
-      vc.collect(root, _runtime, &pool);
-
+      
+      FunctionCollector fc(root, _runtime, &pool);
+      VarCollector vc(root, _runtime, &pool);
       Flow flow(root, &pool);
+      NativeGenerator2 ng1(root);
+
+      info(root->node())->funRef->code()->link();
 
       //root->node()->visit(this);
     }
@@ -333,45 +340,7 @@ namespace mathvm {
       node_type[node] = VT_INT;
     }
     */
-
-    static bool isComp(TokenKind tok) {
-      switch (tok) {
-      case tEQ:
-      case tNEQ:  
-      case tLT:
-      case tLE:
-      case tGT:
-      case tGE:
-        return true;
-
-      default:
-        return false;
-      }
-    }
-
-    static bool isArith(TokenKind tok) {
-      switch (tok) {
-      case tADD:
-      case tSUB:  
-      case tMUL:
-      case tDIV:
-        return true;
-
-      default:
-        return false;
-      }
-    }
-
-    static bool isLogic(TokenKind tok) {
-      switch (tok) {
-      case tAND:
-      case tOR:
-        return true;
-
-      default:
-        return false;
-      }
-    }
+    
 
     void doubleArith(char op1, char op2, TokenKind kind) {
       switch (kind) {
@@ -890,9 +859,9 @@ namespace mathvm {
 
       _code->add_rm_imm(RSP, f->localsNumber()*VAR_SIZE);
       _code->pop_r(RBP);
-      _code->add(RET);      
+      _code->add(RET);
 
-      _code->done();
+      _code->link();
 
       _code = oldCode;
     }

@@ -6,7 +6,8 @@
 #include <iterator>
 
 #include "compiler.h"
-#include "x86.h"
+
+#include "RegAllocator.h"
 
 // ================================================================================
 
@@ -22,7 +23,7 @@ namespace mathvm {
 
       _pool = pool;
       _first = f.first();
-      info(root)->fn = _first;
+      info(root->node())->fn = _first;
       //root->node()->visit(this);
     }
 
@@ -44,15 +45,17 @@ namespace mathvm {
     private:
       std::set<std::pair<T, T> > _eqm;
     };
-
+    
+    /*
     void squash(FlowNode* node) {
       FlowNode* n;
-      Eq m;
+      //Eq m;
 
       for (n = node; n = n->next; ++n) {
         //if (
       }
-    }
+      }
+    */
 
     // --------------------------------------------------------------------------------
     
@@ -67,19 +70,6 @@ namespace mathvm {
         root->node()->body()->visit(this);
 
         _ncur->next = NULL;        
-
-        /*
-        for (FlowOrder::iterator it = _order.begin();
-             it != _order.end();
-             ++it) {
-          FlowOrder::iterator nxt = it;
-          std::advance(nxt, 1);
-
-          if (nxt != _order.end()) {
-            info(*it)->fn->next = info(*nxt)->fn;
-          }
-        }
-        */
       }
 
       FlowNode* first() {
@@ -102,7 +92,7 @@ namespace mathvm {
 
         node->visitChildren(this);
 
-        alloc(&fn);
+        _pool->alloc(&fn);
         info(node)->fn = fn;
         switch (node->kind()) {
         case tADD:
@@ -168,6 +158,7 @@ namespace mathvm {
         FlowVar* res;
         _pool->alloc(&res);
         res->_type = (VarType)info(node)->type;
+        info(node)->fn->u.op.result = res;
           //}
         
         attach(fn);
@@ -200,16 +191,19 @@ namespace mathvm {
       }
 
       VISIT(LoadNode) {
+        FlowNode* fn;
+        FlowVar* res;
+
         node->visitChildren(this);
 
-        FlowNode* fn = _pool->allocFlowNode();
-        FlowVar* res = _pool->allocFlowVar();
+        _pool->alloc(&fn);
+        _pool->alloc(&res);
         res->_type = node->var()->type();
 
-        fn->u.op.u.un.op = info(node->var())->fv;
-        fn->u.op.result = res;
+        fn->type = FlowNode::COPY;
+        fn->u.op.u.copy.from = info(node->var())->fv;
+        fn->u.op.result = fn->u.op.u.copy.to = res;
         
-        fn->type = FlowNode::CONST;
         info(node)->fn = fn;
         attach(fn);
       }
@@ -219,9 +213,10 @@ namespace mathvm {
 
         FlowNode* fn;
         _pool->alloc(&fn);
-        fn->type = FlowNode::ASSIGN;
-        fn->u.assign.from = info(node->value())->fn->u.op.result;
-        fn->u.assign.to = info(node->var())->fv;
+        fn->type = FlowNode::COPY;
+        fn->u.op.u.copy.from = info(node->value())->fn->u.op.result;
+        fn->u.op.u.copy.to = info(node->var())->fv;
+        fn->u.op.result = NULL;
                 
         info(node)->fn = fn;
         attach(fn);
@@ -246,22 +241,26 @@ namespace mathvm {
       VISIT(PrintNode) {
         FlowNode* fn;
 
+        size_t args = 0;
         for (uint32_t i = 0; i < node->operands(); ++i) {
           AstNode* op = node->operandAt(i);
 
-          if (!op->isStringLiteral()) {
+          if (!op->isStringLiteralNode()) {
             op->visit(this);
             
             _pool->alloc(&fn);
             fn->type = FlowNode::PUSH;
             fn->u.op.u.un.op = info(op)->fn->u.op.result;
             attach(fn);
+            
+            args++;
           }
         }
 
         _pool->alloc(&fn);
         fn->type = FlowNode::PRINT;
         fn->u.print.ref = node;
+        fn->u.print.args = args;
         attach(fn);
       }
 
@@ -281,39 +280,36 @@ namespace mathvm {
         FlowNode* fn;
         _pool->alloc(&fn);
         fn->type = FlowNode::RETURN;
-        fn->u.op.un.op = info(node->returnExpr())->fn->u.op.result;
+        fn->u.op.u.un.op = info(node->returnExpr())->fn->u.op.result;
+        info(node)->fn = fn;
+        attach(fn);
+      }
+
+      template<typename T>
+      void literal(AstNode* node, T lit) {
+        FlowNode* fn;
+        FlowVar *src, *dst;
+
+        _pool->alloc(&fn);
+        _pool->alloc(&src);
+        _pool->alloc(&dst);
+
+        src->init(lit);
+
+        fn->type = FlowNode::COPY;
+        fn->u.op.u.copy.from = src;
+        fn->u.op.u.copy.to = fn->u.op.result = dst;
+        src->_type = dst->_type = (VarType)info(node)->type;
         info(node)->fn = fn;
         attach(fn);
       }
 
       VISIT(DoubleLiteralNode) {
-        FlowNode* fn; 
-        FlowVar* res;
-
-        _pool->alloc(&fn);
-        _pool->alloc(&res);
-
-        res->init(node->literal());
-
-        fn->type = FlowNode::CONST;
-        fn->u.op.u.un.op = fn->u.op.result = res;
-        info(node)->fn = fn;
-        attach(fn);
+        literal(node, node->literal());
       }
     
       VISIT(IntLiteralNode) {
-        FlowNode* fn; 
-        FlowVar* res;
-
-        _pool->alloc(&fn);
-        _pool->alloc(&res);
-
-        res->init(node->literal());
-
-        fn->type = FlowNode::CONST;
-        fn->u.op.u.un.op = fn->u.op.result = res;
-        info(node)->fn = fn;
-        attach(fn);
+        literal(node, node->literal());
       }
 
     private:
@@ -321,99 +317,6 @@ namespace mathvm {
       //FlowOrder _order;
       FlowNode* _ncur;
       FlowNode* _first;
-    };
-
-    // --------------------------------------------------------------------------------
-
-    class RegAllocator : private AstVisitor {
-    public:
-      RegAllocator(AstFunction* root) {
-        root->node()->visitChildren(this);
-      }
-
-    private:
-
-      VISIT(BinaryOpNode) {
-        info(node)->fn->u.op.result.stor = FlowVar::STOR_REGISTER;
-        info(node)->fn->storIdx = _curReg;
-
-        node->left()->visit(this);
-        
-        _curReg++;
-        node->left()->visit(this);
-
-        _curReg--;
-      }
-
-      VISIT(UnaryOpNode) {
-        info(node)->fn->u.op.result.stor = FlowVar::STOR_REGISTER;
-        info(node)->fn->storIdx = _curReg;
-
-        node->visitChildren(this);
-      }
-
-      VISIT(StoreNode) {
-        allocInSubtree(node->value());        
-      }
-
-      VISIT(ForNode) {
-        node->visitChildren(this);
-      }
-
-      VISIT(WhileNode) {
-        node->visitChildren(this);
-      }
-    
-      VISIT(IfNode) {
-        node->visitChildren(this);
-      }
-          
-      VISIT(BlockNode) {
-        for (uint32_t i = 0; i < node->nodes(); ++i) {
-          allocInSubtree(node->nodeAt(i));
-        }
-      }
-
-      VISIT(PrintNode) {
-        for (uint32_t i = 0; i < node->operandsNumber(); ++i) {
-          allocInSubtree(node->operandAt(i));
-        }
-      }
-
-      VISIT(CallNode) {
-        for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-          allocInSubtree(node->parameterAt(i));
-        }
-      }
-
-      VISIT(ReturnNode) {
-        allocInSubtree(node);
-      }
-
-      void allocInSubtree(AstNode* node) {
-        switch (info(node)->type) {
-        case VAL_INT:
-          if (info(node)->depth > INT_REGS) {
-            ABORT("Unable to allocate registers yet");
-          }
-
-          break;
-
-        case VAL_DOUBLE:
-          if (info(node)->depth > DOUBLE_REGS) {
-            ABORT("Unable to allocate registers yet");
-          }
-          break;
-
-        default:
-        }
-
-        _curReg = 0;
-        node->visitChildren(this);
-      }
-
-    private:
-      unsigned int _curReg;
     };
 
     // --------------------------------------------------------------------------------
@@ -475,13 +378,33 @@ namespace mathvm {
         NODE_INFO(node->nodeAt(i - 1))->fn->next = fn;
       }
 
-      NODE_INFO(node->nodeAt(node->nodes() - 1))->fn->next = NODE_INFO(node)->fn->next;
-      NODE_INFO(node)->fn->next = NODE_INFO(node->nodeAt(0))->fn;
+      //NODE_INFO(node->nodeAt(node->nodes() - 1))->fn->next = NODE_INFO(node)->fn->next;
+      //NODE_INFO(node)->fn->next = NODE_INFO(node->nodeAt(0))->fn;
       
       node->visitChildren(this);
     }
 
     VISIT(PrintNode) {
+      size_t args = 0;
+
+      info(node)->fn->type = FlowNode::PRINT;
+
+      for (int i = node->operands() - 1; i >= 0; --i) {
+        AstNode* child = node->operandAt(i);
+
+        if (!child->isStringLiteralNode()) {
+          child->visit(this);
+          
+          FlowNode* pushn;
+          _pool->alloc(&pushn);
+          pushn->type = FlowNode::PUSH;
+          pushn->u.op.u.un.op = info(node)->fn->u.op.result;
+
+          args++;
+        }
+      }
+
+      info(node)->fn->u.print.args = args;
     }
 
     VISIT(CallNode) {
