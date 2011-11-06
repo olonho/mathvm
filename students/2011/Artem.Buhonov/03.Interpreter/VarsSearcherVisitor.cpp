@@ -94,11 +94,11 @@ void VarsSearcherVisitor::visitPrintNode( mathvm::PrintNode* node )
 
 void VarsSearcherVisitor::visitFunctionNode( mathvm::FunctionNode* node )
 {
-	for (int i = 0; i < node->parametersNumber(); ++i) {
+	for (int i = 0; i < (int)node->parametersNumber(); ++i) {
 		_vars.push_back(node->body()->scope()->parent()->lookupVariable(node->parameterName(i)));
 	}
 	node->visitChildren(this);
-	for (int i = 0; i < node->parametersNumber(); ++i) {
+	for (int i = 0; i < (int)node->parametersNumber(); ++i) {
 		_vars.pop_back();
 	}
 }
