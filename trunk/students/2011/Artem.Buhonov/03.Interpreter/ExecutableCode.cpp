@@ -1,5 +1,6 @@
 #include "ExecutableCode.h"
 #include "FreeVarsFunction.h"
+#include <stdio.h>
 
 using namespace mathvm;
 
@@ -49,7 +50,12 @@ mathvm::Status * ExecutableCode::execute( std::vector<mathvm::Var*> &vars )
 			case BC_IDIV : tempVal.intVal = (tos - 1)->intVal / (tos - 2)->intVal; (tos - 2)->intVal = tempVal.intVal; tos--; break;// "Divide 2 ints on TOS (upper to lower), push value back.", 1) 
 			case BC_DNEG : (tos - 1)->doubleVal  *= -1.0; break;				// "Negate double on TOS.", 1)                            
 			case BC_INEG : (tos - 1)->intVal *= -1; break;						// "Negate int on TOS.", 1)                               
-			case BC_IPRINT : printf("%lld", (tos - 1)->intVal); tos--; break;		// "Pop and print integer TOS.", 1)                     
+			case BC_IPRINT : 
+#ifdef _WIN32			
+			printf("%lld", (tos - 1)->intVal); tos--; break;		// "Pop and print integer TOS.", 1)                     
+#else
+			printf("%ld", (tos - 1)->intVal); tos--; break;		// "Pop and print integer TOS.", 1)                     
+#endif
 			case BC_DPRINT : printf("%f", (tos - 1)->doubleVal); tos--; break;	// "Pop and print double TOS.", 1)                      
 			case BC_SPRINT : printf("%s", (tos - 1)->stringVal); tos--; break;	// "Pop and print string TOS.", 1)                      
 			case BC_I2D : (tos - 1)->doubleVal = (tos - 1)->intVal; break;		//  "Convert int on TOS to double.", 1)                    

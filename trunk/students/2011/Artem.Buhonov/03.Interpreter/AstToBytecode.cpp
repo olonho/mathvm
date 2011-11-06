@@ -288,11 +288,11 @@ void AstToBytecode::visitBlockNode( mathvm::BlockNode* node )
 		_code->addFunction(fvf);
 		AstToBytecode codeGenerator(_code);
 		
-		for (int i = 0; i < fvf->freeVars().size(); ++i) {
+		for (int i = 0; i < (int)fvf->freeVars().size(); ++i) {
 			codeGenerator.pushVar(fvf->freeVars()[i]->name());
 		}
 
-		for (int i = 0; i < func->parametersNumber(); ++i) {
+		for (int i = 0; i < (int)func->parametersNumber(); ++i) {
 			codeGenerator.pushVar(func->parameterName(i));
 		}
 		
@@ -303,7 +303,7 @@ void AstToBytecode::visitBlockNode( mathvm::BlockNode* node )
 	while (it1.hasNext()) {
 		pushVar(it1.next()->name());
 	}
-	for (int i = 0; i < node->nodes(); ++i) {
+	for (int i = 0; i < (int)node->nodes(); ++i) {
 		AstNode *currNode = node->nodeAt(i);
 		currNode->visit(this);
 		if (currNode->isCallNode()) {
@@ -388,7 +388,7 @@ void AstToBytecode::visitCallNode( mathvm::CallNode* node )
 	_bytecode->addInsn(BC_ILOAD0); //reserve space for return
 
 	FreeVarsFunction *fvf = dynamic_cast<FreeVarsFunction *>(_code->functionByName(node->name()));
-	for (int i = 0; i < fvf->freeVars().size(); ++i) { //load free vars
+	for (int i = 0; i < (int)fvf->freeVars().size(); ++i) { //load free vars
 		_bytecode->addInsn(BC_LOADIVAR);
 		insertVarId(fvf->freeVars()[i]->name());
 	}
@@ -399,7 +399,7 @@ void AstToBytecode::visitCallNode( mathvm::CallNode* node )
 	}	
 	_bytecode->addInsn(BC_CALL);
 	_bytecode->addUInt16(_code->functionByName(node->name())->id());
-	for (int i = fvf->freeVars().size() - 1; i >= 0 ; --i) { //free vars
+	for (int i = (int)fvf->freeVars().size() - 1; i >= 0 ; --i) { //free vars
 		_bytecode->addInsn(BC_STOREIVAR);
 		insertVarId(fvf->freeVars()[i]->name());
 	}
