@@ -4,6 +4,7 @@
 #include "AstToBytecode.h"
 #include <stdio.h>
 #include "parser.h"
+#include "Exceptions.h"
 
 using namespace std;
 using namespace mathvm;
@@ -21,15 +22,16 @@ int main(int argc, char** argv)
 
 	if (status == NULL)
 	{
-		AstToBytecode *generator = new AstToBytecode;
+		MyCode code;
+		AstToBytecode generator(&code);
 		try {
-			generator->generate(parser->top());
-			generator->dump();
+			generator.generate(parser->top());
+			generator.dump();
 		}
-		catch(std::exception &e) {
-			printf("Compile error: %s", e.what());
+		catch(Exception &e) {
+			printf("Compile error: %s\n", e.what().c_str());			
+			return 1;
 		}
-		delete generator;
 	}
 	else 
 	{
