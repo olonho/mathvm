@@ -55,5 +55,5 @@ x1 = 2;
 y = 2;
 z = 2;
 
-print(foo(3), '\n');
+print(foo(28), '\n');
 print(x1, '\n', y, '\n', z, '\n');

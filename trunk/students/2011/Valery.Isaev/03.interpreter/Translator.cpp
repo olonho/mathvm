@@ -54,7 +54,8 @@ class FreeVarsVisitor: public mathvm::AstVisitor {
     }
     bool lookupVariable(const mathvm::AstVar* var) {
         for (mathvm::Scope* s = scope; s; s = s->parent()) {
-            if (s->lookupVariable(var->name()) == var) {
+            if (s->lookupVariable(var->name()) == var && (!s->parent()
+            || s->parent()->lookupVariable(var->name()) != var)) {
                 return true;
             }
             if (s == funScope) {
@@ -63,9 +64,10 @@ class FreeVarsVisitor: public mathvm::AstVisitor {
         }
         return false;
     }
-    bool lookupVariable(mathvm::Scope* s, const mathvm::AstVar* v) {
+    bool lookupVariable(mathvm::Scope* s, const mathvm::AstVar* var) {
         for (; s; s = s->parent()) {
-            if (s->lookupVariable(v->name()) == v) {
+            if (s->lookupVariable(var->name()) == var && (!s->parent()
+            || s->parent()->lookupVariable(var->name()) != var)) {
                 return true;
             }
         }
