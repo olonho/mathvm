@@ -1,4 +1,4 @@
-int a;
+int a1;
 
 if (1 > 0.2) {
    print(1);
@@ -16,5 +16,5 @@ function int ff2(int x, int a) {
    return ff1(x);
 }
 
-a = 2;
+a1 = 2;
 print ('ff(2) = ', ff(2), '\n');
