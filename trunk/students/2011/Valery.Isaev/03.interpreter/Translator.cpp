@@ -54,10 +54,8 @@ class FreeVarsVisitor: public mathvm::AstVisitor {
     }
     bool lookupVariable(const mathvm::AstVar* var) {
         for (mathvm::Scope* s = scope; s; s = s->parent()) {
-            for (mathvm::Scope::VarIterator it(s); it.hasNext();) {
-                if (it.next() == var) {
-                    return true;
-                }
+            if (s->lookupVariable(var->name()) == var) {
+                return true;
             }
             if (s == funScope) {
                 break;
@@ -67,10 +65,8 @@ class FreeVarsVisitor: public mathvm::AstVisitor {
     }
     bool lookupVariable(mathvm::Scope* s, const mathvm::AstVar* v) {
         for (; s; s = s->parent()) {
-            for (mathvm::Scope::VarIterator it(s); it.hasNext();) {
-                if (it.next() == v) {
-                    return true;
-                }
+            if (s->lookupVariable(v->name()) == v) {
+                return true;
             }
         }
         return false;
@@ -166,6 +162,7 @@ public:
                 globals.insert(var);
             }
         }
+        global = false;
         uint32_t loc1 = info->bcfun->localsNumber(), loc_max = 0;
         for (mathvm::Scope::FunctionIterator it(node->scope()); it.hasNext();) {
             mathvm::AstFunction* fun = it.next();
