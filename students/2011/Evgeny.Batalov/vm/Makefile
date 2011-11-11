@@ -22,7 +22,8 @@ OBJ_DEPS = $(MATHVM_OBJ) $(ASMJIT_OBJ) $(OBJ)/main$(OBJ_SUFF) \
 INCLUDE_DEPS = ExecutionEnv.h JITCompiler.h Interpreter.h \
 	  TranslationUtils.h SymbolVisitor.h TypeVisitor.h \
 	  CodeVisitor.h Executable.h Translator.h \
-	  SymbolStack.h TranslationException.h parse.h
+	  SymbolStack.h TranslationException.h parse.h \
+	  ByteCodeAnnotations.h
 
 $(BIN)/main: dirs $(INCLUDE_DEPS) $(OBJ_DEPS)
 	$(CXX) $(USER_FLAGS) -o $@ $(THREAD_LIB) $(OBJ_DEPS)
