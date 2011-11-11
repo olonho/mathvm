@@ -91,7 +91,7 @@ inline AnyVar newSSAGPVar(AsmJit::Mem& src, AsmJit::Compiler& cc) {
   cc.mov(*newVar.gp, src);
   return newVar;
 }
-
+//functions to overcome AsmJit::compiler limitations or errors
 inline void printfS(char* fmt, char* str) {
   printf(fmt, str);
 }
@@ -103,6 +103,11 @@ inline void printfD(char* fmt, double val) {
 inline void printfI(char* fmt, int64_t val) {
   printf(fmt, val);
 }
+
+inline int64_t idiv(int64_t a, int64_t b) {
+  return a / b;
+}
+//end of functions
 
 void JITCompiler::compileFunc(size_t funcId) {
   using namespace mathvm;
@@ -304,11 +309,20 @@ void JITCompiler::compileFunc(size_t funcId) {
                            cc.unuse(*_tos2.xmm); }   break; 
       case BC_IDIV:      { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
                            AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
-                           GPVar _tmp(cc.newGP());
-                           cc.mov(_tmp, imm(0));
-                           cc.idiv_lo_hi(*_tos1.gp, _tmp, *_tos2.gp);
-                           ssaStack.push_back(_tos1);
-                           cc.unuse(*_tos2.gp); cc.unuse(_tmp); }   break;
+                           //GPVar _tmp(cc.newGP());
+                           //cc.mov(_tmp, imm(0));
+                           //cc.idiv_lo_hi(*_tos1.gp, _tmp, *_tos2.gp);
+                           //ssaStack.push_back(_tos1);
+                           //cc.unuse(*_tos2.gp); cc.unuse(_tmp); 
+                           AnyVar _func_res = newSSAGPVar(cc);
+                           ECall* _call = cc.call(imm((size_t)idiv));
+                           _call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder2<int64_t, int64_t, int64_t>());
+                           _call->setArgument(0, *_tos1.gp);
+                           _call->setArgument(1, *_tos2.gp);
+                           _call->setReturn(*_func_res.gp);
+                           ssaStack.push_back(_func_res);
+                           cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp); 
+                         }   break;
       case BC_SWAP:      { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
                            AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
                            ssaStack.push_back(_tos1); ssaStack.push_back(_tos2); } break; 

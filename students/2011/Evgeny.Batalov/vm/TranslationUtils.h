@@ -215,6 +215,7 @@ class TranslatableFunction {
   void genCallingCode(TranslatableFunction& callingFunc, mathvm::AstVisitor* codeGenerator, 
       mathvm::Bytecode& bcode, mathvm::CallNode* callNode, mathvm::VarType retType) {
     using namespace mathvm;
+    bcode.addByte(BCE_FCALL_BEGIN);
     if (retType != VT_VOID) {
       //push curent value of IVAR0 register on stack
       bcode.addByte(BC_LOADIVAR0);
@@ -283,6 +284,7 @@ class TranslatableFunction {
       //restore IVAR0 register to value before call
       bcode.addByte(BC_STOREIVAR0);
     }
+    bcode.addByte(BCE_FCALL_END);
   }
 };
 

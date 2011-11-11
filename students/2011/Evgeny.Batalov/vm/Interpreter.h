@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib.h>
 #include <stdio.h>
+#include "ByteCodeAnnotations.h"
 #include "Executable.h"
 
 #define STACK_SIZE 32 * 1024 * 1024
