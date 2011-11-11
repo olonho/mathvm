@@ -40,9 +40,9 @@ public:
 
   virtual ~ExecutionEnv() {
     free(vmStack);
-    for(int i = 0; i != stringPull.size(); ++i) {
+    for(size_t i = 0; i != stringPull.size(); ++i) {
       free(stringPull[i]);
-    }:
+    }
   }
 
   mathvm::Status* execute(std::vector<mathvm::Var*>& vars) {
