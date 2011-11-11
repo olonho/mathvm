@@ -14,6 +14,8 @@ void Interpreter::interpret() {
   //            ip points to next byte after current instruction
   while(true) {
     switch (*cstack->ip.instr_++) {
+      case BCE_FCALL_BEGIN: 
+      case BCE_FCALL_END: break;
       case BC_DLOAD:     stack++->double_      = *cstack->ip.double_++; break;
       case BC_ILOAD:     stack++->int_         = *cstack->ip.int_++; break;
       case BC_SLOAD:     stack++->str_         = executable.sConstById(*cstack->ip.str_++).c_str(); break;
@@ -27,8 +29,8 @@ void Interpreter::interpret() {
       case BC_DNEG:      (stack - 1)->double_ *= -1.0; break;
       case BC_INEG:      (stack - 1)->int_    *= -1; break;
       case BC_DPRINT:    std::cout << (--stack)->double_; break;//printf("%lf\n", (--stack)->double_); break;
-      case BC_IPRINT:    std::cout << (--stack)->int_; break;//printf("%ld\n", (--stack)->int_); break;
-      case BC_SPRINT:    std::cout << (--stack)->str_; break;//printf("%s\n",  (--stack)->str_); break;
+      case BC_IPRINT:    std::cout << (--stack)->int_; break;   //printf("%ld\n", (--stack)->int_); break;
+      case BC_SPRINT:    std::cout << (--stack)->str_; break;   //printf("%s\n",  (--stack)->str_); break;
       case BC_I2D:       (stack - 1)->double_ = (stack - 1)->int_; break;
       case BC_POP:       --stack; break;
       case BC_STOP:      return;
