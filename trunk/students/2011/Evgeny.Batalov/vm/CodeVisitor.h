@@ -15,11 +15,9 @@
 
 class CodeVisitor: public mathvm::AstVisitor {
 
-    Executable executable;
+    Executable* executable;
     mathvm::AstFunction* topAstFunc;
     
-    TranslatableFunctions tranFuncs;
-    FunctionContexts funcContexts;
     FunctionNodeToIndex funcNodeToIndex;
     IndexToFunctionNode indexToFuncNode;
     NodeInfos nodeInfo;
@@ -36,12 +34,13 @@ class CodeVisitor: public mathvm::AstVisitor {
     void putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl);
     void cast(mathvm::AstNode* node); 
 public:
-    CodeVisitor(mathvm::AstFunction* top, const FunctionContexts& funcContexts, 
+    CodeVisitor(mathvm::AstFunction* top, 
+                const FunctionContexts& funcContexts, 
                 const FunctionNodeToIndex& funcNodeToIndex, 
                 const IndexToFunctionNode& indexToFuncNode,
                 const NodeInfos& nodeInfo);
     void  visit();
-    Executable& getExecutable() { return executable; }
+    Executable* getExecutable() { return executable; }
 
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(mathvm::type* node);

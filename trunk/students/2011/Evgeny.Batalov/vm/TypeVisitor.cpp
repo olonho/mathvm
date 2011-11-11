@@ -1,11 +1,20 @@
 #include "TypeVisitor.h"
 
-TypeVisitor::TypeVisitor(mathvm::AstFunction* top) {
-  topAstFunc = top;
-}
+TypeVisitor::TypeVisitor(mathvm::AstFunction* top,
+                         FunctionContexts& funcContexts, 
+                         const FunctionNodeToIndex& funcNodeToIndex, 
+                         const IndexToFunctionNode& indexToFuncNode) 
+                         : topAstFunc(top)
+                         , curFuncName(0)
+                         , curFuncNode(0)
+                         , funcContexts(funcContexts)
+                         , funcNodeToIndex(funcNodeToIndex)
+                         , indexToFuncNode(indexToFuncNode)
+{}
 
 void TypeVisitor::visit() { 
   topAstFunc->node()->visit(this);
+  funcContexts[0].typeInfo.returnType = mathvm::VT_VOID;
 }
 
 void TypeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {    
@@ -152,19 +161,23 @@ void TypeVisitor::visitBlockNode(mathvm::BlockNode* node) {
   //push
   while(it.hasNext()) {
     mathvm::AstVar* curr = it.next();
-    varInfo.pushSymbolData(curr->name(), VarInfo(curr->name(), curr->type()));
+    varInfo.pushSymbolData(curr->name(), VarInfo(curr->name(), curr->type(), funcNodeToIndex[curFuncNode]));
+    funcContexts[funcNodeToIndex[curFuncNode]].typeInfo.localsType.push_back(curr->type());
   }    
   mathvm::Scope::FunctionIterator fit(node->scope());
   while(fit.hasNext()) { 
     AstFunction& func = *fit.next();
+    FunctionContext& funcCont = funcContexts[funcNodeToIndex[func.node()]];
     Params params;
     params.returnType = func.returnType();
+    funcCont.typeInfo.returnType = func.returnType();
     for(uint32_t i = 0; i < func.parametersNumber(); ++i) {
       ParamInfo par;
       par.type = func.parameterType(i);
       par.index = i;
       par.name = func.parameterName(i);
       params.setParamInfo(par);
+      funcCont.typeInfo.parametersType[func.parameterName(i)] = func.parameterType(i);
     }
     funcParams.pushSymbolData(func.name(), params);
   }
@@ -217,12 +230,25 @@ void TypeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   nodeInfo.setNodeInfo(node, VT_VOID);
 
   for(uint32_t i = 0; i < node->parametersNumber(); ++i) {
-    varInfo.pushSymbolData(node->parameterName(i), VarInfo(node->parameterName(i), node->parameterType(i)));
+    varInfo.pushSymbolData(node->parameterName(i), 
+      VarInfo(node->parameterName(i), node->parameterType(i), funcNodeToIndex[node])
+    );
   }
+  //put types of closure variables for this func
+  FunctionContext& cont = funcContexts[funcNodeToIndex[node]];
+  SymbolsUse::iterator closIt = cont.needForClosure.begin();
+  for(; closIt != cont.needForClosure.end(); ++closIt) {
+    cont.typeInfo.closuresType[std::make_pair(closIt->first, closIt->second)] =
+      curTypeOfVarInContext(closIt->first, closIt->second);
+  }
+
   const char* parentFuncName = curFuncName;
+  FunctionNode *parentFuncNode = curFuncNode;
+  curFuncNode = node;
   curFuncName = node->name().c_str();
   node->body()->visit(this);
   curFuncName = parentFuncName;
+  curFuncNode = parentFuncNode;
   for(uint32_t i = 0; i < node->parametersNumber(); ++i) {
     varInfo.popSymbolData(node->parameterName(i));
   }
@@ -309,3 +335,19 @@ mathvm::VarType TypeVisitor::binNodeType(mathvm::BinaryOpNode* node, mathvm::Ast
   return *((VarType*)0);
 }
 
+mathvm::VarType TypeVisitor::curTypeOfVarInContext(const std::string& varName, size_t funcContextId) {
+  DEBUG("Getting type of Var " << varName << " owned by func " << funcContextId << std::endl);
+  SymbolStack<VarInfo>::Stack& stack = varInfo.data()[varName];
+  SymbolStack<VarInfo>::StackRIt it = stack.rbegin();
+  for(; it != stack.rend(); ++it) {
+    if (it->ownerId == funcContextId)
+      return it->type;
+  }
+ 
+  FunctionContext& cont = funcContexts[funcContextId];
+  FuncTypeInfo::ParametersType::iterator pit = cont.typeInfo.parametersType.find(varName);
+  if (pit != cont.typeInfo.parametersType.end())
+    return pit->second;
+
+  throw new TranslationException("No var " + varName + " in outer context", 0);
+}

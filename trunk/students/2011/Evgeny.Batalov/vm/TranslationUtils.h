@@ -48,8 +48,31 @@ public:
 };
 
 typedef std::vector<std::string> Strings;
-typedef std::pair<std::string, size_t> SymbolUse; //symbol used, function_id
+struct SymbolUse {
+  SymbolUse(const std::string& symName, size_t funcId)//, mathvm::VarType type)
+    : first(symName)
+    , second(funcId)
+    //, type(type)
+  {}
+  std::string first;
+  size_t second;
+  //mathvm::VarType type;
+};
+//typedef std::pair<std::string, size_t> SymbolUse; //symbol used, function_id
 typedef std::vector<SymbolUse> SymbolsUse;
+typedef std::pair<std::string, uint16_t> ClosureVarIdentity; //Closure var identity: name, owner id
+
+struct FuncTypeInfo {
+  typedef std::vector<mathvm::VarType> LocalsType;
+  typedef std::map<ClosureVarIdentity, mathvm::VarType> ClosuresType;
+  typedef std::map<std::string, mathvm::VarType> ParametersType;
+
+  LocalsType localsType;
+  ClosuresType closuresType;
+  ParametersType parametersType;
+  mathvm::VarType returnType;
+};
+typedef std::vector<FuncTypeInfo> FuncTypeInfos;
 
 bool symUsed(const SymbolsUse& a, const std::string& str, size_t user);
 bool symUsed(const Strings& a, const std::string& str);
@@ -66,6 +89,7 @@ struct FunctionContext {
   //caller have to put following symbols on stack when call me
   SymbolsUse needForClosure;//= (needForClosure of all children + iUsedSymbols) - mySymbolsUsed
   std::vector<size_t> calledFuncs;
+  FuncTypeInfo typeInfo;
 
   void useMySymbol(std::string sym, size_t userFuncId) {
     if (symUsed(mySymbolsUsed, sym, userFuncId))
@@ -86,26 +110,24 @@ typedef std::map<size_t, mathvm::FunctionNode*> IndexToFunctionNode;
 //function which can allocate stack for its variables relative to begin of frame
 //frame: parameters, closures, locals | computational stack
 class TranslatableFunction {
-  
-  typedef std::pair<std::string, uint16_t> VarIdentity; //name, owner id
 
   struct VarAddresses {
     VarAddresses() 
       : curAddr() {}
     void advance() {  //uint16_t oldAddr = curAddr;
-                      //if (oldAddr > ++curAddr) { throw new TranslationException("Var count reached maximum", 0); }
-                      if (++curAddr == addresses.size()) throw new TranslationException("VarAdresses:advance out of bounds", 0);}
-    void goback()  {  --curAddr; }
+      //if (oldAddr > ++curAddr) { throw new TranslationException("Var count reached maximum", 0); }
+      if (++curAddr == addresses.size()) throw new TranslationException("VarAdresses:advance out of bounds", 0);}
+    void goback()  { --curAddr; }
     uint16_t curAddr;
     std::vector<uint16_t> addresses;
   };
 
-  typedef std::map<VarIdentity, VarAddresses> Addresses;
+  typedef std::map<ClosureVarIdentity, VarAddresses> Addresses;
   Addresses addresses;
   FunctionContext proto;
   size_t frameSize;
-public:
-  
+  public:
+
   const FunctionContext& getProto() const {
     return proto;
   }
@@ -173,8 +195,8 @@ public:
       throw new TranslationException("Internal error", 0); 
     }
     DEBUG("Getting address in " << proto.funcName << " of " << 
-    varName << " with value " <<  it->second.addresses[it->second.curAddr]
-    << " and offset " << it->second.curAddr << std::endl);
+        varName << " with value " <<  it->second.addresses[it->second.curAddr]
+        << " and offset " << it->second.curAddr << std::endl);
     return (uint16_t)it->second.addresses[it->second.curAddr];
   }
 
@@ -185,13 +207,13 @@ public:
       throw new TranslationException("Internal error", 0); 
     }
     DEBUG("Getting address in " << proto.funcName << " of " << 
-    varName << " owned by " << ownerId << " with value " <<  it->second.addresses[it->second.curAddr]
-    << " and offset " << it->second.curAddr << std::endl);
+        varName << " owned by " << ownerId << " with value " <<  it->second.addresses[it->second.curAddr]
+        << " and offset " << it->second.curAddr << std::endl);
     return (uint16_t)it->second.addresses[it->second.curAddr];
   }
 
   void genCallingCode(TranslatableFunction& callingFunc, mathvm::AstVisitor* codeGenerator, 
-                      mathvm::Bytecode& bcode, mathvm::CallNode* callNode, mathvm::VarType retType) const {
+      mathvm::Bytecode& bcode, mathvm::CallNode* callNode, mathvm::VarType retType) {
     using namespace mathvm;
     if (retType != VT_VOID) {
       //push curent value of IVAR0 register on stack
@@ -204,16 +226,33 @@ public:
       callNode->parameterAt(i)->visit(codeGenerator);
       ++i;
     }
-    //FIXME: UNTYPED - better to make typed
     //push closures
     SymbolsUse::const_iterator symUseIt = proto.needForClosure.begin();
     for(;symUseIt != proto.needForClosure.end(); ++symUseIt) {
-      bcode.addByte(mathvm::BC_LOADIVAR);
+      switch(proto.typeInfo.closuresType[std::make_pair(symUseIt->first, symUseIt->second)]) {
+        case VT_INT: case VT_STRING:
+          bcode.addByte(BC_LOADIVAR);
+        break;
+        case VT_DOUBLE:
+          bcode.addByte(BC_LOADDVAR);
+        break;
+        default:
+        break;
+      }
       bcode.addTyped(callingFunc.getAddress(symUseIt->first, symUseIt->second));
     }
     //push locals
-    for(strsIt = proto.locals.begin(); strsIt != proto.locals.end(); ++strsIt) {
-      bcode.addByte(mathvm::BC_ILOAD0);
+    for(size_t i = 0; i != proto.locals.size(); ++i) {
+      switch(proto.typeInfo.localsType[i]) {
+        case VT_INT: case VT_STRING:
+          bcode.addByte(BC_ILOAD0);
+          break;
+        case VT_DOUBLE:
+          bcode.addByte(BC_DLOAD0);
+          break;
+        default:
+          break;
+      }
     }
     //call func
     bcode.addByte(BC_CALL);
@@ -337,3 +376,33 @@ inline uint64_t getTimeMs() {
   ret += (tv.tv_sec * 1000);
   return ret;
 }
+
+typedef union {
+  double   *double_;
+  int64_t  *int_;
+  uint16_t *str_;
+  uint8_t  *instr_;
+  int16_t  *jmp_;
+  uint16_t *var_;
+  void*    *ptr_;
+  char     *byte_;
+} ByteCodeElem;
+
+inline bool operator<(const ByteCodeElem& a, const ByteCodeElem& b) {
+  return a.instr_ < b.instr_;
+}
+
+inline bool operator==(const ByteCodeElem& a, const ByteCodeElem& b) {
+  return a.instr_ == b.instr_;
+}
+
+struct VMRegisters {
+  uint64_t ir0;
+  uint64_t ir1;
+  uint64_t ir2;
+  uint64_t ir3;
+  double dr0;
+  double dr1;
+  double dr2;
+  double dr3;
+};

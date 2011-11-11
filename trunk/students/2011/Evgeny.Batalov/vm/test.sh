@@ -2,7 +2,7 @@
 make
 
 VM=./build/opt/main
-SRCS=../../../../tests/additional
+SRCS=../../../../tests/
 
 for src in $SRCS/*.mvm 
 do

@@ -4,7 +4,7 @@
 #include "Executable.h"
 
 #define STACK_SIZE 32 * 1024 * 1024
-#define CALL_STACK_SIZE 32 * 1024 * 1024
+#define CALL_STACK_SIZE 4 * 1024 * 1024
 
 typedef union {
   double double_;
@@ -12,30 +12,10 @@ typedef union {
   const char* str_;
 } UserStackItem;
 
-typedef union {
-  double   *double_;
-  int64_t  *int_;
-  uint16_t *str_;
-  uint8_t  *instr_;
-  int16_t  *jmp_;
-  uint16_t *var_;
-} ByteCodeElem;
-
 struct CallStackItem {
   uint16_t func_id;
   ByteCodeElem ip;
   UserStackItem* frame_beg;
-};
-
-struct Registers {
-  uint64_t ir0;
-  uint64_t ir1;
-  uint64_t ir2;
-  uint64_t ir3;
-  double dr0;
-  double dr1;
-  double dr2;
-  double dr3;
 };
 
 class Interpreter {
@@ -45,7 +25,7 @@ class Interpreter {
   UserStackItem *userStack;
   size_t callStackPos;
   size_t userStackPos;
-  Registers regs;
+  VMRegisters regs;
 
   public:
   Interpreter(Executable& executable) 

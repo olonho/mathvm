@@ -47,19 +47,22 @@ class MyTranslator: public mathvm::Translator {
       #ifdef VERBOSE
       symbolVisitor->print(std::cout);
       #endif
-      typeVistior = new TypeVisitor(parser->top());
+      typeVistior = new TypeVisitor(parser->top(),
+                                    symbolVisitor->getFunctionContexts(),
+                                    symbolVisitor->getFunctionNodeToIndex(),
+                                    symbolVisitor->getIndexToFunctionNode());
       typeVistior->visit();
       codeVisitor = new CodeVisitor(parser->top(), 
-                                    symbolVisitor->getFunctionContexts(), 
+                                    symbolVisitor->getFunctionContexts(),
                                     symbolVisitor->getFunctionNodeToIndex(),
                                     symbolVisitor->getIndexToFunctionNode(),
                                     typeVistior->getNodeInfo());
 
       codeVisitor->visit();
       #ifdef VERBOSE
-      codeVisitor->getExecutable().disassemble(std::cout);
+      codeVisitor->getExecutable()->disassemble(std::cout);
       #endif
-      *executable = &codeVisitor->getExecutable();
+      *executable = codeVisitor->getExecutable();
     }
     catch (TranslationException* ex) {
       uint32_t position = 0;

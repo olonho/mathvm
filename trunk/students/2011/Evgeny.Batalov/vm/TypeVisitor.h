@@ -14,14 +14,14 @@
 #include "SymbolStack.h"
 
 struct VarInfo {
-  VarInfo(const std::string& name, mathvm::VarType type) 
+  VarInfo(const std::string& name, mathvm::VarType type, size_t ownerId) 
     : name(name)
     , type(type)
-    , index(0)
+    , ownerId(ownerId)
   {}
   std::string name;
   mathvm::VarType type;
-  size_t index;
+  size_t ownerId; //func owner of the var
 };
 
 class TypeVisitor: public mathvm::AstVisitor {
@@ -31,13 +31,20 @@ class TypeVisitor: public mathvm::AstVisitor {
   SymbolStack<VarInfo> varInfo;
   SymbolStack<Params> funcParams;
   const char* curFuncName;
+  mathvm::FunctionNode *curFuncNode;
+  FunctionContexts& funcContexts;
+  FunctionNodeToIndex funcNodeToIndex;
+  IndexToFunctionNode indexToFuncNode;
 
   void typeError(std::string str = "", mathvm::AstNode* node = 0); 
   size_t newVarId();
-  mathvm::VarType  binNodeType(mathvm::BinaryOpNode* node, mathvm::AstNode* left, mathvm::AstNode* right);
-
+  mathvm::VarType binNodeType(mathvm::BinaryOpNode* node, mathvm::AstNode* left, mathvm::AstNode* right);
+  mathvm::VarType curTypeOfVarInContext(const std::string& varName, size_t funcContextId);
   public:
-  TypeVisitor(mathvm::AstFunction* top);
+  TypeVisitor(mathvm::AstFunction* top,
+              FunctionContexts& funcContexts, 
+              const FunctionNodeToIndex& funcNodeToIndex, 
+              const IndexToFunctionNode& indexToFuncNode);
   void  visit();
   NodeInfos& getNodeInfo() { return nodeInfo; }
 

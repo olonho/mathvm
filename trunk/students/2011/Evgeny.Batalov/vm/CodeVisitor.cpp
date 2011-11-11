@@ -6,17 +6,18 @@ CodeVisitor::CodeVisitor(mathvm::AstFunction* top,
                          const IndexToFunctionNode& indexToFuncNode,
                          const NodeInfos& nodeInfo) 
                          : topAstFunc(top)
-                         , funcContexts(funcContexts)
                          , funcNodeToIndex(funcNodeToIndex)
                          , indexToFuncNode(indexToFuncNode)
                          , nodeInfo(nodeInfo)
                          , curBytecode(0)
                          , curBlock(0)
 {
+  executable = new Executable();
   FunctionContexts::const_iterator it = funcContexts.begin();
   for(; it != funcContexts.end(); ++it) {
-    tranFuncs.push_back(TranslatableFunction(*it)); 
+    executable->getMetaData().push_back(TranslatableFunction(*it)); 
   }
+
 }
 
 void CodeVisitor::visit() { 
@@ -24,15 +25,28 @@ void CodeVisitor::visit() {
   //start translation
   topAstFunc->node()->visit(this);
 
-  if (executable.funcCount() > 0) {
-    executable.getMain()->bytecode()->addByte(mathvm::BC_STOP);
+  if (executable->funcCount() > 0) {
+    executable->getMain()->bytecode()->addByte(mathvm::BC_STOP);
   }
   //add memory for locals of top function
-  MyBytecode *mainCode = executable.getMain()->bytecode();
-  const FunctionContext& mainContext = tranFuncs[0].getProto();
+  MyBytecode *mainCode = executable->getMain()->bytecode();
+  const FunctionContext& mainContext = executable->getMetaData()[0].getProto();
   mainCode->data().insert(mainCode->data().begin(), 
                           mainContext.locals.size(),
                           BC_ILOAD0);
+  for(size_t i = 0; i < mainContext.typeInfo.localsType.size(); ++i) {
+    switch(mainContext.typeInfo.localsType[i]) {
+      case VT_INT: case VT_STRING:
+        //BC_ILOAD0 yet
+        //mainCode->data()[i] = BC_ILOAD0;
+      break;
+      case VT_DOUBLE:
+        mainCode->data()[i] = BC_DLOAD0;
+      break;
+      default:
+      break;
+    }
+  }
 }
 
 void CodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {    
@@ -89,7 +103,7 @@ void CodeVisitor::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
     s.replace(pos, 1,  "\\n");
   }*/
 
-  uint16_t newId = executable.makeStringConstant(s);
+  uint16_t newId = executable->makeStringConstant(s);
   cCode().addByte(BC_SLOAD);
   cCode().addUInt16(newId);
   cast(node);
@@ -116,15 +130,15 @@ void CodeVisitor::visitLoadNode(mathvm::LoadNode* node) {
   switch(info.type) {
     case VT_INT:
       cCode().addByte(BC_LOADIVAR);
-      cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+      cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       break;
     case VT_DOUBLE:
       cCode().addByte(BC_LOADDVAR);
-      cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+      cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       break;
     case VT_STRING:
       cCode().addByte(BC_LOADSVAR);
-      cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+      cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       break;
     default:
       transError("No code generated for load var " + node->var()->name(), node);
@@ -141,15 +155,15 @@ void CodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
     case tASSIGN:
       if (type == VT_INT) {
         cCode().addByte(BC_STOREIVAR); 
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       }
       else if (type == VT_DOUBLE) {
         cCode().addByte(BC_STOREDVAR); 
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       }
       else if (type == VT_STRING) {
         cCode().addByte(BC_STORESVAR);
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       } else {
         transError("No code generated for store var " + node->var()->name(), node);
       }
@@ -157,17 +171,17 @@ void CodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
     case tINCRSET:
       if (type == VT_INT) {
         cCode().addByte(BC_LOADIVAR); 
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
         cCode().addByte(BC_IADD);
         cCode().addByte(BC_STOREIVAR);
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       }
       else if (type == VT_DOUBLE) {
         cCode().addByte(BC_LOADDVAR); 
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
         cCode().addByte(BC_DADD);
         cCode().addByte(BC_STOREDVAR);
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       }
       else {
         transError("No code generated for store var " + node->var()->name(), node);
@@ -176,17 +190,17 @@ void CodeVisitor::visitStoreNode(mathvm::StoreNode* node) {
     case tDECRSET:
       if (type == VT_INT) {
         cCode().addByte(BC_LOADIVAR); 
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
         cCode().addByte(BC_ISUB);
         cCode().addByte(BC_STOREIVAR);
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       }
       else if (type == VT_DOUBLE) {
         cCode().addByte(BC_LOADDVAR); 
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
         cCode().addByte(BC_DSUB);
         cCode().addByte(BC_STOREDVAR);
-        cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+        cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
       }
       else {
         transError("No code generated for store var " + node->var()->name(), node);
@@ -213,21 +227,21 @@ void CodeVisitor::visitForNode(mathvm::ForNode* node) {
   if (rangeType == VT_INT) {
     op->left()->visit(this);
     cCode().addByte(BC_STOREIVAR);
-    cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+    cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().bind(lblLoopCheck);
     op->right()->visit(this);
     cCode().addByte(BC_LOADIVAR);
-    cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+    cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().addBranch(BC_IFICMPG, lblEnd); 
   } else
   if (rangeType == VT_DOUBLE) {
     op->left()->visit(this);
     cCode().addByte(BC_STOREDVAR);
-    cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+    cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().bind(lblLoopCheck);
     op->right()->visit(this);
     cCode().addByte(BC_LOADDVAR);
-    cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+    cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().addByte(BC_DCMP);
     cCode().addByte(BC_ILOAD0);
     cCode().addBranch(BC_IFICMPG, lblEnd);
@@ -237,20 +251,20 @@ void CodeVisitor::visitForNode(mathvm::ForNode* node) {
 
   if (rangeType == VT_INT) {
     cCode().addByte(BC_LOADIVAR);
-    cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+    cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().addByte(BC_ILOAD1);
     cCode().addByte(BC_IADD);
     cCode().addByte(BC_STOREIVAR);
-    cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+    cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().addBranch(BC_JA, lblLoopCheck);
   } else
   if (rangeType == VT_DOUBLE) {
     cCode().addByte(BC_LOADDVAR);
-    cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+    cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().addByte(BC_DLOAD1);
     cCode().addByte(BC_DADD);
     cCode().addByte(BC_STOREDVAR);
-    cCode().addUInt16(tranFuncs[curFuncId].getAddress(node->var()->name()));
+    cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().addBranch(BC_JA, lblLoopCheck);
   }
 
@@ -303,7 +317,7 @@ void CodeVisitor::visitBlockNode(mathvm::BlockNode* node) {
     mathvm::AstVar* curr = it.next();
     scopeSymbols.push_back(curr->name());
   }   
-  tranFuncs[curFuncId].pushSymbols(scopeSymbols);
+  executable->getMetaData()[curFuncId].pushSymbols(scopeSymbols);
 
   mathvm::Scope::FunctionIterator fit(node->scope());
   while(fit.hasNext()) {
@@ -329,7 +343,7 @@ void CodeVisitor::visitBlockNode(mathvm::BlockNode* node) {
   while(fit.hasNext()) {
     funcId.popSymbolData(fit.next()->node()->name());
   }
-  tranFuncs[curFuncId].popSymbols(scopeSymbols);
+  executable->getMetaData()[curFuncId].popSymbols(scopeSymbols);
   //curBlock = parentBlock;
   cast(node);
 }
@@ -337,8 +351,8 @@ void CodeVisitor::visitBlockNode(mathvm::BlockNode* node) {
 void CodeVisitor::visitCallNode(mathvm::CallNode* node) {
   using namespace mathvm;
   NodeInfo& info = nodeInfo.getNodeInfo(node);
-  TranslatableFunction& calledFunc = tranFuncs[funcId.topSymbolData(node->name())];
-  TranslatableFunction& callingFunc = tranFuncs[curFuncId];
+  TranslatableFunction& calledFunc = executable->getMetaData()[funcId.topSymbolData(node->name())];
+  TranslatableFunction& callingFunc = executable->getMetaData()[curFuncId];
   calledFunc.genCallingCode(callingFunc, this, cCode(), node, info.type);
   cast(node);
 }
@@ -347,9 +361,9 @@ void CodeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   using namespace mathvm;
 
   AstFunction *astFunc = new AstFunction(node, 0);
-  MyBytecodeFunction *func = new MyBytecodeFunction(astFunc, &tranFuncs[funcNodeToIndex[node]]);
+  MyBytecodeFunction *func = new MyBytecodeFunction(astFunc, &executable->getMetaData()[funcNodeToIndex[node]]);
   
-  executable.addFunc(funcNodeToIndex[node], func);
+  executable->addFunc(funcNodeToIndex[node], func);
   
   MyBytecode* parentBytecode = &cCode();
   curBytecode = func->bytecode();
@@ -526,11 +540,11 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
           else if (op == tNEQ)
             cCode().addBranch(BC_IFICMPNE, lblTrue);
           else if (op == tGT)
-            cCode().addBranch(BC_IFICMPL, lblTrue);
-          else if (op == tLT)
             cCode().addBranch(BC_IFICMPG, lblTrue);
+          else if (op == tLT)
+            cCode().addBranch(BC_IFICMPL, lblTrue);
           else if (op == tGE)
-            cCode().addBranch(BC_IFICMPLE, lblTrue);
+            cCode().addBranch(BC_IFICMPGE, lblTrue);
           else if (op == tLE)
             cCode().addBranch(BC_IFICMPGE, lblTrue);
 
