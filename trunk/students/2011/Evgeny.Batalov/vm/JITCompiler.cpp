@@ -92,7 +92,7 @@ inline AnyVar newSSAGPVar(AsmJit::Mem& src, AsmJit::Compiler& cc) {
   return newVar;
 }
 
-inline void _printf(char* fmt, char* str) {
+inline void printfS(char* fmt, char* str) {
   printf(fmt, str);
 }
 
@@ -332,7 +332,7 @@ void JITCompiler::compileFunc(size_t funcId) {
       case BC_CALL:      { 
                            uint16_t id = (uint16_t)*(bc.var_++);
                            TranslatableFunction& func = executable.getMetaData()[id];
-                           AnyVar _func_addr = newSSAGPVar((size_t)cFuncPtrs + id, cc);
+                           AnyVar _func_addr = newSSAGPVar((size_t)(cFuncPtrs + id), cc);
                            AnyVar _bp = newSSAGPVar(cc);
                            AnyVar _sp = newSSAGPVar(func.getFrameSize(), cc);
                            cc.mov(*_bp.gp, cc.argGP(1));

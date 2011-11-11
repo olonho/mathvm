@@ -17,7 +17,7 @@
 
 #include "TranslationException.h"
 #include "SymbolStack.h"
-
+#include "ByteCodeAnnotations.h"
 mathvm::VarType upType(mathvm::VarType t1, mathvm::VarType t2);
 
 struct NodeInfo {
