@@ -5,14 +5,28 @@ USER_CFLAGS = -ggdb3
 #OPT = y
 include $(VM_ROOT)/common.mk
 
+ASMJIT_OBJ += $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
+	         $(OBJ)/Compiler$(OBJ_SUFF) \
+	         $(OBJ)/Operand$(OBJ_SUFF) \
+	         $(OBJ)/Logger$(OBJ_SUFF) \
+	         $(OBJ)/Assembler$(OBJ_SUFF)
+
 all: $(OUT) $(BIN)/main
 
-DEPS = $(MATHVM_OBJ) $(OBJ)/main.o Interpreter.h $(OBJ)/Interpreter.o TranslationUtils.h $(OBJ)/TranslationUtils.o SymbolVisitor.h $(OBJ)/SymbolVisitor.o TypeVisitor.h $(OBJ)/TypeVisitor.o CodeVisitor.h  $(OBJ)/CodeVisitor.o Executable.h $(OBJ)/Executable.o Translator.h SymbolStack.h TranslationException.h parse.h
+OBJ_DEPS = $(MATHVM_OBJ) $(ASMJIT_OBJ) $(OBJ)/main$(OBJ_SUFF) \
+	  $(OBJ)/JITCompiler$(OBJ_SUFF)  $(OBJ)/Interpreter$(OBJ_SUFF) \
+	  $(OBJ)/TranslationUtils$(OBJ_SUFF) $(OBJ)/SymbolVisitor$(OBJ_SUFF) \
+	  $(OBJ)/TypeVisitor$(OBJ_SUFF) $(OBJ)/CodeVisitor$(OBJ_SUFF) \
+	  $(OBJ)/Executable$(OBJ_SUFF)
 
-$(BIN)/main: dirs $(DEPS) $(OBJ)/main.o
-	$(CXX) $(USER_FLAGS) -o $@ $(MATHVM_OBJ) $(THREAD_LIB) $(OBJ)/main.o $(OBJ)/Interpreter.o $(OBJ)/TranslationUtils.o $(OBJ)/SymbolVisitor.o $(OBJ)/TypeVisitor.o $(OBJ)/CodeVisitor.o $(OBJ)/Executable.o
+INCLUDE_DEPS = ExecutionEnv.h JITCompiler.h Interpreter.h \
+	  TranslationUtils.h SymbolVisitor.h TypeVisitor.h \
+	  CodeVisitor.h Executable.h Translator.h \
+	  SymbolStack.h TranslationException.h parse.h
+
+$(BIN)/main: dirs $(INCLUDE_DEPS) $(OBJ_DEPS)
+	$(CXX) $(USER_FLAGS) -o $@ $(THREAD_LIB) $(OBJ_DEPS)
 	
 dirs:
 	mkdir -p ./build/debug
 	mkdir -p  ./build/opt
-

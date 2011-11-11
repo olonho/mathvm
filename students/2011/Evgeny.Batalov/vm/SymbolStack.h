@@ -5,15 +5,17 @@
 #include "TranslationException.h"
 
 template<typename T> 
-class SymbolStack {
-protected:
+struct SymbolStack {
+
   typedef std::vector<T> Stack;
   typedef std::map<std::string, Stack> Map;
   typedef typename Map::iterator MapIt;
   typedef typename Stack::iterator StackIt;
-
+  typedef typename Stack::reverse_iterator StackRIt;
+private:
   Map map;
 public:
+  Map& data() { return map; }
   void pushSymbolData(std::string symbol, const T& data) {
     DEBUG("push " << symbol << std::endl);
     Stack& st = map[symbol];

@@ -82,11 +82,10 @@ void Interpreter::interpret() {
                          *(stack - 1) = tmp;
                          break;
       case BC_DCMP:      tmp.double_ = (--stack)->double_;
-                         (stack - 1)->int_ = tmp.double_ < (stack - 1)->double_ ? 1 : 
+                         (stack - 1)->int_ = tmp.double_ > (stack - 1)->double_ ? 1 : 
                                             (tmp.double_ == (stack - 1)->double_ ? 0 : -1);
                          break;
-      case BC_CALL:      {
-                         ++callCount;
+      case BC_CALL:      {++callCount;
                          uint16_t func_id = *cstack->ip.var_++;
                          MyBytecodeFunction *func = executable.funcById(func_id);
                          CallStackItem tmp = *cstack;
@@ -94,8 +93,7 @@ void Interpreter::interpret() {
                          tmp.ip.instr_ = func->bytecode()->raw();
                          tmp.frame_beg = stack - func->translatableFunc()->getFrameSize();
                          ++cstack;
-                         *cstack = tmp;
-                         }
+                         *cstack = tmp;}
                          break;
       case BC_RETURN:    --cstack;
                          break;

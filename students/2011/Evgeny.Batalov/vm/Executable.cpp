@@ -1,10 +1,9 @@
 #include <iostream>
 #include "Executable.h"
 
-Executable::Executable()
-  : stringConstantCounter(0) {
-    using namespace mathvm;
-}
+Executable::Executable() 
+  : stringConstantCounter(0) 
+  {}
 
 mathvm::Status* Executable::execute(std::vector<mathvm::Var*, std::allocator<mathvm::Var*> >& vars) {
     //FIXME: implement me!

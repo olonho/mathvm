@@ -223,7 +223,8 @@ void SymbolVisitor::genClosures(FunctionContext& cont, FunctionContexts& conts) 
       DEBUG("Func " << cont.id  << " Adding " << it1->first << ":" << it1->second  
             << " to needForClosure cause iUsedIt" << std::endl);
       cont.needForClosure.push_back(*it1);
-      closureChanged = closureChanged || true; //:)
+      //cont.typeInfo.closuresType[std::make_pair(it1->first, it1->second)] = it1->type;
+      closureChanged = true;
     }
   }
 
@@ -235,16 +236,15 @@ void SymbolVisitor::genClosures(FunctionContext& cont, FunctionContexts& conts) 
     for(; it1 != conts[*it].needForClosure.end(); ++it1) {
       if (symUsed(cont.needForClosure, it1->first, it1->second) || 
           (symUsed(cont.locals, it1->first) && cont.id == it1->second) ||
-          (symUsed(cont.parameters, it1->first) && cont.id == it1->second)
-          //symUsed(cont.mySymbolsUsed, it1->first, *it)
-          ) {
+          (symUsed(cont.parameters, it1->first) && cont.id == it1->second)) {
         continue;
       } else {
-        closureChanged = closureChanged || true; //:)
+        closureChanged = true;
         DEBUG("Func " << cont.id  << " Adding " << it1->first << ":" << it1->second  
               << " child needForClosure cause" << std::endl 
               << "it is not in my needForClosure and not myUsedSymbol by" << *it << std::endl);
         cont.needForClosure.push_back(*it1);
+        //cont.typeInfo.closuresType[std::make_pair(it1->first, it1->second)] = it1->type;
       }
     }
   }
