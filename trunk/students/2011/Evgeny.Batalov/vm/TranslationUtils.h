@@ -391,7 +391,13 @@ class MyBytecode: public mathvm::Bytecode {
       if (anot == BCA_FPARAM_CLOSURE_SAVE) {
         length = 1; return "BCA_FPARAM_CLOSURE_SAVE"; }
       if (anot == BCA_VM_SPECIFIC) {
-        return "BCA_VM_SPECIFIC"; }
+        length = 1; return "BCA_VM_SPECIFIC"; }
+      if (anot == BCA_LOGICAL_OP_RES) {
+        length = 1; return "BCA_LOGICAL_OP_RES"; }
+      if (anot == BCA_LOGICAL_OP_RES_END) {
+        length = 1; return "BCA_LOGICAL_OP_RES_END"; }
+
+
 
       assert(false);
       return 0;

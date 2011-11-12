@@ -144,12 +144,12 @@ void JITCompiler::compileFunc(size_t funcId) {
     break;
   }
   cc.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
-
+  //AsmJit::Label lblRet = cc.newLabel();
   std::map<ByteCodeElem, AsmJit::Label> bcAddrToLabel;
   SSAStack ssaStack;
- 
-  bool compile = true;
-  while(compile) {
+  
+  //while(*bc.instr_ != BC_STOP) {
+  while(true) {
     if (bcAddrToLabel.find(bc) == bcAddrToLabel.end()) {
       bcAddrToLabel[bc] = cc.newLabel();
     }
@@ -159,17 +159,23 @@ void JITCompiler::compileFunc(size_t funcId) {
       case BC_ILOAD:   ssaStack.push_back(newSSAGPVar(*bc.int_++, cc));     break;   
       case BC_SLOAD:   ssaStack.push_back(newSSAGPVar((int64_t)copyToStringPull(executable.sConstById(*bc.str_++).c_str()), cc)); break; 
       case BC_DLOAD0:  ssaStack.push_back(newSSAXMMVar(0, cc)); break;
-      case BC_ILOAD0:  ssaStack.push_back(newSSAGPVar(0, cc));  break;
+      case BC_ILOAD0:  if (*bc.instr_ == BCA_LOGICAL_OP_RES_END) {
+                        cc.mov(*ssaStack.back().gp, imm(0));
+                        //++bc.instr_;
+                       } else { ssaStack.push_back(newSSAGPVar(0, cc)); }  break;
       case BC_SLOAD0:  { const char* strEmpty = ""; ssaStack.push_back(newSSAGPVar((int64_t)strEmpty, cc)); } break;
-      case BC_DLOAD1:  ssaStack.push_back(newSSAXMMVar(1, cc)); break;   
-      case BC_ILOAD1:  ssaStack.push_back(newSSAGPVar(1, cc));  break;  
+      case BC_DLOAD1:  ssaStack.push_back(newSSAXMMVar(1, cc)); break; 
+      case BC_ILOAD1:  if (*bc.instr_ == BCA_LOGICAL_OP_RES_END) {
+                        cc.mov(*ssaStack.back().gp, imm(1));
+                        //++bc.instr_;
+                       } else { ssaStack.push_back(newSSAGPVar(1, cc)); } break;  
       case BC_DLOADM1: ssaStack.push_back(newSSAXMMVar(-1, cc));break; 
       case BC_ILOADM1: ssaStack.push_back(newSSAGPVar(-1, cc)); break;
-      case BC_DNEG:    { AnyVar _rest = newSSAXMMVar(0, cc);
+      case BC_DNEG:    { AnyVar _res = newSSAXMMVar(0, cc);
                          AnyVar _prev = ssaStack.back();
                          ssaStack.pop_back();
-                         cc.subsd(*_rest.xmm, *_prev.xmm);
-                         ssaStack.push_back(_rest);
+                         cc.subsd(*_res.xmm, *_prev.xmm);
+                         ssaStack.push_back(_res);
                          cc.unuse(*_prev.xmm); } break;
       case BC_INEG:    cc.neg(*ssaStack.back().gp); break;
       case BC_DPRINT:  { const char* fmtStr = "%f";
@@ -197,98 +203,93 @@ void JITCompiler::compileFunc(size_t funcId) {
                          _call->setArgument(1, *_toPrint.gp); 
                          cc.unuse(*_fmtStr.gp); cc.unuse(*_toPrint.gp);} break;
       case BC_I2D:      {AnyVar _int = ssaStack.back();
+                         ssaStack.pop_back();
                          AnyVar _double = newSSAXMMVar(cc);
                          cc.cvtsi2sd(*_double.xmm, *_int.gp);
-                         ssaStack.pop_back();
                          ssaStack.push_back(_double);
                          cc.unuse(*_int.gp);} break; 
       case BC_D2I:       {AnyVar _int = newSSAGPVar(cc);
                           AnyVar _double = ssaStack.back();
-                          cc.cvtsd2si(*_int.gp, *_double.xmm);
                           ssaStack.pop_back();
+                          cc.cvtsd2si(*_int.gp, *_double.xmm);
                           ssaStack.push_back(_int);
                          } break;
-      case BC_POP:       {AnyVar var = ssaStack.back(); ssaStack.pop_back(); cc.unuse(*var.gp);} //FIXME: needs to be typed (xmm or gp?)
+      case BC_POP:       {throw new TranslationException("BC_POP is not implemented JIT", 0); 
+                          AnyVar var = ssaStack.back(); ssaStack.pop_back(); cc.unuse(*var.gp);} 
                          break; 
-      case BC_STOP:      switch(bcFunc->returnType()) {
+      case BC_STOP:     {/*cc.bind(lblRet);
+                        switch(bcFunc->returnType()) {
                           case VT_INT: case VT_STRING:
                             {AnyVar res = ssaStack.back(); cc.ret(*res.gp); ssaStack.pop_back();} break;
                           case VT_DOUBLE: 
                             {AnyVar res = ssaStack.back(); cc.ret(*res.xmm); ssaStack.pop_back();} break;
                           default: cc.ret();  break;
-                         } compile = false; break;
-      case BC_LOADIVAR: { Mem varValAddr = Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)); 
-                          ssaStack.push_back(newSSAGPVar(varValAddr, cc)); } break;
-
+                         }*/ goto end_cc; }
+                         break;
+      case BC_LOADIVAR:  { Mem varValAddr = Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)); 
+                           ssaStack.push_back(newSSAGPVar(varValAddr, cc)); } break;
       case BC_LOADDVAR:  { Mem varValAddr = Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)); 
                            ssaStack.push_back(newSSAXMMVar(varValAddr, cc)); } break; 
       case BC_STOREIVAR: { AnyVar val = ssaStack.back(); cc.mov(Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)), *val.gp);  
                            cc.unuse(*val.gp); ssaStack.pop_back(); } break;
       case BC_STOREDVAR: { AnyVar val = ssaStack.back(); cc.movq(Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)), *val.xmm);
                            cc.unuse(*val.xmm); ssaStack.pop_back(); } break;
-      case BC_LOADIVAR0: {/*do nothing value is returned through compiler variable*/} break;
-      case BC_LOADDVAR0:    break;
-      case BC_STOREIVAR0:{/*do nothing value is returned through compiler variable*/} break;
-      case BC_STOREDVAR0:   break;
+      case BC_LOADIVAR0: { throw new TranslationException("BC_LOADIVAR0 is not implemented JIT", 0);
+                           /*do nothing value is returned through compiler variable*/} break;
+      case BC_LOADDVAR0: { throw new TranslationException("BC_LOADDVAR0 is not implemented JIT", 0);
+                          /*do nothing value is returned through compiler variable*/} break;
+      case BC_STOREIVAR0:{ throw new TranslationException("BC_STOREIVAR0 is not implemented JIT", 0);
+                           /*do nothing value is returned through compiler variable*/} break;
+      case BC_STOREDVAR0:{ throw new TranslationException("BC_STOREDVAR0 is not implemented JIT", 0);
+                           /*do nothing value is returned through compiler variable*/} break;
       case BC_JA:        { ByteCodeElem target; target.byte_ = bc.byte_ + *bc.jmp_++; 
                            if (bcAddrToLabel.find(target) == bcAddrToLabel.end()) {
                             bcAddrToLabel[target] = cc.newLabel();
-                            }
+                           }
                            cc.jmp(bcAddrToLabel[target]); } break; 
-      case BC_IFICMPNE:  { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
-                           AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
-                           ByteCodeElem target; target.byte_ = bc.byte_ + *bc.jmp_++; 
-                           cc.cmp(*_tos1.gp, *_tos2.gp);
-                           if (bcAddrToLabel.find(target) == bcAddrToLabel.end()) {
-                            bcAddrToLabel[target] = cc.newLabel();
-                           }
-                           cc.jne(bcAddrToLabel[target]);
-                           cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp);}   break;
-      case BC_IFICMPE :  { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
-                           AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
-                           ByteCodeElem target; target.byte_ = bc.byte_ + *bc.jmp_++; 
-                           cc.cmp(*_tos1.gp, *_tos2.gp);
-                           if (bcAddrToLabel.find(target) == bcAddrToLabel.end()) {
-                            bcAddrToLabel[target] = cc.newLabel();
-                           }
-                           cc.je(bcAddrToLabel[target]);
-                           cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp);}   break;
-      case BC_IFICMPG :  { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
-                           AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
-                           ByteCodeElem target; target.byte_ = bc.byte_ + *bc.jmp_++; 
-                           cc.cmp(*_tos1.gp, *_tos2.gp);
-                           if (bcAddrToLabel.find(target) == bcAddrToLabel.end()) {
-                            bcAddrToLabel[target] = cc.newLabel();
-                           }
-                           cc.jg(bcAddrToLabel[target]);
-                           cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp);}   break; 
-      case BC_IFICMPGE:  { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
-                           AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
-                           ByteCodeElem target; target.byte_ = bc.byte_ + *bc.jmp_++; 
-                           cc.cmp(*_tos1.gp, *_tos2.gp);
-                           if (bcAddrToLabel.find(target) == bcAddrToLabel.end()) {
-                            bcAddrToLabel[target] = cc.newLabel();
-                           }
-                           cc.jge(bcAddrToLabel[target]);
-                           cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp);}   break; 
-      case BC_IFICMPL :  { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
-                           AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
-                           ByteCodeElem target; target.byte_ = bc.byte_ + *bc.jmp_++; 
-                           cc.cmp(*_tos1.gp, *_tos2.gp);
-                           if (bcAddrToLabel.find(target) == bcAddrToLabel.end()) {
-                            bcAddrToLabel[target] = cc.newLabel();
-                           }
-                           cc.jl(bcAddrToLabel[target]);
-                           cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp);}   break;
-      case BC_IFICMPLE:  { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
-                           AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
-                           ByteCodeElem target; target.byte_ = bc.byte_ + *bc.jmp_++; 
-                           cc.cmp(*_tos1.gp, *_tos2.gp);
-                           if (bcAddrToLabel.find(target) == bcAddrToLabel.end()) {
-                            bcAddrToLabel[target] = cc.newLabel();
-                           }
-                           cc.jle(bcAddrToLabel[target]);
-                           cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp);}   break;
+      #define GEN_IFICMP(instr) \
+      { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); \
+        AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back(); \
+        ByteCodeElem target; target.byte_ = bc.byte_ + *bc.jmp_++; \
+        cc.cmp(*_tos1.gp, *_tos2.gp); \
+        if (bcAddrToLabel.find(target) == bcAddrToLabel.end()) { \
+          bcAddrToLabel[target] = cc.newLabel(); \
+        } \
+        switch(instr) {\
+          case BC_IFICMPNE:\
+            cc.jne(bcAddrToLabel[target]); \
+          break;\
+          case BC_IFICMPE:\
+            cc.je(bcAddrToLabel[target]); \
+          break;\
+          case BC_IFICMPL:\
+            cc.jl(bcAddrToLabel[target]); \
+          break;\
+          case BC_IFICMPLE:\
+            cc.jle(bcAddrToLabel[target]); \
+          break;\
+          case BC_IFICMPG:\
+            cc.jg(bcAddrToLabel[target]); \
+          break;\
+          case BC_IFICMPGE:\
+            cc.jge(bcAddrToLabel[target]); \
+          break;\
+          default:\
+          break;\
+        }\
+        cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp); \
+        if (*bc.instr_ == BCA_LOGICAL_OP_RES) {\
+          ssaStack.push_back(newSSAGPVar(cc));\
+        }\
+        }
+
+      case BC_IFICMPNE:  GEN_IFICMP(BC_IFICMPNE); break;
+      case BC_IFICMPE :  GEN_IFICMP(BC_IFICMPE);  break;
+      case BC_IFICMPG :  GEN_IFICMP(BC_IFICMPG);  break; 
+      case BC_IFICMPGE:  GEN_IFICMP(BC_IFICMPGE); break; 
+      case BC_IFICMPL :  GEN_IFICMP(BC_IFICMPL);  break; 
+      case BC_IFICMPLE:  GEN_IFICMP(BC_IFICMPLE); break; 
+
       case BC_DADD:      { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
                            AnyVar _tos2 = ssaStack.back();
                            cc.addsd(*_tos2.xmm, *_tos1.xmm);
@@ -338,24 +339,27 @@ void JITCompiler::compileFunc(size_t funcId) {
                            ssaStack.push_back(_func_res);
                            cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp); 
                          }   break;
-      case BC_SWAP:      //if (inFCallCode) {/*I return value not on stack, not needed*/}
-                         /*else { 
-                           AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
-                           AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
-                           ssaStack.push_back(_tos1); ssaStack.push_back(_tos2); }*/ break; 
+      case BC_SWAP:      { throw new TranslationException("BC_SWAP is not implemented JIT", 0);
+                           /*do nothing value is returned through compiler variable*/} break;
       case BC_DCMP:      { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
                            AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
                            AnyVar _res  = newSSAGPVar(cc);
-                           /*cc.ucomisd(*_tos1.xmm, *_tos2.xmm);
+                           /*GPVar _tmp1(cc.newGP());
+                           GPVar _tmp2(cc.newGP());
+                           cc.movq(_tmp1, *_tos1.xmm);
+                           cc.movq(_tmp2, *_tos2.xmm);
+                           cc.cmp(_tmp1, _tmp2);
+                           cc.unuse(_tmp1); cc.unuse(_tmp2);
+                           //cc.ucomisd(*_tos1.xmm, *_tos2.xmm);
                            AsmJit::Label lblGt = cc.newLabel();
-                           AsmJit::Label lblLe = cc.newLabel();
+                           AsmJit::Label lblLs = cc.newLabel();
                            AsmJit::Label lblEnd = cc.newLabel();
-                      
-                           cc.jl(lblLe);
+                           //FIXME: try to make it in assembler
+                           cc.jl(lblLs);
                            cc.jg(lblGt);
                            cc.mov(*_res.gp, imm(0));
                            cc.jmp(lblEnd);
-                           cc.bind(lblLe);
+                           cc.bind(lblLs);
                            cc.mov(*_res.gp, imm(-1));
                            cc.jmp(lblEnd);
                            cc.bind(lblGt);
@@ -402,13 +406,14 @@ void JITCompiler::compileFunc(size_t funcId) {
                            //cc.sub(cc.argGP(SP_ARG), imm(func.getFrameSize()));
                            cc.unuse(*_func_addr.gp); cc.unuse(*_bp.gp); cc.unuse(*_sp.gp);
                          } break; 
-      case BC_RETURN:     switch(bcFunc->returnType()) {
+      case BC_RETURN:     //cc.jmp(lblRet);
+                         /* switch(bcFunc->returnType()) {
                             case VT_INT:
-                              {AnyVar res = ssaStack.back(); cc.ret(*res.gp); ssaStack.pop_back();} break;
+                              {AnyVar res = ssaStack.back(); cc.ret(*res.gp); ssaStack.pop_back(); cc.unuse(*res.gp); } break;
                             case VT_DOUBLE: 
-                              {AnyVar res = ssaStack.back(); cc.ret(*res.xmm); ssaStack.pop_back();} break;
-                            default: cc.ret();  break;
-                          } compile = false; break;
+                              {AnyVar res = ssaStack.back(); cc.ret(*res.xmm); ssaStack.pop_back(); cc.unuse(*res.xmm); } break;
+                            default: cc.ret(); break;
+                          }*/  break;
       case BCA_FCALL_BEGIN:         break;
       case BCA_FCALL_END:           break;
       case BCA_VM_SPECIFIC:     ++bc.instr_;    break;
@@ -441,6 +446,7 @@ void JITCompiler::compileFunc(size_t funcId) {
                                   cc.unuse(val); } break;
     };
   }
+  end_cc:
   cc.endFunction();
   cFuncPtrs[funcId] = (void*)cc.make();
 }
