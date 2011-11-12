@@ -272,6 +272,7 @@ class TranslatableFunction {
     bcode.addTyped((uint16_t)proto.id);
     if (retType != VT_VOID) {
       //store function result to IVAR0 register
+      bcode.addByte(BCA_VM_SPECIFIC);
       bcode.addByte(BC_STOREIVAR0);
     }
     //pop locals

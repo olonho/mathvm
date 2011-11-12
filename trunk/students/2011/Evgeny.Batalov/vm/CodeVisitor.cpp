@@ -28,16 +28,18 @@ void CodeVisitor::visit() {
   MyBytecode *mainCode = executable->getMain()->bytecode();
   const FunctionContext& mainContext = executable->getMetaData()[0].getProto();
   mainCode->data().insert(mainCode->data().begin(), 
-                          mainContext.locals.size(),
+                          mainContext.locals.size() * 2,
                           BC_ILOAD0);
   for(size_t i = 0; i < mainContext.typeInfo.localsType.size(); ++i) {
     switch(mainContext.typeInfo.localsType[i]) {
       case VT_INT: case VT_STRING:
         //BC_ILOAD0 yet
-        //mainCode->data()[i] = BC_ILOAD0;
+        mainCode->data()[i*2] = BCA_VM_SPECIFIC;
+        //mainCode->data()[i*2-1] = BC_ILOAD0;
       break;
       case VT_DOUBLE:
-        mainCode->data()[i] = BC_DLOAD0;
+        mainCode->data()[i*2] = BCA_VM_SPECIFIC;
+        mainCode->data()[i*2-1] = BC_DLOAD0;
       break;
       default:
       break;

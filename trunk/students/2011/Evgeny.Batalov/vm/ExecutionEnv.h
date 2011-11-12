@@ -23,10 +23,11 @@ class ExecutionEnv {
     void* *cFuncs = cc.getCompFuncPtrs();
     JITCompiler::VoidFunc main = AsmJit::function_cast<JITCompiler::VoidFunc>(cFuncs[0]);
     TranslatableFunction& mainMetaData = executable.getMetaData()[0];
+    char *vmStack = (char*)malloc(VM_STACK_SIZE);
     main(vmStack, vmStack + mainMetaData.getFrameSize()); //bp sp
+    free(vmStack);
     return new mathvm::Status();
   }
-  char* vmStack;
   bool opt;
   std::vector<char*> stringPull;
 
@@ -34,12 +35,9 @@ public:
   ExecutionEnv(Executable& executable, bool opt) 
     : executable(executable) 
     , opt(opt)
-  {
-    vmStack = (char*)malloc(VM_STACK_SIZE);
-  }
+  {}
 
   virtual ~ExecutionEnv() {
-    free(vmStack);
     for(size_t i = 0; i != stringPull.size(); ++i) {
       free(stringPull[i]);
     }
