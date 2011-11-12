@@ -244,7 +244,7 @@ void CodeVisitor::visitForNode(mathvm::ForNode* node) {
     cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().addByte(BC_DCMP);
     cCode().addByte(BC_ILOAD0);
-    cCode().addBranch(BC_IFICMPG, lblEnd);
+    cCode().addBranch(BC_IFICMPL, lblEnd);
   }
 
   node->body()->visit(this);
@@ -532,7 +532,7 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
           cCode().addByte(BC_DDIV);
           break;
         case tEQ:case tNEQ:case tGT:case tLT:case tGE:case tLE:
-          //pseudocode says that DCMP returns -1 if left > right and 1 if left < right
+          //DCMP returns 1 if left > right and -1 if left < right
           cCode().addByte(BC_DCMP);
           cCode().addByte(BC_ILOAD0);
           if (op == tEQ)

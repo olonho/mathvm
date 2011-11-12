@@ -1,4 +1,5 @@
 #pragma once 
+#include <ostream>
 #include <map>
 #include <vector>
 #include <string>
@@ -67,9 +68,9 @@ struct FuncTypeInfo {
   typedef std::map<ClosureVarIdentity, mathvm::VarType> ClosuresType;
   typedef std::map<std::string, mathvm::VarType> ParametersType;
 
-  LocalsType localsType;
-  ClosuresType closuresType;
-  ParametersType parametersType;
+  LocalsType      localsType;
+  ClosuresType    closuresType;
+  ParametersType  parametersType;
   mathvm::VarType returnType;
 };
 typedef std::vector<FuncTypeInfo> FuncTypeInfos;
@@ -215,9 +216,10 @@ class TranslatableFunction {
   void genCallingCode(TranslatableFunction& callingFunc, mathvm::AstVisitor* codeGenerator, 
       mathvm::Bytecode& bcode, mathvm::CallNode* callNode, mathvm::VarType retType) {
     using namespace mathvm;
-    bcode.addByte(BCE_FCALL_BEGIN);
+    bcode.addByte(BCA_FCALL_BEGIN);
     if (retType != VT_VOID) {
       //push curent value of IVAR0 register on stack
+      bcode.addByte(BCA_VM_SPECIFIC);
       bcode.addByte(BC_LOADIVAR0);
     }
     //push parameters
@@ -225,6 +227,8 @@ class TranslatableFunction {
     size_t i = 0;
     for(; strsIt != proto.parameters.end(); ++strsIt) {
       callNode->parameterAt(i)->visit(codeGenerator);
+      bcode.addByte(BCA_FPARAM_COMPUTED);
+      bcode.addByte(proto.typeInfo.parametersType[proto.parameters[i]]);
       ++i;
     }
     //push closures
@@ -233,9 +237,13 @@ class TranslatableFunction {
       switch(proto.typeInfo.closuresType[std::make_pair(symUseIt->first, symUseIt->second)]) {
         case VT_INT: case VT_STRING:
           bcode.addByte(BC_LOADIVAR);
+          bcode.addByte(BCA_FPARAM_COMPUTED);
+          bcode.addByte(VT_INT);
         break;
         case VT_DOUBLE:
           bcode.addByte(BC_LOADDVAR);
+          bcode.addByte(BCA_FPARAM_COMPUTED);
+          bcode.addByte(VT_DOUBLE);
         break;
         default:
         break;
@@ -247,9 +255,13 @@ class TranslatableFunction {
       switch(proto.typeInfo.localsType[i]) {
         case VT_INT: case VT_STRING:
           bcode.addByte(BC_ILOAD0);
+          bcode.addByte(BCA_FPARAM_COMPUTED);
+          bcode.addByte(VT_INT);
           break;
         case VT_DOUBLE:
           bcode.addByte(BC_DLOAD0);
+          bcode.addByte(BCA_FPARAM_COMPUTED);
+          bcode.addByte(VT_DOUBLE);
           break;
         default:
           break;
@@ -264,27 +276,42 @@ class TranslatableFunction {
     }
     //pop locals
     for(strsIt = proto.locals.begin(); strsIt != proto.locals.end(); ++strsIt) {
+      bcode.addByte(BCA_FPARAM_CLEANUP);
       bcode.addByte(mathvm::BC_POP);
     }
     //pop and save closures
     SymbolsUse::const_reverse_iterator revSymUseIt = proto.needForClosure.rbegin(); 
     for(;revSymUseIt != proto.needForClosure.rend(); ++revSymUseIt) {
-      bcode.addByte(BC_STOREIVAR);
+      bcode.addByte(BCA_FPARAM_CLOSURE_SAVE);
+      switch(proto.typeInfo.closuresType[std::make_pair(revSymUseIt->first, revSymUseIt->second)]) {
+        case VT_INT: case VT_STRING:
+          bcode.addByte(BC_STOREIVAR);
+          break;
+        case VT_DOUBLE:
+          bcode.addByte(BC_STOREDVAR);
+          break;
+        default:
+          break;
+      }
       bcode.addTyped(callingFunc.getAddress(revSymUseIt->first, revSymUseIt->second));
     }
     //pop parameters
     for(strsIt = proto.parameters.begin(); strsIt != proto.parameters.end(); ++strsIt) {
+      bcode.addByte(BCA_FPARAM_CLEANUP);
       bcode.addByte(BC_POP);
     }
     if (retType != VT_VOID) {
       //push function result back on stack
+      bcode.addByte(BCA_VM_SPECIFIC);
       bcode.addByte(BC_LOADIVAR0);
       //swap with old value of IVAR0 register
+      bcode.addByte(BCA_VM_SPECIFIC);
       bcode.addByte(BC_SWAP);
       //restore IVAR0 register to value before call
+      bcode.addByte(BCA_VM_SPECIFIC);
       bcode.addByte(BC_STOREIVAR0);
     }
-    bcode.addByte(BCE_FCALL_END);
+    bcode.addByte(BCA_FCALL_END);
   }
 };
 
@@ -336,6 +363,93 @@ class MyBytecode: public mathvm::Bytecode {
   public:
     uint8_t* raw() { return &_data.front(); }
     std::vector<uint8_t>& data() { return _data; }
+
+    static const char* bcName(mathvm::Instruction insn, size_t& length) {
+      using namespace mathvm;
+      static const struct {
+        const char* name;
+        Instruction insn;
+        size_t length;
+      } names[] = {
+#define BC_NAME(b, d, l) {#b, BC_##b, l},
+        FOR_BYTECODES(BC_NAME)
+      };
+
+      if (insn >= BC_INVALID && insn < BC_LAST) {
+        length = names[insn].length;
+        return names[insn].name;
+      }
+      BytecodeAnnotations anot = (BytecodeAnnotations)insn;
+      if (anot == BCA_FCALL_BEGIN) {
+        length = 1; return "BCA_FCALL_BEGIN"; }
+      if (anot == BCA_FCALL_END) {
+        length = 1; return "BCA_FCALL_END"; }
+      if (anot == BCA_FPARAM_COMPUTED) {
+        length = 2; return "BCA_FPARAM_COMPUTED"; }
+      if (anot == BCA_FPARAM_CLEANUP) {
+        length = 1; return "BCA_FPARAM_CLEANUP"; }
+      if (anot == BCA_FPARAM_CLOSURE_SAVE) {
+        length = 1; return "BCA_FPARAM_CLOSURE_SAVE"; }
+      if (anot == BCA_VM_SPECIFIC) {
+        return "BCA_VM_SPECIFIC"; }
+
+      assert(false);
+      return 0;
+    }
+
+    virtual void dump(std::ostream& out) const {
+      using namespace mathvm;
+      for (size_t bci = 0; bci < length();) {
+        size_t length;
+        Instruction insn = getInsn(bci);
+        out << bci << ": ";
+        const char* name = bcName(insn, length);
+        switch (insn) {
+          case BC_DLOAD:
+            out << name << " " << getDouble(bci + 1);
+            break;
+          case BC_ILOAD:
+            out << name << " " << getInt64(bci + 1);
+            break;
+          case BC_SLOAD:
+            out << name << " @" << getUInt16(bci + 1);
+            break;
+          case BC_CALL:
+            out << name << " *" << getUInt16(bci + 1);
+            break;
+          case BC_LOADDVAR:
+          case BC_STOREDVAR:
+          case BC_LOADIVAR:
+          case BC_STOREIVAR:
+          case BC_LOADSVAR:
+          case BC_STORESVAR:
+            out << name << " @" << getUInt16(bci + 1);
+            break;
+          case BC_LOADCTXDVAR:
+          case BC_STORECTXDVAR:
+          case BC_LOADCTXIVAR:
+          case BC_STORECTXIVAR:
+          case BC_LOADCTXSVAR:
+          case BC_STORECTXSVAR:
+            out << name << " @" << getUInt16(bci + 1)
+              << ":" << getUInt16(bci + 3);
+            break;
+          case BC_IFICMPNE:
+          case BC_IFICMPE:
+          case BC_IFICMPG:
+          case BC_IFICMPGE:
+          case BC_IFICMPL:
+          case BC_IFICMPLE:
+          case BC_JA:
+            out << name << " " << getInt16(bci + 1) + bci + 1;
+            break;
+          default:
+            out << name;
+        }
+        out << std::endl;
+        bci += length;
+      }
+    }
 };
 
 class MyBytecodeFunction: public mathvm::TranslatedFunction {
@@ -364,7 +478,7 @@ class MyBytecodeFunction: public mathvm::TranslatedFunction {
     _bytecode = bytecode;
   }
 
-  virtual void disassemble(std::ostream& out) const {
+  virtual void disassemble(std::ostream& out) const { 
     _bytecode->dump(out);
   }
 };
@@ -387,7 +501,7 @@ typedef union {
   int16_t  *jmp_;
   uint16_t *var_;
   void*    *ptr_;
-  char     *byte_;
+  uint8_t  *byte_;
 } ByteCodeElem;
 
 inline bool operator<(const ByteCodeElem& a, const ByteCodeElem& b) {

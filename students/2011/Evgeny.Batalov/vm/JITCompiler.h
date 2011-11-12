@@ -1,11 +1,10 @@
 #pragma once
 #include <stdlib.h>
-#include "Executable.h"
 #include <asmjit/Compiler.h>
 #include <asmjit/Logger.h>
 #include <asmjit/MemoryManager.h>
-
-typedef int (*MainFunc)(void*);
+#include "Executable.h"
+#include "ByteCodeAnnotations.h"
 
 class JITCompiler {
   Executable& executable;
@@ -26,7 +25,9 @@ public:
   virtual ~JITCompiler() {
     //MemoryManager::getGlobal()->free((void*)fn3);
   }
-  typedef void    (*VoidFunc)(void*, void*);
+  #define BP_ARG 0
+  #define SP_ARG 1
+  typedef void    (*VoidFunc)(void* bp, void* sp);
   typedef int64_t (*IntFunc)(void*, void*);
   typedef double  (*DoubleFunc)(void*, void*);
 };
