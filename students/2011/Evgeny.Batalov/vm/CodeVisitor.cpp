@@ -24,10 +24,6 @@ void CodeVisitor::visit() {
   using namespace mathvm;
   //start translation
   topAstFunc->node()->visit(this);
-
-  if (executable->funcCount() > 0) {
-    executable->getMain()->bytecode()->addByte(mathvm::BC_STOP);
-  }
   //add memory for locals of top function
   MyBytecode *mainCode = executable->getMain()->bytecode();
   const FunctionContext& mainContext = executable->getMetaData()[0].getProto();
@@ -64,7 +60,9 @@ void CodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
     node->left()->visit(this);
   }
   NodeInfo& n = nodeInfo.getNodeInfo(node);
-  procBinNode(node, n.type);
+  NodeInfo& nr = nodeInfo.getNodeInfo(node->right());
+  NodeInfo& nl = nodeInfo.getNodeInfo(node->left());
+  procBinNode(node, n.type, nl.type, nr.type);
   cast(node);
 }
 
@@ -78,10 +76,14 @@ void CodeVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
     Label lblTrue (&cCode()); //addres where result of negation will be true
     cCode().addByte(BC_ILOAD0);
     cCode().addBranch(BC_IFICMPNE, lblFalse);
+    cCode().addByte(BCA_LOGICAL_OP_RES);
     cCode().addByte(BC_ILOAD1);
+    cCode().addByte(BCA_LOGICAL_OP_RES_END);
     cCode().addBranch(BC_JA, lblTrue);
     cCode().bind(lblFalse);
+    cCode().addByte(BCA_LOGICAL_OP_RES);
     cCode().addByte(BC_ILOAD0);
+    cCode().addByte(BCA_LOGICAL_OP_RES_END);
     cCode().bind(lblTrue);
   } else if (node->kind() == tSUB) {
     if (info.type == VT_INT) {
@@ -371,6 +373,7 @@ void CodeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   curFuncId = funcNodeToIndex[node];
   
   node->body()->visit(this);
+  cCode().addByte(mathvm::BC_STOP);
   
   curBytecode = parentBytecode;
   curFuncId = parentFuncId;
@@ -425,14 +428,18 @@ void CodeVisitor::putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl) {
   if (op == tAND) {
     cCode().addByte(BC_ILOAD0);
     cCode().addBranch(BC_IFICMPNE, lbl1);
+    cCode().addByte(BCA_LOGICAL_OP_RES);
     cCode().addByte(BC_ILOAD0);
+    cCode().addByte(BCA_LOGICAL_OP_RES_END);
     cCode().addBranch(BC_JA, lbl);
     cCode().bind(lbl1);
 
   } else if (op == tOR) {
     cCode().addByte(BC_ILOAD0);
     cCode().addBranch(BC_IFICMPE, lbl1);
+    cCode().addByte(BCA_LOGICAL_OP_RES);
     cCode().addByte(BC_ILOAD1);
+    cCode().addByte(BCA_LOGICAL_OP_RES_END);
     cCode().addBranch(BC_JA, lbl);
     cCode().bind(lbl1);
   }
@@ -451,13 +458,14 @@ void CodeVisitor::cast(mathvm::AstNode* node) {
   }
 }
 
-void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resType) {
+void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resType, 
+                               mathvm::VarType lNodeType, mathvm::VarType rNodeType) {
   using namespace mathvm;
   
   Label lblTrue(&cCode()); //result of op is true
   Label lblFalse(&cCode());//result of op is false    
   TokenKind op = node->kind();
-  if (resType == VT_INT) {
+  if (lNodeType == VT_INT && rNodeType == VT_INT) {
     switch (op) {
       case tADD:
         cCode().addByte(BC_IADD);
@@ -475,20 +483,28 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
         //lazy logic has checked first operand and it was false
         cCode().addByte(BC_ILOAD0);
         cCode().addBranch(BC_IFICMPNE, lblTrue);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD0);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().addBranch(BC_JA, lblFalse);
         cCode().bind(lblTrue);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD1);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().bind(lblFalse);
         break;
       case tAND:
         //lazy logic has checked first operand and it was true
         cCode().addByte(BC_ILOAD0);
         cCode().addBranch(BC_IFICMPE, lblFalse);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD1);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().addBranch(BC_JA, lblTrue);
         cCode().bind(lblFalse);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD0);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().bind(lblTrue);
         break;
       case tEQ:case tNEQ:case tGT:case tLT:case tGE:case tLE:
@@ -504,10 +520,14 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
           cCode().addBranch(BC_IFICMPGE, lblTrue);
         else if (op == tLE)
           cCode().addBranch(BC_IFICMPLE, lblTrue);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD0);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().addBranch(BC_JA, lblFalse);
         cCode().bind(lblTrue);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD1);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().bind(lblFalse);
         break;
       case tRANGE:
@@ -517,45 +537,47 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
         transError(std::string("operation ") + tokenOp(op) + " on int and int is not permitted");
     }
   } else
-    if (resType == VT_DOUBLE) {
-      switch (op) {
-        case tADD:
-          cCode().addByte(BC_DADD);
-          break;
-        case tSUB:
-          cCode().addByte(BC_DSUB);
-          break;
-        case tMUL:
-          cCode().addByte(BC_DMUL);
-          break;
-        case tDIV:
-          cCode().addByte(BC_DDIV);
-          break;
-        case tEQ:case tNEQ:case tGT:case tLT:case tGE:case tLE:
-          //DCMP returns 1 if left > right and -1 if left < right
-          cCode().addByte(BC_DCMP);
-          cCode().addByte(BC_ILOAD0);
-          if (op == tEQ)
-            cCode().addBranch(BC_IFICMPE, lblTrue);
-          else if (op == tNEQ)
-            cCode().addBranch(BC_IFICMPNE, lblTrue);
-          else if (op == tGT)
-            cCode().addBranch(BC_IFICMPG, lblTrue);
-          else if (op == tLT)
-            cCode().addBranch(BC_IFICMPL, lblTrue);
-          else if (op == tGE)
-            cCode().addBranch(BC_IFICMPGE, lblTrue);
-          else if (op == tLE)
-            cCode().addBranch(BC_IFICMPGE, lblTrue);
+    switch (op) {
+      case tADD:
+        cCode().addByte(BC_DADD);
+        break;
+      case tSUB:
+        cCode().addByte(BC_DSUB);
+        break;
+      case tMUL:
+        cCode().addByte(BC_DMUL);
+        break;
+      case tDIV:
+        cCode().addByte(BC_DDIV);
+        break;
+      case tEQ:case tNEQ:case tGT:case tLT:case tGE:case tLE:
+        //DCMP returns 1 if left > right and -1 if left < right
+        cCode().addByte(BC_DCMP);
+        cCode().addByte(BC_ILOAD0);
+        if (op == tEQ)
+          cCode().addBranch(BC_IFICMPE, lblTrue);
+        else if (op == tNEQ)
+          cCode().addBranch(BC_IFICMPNE, lblTrue);
+        else if (op == tGT)
+          cCode().addBranch(BC_IFICMPL, lblTrue);
+        else if (op == tLT)
+          cCode().addBranch(BC_IFICMPG, lblTrue);
+        else if (op == tGE)
+          cCode().addBranch(BC_IFICMPLE, lblTrue);
+        else if (op == tLE)
+          cCode().addBranch(BC_IFICMPGE, lblTrue);
 
-          cCode().addByte(BC_ILOAD0);
-          cCode().addBranch(BC_JA, lblFalse);
-          cCode().bind(lblTrue);
-          cCode().addByte(BC_ILOAD1);
-          cCode().bind(lblFalse); 
-          break;
-        default:
-          transError(std::string("operation ") + tokenOp(op) + " on int and double is not permitted", node);
-      }
-    } else transError("binary operation on unsupported (constant) types", node);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
+        cCode().addByte(BC_ILOAD0);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
+        cCode().addBranch(BC_JA, lblFalse);
+        cCode().bind(lblTrue);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
+        cCode().addByte(BC_ILOAD1);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
+        cCode().bind(lblFalse); 
+        break;
+      default:
+        transError(std::string("operation ") + tokenOp(op) + " on int and double is not permitted", node);
+    }
 }

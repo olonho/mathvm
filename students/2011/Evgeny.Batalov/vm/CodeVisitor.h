@@ -30,7 +30,8 @@ class CodeVisitor: public mathvm::AstVisitor {
     mathvm::BlockNode& cBlock() { return *curBlock;    }
 
     void transError(std::string str = "", mathvm::AstNode *node = 0);
-    void procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resType);
+    void procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resType, 
+                     mathvm::VarType lNodeType, mathvm::VarType rNodeType);
     void putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl);
     void cast(mathvm::AstNode* node); 
 public:
