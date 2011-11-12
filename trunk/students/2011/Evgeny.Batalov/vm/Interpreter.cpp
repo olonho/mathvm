@@ -14,8 +14,6 @@ void Interpreter::interpret() {
   //            ip points to next byte after current instruction
   while(true) {
     switch (*cstack->ip.instr_++) {
-      case BCE_FCALL_BEGIN: 
-      case BCE_FCALL_END: break;
       case BC_DLOAD:     stack++->double_      = *cstack->ip.double_++; break;
       case BC_ILOAD:     stack++->int_         = *cstack->ip.int_++; break;
       case BC_SLOAD:     stack++->str_         = executable.sConstById(*cstack->ip.str_++).c_str(); break;
@@ -99,6 +97,8 @@ void Interpreter::interpret() {
                          break;
       case BC_RETURN:    --cstack;
                          break;
+      case BCA_FPARAM_COMPUTED: ++cstack->ip.byte_;  break;
+      default: break;
     };
   }
 }
