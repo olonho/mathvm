@@ -91,6 +91,7 @@ inline AnyVar newSSAGPVar(AsmJit::Mem& src, AsmJit::Compiler& cc) {
   cc.mov(*newVar.gp, src);
   return newVar;
 }
+
 //functions to overcome AsmJit::compiler limitations or errors
 inline void printfS(char* fmt, char* str) {
   printf(fmt, str);
@@ -217,22 +218,22 @@ void JITCompiler::compileFunc(size_t funcId) {
       case BC_POP:       {throw new TranslationException("BC_POP is not implemented JIT", 0); 
                           AnyVar var = ssaStack.back(); ssaStack.pop_back(); cc.unuse(*var.gp);} 
                          break; 
-      case BC_STOP:     {/*cc.bind(lblRet);
-                        switch(bcFunc->returnType()) {
+      case BC_STOP:     {/*switch(bcFunc->returnType()) {
                           case VT_INT: case VT_STRING:
                             {AnyVar res = ssaStack.back(); cc.ret(*res.gp); ssaStack.pop_back();} break;
                           case VT_DOUBLE: 
                             {AnyVar res = ssaStack.back(); cc.ret(*res.xmm); ssaStack.pop_back();} break;
                           default: cc.ret();  break;
-                         }*/ goto end_cc; }
+                         } */ if (funcId == 0) {cc.ret();} 
+                         goto comp_end;}
                          break;
-      case BC_LOADIVAR:  { Mem varValAddr = Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)); 
+      case BC_LOADIVAR:  { Mem varValAddr = ptr(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)); 
                            ssaStack.push_back(newSSAGPVar(varValAddr, cc)); } break;
-      case BC_LOADDVAR:  { Mem varValAddr = Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)); 
+      case BC_LOADDVAR:  { Mem varValAddr = ptr(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)); 
                            ssaStack.push_back(newSSAXMMVar(varValAddr, cc)); } break; 
-      case BC_STOREIVAR: { AnyVar val = ssaStack.back(); cc.mov(Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)), *val.gp);  
+      case BC_STOREIVAR: { AnyVar val = ssaStack.back(); cc.mov(ptr(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)), *val.gp);  
                            cc.unuse(*val.gp); ssaStack.pop_back(); } break;
-      case BC_STOREDVAR: { AnyVar val = ssaStack.back(); cc.movq(Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)), *val.xmm);
+      case BC_STOREDVAR: { AnyVar val = ssaStack.back(); cc.movq(ptr(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)), *val.xmm);
                            cc.unuse(*val.xmm); ssaStack.pop_back(); } break;
       case BC_LOADIVAR0: { throw new TranslationException("BC_LOADIVAR0 is not implemented JIT", 0);
                            /*do nothing value is returned through compiler variable*/} break;
@@ -344,6 +345,7 @@ void JITCompiler::compileFunc(size_t funcId) {
       case BC_DCMP:      { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
                            AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
                            AnyVar _res  = newSSAGPVar(cc);
+                           //FIXME: try to make it in assembler
                            /*GPVar _tmp1(cc.newGP());
                            GPVar _tmp2(cc.newGP());
                            cc.movq(_tmp1, *_tos1.xmm);
@@ -354,7 +356,6 @@ void JITCompiler::compileFunc(size_t funcId) {
                            AsmJit::Label lblGt = cc.newLabel();
                            AsmJit::Label lblLs = cc.newLabel();
                            AsmJit::Label lblEnd = cc.newLabel();
-                           //FIXME: try to make it in assembler
                            cc.jl(lblLs);
                            cc.jg(lblGt);
                            cc.mov(*_res.gp, imm(0));
@@ -406,14 +407,13 @@ void JITCompiler::compileFunc(size_t funcId) {
                            //cc.sub(cc.argGP(SP_ARG), imm(func.getFrameSize()));
                            cc.unuse(*_func_addr.gp); cc.unuse(*_bp.gp); cc.unuse(*_sp.gp);
                          } break; 
-      case BC_RETURN:     //cc.jmp(lblRet);
-                         /* switch(bcFunc->returnType()) {
+      case BC_RETURN:    switch(bcFunc->returnType()) {
                             case VT_INT:
                               {AnyVar res = ssaStack.back(); cc.ret(*res.gp); ssaStack.pop_back(); cc.unuse(*res.gp); } break;
                             case VT_DOUBLE: 
                               {AnyVar res = ssaStack.back(); cc.ret(*res.xmm); ssaStack.pop_back(); cc.unuse(*res.xmm); } break;
                             default: cc.ret(); break;
-                          }*/  break;
+                          }  break;
       case BCA_FCALL_BEGIN:         break;
       case BCA_FCALL_END:           break;
       case BCA_VM_SPECIFIC:     ++bc.instr_;    break;
@@ -442,11 +442,11 @@ void JITCompiler::compileFunc(size_t funcId) {
       case BCA_FPARAM_CLOSURE_SAVE: bc.instr_++;
                                 { GPVar val(cc.newGP());
                                   cc.mov(val, ptr(cc.argGP(SP_ARG), -sizeof(int64_t)));
-                                  cc.mov(Mem(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)), val);  
+                                  cc.mov(ptr(cc.argGP(BP_ARG), sizeof(int64_t) * (*bc.var_++)), val);  
                                   cc.unuse(val); } break;
     };
   }
-  end_cc:
+  comp_end:
   cc.endFunction();
   cFuncPtrs[funcId] = (void*)cc.make();
 }
