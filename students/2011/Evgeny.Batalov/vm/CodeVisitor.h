@@ -33,7 +33,8 @@ class CodeVisitor: public mathvm::AstVisitor {
     void procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resType, 
                      mathvm::VarType lNodeType, mathvm::VarType rNodeType);
     void putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl);
-    void cast(mathvm::AstNode* node); 
+    void cast(mathvm::AstNode* node);
+    void nextBCJumped();
 public:
     CodeVisitor(mathvm::AstFunction* top, 
                 const FunctionContexts& funcContexts, 
