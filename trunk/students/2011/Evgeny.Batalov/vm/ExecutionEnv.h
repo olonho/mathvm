@@ -24,7 +24,7 @@ class ExecutionEnv {
     JITCompiler::VoidFunc main = AsmJit::function_cast<JITCompiler::VoidFunc>(cFuncs[0]);
     TranslatableFunction& mainMetaData = executable.getMetaData()[0];
     char *vmStack = (char*)malloc(VM_STACK_SIZE);
-    main(vmStack, vmStack + mainMetaData.getFrameSize()); //bp sp
+    main(vmStack, vmStack + sizeof(int64_t) * mainMetaData.getFrameSize()); //bp sp
     free(vmStack);
     return new mathvm::Status();
   }

@@ -56,6 +56,7 @@ void CodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
     putLazyLogic(node->kind(), lazyLabel);
     node->right()->visit(this);
     cCode().bind(lazyLabel);
+    nextBCJumped();
   } else {
     //TOS: left, right
     node->right()->visit(this);
@@ -83,10 +84,12 @@ void CodeVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
     cCode().addByte(BCA_LOGICAL_OP_RES_END);
     cCode().addBranch(BC_JA, lblTrue);
     cCode().bind(lblFalse);
+    nextBCJumped();
     cCode().addByte(BCA_LOGICAL_OP_RES);
     cCode().addByte(BC_ILOAD0);
     cCode().addByte(BCA_LOGICAL_OP_RES_END);
     cCode().bind(lblTrue);
+    nextBCJumped();
   } else if (node->kind() == tSUB) {
     if (info.type == VT_INT) {
       cCode().addByte(BC_INEG);
@@ -233,6 +236,7 @@ void CodeVisitor::visitForNode(mathvm::ForNode* node) {
     cCode().addByte(BC_STOREIVAR);
     cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().bind(lblLoopCheck);
+    nextBCJumped();
     op->right()->visit(this);
     cCode().addByte(BC_LOADIVAR);
     cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
@@ -243,6 +247,7 @@ void CodeVisitor::visitForNode(mathvm::ForNode* node) {
     cCode().addByte(BC_STOREDVAR);
     cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
     cCode().bind(lblLoopCheck);
+    nextBCJumped();
     op->right()->visit(this);
     cCode().addByte(BC_LOADDVAR);
     cCode().addUInt16(executable->getMetaData()[curFuncId].getAddress(node->var()->name()));
@@ -273,6 +278,7 @@ void CodeVisitor::visitForNode(mathvm::ForNode* node) {
   }
 
   cCode().bind(lblEnd);
+  nextBCJumped();
   cast(node);
 }
 
@@ -283,12 +289,14 @@ void CodeVisitor::visitWhileNode(mathvm::WhileNode* node) {
   Label lblEnd(&cCode());
 
   cCode().bind(lblWhile); {
+    nextBCJumped();
     node->whileExpr()->visit(this);
     cCode().addByte(BC_ILOAD0);
     cCode().addBranch(BC_IFICMPE, lblEnd);
     node->loopBlock()->visit(this);
     cCode().addBranch(BC_JA, lblWhile);
   } cCode().bind(lblEnd);
+  nextBCJumped();
   cast(node);
 }
 
@@ -303,10 +311,12 @@ void CodeVisitor::visitIfNode(mathvm::IfNode* node) {
   node->thenBlock()->visit(this);
   cCode().addBranch(BC_JA, lblEnd);
   cCode().bind(lblElse);
+  nextBCJumped();
   if (node->elseBlock()) {
     node->elseBlock()->visit(this);
   }
   cCode().bind(lblEnd);
+  nextBCJumped();
   cast(node);
 }
 
@@ -435,6 +445,7 @@ void CodeVisitor::putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl) {
     cCode().addByte(BCA_LOGICAL_OP_RES_END);
     cCode().addBranch(BC_JA, lbl);
     cCode().bind(lbl1);
+    nextBCJumped();
 
   } else if (op == tOR) {
     cCode().addByte(BC_ILOAD0);
@@ -444,6 +455,7 @@ void CodeVisitor::putLazyLogic(mathvm::TokenKind op, mathvm::Label& lbl) {
     cCode().addByte(BCA_LOGICAL_OP_RES_END);
     cCode().addBranch(BC_JA, lbl);
     cCode().bind(lbl1);
+    nextBCJumped();
   }
 }
 
@@ -490,10 +502,12 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().addBranch(BC_JA, lblFalse);
         cCode().bind(lblTrue);
+        nextBCJumped();
         cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD1);
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().bind(lblFalse);
+        nextBCJumped();
         break;
       case tAND:
         //lazy logic has checked first operand and it was true
@@ -504,10 +518,12 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().addBranch(BC_JA, lblTrue);
         cCode().bind(lblFalse);
+        nextBCJumped();
         cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD0);
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().bind(lblTrue);
+        nextBCJumped();
         break;
       case tEQ:case tNEQ:case tGT:case tLT:case tGE:case tLE:
         if (op == tEQ)
@@ -527,10 +543,12 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().addBranch(BC_JA, lblFalse);
         cCode().bind(lblTrue);
+        nextBCJumped();
         cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD1);
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().bind(lblFalse);
+        nextBCJumped();
         break;
       case tRANGE:
         //left on TOS and then right yet
@@ -574,12 +592,23 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().addBranch(BC_JA, lblFalse);
         cCode().bind(lblTrue);
+        nextBCJumped();
         cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD1);
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().bind(lblFalse); 
+        nextBCJumped();
         break;
       default:
         transError(std::string("operation ") + tokenOp(op) + " on int and double is not permitted", node);
     }
+}
+
+void CodeVisitor::nextBCJumped() {
+  DEBUG("Remembering jump label: " << cCode().data().size() << std::endl);
+  size_t addition = 0; 
+  if (curFuncId == 0) { 
+    addition = executable->getMetaData()[0].getProto().locals.size() * 2;
+  }
+  executable->getMetaData()[curFuncId].bcAddressJumped(cCode().current() + addition);
 }

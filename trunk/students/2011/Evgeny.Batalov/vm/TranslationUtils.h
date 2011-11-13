@@ -1,6 +1,7 @@
 #pragma once 
 #include <ostream>
 #include <map>
+#include <set>
 #include <vector>
 #include <string>
 #include <utility>
@@ -107,6 +108,7 @@ void useSymbol(size_t userFuncId, std::string sym, size_t symFuncId, std::vector
 typedef std::vector<FunctionContext> FunctionContexts;
 typedef std::map<mathvm::FunctionNode*, size_t> FunctionNodeToIndex;
 typedef std::map<size_t, mathvm::FunctionNode*> IndexToFunctionNode;
+typedef std::set<size_t> BCAddressesJumped;
 
 //function which can allocate stack for its variables relative to begin of frame
 //frame: parameters, closures, locals | computational stack
@@ -126,6 +128,7 @@ class TranslatableFunction {
   typedef std::map<ClosureVarIdentity, VarAddresses> Addresses;
   Addresses addresses;
   FunctionContext proto;
+  BCAddressesJumped bcAddressesJumped;
   size_t frameSize;
   public:
 
@@ -237,18 +240,19 @@ class TranslatableFunction {
       switch(proto.typeInfo.closuresType[std::make_pair(symUseIt->first, symUseIt->second)]) {
         case VT_INT: case VT_STRING:
           bcode.addByte(BC_LOADIVAR);
+          bcode.addTyped(callingFunc.getAddress(symUseIt->first, symUseIt->second));
           bcode.addByte(BCA_FPARAM_COMPUTED);
           bcode.addByte(VT_INT);
         break;
         case VT_DOUBLE:
           bcode.addByte(BC_LOADDVAR);
+          bcode.addTyped(callingFunc.getAddress(symUseIt->first, symUseIt->second));
           bcode.addByte(BCA_FPARAM_COMPUTED);
           bcode.addByte(VT_DOUBLE);
         break;
         default:
         break;
       }
-      bcode.addTyped(callingFunc.getAddress(symUseIt->first, symUseIt->second));
     }
     //push locals
     for(size_t i = 0; i != proto.locals.size(); ++i) {
@@ -284,16 +288,16 @@ class TranslatableFunction {
     SymbolsUse::const_reverse_iterator revSymUseIt = proto.needForClosure.rbegin(); 
     for(;revSymUseIt != proto.needForClosure.rend(); ++revSymUseIt) {
       bcode.addByte(BCA_FPARAM_CLOSURE_SAVE);
-      switch(proto.typeInfo.closuresType[std::make_pair(revSymUseIt->first, revSymUseIt->second)]) {
-        case VT_INT: case VT_STRING:
+      /*switch(proto.typeInfo.closuresType[std::make_pair(revSymUseIt->first, revSymUseIt->second)]) {
+        case VT_INT: case VT_STRING:*/
           bcode.addByte(BC_STOREIVAR);
-          break;
+          /*break;
         case VT_DOUBLE:
           bcode.addByte(BC_STOREDVAR);
           break;
         default:
           break;
-      }
+      }*/
       bcode.addTyped(callingFunc.getAddress(revSymUseIt->first, revSymUseIt->second));
     }
     //pop parameters
@@ -313,6 +317,18 @@ class TranslatableFunction {
       bcode.addByte(BC_STOREIVAR0);
     }
     bcode.addByte(BCA_FCALL_END);
+  }
+
+  void bcAddressJumped(size_t addr) {
+    bcAddressesJumped.insert(addr);
+  }
+
+  bool isBCAddressJumped(size_t addr) {
+    return bcAddressesJumped.find(addr) != bcAddressesJumped.end();
+  }
+  
+  BCAddressesJumped& getBCAddressesJumped() {
+    return bcAddressesJumped;
   }
 };
 
@@ -397,8 +413,8 @@ class MyBytecode: public mathvm::Bytecode {
         length = 1; return "BCA_LOGICAL_OP_RES"; }
       if (anot == BCA_LOGICAL_OP_RES_END) {
         length = 1; return "BCA_LOGICAL_OP_RES_END"; }
-
-
+      if (anot == BCA_LOGICAL_LAZY_RES) {
+        length = 1; return "BCA_LOGICAL_LAZY_RES"; }
 
       assert(false);
       return 0;
