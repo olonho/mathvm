@@ -51,12 +51,12 @@ void CodeVisitor::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
   using namespace mathvm;
 
   if (node->kind() == tOR || node->kind() == tAND) {
-    Label lazyLabel(&cCode());
+    //Label lazyLabel(&cCode());
     node->left()->visit(this);
-    putLazyLogic(node->kind(), lazyLabel);
+    //putLazyLogic(node->kind(), lazyLabel);
     node->right()->visit(this);
-    cCode().bind(lazyLabel);
-    nextBCJumped();
+    //cCode().bind(lazyLabel);
+    //nextBCJumped();
   } else {
     //TOS: left, right
     node->right()->visit(this);
@@ -493,9 +493,29 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
       case tDIV:
         cCode().addByte(BC_IDIV);
         break;
-      case tOR:
-        //lazy logic has checked first operand and it was false
+      case tOR:{
+        Label lblTrue1(&cCode()); //result of op is true but POP
         cCode().addByte(BC_ILOAD0);
+        cCode().addBranch(BC_IFICMPNE, lblTrue1);
+        cCode().addByte(BC_ILOAD0);
+        cCode().addBranch(BC_IFICMPNE, lblTrue);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
+        cCode().addByte(BC_ILOAD0);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
+        cCode().addBranch(BC_JA, lblFalse);
+        cCode().bind(lblTrue1);
+        nextBCJumped();
+        cCode().addByte(BCA_VM_SPECIFIC);
+        cCode().addByte(BC_POP);
+        cCode().bind(lblTrue);
+        nextBCJumped();
+        cCode().addByte(BCA_LOGICAL_OP_RES);
+        cCode().addByte(BC_ILOAD1);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
+        cCode().bind(lblFalse);
+        nextBCJumped();}
+        //lazy logic has checked first operand and it was false
+        /*cCode().addByte(BC_ILOAD0);
         cCode().addBranch(BC_IFICMPNE, lblTrue);
         cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD0);
@@ -507,11 +527,30 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
         cCode().addByte(BC_ILOAD1);
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
         cCode().bind(lblFalse);
-        nextBCJumped();
+        nextBCJumped();*/
         break;
-      case tAND:
-        //lazy logic has checked first operand and it was true
+      case tAND:{
+        Label lblFalse1(&cCode()); //result of op is false but POP
         cCode().addByte(BC_ILOAD0);
+        cCode().addBranch(BC_IFICMPE, lblFalse1);
+        cCode().addByte(BC_ILOAD0);
+        cCode().addBranch(BC_IFICMPE, lblFalse);
+        cCode().addByte(BCA_LOGICAL_OP_RES);
+        cCode().addByte(BC_ILOAD1);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
+        cCode().addBranch(BC_JA, lblTrue);
+
+        cCode().bind(lblFalse1);
+        nextBCJumped();
+        cCode().addByte(BC_POP);
+        cCode().bind(lblFalse);
+        nextBCJumped();
+        cCode().addByte(BCA_LOGICAL_OP_RES);
+        cCode().addByte(BC_ILOAD0);
+        cCode().addByte(BCA_LOGICAL_OP_RES_END);
+        cCode().bind(lblTrue);}
+        //lazy logic has checked first operand and it was true
+        /*cCode().addByte(BC_ILOAD0);
         cCode().addBranch(BC_IFICMPE, lblFalse);
         cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD1);
@@ -522,7 +561,7 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
         cCode().addByte(BCA_LOGICAL_OP_RES);
         cCode().addByte(BC_ILOAD0);
         cCode().addByte(BCA_LOGICAL_OP_RES_END);
-        cCode().bind(lblTrue);
+        cCode().bind(lblTrue);*/
         nextBCJumped();
         break;
       case tEQ:case tNEQ:case tGT:case tLT:case tGE:case tLE:
