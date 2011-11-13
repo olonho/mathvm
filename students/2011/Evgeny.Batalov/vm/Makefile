@@ -2,7 +2,7 @@ VM_ROOT = ../../../..
 ROOT = .
 USER_CFLAGS = -ggdb3 
 #-DNDEBUG
-OPT = y
+#OPT = y
 include $(VM_ROOT)/common.mk
 
 MY_ASMJIT_OBJ += $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
