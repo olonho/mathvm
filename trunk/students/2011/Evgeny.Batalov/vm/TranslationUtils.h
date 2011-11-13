@@ -10,7 +10,7 @@
 #include <ast.h>
 #include <mathvm.h>
 
-#define VERBOSE
+//#define VERBOSE
 #ifdef VERBOSE
 #define DEBUG(str) std::cerr << str
 #else
