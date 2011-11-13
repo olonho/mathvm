@@ -118,6 +118,16 @@ inline int64_t dcmp(double a, double b) {
 }
 //end of functions
 
+//Performs translation of stack machine code using abstract interpretation
+//Each put on TOS is translated into put on abstract stack of variables
+//Each operation takes 2 or 1 variable form TOS and puts new variable on TOS
+//which stores result of operation
+//So each mutation is performed similary to SSA way
+//After translation all variables ever been on abstract stack are 
+//allocated in registers or machine stack using linear algorithm which uses lifetime
+//of variables
+//Branch problem is overcomed with no overhead in compile time or runtime
+//Annotations BCA_* allow to do it
 void JITCompiler::compileFunc(size_t funcId) {
   using namespace mathvm;
   using namespace AsmJit;
