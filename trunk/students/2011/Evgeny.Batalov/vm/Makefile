@@ -2,10 +2,10 @@ VM_ROOT = ../../../..
 ROOT = .
 USER_CFLAGS = -ggdb3 
 #-DNDEBUG
-#OPT = y
+OPT = y
 include $(VM_ROOT)/common.mk
 
-ASMJIT_OBJ += $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
+MY_ASMJIT_OBJ += $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
 	         $(OBJ)/Compiler$(OBJ_SUFF) \
 	         $(OBJ)/Operand$(OBJ_SUFF) \
 	         $(OBJ)/Logger$(OBJ_SUFF) \
@@ -13,7 +13,7 @@ ASMJIT_OBJ += $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
 
 all: $(OUT) $(BIN)/main
 
-OBJ_DEPS = $(MATHVM_OBJ) $(ASMJIT_OBJ) $(OBJ)/main$(OBJ_SUFF) \
+OBJ_DEPS = $(MATHVM_OBJ) $(MY_ASMJIT_OBJ) $(OBJ)/main$(OBJ_SUFF) \
 	  $(OBJ)/JITCompiler$(OBJ_SUFF)  $(OBJ)/Interpreter$(OBJ_SUFF) \
 	  $(OBJ)/TranslationUtils$(OBJ_SUFF) $(OBJ)/SymbolVisitor$(OBJ_SUFF) \
 	  $(OBJ)/TypeVisitor$(OBJ_SUFF) $(OBJ)/CodeVisitor$(OBJ_SUFF) \
