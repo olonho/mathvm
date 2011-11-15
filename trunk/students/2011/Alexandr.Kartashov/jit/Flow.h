@@ -8,15 +8,23 @@
 #include "compiler.h"
 
 #include "RegAllocator.h"
-
+#include <typeinfo>
 // ================================================================================
 
 namespace mathvm {
+  static void addRef(FlowNode* from, FlowNode* to) {
+    from->refNode = to->refList;
+    to->refList = from;
+  }
+
   class Flow : private AstVisitor {
+
+    typedef std::deque<AstNode*> Branches;
 
   public:
     Flow(AstFunction* root, CompilerPool* pool) {
-      Flattener f(root, pool);
+      FlatPass1 f(root, pool);
+      FlatPass2 f2(f.branches(), pool);
       RegAllocator ra(root);
 
         //squash(f.first());
@@ -32,6 +40,7 @@ namespace mathvm {
     }
 
   private:
+    /*
     template<typename T>
     class Eq {
       void eq(T v1, T v2) {
@@ -45,43 +54,63 @@ namespace mathvm {
     private:
       std::set<std::pair<T, T> > _eqm;
     };
-    
-    /*
-    void squash(FlowNode* node) {
-      FlowNode* n;
-      //Eq m;
-
-      for (n = node; n = n->next; ++n) {
-        //if (
-      }
-      }
     */
-
+    
     // --------------------------------------------------------------------------------
     
-    class Flattener : private AstVisitor {
-      typedef std::deque<FlowNode*> FlowOrder;
+    class Flattener : protected AstVisitor {
+      //typedef std::deque<FlowNode*> FlowOrder;
 
     public:
-      Flattener(AstFunction* root, CompilerPool* pool) {
+      Flattener(CompilerPool* pool) {
         _pool = pool;
         _ncur = NULL;
-
-        root->node()->body()->visit(this);
-
-        _ncur->next = NULL;        
       }
 
       FlowNode* first() {
         return _first;
       }
 
-    private:
+      FlowNode* last() {
+        return _ncur;
+      }
+
+    protected:
+      AstNode* getDecisionNode(AstNode* node) {
+        AstNode* p = info(node)->parent;
+        TokenKind ptok;
+
+        if (node->isBinaryOpNode()) {
+          ptok = node->asBinaryOpNode()->kind();
+        }
+
+        for (;;) {
+          if (!p->isBinaryOpNode()) {
+            break;
+          }
+
+          if (p->asBinaryOpNode()->kind() != ptok) {
+            break;
+          }
+
+          p = info(p)->parent;
+        }
+
+        return p;
+      }
+
+      void visit(AstNode* node) {
+        node->visit(this);
+        _ncur->next = NULL;
+      }
+
       void attach(FlowNode* node) {
         if (_ncur) {
           _ncur->next = node;
+          node->prev = _ncur;
         } else {
           _first = node;
+          _first->next = _first->prev = NULL;
         }
 
         _ncur = node;
@@ -91,6 +120,10 @@ namespace mathvm {
         FlowNode* fn;
 
         node->visitChildren(this);
+
+        if (isLogic(node->kind())) {
+          return;
+        }
 
         _pool->alloc(&fn);
         info(node)->fn = fn;
@@ -109,14 +142,6 @@ namespace mathvm {
 
         case tDIV:
           fn->type = FlowNode::DIV;
-          break;
-
-        case tAND:
-          fn->type = FlowNode::AND;
-          break;
-
-        case tOR:
-          fn->type = FlowNode::OR;
           break;
 
         case tLT:
@@ -147,6 +172,66 @@ namespace mathvm {
           ABORT("Not supported");
         }
 
+        //printf("%s\n", typeid(*node).name());
+        
+        if (isComp(node->kind())) {
+          static FlowNode::Type negCond[] = { FlowNode::GE, FlowNode::GT, FlowNode::LE, FlowNode::GE, FlowNode::NEQ, FlowNode::EQ }; 
+
+          AstNode* p = info(node)->parent;
+          FlowNode* to;
+
+          //printf("%s\n", typeid(*p).name());
+
+          if (p->isIfNode()) {
+            to = info(info(node)->parent)->trueBranch.begin;
+
+            fn->u.op.trueBranch = to;
+            fn->u.op.falseBranch = NULL;
+          } else if (p->isBinaryOpNode()) { // parent is an AND or OR operator
+            AstNode* dn = getDecisionNode(p);
+
+            switch (p->asBinaryOpNode()->kind()) {
+            case tAND: {
+              to = info(dn)->falseBranch.begin;
+
+              fn->u.op.falseBranch = to;    // Branch if false
+              fn->u.op.trueBranch = NULL;
+            }
+              break;
+
+            case tOR:
+            default:
+              ABORT("Not supported yet");
+            }
+          } else if (p->isUnaryOpNode() && p->asUnaryOpNode()->kind() == tNOT) {
+            // Parent is a NOT operator
+            p = info(p)->parent;
+
+            AstNode* dn = getDecisionNode(p);
+            if (p->isBinaryOpNode()) {
+              switch (p->asBinaryOpNode()->kind()) {
+              case tAND:
+                to = info(dn)->falseBranch.begin;
+                
+                fn->type = negCond[fn->type - FlowNode::LT];  
+                fn->u.op.trueBranch = NULL;      // Branch if true
+                fn->u.op.falseBranch = to;
+                break;
+                
+              default:
+                ABORT("Not supported");
+              }
+            } else {
+              ABORT("Not supported");
+            }
+          } else {
+            //printf("%s", typeid(*p).name());
+            ABORT(" Not supported yet");
+          }
+
+          addRef(fn, to);
+        }
+
         fn->u.op.u.bin.op1 = info(node->left())->fn->u.op.result;
         fn->u.op.u.bin.op2 = info(node->right())->fn->u.op.result;
 
@@ -167,12 +252,12 @@ namespace mathvm {
       VISIT(UnaryOpNode) {
         node->visitChildren(this);
 
-        FlowNode* fn = _pool->allocFlowNode();
+        FlowNode* fn;
+        _pool->alloc(&fn);
         info(node)->fn = fn;
         switch (node->kind()) {
         case tNOT:
-          fn->type = FlowNode::NOT;
-          break;
+          return;
 
         case tSUB:
           fn->type = FlowNode::NEG;
@@ -230,9 +315,7 @@ namespace mathvm {
         node->visitChildren(this);
       }
     
-      VISIT(IfNode) {
-        node->visitChildren(this);
-      }
+      
           
       VISIT(BlockNode) {
         node->visitChildren(this);
@@ -312,11 +395,235 @@ namespace mathvm {
         literal(node, node->literal());
       }
 
-    private:
+    protected:
       CompilerPool* _pool;
       //FlowOrder _order;
       FlowNode* _ncur;
       FlowNode* _first;
+    };
+
+    // --------------------------------------------------------------------------------
+
+    class FlatPass1 : public Flattener {
+    public:
+      FlatPass1(AstFunction* root, CompilerPool* pool) 
+        : Flattener(pool)
+      {
+        root->node()->body()->visit(this);
+      }
+
+      Branches& branches() {
+        return _branches;
+      }
+
+      VISIT(IfNode) {
+        FlowNode* anchEnd;
+        FlowNode* jump;
+
+        _branches.push_back(node);
+        insertNop();               // Emit an anchor in case there's two consequetive if's (as in if.mvm)
+
+        _pool->alloc(&anchEnd);
+        anchEnd->type = FlowNode::NOP;
+
+        info(node)->last = _ncur;
+        node->thenBlock()->visit(this);
+        info(node)->trueBranch.begin = info(node)->last->next;
+        info(node)->trueBranch.end = _ncur;
+
+        if (node->elseBlock()) {
+          _pool->alloc(&jump);
+          jump->type = FlowNode::JUMP;
+          jump->u.branch = anchEnd;
+          attach(jump);
+
+          addRef(jump, anchEnd);
+          
+          node->elseBlock()->visit(this);
+          info(node)->falseBranch.begin = jump->next;
+          info(node)->falseBranch.end = _ncur;
+        } else {
+          info(node)->falseBranch.begin = anchEnd;
+        }
+
+        attach(anchEnd);
+      }
+
+    private:
+      void insertNop() {
+        FlowNode* nop;
+        _pool->alloc(&nop);
+        nop->type = FlowNode::NOP;
+
+        attach(nop);
+      }
+
+    private:
+      Branches _branches;
+    };
+
+    // --------------------------------------------------------------------------------
+
+    /* Compiles branches */
+      
+    class FlatPass2 : private AstVisitor {
+      class SubexpCompiler : public Flattener {
+      public:
+        SubexpCompiler(AstNode* root, CompilerPool* pool) 
+          : Flattener(pool) 
+        {
+          root->visit(this);
+        }
+      };
+
+      void insert(SubexpCompiler& comp) {
+        _ncur->next->prev = comp.last();
+        comp.last()->next = _ncur->next;
+        _ncur->next = comp.first();
+        comp.first()->prev = _ncur;
+
+        _ncur = comp.last();
+      }
+
+      void insert(Block& block) {
+        _ncur->next->prev = block.end;
+        block.end->next = _ncur->next;
+        _ncur->next = block.begin;
+        block.begin->prev = _ncur;
+
+        _ncur = block.end;
+      }
+
+      void insert(FlowNode* node) {
+        node->next = _ncur->next;
+        node->prev = _ncur;
+        _ncur->next->prev = node;
+        _ncur->next = node;
+
+        _ncur = node;
+      }
+
+      void move(AstNode* node) {
+        _ncur = info(node)->fn;
+      }
+
+    public:
+      FlatPass2(Branches& branches, CompilerPool* pool) {
+        _inIf = false;
+        _pool = pool;
+        
+        for (Branches::iterator it = branches.begin();
+             it != branches.end();
+             ++it) {
+          (*it)->visit(this);
+        }
+
+        //root->node()->body()->visit(this);
+      }
+
+    private:
+      
+
+      VISIT(BinaryOpNode) {
+        move(node);
+      }
+
+      VISIT(UnaryOpNode) {
+        move(node);
+      }
+
+      VISIT(StringLiteralNode) {
+        move(node);
+      }
+
+      VISIT(DoubleLiteralNode) {
+        move(node);
+      }
+    
+      VISIT(IntLiteralNode) {
+        move(node);
+      }
+    
+      VISIT(LoadNode) {
+        move(node);
+      }
+   
+      VISIT(StoreNode) {
+        move(node);
+      }
+
+      VISIT(ForNode) {
+        
+      }
+
+      VISIT(WhileNode) {
+      }
+    
+      VISIT(BlockNode) {
+        node->visitChildren(this);
+      }
+
+
+      VISIT(ReturnNode) {
+        move(node);
+      }
+
+      void genIfJump(IfNode* node) {
+        FlowNode* jump;
+
+        _pool->alloc(&jump);
+        jump->type = FlowNode::JUMP;
+        jump->u.branch = info(node)->falseBranch.begin;
+        insert(jump);
+        addRef(jump, jump->u.branch);
+      }
+
+      VISIT(IfNode) {
+        _ncur = info(node)->last;
+
+        SubexpCompiler comp(node->ifExpr(), _pool);
+
+        insert(comp);
+
+        if (node->ifExpr()->isBinaryOpNode()) {
+          switch (node->ifExpr()->asBinaryOpNode()->kind()) {
+          case tAND:      // We don't need the jump after expression if there's AND on the top
+            break;        // (we need to insert the false branch before the true branch if
+                          // there's anything but AND at the top of the expression)
+
+          default:            
+            genIfJump(node);
+            break;
+          }
+        }
+
+        /*
+        if (node->elseBlock()) {
+          addRef(jump, info(node)->falseBranch.begin);
+          jump->u.branch = info(node)->falseBranch.begin;
+          insert(jump);
+          insert(info(node)->trueBranch);
+          
+          _pool->alloc(&jump);
+          jump->type = FlowNode::JUMP;
+          jump->u.branch = oldNext;
+          jump->refNode = oldNext->refList;
+          oldNext->refList = jump;
+
+          insert(jump);
+          insert(info(node)->falseBranch);
+        } else {
+          jump->u.branch = oldNext;
+          insert(jump);
+          insert(info(node)->trueBranch);
+        }
+        */
+      }
+
+    private:
+      bool _inIf;
+      CompilerPool* _pool;
+      FlowNode* _ncur;
     };
 
     // --------------------------------------------------------------------------------

@@ -9,43 +9,7 @@
 
 namespace mathvm {
 
-  template<typename T>
-  class NativeLabel {
-  public:    
-    NativeLabel() { }
-
-    NativeLabel(Bytecode* bc) {
-      _label = bc->current();
-      bc->addTyped<T>(0);
-      _bc = bc;
-    }
-
-    void bind(uint32_t offset) {
-      int32_t d = (int32_t)offset - (int32_t)_label - sizeof(T);
-      _bc->setTyped<int32_t>(_label, d);
-    }
-
-    void bind(Bytecode* bc) {
-      bind(bc->current());
-    }
-
-    void bind(const NativeLabel& label) {
-      int32_t d = (int32_t)label._label - (int32_t)_label - sizeof(T);
-      _bc->setTyped<int32_t>(_label, d);
-    }
-
-    void bind() {
-      bind(_bc);
-    }
-
-    uint32_t offset() const {
-      return _label;
-    }
-
-  private:
-    uint32_t _label;
-    Bytecode* _bc;
-  };
+  
 
   // --------------------------------------------------------------------------------
 
@@ -513,6 +477,40 @@ namespace mathvm {
       add(x86_modrm(r1, r2, 1));
       add(pred);
     }
+
+    void cmp(const Reg& dst, const Reg& src) {
+      cmp_rr(dst._r, src._r);
+    }
+
+    void cmp(const XmmReg& dst, const XmmReg& src, char op = -1) {
+      cmp_xmm_xmm(dst._r, src._r, op);
+    }
+
+    void cmp(const Reg& r, const Imm& imm) {
+      ABORT("Not implemented");
+    }
+
+    void cmp(const Reg& r, const Mem& mem) {
+      ABORT("Not implemented");
+    }
+
+    void cmp(const Mem& mem, const Reg& reg) {
+      ABORT("Not implemented");
+    }
+
+    void cmp(const XmmReg& r, const Mem& mem, char op = -1) {
+      ABORT("Not implemented");
+    }
+
+    void cmp(const Mem& mem, const XmmReg& r, char op = 1) {
+      ABORT("Not implemented");
+    }
+
+    void cmp(const XmmReg& r1, const Reg& r2, char op = -1) {
+      ABORT("Not implemented");
+    }
+
+    // --------------------------------------------------------------------------------
 
     void test_rr(char r1, char r2) {
       add(x86_rex(r2, r1, 1));

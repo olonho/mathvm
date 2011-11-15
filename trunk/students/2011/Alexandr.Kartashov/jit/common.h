@@ -33,6 +33,46 @@ namespace mathvm {
   private:
     std::deque<T> _d;
   };
+
+  // --------------------------------------------------------------------------------
+
+  template<typename T>
+  class NativeLabel {
+  public:    
+    NativeLabel() { }
+
+    NativeLabel(Bytecode* bc) {
+      _label = bc->current();
+      bc->addTyped<T>(0);
+      _bc = bc;
+    }
+
+    void bind(uint32_t offset) {
+      int32_t d = (int32_t)offset - (int32_t)_label - sizeof(T);
+      _bc->setTyped<int32_t>(_label, d);
+    }
+
+    void bind(Bytecode* bc) {
+      bind(bc->current());
+    }
+
+    void bind(const NativeLabel& label) {
+      int32_t d = (int32_t)label._label - (int32_t)_label - sizeof(T);
+      _bc->setTyped<int32_t>(_label, d);
+    }
+
+    void bind() {
+      bind(_bc);
+    }
+
+    uint32_t offset() const {
+      return _label;
+    }
+
+  private:
+    uint32_t _label;
+    Bytecode* _bc;
+  };
   
   // --------------------------------------------------------------------------------
   
@@ -88,6 +128,8 @@ namespace mathvm {
 
   // --------------------------------------------------------------------------------
 
+  #define INVALID_OFFSET 0xFFFFFFFF
+  
   struct FlowNode {
     enum Type {
       ASSIGN,
@@ -107,6 +149,7 @@ namespace mathvm {
       GE,
       EQ,
       NEQ,
+
       AND,
       OR,
       NOT,
@@ -114,15 +157,28 @@ namespace mathvm {
       SYS_CALL,
       CALL,
       PRINT,
-      RETURN
+      RETURN,
+      JUMP,
+
+      NOP
     };
 
     Type type;
     FlowNode* next;
+    FlowNode* prev;
+
+    uint32_t offset;
+
+    FlowNode* refList;
+    FlowNode* refNode;
+
+    NativeLabel<int32_t> label;
 
     union {
       struct {
         FlowVar* result;
+        FlowNode* trueBranch;
+        FlowNode* falseBranch;
 
         union {
           struct {
@@ -150,13 +206,12 @@ namespace mathvm {
         FlowVar* from;
       } assign;
 
-      struct { 
-        FlowVar* op1;
-        FlowVar* op2;
 
-        FlowNode* trueBrach;
-        FlowNode* falseBranch;
-      } localBranch;
+      /*struct { 
+        
+        } condBranch;*/
+
+      FlowNode* branch;
 
       struct {
         size_t args;
@@ -179,6 +234,11 @@ namespace mathvm {
     bool isBranch() const {
       return type >= LT && type <= NOT;
     }
+  };
+
+  struct Block {
+    FlowNode* begin;
+    FlowNode* end;
   };
 
   // --------------------------------------------------------------------------------
@@ -207,12 +267,32 @@ namespace mathvm {
     bool initialized;
   };
 
+  
+
   struct NodeInfo {
     ValType type;
+    unsigned int depth;     // Size of the subexpression tree
+    AstNode* parent;        // The parent of the node
+
+    FlowNode* last;         // the last flattened node before this one
+                            // (required to compile branching AST nodes)
+
+    /* I forgot, OH SHI~ */
+
     NativeFunction* funRef;
-    const char* string;
+
+    /* For an operation node */
+
     FlowNode* fn;
-    unsigned int depth;
+
+    /* For a print node */
+
+    const char* string;
+    
+    /* For a branching node */
+
+    Block trueBranch;
+    Block falseBranch;
   };
 
 #define VAR_INFO(v) ((VarInfo*)(v->info()))
@@ -261,6 +341,7 @@ namespace mathvm {
     switch (tok) {
     case tAND:
     case tOR:
+    case tNOT:
       return true;
 
     default:

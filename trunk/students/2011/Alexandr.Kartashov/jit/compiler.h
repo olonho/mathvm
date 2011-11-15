@@ -24,7 +24,13 @@ namespace mathvm {
     }
 
     FlowNode* allocFlowNode() {
-      return _fn.alloc();
+      FlowNode* node = _fn.alloc();
+
+      node->refList = node->refNode = NULL;
+      node->prev = node->next = NULL;
+      node->offset = INVALID_OFFSET;
+      
+      return node;
     }
 
     void alloc(FlowNode** fn) {
