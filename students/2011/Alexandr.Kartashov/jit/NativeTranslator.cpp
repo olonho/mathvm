@@ -144,7 +144,7 @@ namespace mathvm {
       FunctionCollector fc(root, _runtime, &pool);
       VarCollector vc(root, _runtime, &pool);
       Flow flow(root, &pool);
-      NativeGenerator2 ng1(root);
+      NativeGenerator2 ng(root);
 
       info(root->node())->funRef->code()->link();
 

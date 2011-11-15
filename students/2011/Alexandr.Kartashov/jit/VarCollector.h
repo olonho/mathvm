@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <algorithm>
+#include <stack>
 
 #include "common.h"
 #include "compiler.h"
@@ -14,11 +15,12 @@ namespace mathvm {
     typedef std::map<AstVar*, uint16_t> Locals;
 
   public:
-    VarCollector(AstFunction* af, Runtime* rt, CompilerPool* pool) { 
+    VarCollector(AstFunction* af, Runtime* rt, CompilerPool* pool) {
       collect(af, rt, pool);
     }
 
     void collect(AstFunction* af, Runtime* rt, CompilerPool* pool) {
+      _parent = NULL;
       _runtime = rt;
       _pool = pool;
 
@@ -39,6 +41,7 @@ namespace mathvm {
         ++p;
       }
 
+      _parent = node;
       node->visitChildren(this);
     }
 
@@ -46,10 +49,27 @@ namespace mathvm {
     Runtime* _runtime;
     CompilerPool* _pool;
     NativeFunction* _curFun;
+    AstNode* _parent;
+
+    std::stack<AstNode*> _pstack;
 
   private:
+    void setParent(AstNode* node) {
+      info(node)->parent = _parent;
+      _pstack.push(_parent);
+      _parent = node;
+    }
+
+    void restoreParent() {
+      _parent = _pstack.top();
+      _pstack.pop();
+    }
+    
+
     VISIT(BinaryOpNode) {
       _pool->addInfo(node);
+      setParent(node);
+
       node->visitChildren(this);
 
       info(node)->depth = 
@@ -77,70 +97,98 @@ namespace mathvm {
         info(node)->type = info(node->left())->type;
         break;
       }
+
+      restoreParent();
     }
 
     VISIT(UnaryOpNode) {
       _pool->addInfo(node);
+      setParent(node);
       
       node->visitChildren(this);
 
       info(node)->depth = info(node->operand())->depth + 1;
       info(node)->type = info(node->operand())->type;
+
+      restoreParent();
     }
 
     VISIT(StringLiteralNode) {
       _pool->addInfo(node);
+      setParent(node);
+
       info(node)->depth = 0;
 
       info(node)->type = VAL_STRING;
       info(node)->string = _runtime->addString(node->literal());
+
+      restoreParent();
     }
 
     VISIT(DoubleLiteralNode) {
       _pool->addInfo(node);
-      info(node)->depth = 0;
+      setParent(node);
+      info(node)->depth = 0;      
+      info(node)->type = VAL_DOUBLE;
 
-      NODE_INFO(node)->type = VAL_DOUBLE;
+      restoreParent();
     }
     
     VISIT(IntLiteralNode) {
       _pool->addInfo(node);
+      setParent(node);
       info(node)->depth = 0;
+      info(node)->type = VAL_INT;
 
-      NODE_INFO(node)->type = VAL_INT;
+      restoreParent();
     }
     
     VISIT(LoadNode) {
       _pool->addInfo(node);
+      setParent(node);
       info(node)->type = (ValType)node->var()->type();
       info(node)->depth = 0;
+
+      restoreParent();
     }
    
     VISIT(StoreNode) {
       _pool->addInfo(node);
+      setParent(node);
       
       node->visitChildren(this);
       info(node)->depth = info(node->value())->depth;      
 
       info(node->var())->initialized = true;
+
+      restoreParent();
     }
 
     VISIT(ForNode) {
       _pool->addInfo(node);
+      setParent(node);
       node->visitChildren(this);
       info(node)->depth = 0;
+
+      restoreParent();
     }
 
     VISIT(WhileNode) {
       _pool->addInfo(node);
+      setParent(node);
       node->visitChildren(this);
       info(node)->depth = 0;
+
+      restoreParent();
     }
     
     VISIT(IfNode) {
       _pool->addInfo(node);
+      setParent(node);
       node->visitChildren(this);
       info(node)->depth = 0;
+
+      restoreParent();
     }
           
     VISIT(BlockNode) {
@@ -148,6 +196,7 @@ namespace mathvm {
       AstVar* v;
 
       _pool->addInfo(node);
+      setParent(node);
       info(node)->depth = 0;
       
       while (vi.hasNext()) {
@@ -162,12 +211,15 @@ namespace mathvm {
       }
       
       node->visitChildren(this);
+
+      restoreParent();
     }
 
     VISIT(PrintNode) {
       std::stringstream s;
       
       _pool->addInfo(node);
+      setParent(node);
       info(node)->depth = 0;
       node->visitChildren(this);
       
@@ -193,10 +245,13 @@ namespace mathvm {
       }
 
       info(node)->string = _runtime->addString(s.str());
+
+      restoreParent();
     }
 
     VISIT(CallNode) {
       _pool->addInfo(node);
+      setParent(node);
       node->visitChildren(this);
 
       unsigned int d = 0;
@@ -207,12 +262,17 @@ namespace mathvm {
       }
 
       info(node)->depth = d;
+
+      restoreParent();
     }
 
     VISIT(ReturnNode) {
       _pool->addInfo(node);
+      setParent(node);
       info(node)->depth = 0;
       node->visitChildren(this);
+
+      restoreParent();
     }
   };
 }

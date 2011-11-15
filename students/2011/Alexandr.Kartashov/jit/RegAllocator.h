@@ -29,21 +29,27 @@ namespace mathvm {
     }
 
     VISIT(BinaryOpNode) {
-      info(node)->fn->u.op.result->_stor = FlowVar::STOR_REGISTER;
-      info(node)->fn->u.op.result->_storIdx = _curReg;
+      if (!isLogic(node->kind())) {
+        info(node)->fn->u.op.result->_stor = FlowVar::STOR_REGISTER;
+        info(node)->fn->u.op.result->_storIdx = _curReg;
 
-      node->left()->visit(this);
+        node->left()->visit(this);
         
-      _curReg++;
-      node->right()->visit(this);
-
-      _curReg--;
+        _curReg++;
+        node->right()->visit(this);
+        
+        _curReg--;
+      } else {
+        node->visitChildren(this);
+      }
     }
 
     VISIT(UnaryOpNode) {
-      info(node)->fn->u.op.result->_stor = FlowVar::STOR_REGISTER;
-      info(node)->fn->u.op.result->_storIdx = _curReg;
-
+      if (!isLogic(node->kind())) {
+        info(node)->fn->u.op.result->_stor = FlowVar::STOR_REGISTER;
+        info(node)->fn->u.op.result->_storIdx = _curReg;
+      }
+        
       node->visitChildren(this);
     }
 
