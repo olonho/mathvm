@@ -75,6 +75,8 @@ namespace mathvm {
   };
   
   // --------------------------------------------------------------------------------
+
+  class VarInfo;
   
   class FlowVar {
   public:
@@ -83,7 +85,8 @@ namespace mathvm {
       STOR_REGISTER,  // _storIdx --- the register assinged to the variable
       STOR_SPILL,     // _storIdx --- the index of the frame bucket
       STOR_CONST,     // _const is valid
-      STOR_LOCAL      // _avar is valid
+      STOR_LOCAL,     // _avar is valid
+      STOR_TEMP       // RAX :)
     };
 
     FlowVar() {
@@ -96,6 +99,7 @@ namespace mathvm {
       _type = v->type();
       _avar = v;
       _stor = STOR_LOCAL;
+      _vi = (VarInfo*)v->info();
     }
 
     void init(int64_t v) {
@@ -113,7 +117,8 @@ namespace mathvm {
     }
 
     VarType _type;
-    const AstVar* _avar;
+    const AstVar*  _avar;
+    const VarInfo* _vi;
     const FlowVar* _nextArg;
     const FlowVar* _prevArg;
 
@@ -142,6 +147,7 @@ namespace mathvm {
       MUL,
       DIV,
       NEG,
+      INC,
 
       LT,
       LE,
@@ -276,6 +282,10 @@ namespace mathvm {
 
     FlowNode* last;         // the last flattened node before this one
                             // (required to compile branching AST nodes)
+
+    /* I wish I had anonymous unions.... */
+    
+    //FlowVar* lastVal;       // the last value of the for-cycle
 
     /* I forgot, OH SHI~ */
 

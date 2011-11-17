@@ -18,10 +18,12 @@ namespace mathvm {
       size_t nargs = 0;
       size_t locNum = info(af->node())->funRef->localsNumber();
 
+      code->mov_rr(RAX, RSP);
+      
       code->push_r(RBP);
       code->mov_rr(RBP, RSP);
 
-      if (locNum % 2 == 1) {   // Stack frame alignment (I'd like to kill the person who suggested this :(
+      if (locNum % 2 == 0) {   // Stack frame alignment (I'd like to kill the person who suggested this :(
         locNum++;              // We have RBP and RDI stored and odd number of locals
       }
 
@@ -68,9 +70,13 @@ namespace mathvm {
   private:    
     void generate(FlowNode* node) {
       for (; node; node = node->next) {
+        node->offset = _code->current();
+
         if (node->refList) {
           for (FlowNode* ref = node->refList; ref; ref = ref->refNode) {
-            ref->label.bind();
+            if (ref->offset != INVALID_OFFSET) {
+              ref->label.bind();
+            }
           }
         }
 
@@ -104,6 +110,10 @@ namespace mathvm {
           genNeg(node);
           break;
 
+        case FlowNode::INC:
+          genInc(node);
+          break;
+
         case FlowNode::PRINT:
           genPrint(node);
           break;
@@ -134,15 +144,15 @@ namespace mathvm {
     case FlowVar::STOR_REGISTER:                                        \
       switch (src->_stor) {                                             \
       case FlowVar::STOR_CONST:                                         \
-        _code->op(Reg(rmap[dst->_storIdx]), Imm(src->_const.intConst)); \
+        _code->op(ireg(dst), Imm(src->_const.intConst));                \
         break;                                                          \
                                                                         \
       case FlowVar::STOR_LOCAL:                                         \
-        _code->op(Reg(rmap[dst->_storIdx]), Mem(RBP, -VAR_SIZE*info(src->_avar)->fPos - 8)); \
+        _code->op(ireg(dst), mem(src));                                 \
         break;                                                          \
                                                                         \
       case FlowVar::STOR_REGISTER:                                      \
-        _code->op(Reg(rmap[dst->_storIdx]), Reg(rmap[src->_storIdx]));  \
+        _code->op(ireg(dst), ireg(src));                                \
         break;                                                          \
                                                                         \
       default:                                                          \
@@ -153,12 +163,27 @@ namespace mathvm {
     case FlowVar::STOR_LOCAL:                                           \
       switch (src->_stor) {                                             \
       case FlowVar::STOR_REGISTER:                                      \
-        _code->op(Mem(RBP, -VAR_SIZE*info(dst->_avar)->fPos - 8), Reg(rmap[src->_storIdx])); \
+        _code->op(mem(dst), ireg(src));                                 \
+        break;                                                          \
+                                                                        \
+      case FlowVar::STOR_TEMP:                                          \
+        _code->op(mem(dst), Reg(RAX));                                  \
         break;                                                          \
                                                                         \
       default:                                                          \
         ABORT("Not supported");                                         \
         }                                                               \
+      break;                                                            \
+                                                                        \
+    case FlowVar::STOR_TEMP:                                            \
+      switch (src->_stor) {                                             \
+      case FlowVar::STOR_LOCAL:                                         \
+        _code->op(Reg(RAX), mem(src));                                  \
+        break;                                                          \
+                                                                        \
+      default:                                                          \
+        ABORT("Not supported");                                         \
+      }                                                                 \
       break;                                                            \
                                                                         \
     default:                                                            \
@@ -176,7 +201,7 @@ namespace mathvm {
         break;                                                          \
                                                                         \
       case FlowVar::STOR_LOCAL:                                         \
-        _code->op(XmmReg(dst->_storIdx), Mem(RBP, -VAR_SIZE*info(src->_avar)->fPos - 8)); \
+        _code->op(XmmReg(dst->_storIdx), mem(src));                     \
         break;                                                          \
                                                                         \
       case FlowVar::STOR_REGISTER:                                      \
@@ -191,7 +216,7 @@ namespace mathvm {
     case FlowVar::STOR_LOCAL:                                           \
       switch (src->_stor) {                                             \
       case FlowVar::STOR_REGISTER:                                      \
-        _code->op(Mem(RBP, -VAR_SIZE*info(dst->_avar)->fPos - 8), XmmReg(src->_storIdx)); \
+        _code->op(mem(dst), XmmReg(src->_storIdx));                     \
         break;                                                          \
                                                                         \
       default:                                                          \
@@ -213,7 +238,7 @@ namespace mathvm {
         break;                                                          \
                                                                         \
       case FlowVar::STOR_LOCAL:                                         \
-        _code->op(XmmReg(dst->_storIdx), Mem(RBP, -VAR_SIZE*info(src->_avar)->fPos - 8), arg); \
+        _code->op(XmmReg(dst->_storIdx), mem(src));                     \
         break;                                                          \
                                                                         \
       case FlowVar::STOR_REGISTER:                                      \
@@ -228,7 +253,7 @@ namespace mathvm {
     case FlowVar::STOR_LOCAL:                                           \
       switch (src->_stor) {                                             \
       case FlowVar::STOR_REGISTER:                                      \
-        _code->op(Mem(RBP, -VAR_SIZE*info(dst->_avar)->fPos - 8), XmmReg(src->_storIdx), arg); \
+        _code->op(mem(dst), XmmReg(src->_storIdx), arg);                \
         break;                                                          \
                                                                         \
       default:                                                          \
@@ -400,6 +425,14 @@ namespace mathvm {
 
   void genJump(FlowNode* node) {
     node->label = _code->jmp_rel32();
+
+    if (node->u.op.trueBranch && node->u.op.trueBranch->offset != INVALID_OFFSET) {
+      node->label.bind(node->u.op.trueBranch->offset);
+    } else if (node->u.op.falseBranch && node->u.op.falseBranch->offset != INVALID_OFFSET) {
+      node->label.bind(node->u.op.falseBranch->offset);
+    } else if (node->u.branch && node->u.branch->offset != INVALID_OFFSET) {
+      node->label.bind(node->u.branch->offset);
+    }
   }
 
   void genComp(FlowNode* node) {
@@ -495,8 +528,47 @@ namespace mathvm {
     default:
       ABORT("Should never happen");
     }
+
+    if (node->u.op.trueBranch && node->u.op.trueBranch->offset != INVALID_OFFSET) {
+      node->label.bind(node->u.op.trueBranch->offset);
+    }
   }
 
+  void genInc(FlowNode* node) {
+    FlowVar* op = node->u.op.u.un.op;
+
+    switch (op->_type) {
+    case VT_INT:
+      switch (op->_stor) {
+      case FlowVar::STOR_LOCAL:
+        _code->inc(mem(op));
+        break;
+
+      default:
+        ABORT("Not supported");
+      }
+      break;
+
+    default:
+      ABORT("Not supported");
+    }
+  }
+
+  static Mem mem(FlowVar* fv) {
+    switch (fv->_stor) {
+    case FlowVar::STOR_LOCAL:
+      return Mem(RBP, -VAR_SIZE*fv->_vi->fPos - 8);
+      break;
+
+    default:
+      ABORT("Not supported yet");
+    }
+  }
+
+  static Reg ireg(FlowVar* fv) {
+    return Reg(rmap[fv->_storIdx]);
+  }
+    
   private:
     X86Code* _code;
   };

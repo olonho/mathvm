@@ -64,6 +64,28 @@ namespace mathvm {
       _parent = _pstack.top();
       _pstack.pop();
     }
+
+    /*
+    void incLocNum() {
+    }
+    */
+
+    void addLocal(AstVar* v) {
+      _pool->addInfo(v);
+
+      info(v)->initialized = false;
+      info(v)->kind = VarInfo::KV_LOCAL;
+      info(v)->fPos = _curFun->localsNumber();
+      info(v)->owner = _curFun;
+
+      _curFun->setLocalsNumber(_curFun->localsNumber() + 1);
+    }
+
+    /*
+    FlowVar* addLocal() {
+      _curFun->setLocalsNumber(_curFun->localsNumber() + 1);
+    }
+    */
     
 
     VISIT(BinaryOpNode) {
@@ -170,6 +192,8 @@ namespace mathvm {
       node->visitChildren(this);
       info(node)->depth = 0;
 
+      addLocal((AstVar*)node->var());      
+
       restoreParent();
     }
 
@@ -201,13 +225,7 @@ namespace mathvm {
       
       while (vi.hasNext()) {
         v = vi.next();
-        _pool->addInfo(v);
-        info(v)->initialized = false;
-        info(v)->kind = VarInfo::KV_LOCAL;
-        info(v)->fPos = _curFun->localsNumber();
-        info(v)->owner = _curFun;
-
-        _curFun->setLocalsNumber(_curFun->localsNumber() + 1);
+        addLocal(v);
       }
       
       node->visitChildren(this);

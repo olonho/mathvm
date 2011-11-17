@@ -234,7 +234,8 @@ namespace mathvm {
     }
 
     void add(const Mem& mem, const Reg& reg) {
-      ABORT("Not implemented");
+      add(ADD_RM_R);
+      x86_modrm_rm_32(reg._r, mem._base, mem._disp);
     }
 
     void add(const XmmReg& r, const Mem& mem) {
@@ -300,7 +301,8 @@ namespace mathvm {
     }
 
     void sub(const Mem& mem, const Reg& reg) {
-      ABORT("Not implemented");
+      add(SUB_RM_R);
+      x86_modrm_rm_32(reg._r, mem._base, mem._disp);
     }
 
     void sub(const XmmReg& r1, const Reg& r2) {
@@ -495,7 +497,10 @@ namespace mathvm {
     }
 
     void cmp(const Mem& mem, const Reg& reg) {
-      ABORT("Not implemented");
+      add(x86_rex(reg._r, mem._base, 1));
+      add(CMP_RM_R);
+      x86_modrm_rm_32(reg._r, mem._base, mem._disp);
+      //ABORT("Not implemented");
     }
 
     void cmp(const XmmReg& r, const Mem& mem, char op = -1) {
@@ -529,6 +534,14 @@ namespace mathvm {
       add(x86_rex(dst, src, 1));
       add(XOR_R_RM);
       add(x86_modrm(MOD_RR, dst, src));
+    }
+
+    // --------------------------------------------------------------------------------
+
+    void inc(const Mem& m) {
+      add(x86_rex(0, m._base, 1));
+      add(INC_RM);
+      x86_modrm_rm_32(0, m._base, m._disp);      
     }
 
     // --------------------------------------------------------------------------------
