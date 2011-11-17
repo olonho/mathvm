@@ -76,6 +76,15 @@ namespace mathvm {
       }
 
     protected:
+      FlowNode* allocAnchor() {
+        FlowNode* anchor;
+
+        _pool->alloc(&anchor);
+        anchor->type = FlowNode::NOP;
+
+        return anchor;
+      }
+
       AstNode* getDecisionNode(AstNode* node) {
         AstNode* p = info(node)->parent;
         TokenKind ptok;
@@ -168,6 +177,10 @@ namespace mathvm {
           fn->type = FlowNode::NEQ;
           break;
 
+        case tRANGE:
+          fn->type = FlowNode::NOP;
+          break;
+
         default:
           ABORT("Not supported");
         }
@@ -182,7 +195,7 @@ namespace mathvm {
 
           //printf("%s\n", typeid(*p).name());
 
-          if (p->isIfNode()) {
+          if (p->isIfNode() || p->isWhileNode()) {
             to = info(info(node)->parent)->trueBranch.begin;
 
             fn->u.op.trueBranch = to;
@@ -298,10 +311,32 @@ namespace mathvm {
 
         FlowNode* fn;
         _pool->alloc(&fn);
-        fn->type = FlowNode::COPY;
-        fn->u.op.u.copy.from = info(node->value())->fn->u.op.result;
-        fn->u.op.u.copy.to = info(node->var())->fv;
-        fn->u.op.result = NULL;
+
+        switch (node->op()) {
+        case tASSIGN:
+          fn->type = FlowNode::COPY;
+          fn->u.op.u.copy.from = info(node->value())->fn->u.op.result;
+          fn->u.op.u.copy.to = info(node->var())->fv;
+          fn->u.op.result = NULL;
+          break;
+
+        case tINCRSET:
+          fn->type = FlowNode::ADD;
+          fn->u.op.u.bin.op1 = info(node->var())->fv;
+          fn->u.op.u.bin.op2 = info(node->value())->fn->u.op.result;          
+          fn->u.op.result = NULL;
+          break;
+
+        case tDECRSET:
+          fn->type = FlowNode::SUB;
+          fn->u.op.u.bin.op1 = info(node->var())->fv;
+          fn->u.op.u.bin.op2 = info(node->value())->fn->u.op.result;          
+          fn->u.op.result = NULL;
+          break;
+
+        default:
+          ABORT("Not supported");
+        }
                 
         info(node)->fn = fn;
         attach(fn);
@@ -409,12 +444,35 @@ namespace mathvm {
       FlatPass1(AstFunction* root, CompilerPool* pool) 
         : Flattener(pool)
       {
+        _curf = info(root->node())->funRef;
         root->node()->body()->visit(this);
       }
 
       Branches& branches() {
         return _branches;
       }
+
+    private:
+      FlowVar* addLocal(VarType type) {
+        VarInfo* vi;
+        FlowVar* fv;
+
+        _pool->alloc(&vi);
+        _pool->alloc(&fv);
+
+        vi->kind = VarInfo::KV_LOCAL;
+        vi->fPos = _curf->localsNumber();
+        
+       
+        fv->_type = type;
+        fv->_vi = vi;
+        fv->_stor = FlowVar::STOR_LOCAL;
+
+        _curf->setLocalsNumber(_curf->localsNumber() + 1);
+
+        return fv;
+      }
+      
 
       VISIT(IfNode) {
         FlowNode* anchEnd;
@@ -449,6 +507,96 @@ namespace mathvm {
         attach(anchEnd);
       }
 
+
+      VISIT(WhileNode) {
+        _branches.push_back(node);
+
+        FlowNode* jump;
+        FlowNode* anchor = allocAnchor();
+        FlowNode* anchor2 = allocAnchor();
+
+        info(node)->last = anchor;
+        
+        _pool->alloc(&jump);
+        jump->type = FlowNode::JUMP;
+        jump->u.branch = anchor;
+        attach(jump);
+        addRef(jump, anchor);        
+
+        node->loopBlock()->visit(this);
+        
+        info(node)->trueBranch.begin = jump->next;
+        info(node)->falseBranch.begin = anchor2;
+        attach(anchor);   // The while condition check will be inserted here
+        attach(anchor2);
+      }
+
+      VISIT(ForNode) {
+        FlowNode* fn;
+        FlowNode* forBegin;
+        FlowNode* forEnd;
+        FlowNode* jump;
+        FlowVar* counter = info(node->var())->fv;
+        FlowVar* lastVal;  // Stores the last value of the counter
+        FlowVar* temp;
+
+        forBegin = allocAnchor();
+        forEnd = allocAnchor();
+
+        node->inExpr()->visit(this);
+
+        _pool->alloc(&fn);
+        fn->type = FlowNode::COPY;
+        fn->u.op.u.copy.from = info(node->inExpr()->asBinaryOpNode()->left())->fn->u.op.result;
+        fn->u.op.u.copy.to = counter;
+        attach(fn);
+
+        lastVal = addLocal(VT_INT);
+
+        _pool->alloc(&fn);
+        fn->type = FlowNode::COPY;
+        fn->u.op.u.copy.from = info(node->inExpr()->asBinaryOpNode()->right())->fn->u.op.result;
+        fn->u.op.u.copy.to = lastVal;
+        attach(fn);        
+
+        attach(forBegin);
+
+        node->body()->visit(this);
+
+        _pool->alloc(&temp);
+        temp->_stor = FlowVar::STOR_TEMP;
+        temp->_type = VT_INT;
+        temp->_vi = NULL;
+        
+        _pool->alloc(&fn);
+        fn->type = FlowNode::COPY;
+        fn->u.op.u.copy.from = lastVal;
+        fn->u.op.u.copy.to = temp;
+        attach(fn);
+        
+
+        _pool->alloc(&fn);
+        fn->type = FlowNode::GE;
+        fn->u.op.u.bin.op1 = counter;
+        fn->u.op.u.bin.op2 = temp;
+        fn->u.op.trueBranch = forEnd;
+        attach(fn);
+        addRef(fn, forEnd);
+
+        _pool->alloc(&fn);
+        fn->type = FlowNode::INC;
+        fn->u.op.u.un.op = counter;
+        attach(fn);
+        
+        _pool->alloc(&jump);
+        jump->type = FlowNode::JUMP;
+        jump->u.branch = forBegin;
+        attach(jump);
+        addRef(jump, forBegin);
+       
+        attach(forEnd);
+      }
+
     private:
       void insertNop() {
         FlowNode* nop;
@@ -460,6 +608,7 @@ namespace mathvm {
 
     private:
       Branches _branches;
+      NativeFunction* _curf;
     };
 
     // --------------------------------------------------------------------------------
@@ -557,6 +706,28 @@ namespace mathvm {
       }
 
       VISIT(WhileNode) {
+        _ncur = info(node)->last;
+
+        SubexpCompiler comp(node->whileExpr(), _pool);
+
+        insert(comp);
+
+        if (node->whileExpr()->isBinaryOpNode()) {
+          switch (node->whileExpr()->asBinaryOpNode()->kind()) {
+          case tAND:
+            FlowNode* jump;
+
+            _pool->alloc(&jump);
+            jump->type = FlowNode::JUMP;
+            jump->u.branch = info(node)->trueBranch.begin;
+            insert(jump);
+            addRef(jump, jump->u.branch);
+            break;
+
+          default:            
+            break;
+          }
+        }
       }
     
       VISIT(BlockNode) {

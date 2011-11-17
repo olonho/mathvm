@@ -133,6 +133,7 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 // ================================================================================
 // Instruction encodings
 
+#define ADD_RM_R     0x01  // RO
 #define ADD_R_RM     0x03
 #define MOVLPD       0x130F
 #define MOVQ_XMM_RM  0x6E0F
@@ -202,7 +203,8 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define SETNLE_RM    0x9F0F
 
 #define IMUL_R_RM    0xAF0F
-#define PSUBD_XMM_XM 0xFA0F 
+#define PSUBD_XMM_XM 0xFA0F
+#define SUB_RM_R     0x29
 #define SUB_R_RM     0x2B
 
 // NB: IMM is 32-bit even in the IA32e mode!
@@ -212,6 +214,7 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 // </OddInstructionEncoding>
 
 #define XOR_R_RM     0x33
+#define CMP_RM_R     0x39
 #define CMP_R_RM     0x3B
 #define PUSH_R       0x50
 #define POP_R        0x58
@@ -235,6 +238,7 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define CMPSD        0xC20FF2
 #define IDIV_RM      0xF7  // RO = 7
 #define NEG_RM       0xF7  // RO = 3
+#define INC_RM       0xFF  // RO = 0
 #define CALL_RM      0xFF  // RO = 2
 
 #define REPNE        0xF2

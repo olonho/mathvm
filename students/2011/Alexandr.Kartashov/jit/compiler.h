@@ -41,6 +41,10 @@ namespace mathvm {
       *fv = allocFlowVar();
     }
 
+    void alloc(VarInfo** vi) {
+      *vi = allocVarInfo();
+    }
+
   private:
     VarInfo* allocVarInfo() {
       return _vi.alloc();

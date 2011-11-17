@@ -116,7 +116,7 @@ namespace mathvm {
       }
 
       _curReg = 0;
-      node->visitChildren(this);
+      node->visit(this);
     }
 
   private:
