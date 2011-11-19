@@ -9,8 +9,6 @@
 
 namespace mathvm {
 
-  
-
   // --------------------------------------------------------------------------------
 
   struct Reg {
@@ -96,12 +94,22 @@ namespace mathvm {
     using Bytecode::add;
 
     ~X86Code() {
-      munmap(_x86code, _size);
+      //munmap(_x86code, _size);
     }
 
+    size_t size() const {
+      return _data.size();
+    }
+
+    unsigned char* data() {
+      return &_data[0];
+    }
+
+    /*
     void* x86code() {
       return _x86code;
     }
+    */
 
     // --------------------------------------------------------------------------------
     // Moves
@@ -150,7 +158,7 @@ namespace mathvm {
       x86_modrm_rm_32(xmm, rbase, disp);
     }
 
-    void movq_r_xmm(char xmm, char r) {
+    void movq_r_xmm(char r, char xmm) {
       add(0x66);
       add(x86_rex(xmm, r, 1));
       addUInt16(MOVQ_RM_XMM);
@@ -194,6 +202,10 @@ namespace mathvm {
 
     void mov(const XmmReg& r1, const Reg& r2) {
       movq_xmm_r(r1._r, r2._r);
+    }
+
+    void mov(const Reg& r1, const XmmReg& r2) {
+      movq_r_xmm(r1._r, r2._r);
     }
 
     // --------------------------------------------------------------------------------
@@ -247,6 +259,10 @@ namespace mathvm {
     }
 
     void add(const XmmReg& r1, const Reg& r2) {
+      ABORT("Not implemented");
+    }
+
+    void add(const Reg& r1, const XmmReg& r2) {
       ABORT("Not implemented");
     }
 
@@ -309,6 +325,10 @@ namespace mathvm {
       ABORT("Not implemented");
     }
 
+    void sub(const Reg& r1, const XmmReg& r2) {
+      ABORT("Not implemented");
+    }
+
     // --------------------------------------------------------------------------------
 
     void mul_rr(char dst, char src) {
@@ -341,7 +361,10 @@ namespace mathvm {
     }
 
     void mul(const Reg& r, const Mem& mem) {
-      ABORT("Not implemented");
+      add(x86_rex(r._r, 0, 1));
+      addInt16(IMUL_R_RM);
+      x86_modrm_rm_32(r._r, mem._base, mem._disp);
+      //ABORT("Not implemented");
     }
 
     void mul(const Mem& mem, const Reg& reg) {
@@ -349,6 +372,10 @@ namespace mathvm {
     }
 
     void mul(const XmmReg& r1, const Reg& r2) {
+      ABORT("Not implemented");
+    }
+
+    void mul(const Reg& r1, const XmmReg& r2) {
       ABORT("Not implemented");
     }
 
@@ -407,6 +434,10 @@ namespace mathvm {
       ABORT("Not implemented");
     }
 
+    void div(const Reg& r1, const XmmReg& r2) {
+      ABORT("Not implemented");
+    }
+
     // --------------------------------------------------------------------------------
 
     void neg_r(char r) {
@@ -430,6 +461,15 @@ namespace mathvm {
       addTyped(imm);
     }
 
+    void push(const Reg& r) {
+      push_r(r._r);
+    }
+
+    void push(const Mem& m) {
+      add(PUSH_RM);
+      x86_modrm_rm_32(6, m._base, m._disp);
+    }
+
     // --------------------------------------------------------------------------------
 
     void call_r(char r) {
@@ -438,9 +478,11 @@ namespace mathvm {
       add(x86_modrm(MOD_RR, 2, r));
     }
 
-    void call_rel(const char* p) {
+    uint32_t call_rel() {
       add(CALL_REL32);
-      addReloc(p);
+      addInt32(0);
+      return current() - 4;
+      //addReloc(p);
     }
 
     template<typename T>
@@ -544,9 +586,19 @@ namespace mathvm {
       x86_modrm_rm_32(0, m._base, m._disp);      
     }
 
+    void ret(uint16_t imm) {
+      if (imm) {
+        add(RET_IMM16);
+        addInt16(imm);
+      } else {
+        add(RET);
+      }
+    }
+
     // --------------------------------------------------------------------------------
     /* Code linking */
 
+    /*
     void addReloc(const char* p) {
       _relocs.push_back(Reloc(p, current()));
       addTyped<int32_t>(0);
@@ -564,8 +616,10 @@ namespace mathvm {
 
       mprotect(_x86code, _size, PROT_READ | PROT_EXEC);
     }
+    */
 
   private:
+    /*
     struct Reloc {
       Reloc(const char* anch, uint32_t off) {
         anchor = anch;
@@ -580,6 +634,8 @@ namespace mathvm {
 
     Relocs _relocs;
     char* _x86code;
+    */
+
     size_t _size;
   };
 

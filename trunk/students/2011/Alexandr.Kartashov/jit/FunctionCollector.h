@@ -1,15 +1,18 @@
+#pragma once
+
 #include "common.h"
 #include "compiler.h"
 #include "Runtime.h"
+
+#include <map>
 
 // ================================================================================
 
 namespace mathvm {
   class FunctionCollector : private AstVisitor {
-    Runtime* _runtime;
-    CompilerPool* _pool;
-
   public:
+    typedef std::deque<AstFunction*> Functions;
+
     FunctionCollector(AstFunction* root, Runtime* runtime, CompilerPool* pool) {
       collectFunctions(root, runtime, pool);
     }
@@ -18,6 +21,10 @@ namespace mathvm {
       _runtime = runtime;
       _pool = pool;
       visit(root);
+    }
+
+    const Functions& functions() const {
+      return _functions;
     }
 
   private:
@@ -51,8 +58,15 @@ namespace mathvm {
       NativeFunction* nf = _runtime->createFunction(af);
       _pool->addInfo(af->node());
       info(af->node())->funRef = nf;
+
+      _functions.push_back(af);
       
       af->node()->visit(this);
     }
+
+  private:
+    Runtime* _runtime;
+    CompilerPool* _pool;
+    Functions _functions;
   };
 }

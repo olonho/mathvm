@@ -76,7 +76,23 @@ namespace mathvm {
   
   // --------------------------------------------------------------------------------
 
-  class VarInfo;
+  class FlowVar;
+
+  class NativeFunction;
+
+  struct VarInfo {
+    enum Kind {
+      KV_LOCAL,
+      KV_CALL_STOR,
+      KV_ARG
+    };
+    
+    Kind kind;
+    int fPos;
+    NativeFunction* owner;
+    FlowVar* fv;
+    bool initialized;
+  };
   
   class FlowVar {
   public:
@@ -86,7 +102,9 @@ namespace mathvm {
       STOR_SPILL,     // _storIdx --- the index of the frame bucket
       STOR_CONST,     // _const is valid
       STOR_LOCAL,     // _avar is valid
-      STOR_TEMP       // RAX :)
+      STOR_TEMP,      // RAX :)
+      STOR_CALL,
+      STOR_ARG
     };
 
     FlowVar() {
@@ -98,7 +116,20 @@ namespace mathvm {
     void init(const AstVar* v) {
       _type = v->type();
       _avar = v;
-      _stor = STOR_LOCAL;
+
+      switch (((VarInfo*)v->info())->kind) {
+      case VarInfo::KV_LOCAL:
+        _stor = STOR_LOCAL;
+        break;
+
+      case VarInfo::KV_ARG:
+        _stor = STOR_ARG;
+        break;
+
+      default:
+        break;
+      }
+
       _vi = (VarInfo*)v->info();
     }
 
@@ -166,6 +197,9 @@ namespace mathvm {
       RETURN,
       JUMP,
 
+      ALIGN,
+      UNALIGN,
+
       NOP
     };
 
@@ -198,6 +232,8 @@ namespace mathvm {
 
           struct {
             const char* fun;
+            AstFunction* af;
+            //NativeFunction* fun;
           } call;
 
           struct {
@@ -260,21 +296,6 @@ namespace mathvm {
     VAL_BOOL
   };
 
-  struct VarInfo {
-    enum Kind {
-      KV_LOCAL,
-      KV_ARG
-    };
-    
-    Kind kind;
-    int fPos;
-    NativeFunction* owner;
-    FlowVar* fv;
-    bool initialized;
-  };
-
-  
-
   struct NodeInfo {
     ValType type;
     unsigned int depth;     // Size of the subexpression tree
@@ -303,6 +324,14 @@ namespace mathvm {
 
     Block trueBranch;
     Block falseBranch;
+
+    /* Calls to be done before the expresion is evaluated */
+
+    CallNode* callList;
+
+    /* Call result for call node */
+
+    FlowVar* callRes;
   };
 
 #define VAR_INFO(v) ((VarInfo*)(v->info()))

@@ -227,6 +227,7 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define MOVS_B       0xA4
 #define MOVS_W       0xA5
 #define MOV_R_IMM    0xB8
+#define RET_IMM16    0xC2
 #define RET          0xC3
 #define MOV_RM_IMM   0xC7  // RO = 0
 #define CALL_REL32   0xE8
@@ -240,5 +241,6 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define NEG_RM       0xF7  // RO = 3
 #define INC_RM       0xFF  // RO = 0
 #define CALL_RM      0xFF  // RO = 2
+#define PUSH_RM      0xFF  // RO = 6
 
 #define REPNE        0xF2

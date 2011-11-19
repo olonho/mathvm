@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common.h"
-#include "Runtime.h"
+#include "FunctionCollector.h"
 
 // ================================================================================
 
@@ -14,22 +14,28 @@ namespace mathvm {
     
   public:
     NativeGenerator2(AstFunction* af) {
-      X86Code* code = info(af->node())->funRef->code();
+      _curf = info(af->node())->funRef;
+
+      X86Code* code = _curf->code();
       size_t nargs = 0;
-      size_t locNum = info(af->node())->funRef->localsNumber();
+      size_t locNum = _curf->localsNumber() + _curf->callStorageSize();      
+      bool isTop = af->name() == AstFunction::top_name;
+      bool noArgs = af->parametersNumber() == 0;
 
       code->mov_rr(RAX, RSP);
       
       code->push_r(RBP);
       code->mov_rr(RBP, RSP);
 
-      if (locNum % 2 == 0) {   // Stack frame alignment (I'd like to kill the person who suggested this :(
-        locNum++;              // We have RBP and RDI stored and odd number of locals
+      if ((!isTop || (isTop && noArgs)) && locNum % 2 == 1) {   // Stack frame alignment (I'd like to kill the person who suggested this :(
+        locNum++;                                               // We have RBP and RDI stored and odd number of locals
+      } else if (isTop && locNum % 2 == 1) {
+        locNum++;
       }
 
       code->sub_rm_imm(RSP, locNum*VAR_SIZE);
 
-      if (af->name() == AstFunction::top_name) {
+      if (isTop && !noArgs) {
         Scope::VarIterator vi(af->node()->body()->scope());
         
         while (vi.hasNext()) {
@@ -50,7 +56,7 @@ namespace mathvm {
       _code = code;
       generate(info(af->node())->fn);
 
-      if (af->name() == AstFunction::top_name) {
+      if (isTop && !noArgs) {
         code->pop_r(RDI);
         code->mov_rr(RSI, RBP);
         code->sub_rm_imm(RSI, nargs*VAR_SIZE);
@@ -63,7 +69,8 @@ namespace mathvm {
 
       code->add_rm_imm(RSP, locNum*VAR_SIZE);
       code->pop_r(RBP);
-      code->add(RET);      
+
+      code->ret(af->parametersNumber()*VAR_SIZE);
     }
 
 
@@ -133,13 +140,25 @@ namespace mathvm {
           genJump(node);
           break;
 
+        case FlowNode::CALL:
+          genCall(node);
+          break;
+
+        case FlowNode::ALIGN:
+          _code->sub_r_imm(RSP, 8);
+          break;
+
+        case FlowNode::UNALIGN:
+          _code->add_r_imm(RSP, 8);
+          break;          
+
         default:
           ABORT("Not supported");          
         }
       }
     }
 
-#define INT_OP(op)                              \
+#define INT_OP(op)                                                      \
     switch (dst->_stor) {                                               \
     case FlowVar::STOR_REGISTER:                                        \
       switch (src->_stor) {                                             \
@@ -147,6 +166,8 @@ namespace mathvm {
         _code->op(ireg(dst), Imm(src->_const.intConst));                \
         break;                                                          \
                                                                         \
+      case FlowVar::STOR_CALL:                                          \
+      case FlowVar::STOR_ARG:                                           \
       case FlowVar::STOR_LOCAL:                                         \
         _code->op(ireg(dst), mem(src));                                 \
         break;                                                          \
@@ -160,6 +181,8 @@ namespace mathvm {
       }                                                                 \
       break;                                                            \
                                                                         \
+    case FlowVar::STOR_CALL:                                            \
+    case FlowVar::STOR_ARG:                                             \
     case FlowVar::STOR_LOCAL:                                           \
       switch (src->_stor) {                                             \
       case FlowVar::STOR_REGISTER:                                      \
@@ -177,8 +200,14 @@ namespace mathvm {
                                                                         \
     case FlowVar::STOR_TEMP:                                            \
       switch (src->_stor) {                                             \
+      case FlowVar::STOR_ARG:                                           \
+      case FlowVar::STOR_CALL:                                          \
       case FlowVar::STOR_LOCAL:                                         \
         _code->op(Reg(RAX), mem(src));                                  \
+        break;                                                          \
+                                                                        \
+      case FlowVar::STOR_REGISTER:                                      \
+        _code->op(Reg(RAX), ireg(src));                                 \
         break;                                                          \
                                                                         \
       default:                                                          \
@@ -200,6 +229,8 @@ namespace mathvm {
         _code->op(XmmReg(dst->_storIdx), Reg(RAX));                     \
         break;                                                          \
                                                                         \
+      case FlowVar::STOR_CALL:                                          \
+      case FlowVar::STOR_ARG:                                           \
       case FlowVar::STOR_LOCAL:                                         \
         _code->op(XmmReg(dst->_storIdx), mem(src));                     \
         break;                                                          \
@@ -208,15 +239,42 @@ namespace mathvm {
         _code->op(XmmReg(dst->_storIdx), XmmReg(src->_storIdx));        \
         break;                                                          \
                                                                         \
+      case FlowVar::STOR_TEMP:                                          \
+        _code->op(Reg(RAX), XmmReg(src->_storIdx));                     \
+        break;                                                          \
+                                                                        \
       default:                                                          \
         ABORT("Not supported");                                         \
-        }                                                               \
+      }                                                                 \
       break;                                                            \
                                                                         \
+    case FlowVar::STOR_CALL:                                            \
+    case FlowVar::STOR_ARG:                                             \
     case FlowVar::STOR_LOCAL:                                           \
       switch (src->_stor) {                                             \
       case FlowVar::STOR_REGISTER:                                      \
         _code->op(mem(dst), XmmReg(src->_storIdx));                     \
+        break;                                                          \
+                                                                        \
+      case FlowVar::STOR_TEMP:                                          \
+        _code->op(mem(dst), Reg(RAX));                                  \
+        break;                                                          \
+                                                                        \
+      default:                                                          \
+        ABORT("Not supported");                                         \
+      }                                                                 \
+      break;                                                            \
+                                                                        \
+    case FlowVar::STOR_TEMP:                                            \
+      switch (src->_stor) {                                             \
+      case FlowVar::STOR_CALL:                                          \
+      case FlowVar::STOR_ARG:                                           \
+      case FlowVar::STOR_LOCAL:                                         \
+        _code->op(Reg(RAX), mem(src));                                  \
+        break;                                                          \
+                                                                        \
+      case FlowVar::STOR_REGISTER:                                      \
+        _code->op(Reg(RAX), XmmReg(src->_storIdx));                     \
         break;                                                          \
                                                                         \
       default:                                                          \
@@ -237,6 +295,8 @@ namespace mathvm {
         _code->op(XmmReg(dst->_storIdx), Reg(RAX), arg);                \
         break;                                                          \
                                                                         \
+      case FlowVar::STOR_CALL:                                          \
+      case FlowVar::STOR_ARG:                                           \
       case FlowVar::STOR_LOCAL:                                         \
         _code->op(XmmReg(dst->_storIdx), mem(src));                     \
         break;                                                          \
@@ -250,6 +310,8 @@ namespace mathvm {
       }                                                                 \
       break;                                                            \
                                                                         \
+    case FlowVar::STOR_CALL:                                            \
+    case FlowVar::STOR_ARG:                                             \
     case FlowVar::STOR_LOCAL:                                           \
       switch (src->_stor) {                                             \
       case FlowVar::STOR_REGISTER:                                      \
@@ -361,7 +423,13 @@ namespace mathvm {
     case VT_INT:
       switch (op->_stor) {
       case FlowVar::STOR_REGISTER:
-        _code->push_r(rmap[op->_storIdx]);
+        _code->push(ireg(op));
+        break;
+
+      case FlowVar::STOR_ARG:  
+      case FlowVar::STOR_CALL:
+      case FlowVar::STOR_LOCAL:
+        _code->push(mem(op));
         break;
 
       default:
@@ -374,6 +442,12 @@ namespace mathvm {
       case FlowVar::STOR_REGISTER:
         _code->sub_r_imm(RSP, sizeof(double));
         _code->movq_m_xmm(op->_storIdx, RSP, 0);
+        break;
+
+      case FlowVar::STOR_ARG: 
+      case FlowVar::STOR_CALL:
+      case FlowVar::STOR_LOCAL:
+        _code->push(mem(op));
         break;
 
       default:
@@ -534,6 +608,8 @@ namespace mathvm {
     }
   }
 
+  // --------------------------------------------------------------------------------
+
   void genInc(FlowNode* node) {
     FlowVar* op = node->u.op.u.un.op;
 
@@ -554,10 +630,30 @@ namespace mathvm {
     }
   }
 
-  static Mem mem(FlowVar* fv) {
+  // --------------------------------------------------------------------------------
+
+  void genCall(FlowNode* node) {
+    NativeFunction* callee = info(node->u.op.u.call.af->node())->funRef;
+
+    assert(callee != NULL);
+    
+    _curf->addRef(_code->call_rel(), callee);    
+  }
+
+  // --------------------------------------------------------------------------------
+
+  Mem mem(FlowVar* fv) {
     switch (fv->_stor) {
     case FlowVar::STOR_LOCAL:
       return Mem(RBP, -VAR_SIZE*fv->_vi->fPos - 8);
+      break;
+
+    case FlowVar::STOR_CALL:
+      return Mem(RBP, -VAR_SIZE*(fv->_vi->fPos + _curf->localsNumber()) - 8);
+      break;
+
+    case FlowVar::STOR_ARG:
+      return Mem(RBP, VAR_SIZE*fv->_vi->fPos + 16);
       break;
 
     default:
@@ -565,11 +661,13 @@ namespace mathvm {
     }
   }
 
-  static Reg ireg(FlowVar* fv) {
+  Reg ireg(FlowVar* fv) {
     return Reg(rmap[fv->_storIdx]);
   }
     
   private:
     X86Code* _code;
+    //AstFunction* _curf;
+    NativeFunction* _curf;
   };
 }

@@ -17,6 +17,7 @@ namespace mathvm {
 
     void addInfo(AstNode* node) {
       node->setInfo(allocNodeInfo());
+      info(node)->callList = NULL;
     }
 
     FlowVar* allocFlowVar() {
