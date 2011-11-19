@@ -265,7 +265,7 @@ namespace mathvm {
           break;          
 
         case VAL_DOUBLE:
-          s << "%0.0lf";
+          s << "%g";
           break;
 
         default:
