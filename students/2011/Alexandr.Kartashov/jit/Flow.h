@@ -7,8 +7,10 @@
 
 #include "compiler.h"
 
+#include "FunctionCollector.h"
 #include "RegAllocator.h"
-#include <typeinfo>
+//#include <typeinfo>
+
 // ================================================================================
 
 namespace mathvm {
@@ -27,12 +29,9 @@ namespace mathvm {
       FlatPass2 f2(f.branches(), pool);
       RegAllocator ra(root);
 
-        //squash(f.first());
-
       _pool = pool;
       _first = f.first();
       info(root->node())->fn = _first;
-      //root->node()->visit(this);
     }
 
     FlowNode* first() {
@@ -40,31 +39,16 @@ namespace mathvm {
     }
 
   private:
-    /*
-    template<typename T>
-    class Eq {
-      void eq(T v1, T v2) {
-        _eqm.insert(std::make_pair(v1, v2));
-      }
-
-      bool isEq(T v1, T v2) const {
-        return _eqm.find(std::make_pair(v1, v2)) != _eqm.end();
-      }
-
-    private:
-      std::set<std::pair<T, T> > _eqm;
-    };
-    */
-    
-    // --------------------------------------------------------------------------------
     
     class Flattener : protected AstVisitor {
-      //typedef std::deque<FlowNode*> FlowOrder;
 
     public:
-      Flattener(CompilerPool* pool) {
+      Flattener(CompilerPool* pool, FunctionCollector* fcol = NULL) {
         _pool = pool;
         _ncur = NULL;
+        _curBlock = NULL;
+
+        _retAnchor = allocAnchor();
       }
 
       FlowNode* first() {
@@ -76,6 +60,69 @@ namespace mathvm {
       }
 
     protected:
+
+      void genCalls(AstNode* node) {
+        if (!info(node)->callList) {
+          return;
+        }
+
+        for (CallNode* cn = info(node)->callList; cn; cn = info(cn)->callList) {
+          FlowNode* align;
+
+          if (cn->parametersNumber() % 2) {
+            _pool->alloc(&align);
+            align->type = FlowNode::ALIGN;
+            attach(align);
+          }
+
+          for (int i = (int)cn->parametersNumber() - 1; i >= 0; i--) {
+            AstNode* op = cn->parameterAt(i);
+
+            if (!op->isCallNode()) {
+              op->visit(this);
+            }
+
+            FlowNode* push;
+            _pool->alloc(&push);
+            push->type = FlowNode::PUSH;
+            push->u.op.u.un.op = info(op)->fn->u.op.result;
+            attach(push);
+          }
+
+          FlowNode* call;
+          AstFunction* callee;
+          _pool->alloc(&call);
+          call->type = FlowNode::CALL;
+          callee = _curBlock->scope()->lookupFunction(cn->name());
+          call->u.op.u.call.af = callee;
+          call->u.op.result = info(cn)->callRes;
+          info(cn)->fn = call;
+
+          assert(callee != NULL);
+
+          attach(call);
+          
+          FlowVar* temp;
+          FlowNode* stor;
+
+          _pool->alloc(&temp);
+          temp->_type = callee->returnType();
+          temp->_stor = FlowVar::STOR_TEMP;
+            
+          _pool->alloc(&stor);
+          stor->type = FlowNode::COPY;
+          stor->u.op.u.copy.from = temp;
+          stor->u.op.u.copy.to = call->u.op.result;
+          attach(stor);
+
+          if (cn->parametersNumber() % 2) {
+            _pool->alloc(&align);
+            align->type = FlowNode::UNALIGN;
+            attach(align);
+          }
+        }
+      }
+
       FlowNode* allocAnchor() {
         FlowNode* anchor;
 
@@ -128,6 +175,7 @@ namespace mathvm {
       VISIT(BinaryOpNode) {
         FlowNode* fn;
 
+        genCalls(node);
         node->visitChildren(this);
 
         if (isLogic(node->kind())) {
@@ -263,6 +311,7 @@ namespace mathvm {
       }
 
       VISIT(UnaryOpNode) {
+        genCalls(node);
         node->visitChildren(this);
 
         FlowNode* fn;
@@ -292,6 +341,7 @@ namespace mathvm {
         FlowNode* fn;
         FlowVar* res;
 
+        genCalls(node);
         node->visitChildren(this);
 
         _pool->alloc(&fn);
@@ -307,6 +357,7 @@ namespace mathvm {
       }
    
       VISIT(StoreNode) {
+        genCalls(node);
         node->visitChildren(this);
 
         FlowNode* fn;
@@ -350,14 +401,17 @@ namespace mathvm {
         node->visitChildren(this);
       }
     
-      
-          
       VISIT(BlockNode) {
+        BlockNode* oldBlock = _curBlock;
+        _curBlock = node;
         node->visitChildren(this);
+        _curBlock = oldBlock;
       }
 
       VISIT(PrintNode) {
         FlowNode* fn;
+
+        genCalls(node);
 
         size_t args = 0;
         for (uint32_t i = 0; i < node->operands(); ++i) {
@@ -383,24 +437,78 @@ namespace mathvm {
       }
 
       VISIT(CallNode) {
-        node->visitChildren(this);
+        FlowNode* align;
 
-        FlowNode* fn = _pool->allocFlowNode();
-        fn->type = FlowNode::CALL;
-        fn->u.op.u.call.fun = node->name().c_str();
-        info(node)->fn = fn;
-        attach(fn);
-      }
+        if (_curBlock->scope()->lookupFunction(node->name())->returnType() != VT_VOID) {
+          return;
+        }    
 
-      VISIT(ReturnNode) {
-        node->visitChildren(this);
+        if (node->parametersNumber() % 2) {
+          _pool->alloc(&align);
+          align->type = FlowNode::ALIGN;
+          attach(align);
+        }
+
+        for (int i = (int)node->parametersNumber() - 1; i >= 0; i--) {
+          AstNode* op = node->parameterAt(i);
+
+          FlowNode* push;
+          _pool->alloc(&push);
+          push->type = FlowNode::PUSH;
+          push->u.op.u.un.op = info(op)->fn->u.op.result;
+          attach(push);
+        }
 
         FlowNode* fn;
         _pool->alloc(&fn);
+        fn->type = FlowNode::CALL;
+        fn->u.op.u.call.af = _curBlock->scope()->lookupFunction(node->name());
+
+        assert(fn->u.op.u.call.af != NULL);
+
+        info(node)->fn = fn;
+        attach(fn);
+
+        if (node->parametersNumber() % 2) {
+          _pool->alloc(&align);
+          align->type = FlowNode::UNALIGN;
+          attach(align);
+        }
+      }
+
+      VISIT(ReturnNode) {
+        if (!node->returnExpr()) {
+          return;
+        }
+
+        genCalls(node);
+        node->visitChildren(this);
+
+        FlowNode* fn;
+        FlowVar* temp;
+        _pool->alloc(&fn);
+        _pool->alloc(&temp);
+        temp->_stor = FlowVar::STOR_TEMP;
+        fn->type = FlowNode::COPY;
+        fn->u.op.u.copy.from = info(node->returnExpr())->fn->u.op.result;
+        fn->u.op.u.copy.to = temp;
+        attach(fn);
+
+        FlowNode* jump;
+        _pool->alloc(&jump);
+        jump->type = FlowNode::JUMP;
+        jump->u.branch = _retAnchor;
+        addRef(jump, _retAnchor);
+
+        attach(jump);
+
+        // TODO: Add jump to the exit node
+
+        /*
         fn->type = FlowNode::RETURN;
         fn->u.op.u.un.op = info(node->returnExpr())->fn->u.op.result;
         info(node)->fn = fn;
-        attach(fn);
+        */        
       }
 
       template<typename T>
@@ -432,9 +540,12 @@ namespace mathvm {
 
     protected:
       CompilerPool* _pool;
-      //FlowOrder _order;
       FlowNode* _ncur;
       FlowNode* _first;
+      //FunctionCollector* _fcol;
+
+      BlockNode* _curBlock;
+      FlowNode* _retAnchor;
     };
 
     // --------------------------------------------------------------------------------
@@ -446,6 +557,8 @@ namespace mathvm {
       {
         _curf = info(root->node())->funRef;
         root->node()->body()->visit(this);
+
+        attach(_retAnchor);
       }
 
       Branches& branches() {
@@ -479,7 +592,7 @@ namespace mathvm {
         FlowNode* jump;
 
         _branches.push_back(node);
-        insertNop();               // Emit an anchor in case there's two consequetive if's (as in if.mvm)
+        insertNop();               // Emit an anchor in case there're two consequetive if's (as in if.mvm)
 
         _pool->alloc(&anchEnd);
         anchEnd->type = FlowNode::NOP;

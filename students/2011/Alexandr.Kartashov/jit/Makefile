@@ -17,10 +17,6 @@ all: .ast-patched $(MVM)
 	patch -p0 -d $(VM_ROOT)/include < ast.patch
 	touch .ast-patched
 
-.mathvm-patched:
-	patch -p0 -d $(VM_ROOT)/include < mathvm.patch
-	touch .mathvm-patched
-
 $(MVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJS) $(UTIL) $(USER_HEADERS)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(LOCAL_INC) $(USER_OBJS) $(THREAD_LIB)
 

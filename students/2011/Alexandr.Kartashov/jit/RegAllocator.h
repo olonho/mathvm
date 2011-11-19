@@ -93,7 +93,9 @@ namespace mathvm {
     }
 
     VISIT(ReturnNode) {
-      allocInSubtree(node);
+      if (node->returnExpr()) {
+        allocInSubtree(node->returnExpr());
+      }
     }
 
     void allocInSubtree(AstNode* node) {

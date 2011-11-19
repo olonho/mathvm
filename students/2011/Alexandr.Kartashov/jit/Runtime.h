@@ -13,73 +13,85 @@
 #include "mathvm.h"
 #include "X86Code.h"
 
+#include <deque>
+
 // ================================================================================
 
 namespace mathvm {
-
-  /*
-  template<typename T>
-  class LazyLabel {
-    LazyLabel() { }
-
-    LazyLabel(X86Code* src, X86Code* dst) {
-      _label = bc->current();
-      bc->addTyped<T>(0);
-      _bc = bc;
-    }
-
-    void bind() {
-      int32_t d = (int32_t)offset - (int32_t)_label - sizeof(T);
-      _bc->setTyped<int32_t>(_label, d);
-    }
-
-  private:
-    uint32_t _label;
-  };
-  */
 
   // --------------------------------------------------------------------------------
 
   class NativeFunction : public TranslatedFunction {
   public:
+    struct Ref {
+      Ref(NativeFunction* f, uint32_t p) {
+        _fun = f;
+        _pos = p;
+      }
+
+      NativeFunction* _fun;
+      uint32_t _pos;
+    };
+
+    typedef std::deque<Ref> Refs;
+
     NativeFunction(AstFunction* af) 
-      : TranslatedFunction(af) { }
+      : TranslatedFunction(af),
+        _linked(false){ }
 
     NativeCode* code() {
       return &_code;
     }
 
-    NativeCode* createBlock() {
-      return new NativeCode;
+    void disassemble(std::ostream& out) const { /* objdump -d goes here :) */ }
+
+    void addRef(uint32_t pos, NativeFunction* to) {
+      if (to != this) {
+        to->_inRefs.push_back(Ref(this, pos));
+      }
+
+      _outRefs.push_back(Ref(to, pos));
     }
 
-    void setFirstArg(uint16_t idx) {
-      _firstArg = idx;
+    const Refs& inRefs() const {
+      return _inRefs;
     }
 
-    void setFirstLocal(uint16_t idx) {
-      _firstLocal = idx;
+    const Refs& outRefs() const {
+      return _outRefs;
     }
 
-    uint16_t firstLocal() const {
-      return _firstLocal;
+    void setStart(char* p) {
+      _start = p;
+      _linked = true;
     }
 
-    uint16_t firstArg() const {
-      return _firstArg;
+    char* start() {
+      return _start;
     }
 
-    void disassemble(std::ostream& out) const { }
+    bool linked() const {
+      return _linked;
+    }
 
-    void addRef(X86Code* src, X86Code* dst) {
+    void setCallStorageSize(size_t size) {
+      _callStor = size;
+    }
+
+    size_t callStorageSize() const {
+      return _callStor;
     }
 
   private:
-    uint16_t _firstArg;
-    uint16_t _firstLocal;
     VarType _retType;    
-
     NativeCode _code;
+    Refs _inRefs;   // who references us
+    Refs _outRefs;  // those we reference
+
+    size_t _callStor;
+
+    char* _start;   // function entry point address
+    bool _linked;
 
     //std::multimap<X86Code*, LazyLabel*> _refs;
   };
@@ -88,6 +100,7 @@ namespace mathvm {
 
   class Runtime : public Code {
     typedef std::vector<std::string> Strings;
+    typedef std::deque<NativeFunction*> Functions;
 
   public:
     NativeFunction* createFunction(AstFunction* fNode);
@@ -99,11 +112,18 @@ namespace mathvm {
       return _strings.back().c_str();
     }
 
+    void link();
+
+    ~Runtime();
+
   private:
-    std::deque<NativeFunction*> _functions;
+    Functions _functions;
     Strings _strings;
 
     NativeFunction* _topf;
     std::map<std::string, size_t> _topArgMap;
+
+    char* _exec;
+    size_t _codeSize;
   };
 }

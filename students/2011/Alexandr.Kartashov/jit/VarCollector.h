@@ -12,7 +12,6 @@
 
 namespace mathvm {
   class VarCollector : private AstVisitor {
-    typedef std::map<AstVar*, uint16_t> Locals;
 
   public:
     VarCollector(AstFunction* af, Runtime* rt, CompilerPool* pool) {
@@ -23,22 +22,28 @@ namespace mathvm {
       _parent = NULL;
       _runtime = rt;
       _pool = pool;
+      _curBlock = NULL;
 
       FunctionNode* node = af->node();
-      Scope::VarIterator argsIt(af->scope());
-      size_t p = 0;
+      Scope* argScope = af->scope();
 
-      _curFun = info(af->node())->funRef;
-      while (argsIt.hasNext()) {
-        AstVar* v = argsIt.next();
+      if (argScope) {
+        Scope::VarIterator argsIt(argScope);
+        size_t p = 0;
 
-        _pool->addInfo(v);
-        info(v)->initialized = false;
-        info(v)->kind = VarInfo::KV_ARG;
-        info(v)->fPos = p;
-        info(v)->owner = _curFun;
+        _curFun = info(af->node())->funRef;
+        while (argsIt.hasNext()) {
+          AstVar* v = argsIt.next();
 
-        ++p;
+          _pool->addInfo(v);
+          info(v)->initialized = false;
+          info(v)->kind = VarInfo::KV_ARG;
+          info(v)->fPos = p;
+          info(v)->owner = _curFun;
+          info(v)->fv->init(v);
+
+          ++p;
+        }
       }
 
       _parent = node;
@@ -50,6 +55,7 @@ namespace mathvm {
     CompilerPool* _pool;
     NativeFunction* _curFun;
     AstNode* _parent;
+    BlockNode* _curBlock;
 
     std::stack<AstNode*> _pstack;
 
@@ -218,6 +224,9 @@ namespace mathvm {
     VISIT(BlockNode) {
       Scope::VarIterator vi(node->scope());
       AstVar* v;
+      BlockNode* oldBlock = _curBlock;
+
+      _curBlock = node;
 
       _pool->addInfo(node);
       setParent(node);
@@ -231,6 +240,8 @@ namespace mathvm {
       node->visitChildren(this);
 
       restoreParent();
+
+      _curBlock = oldBlock;
     }
 
     VISIT(PrintNode) {
@@ -280,6 +291,7 @@ namespace mathvm {
       }
 
       info(node)->depth = d;
+      info(node)->type = (ValType)_curBlock->scope()->lookupFunction(node->name())->returnType();
 
       restoreParent();
     }
