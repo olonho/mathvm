@@ -12,4 +12,4 @@ MATHVM = $(BIN)/mvm
 all: $(MATHVM)
 
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
-	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(THREAD_LIB)
+	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)

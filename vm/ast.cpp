@@ -47,9 +47,6 @@ Scope* AstFunction::scope() const {
     return _function->body()->scope()->parent();
 }
 
-BlockNode::~BlockNode() {
-}
-
 Scope::~Scope() {
   for (uint32_t i = 0; i < childScopeNumber(); i++) {
     delete childScopeAt(i);
@@ -69,7 +66,7 @@ Scope::~Scope() {
 }
 
 bool Scope::declareVariable(const string& name, VarType type) {
-    if (lookupVariable(name) != 0) {
+    if (lookupVariable(name, false) != 0) {
         return false;
     }
    _vars[name] = new AstVar(name, type, this);
@@ -78,33 +75,33 @@ bool Scope::declareVariable(const string& name, VarType type) {
 
 bool Scope::declareFunction(FunctionNode* node) {
     if (lookupFunction(node->name()) != 0) {
-      return false;
+        return false;
     }
    _functions[node->name()] = new AstFunction(node, this);
     return true;
 }
 
-AstVar* Scope::lookupVariable(const string& name) {
+AstVar* Scope::lookupVariable(const string& name, bool useParent) {
     AstVar* result = 0;
     VarMap::iterator it = _vars.find(name);
     if (it != _vars.end()) {
         result = (*it).second;
     }
-    if (!result && _parent) {
-        result = _parent->lookupVariable(name);
+    if (!result && useParent && _parent) {
+        result = _parent->lookupVariable(name, useParent);
     }
     return result;
 }
 
-AstFunction* Scope::lookupFunction(const string& name) {
+  AstFunction* Scope::lookupFunction(const string& name, bool useParent) {
     AstFunction* result = 0;
     FunctionMap::iterator it = _functions.find(name);
     if (it != _functions.end()) {
         result = (*it).second;
     }
 
-    if (!result && _parent) {
-        result = _parent->lookupFunction(name);
+    if (!result && useParent && _parent) {
+      result = _parent->lookupFunction(name, useParent);
     }
 
     return result;

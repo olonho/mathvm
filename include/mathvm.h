@@ -91,6 +91,7 @@ using namespace std;
         DO(DUMP, "Dump value on TOS, without removing it.", 1)        \
         DO(STOP, "Stop execution.", 1)                                  \
         DO(CALL, "Call function, next two bytes - unsigned function id.", 3) \
+        DO(CALLNATIVE, "Call native function, next two bytes - id of the native function.", 3)  \
         DO(RETURN, "Return to call location", 1) \
         DO(BREAK, "Breakpoint for the debugger.", 1)
 
@@ -108,6 +109,9 @@ typedef enum {
     VT_INT,
     VT_STRING
 } VarType;
+
+// Element 0 is return type.
+typedef vector<pair<VarType,string> > Signature;
 
 const uint16_t INVALID_ID = 0xffff;
 
@@ -380,7 +384,7 @@ class TranslatedFunction {
     uint16_t _params;
     uint16_t _scopeId;
     const string _name;
-    vector<pair<VarType,string> > _signature;
+    Signature _signature;
 public:
     TranslatedFunction(AstFunction* function);
     virtual ~TranslatedFunction();
@@ -445,14 +449,18 @@ class FunctionFilter {
     virtual bool matches(TranslatedFunction* function) = 0;
 };
 
+class NativeFunction;
 class Code {
     typedef map<string, uint16_t> FunctionMap;
     typedef map<string, uint16_t> ConstantMap;
+    typedef map<string, uint16_t> NativeMap;
 
     vector<TranslatedFunction*> _functions;
     vector<string> _constants;
+    vector<pair<const void*, Signature> > _natives;
     FunctionMap _functionById;
     ConstantMap _constantById;
+    NativeMap _nativeById;
 
 public:
     Code();
@@ -463,7 +471,12 @@ public:
     TranslatedFunction* functionByName(const string& name) const;
 
     uint16_t makeStringConstant(const string& str);
+    uint16_t makeNativeFunction(const string& name,
+                                const Signature& signature,
+                                const void* code);
     const string& constantById(uint16_t id) const;
+    const void* nativeById(uint16_t id,
+                           const Signature** signature) const;
 
     /**
      * Execute this code with passed parameters, and update vars

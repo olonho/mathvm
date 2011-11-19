@@ -55,6 +55,7 @@ enum TokenKind {
     DO("if")                                    \
     DO("print")                                 \
     DO("function")                              \
+    DO("native")                                \
     DO("return")
 
 static inline bool isKeyword(const string& word) {
@@ -78,6 +79,7 @@ static inline bool isKeyword(const string& word) {
             DO(FunctionNode, "function")        \
             DO(ReturnNode, "return")            \
             DO(CallNode, "call")                \
+            DO(NativeCallNode, "native call")   \
             DO(PrintNode, "print")
 
 #define FORWARD_DECLARATION(type, name) class type;
@@ -148,8 +150,8 @@ class Scope {
     bool declareVariable(const string& name, VarType type);
     bool declareFunction(FunctionNode* node);
 
-    AstVar* lookupVariable(const string& name);
-    AstFunction* lookupFunction(const string& name);
+    AstVar* lookupVariable(const string& name, bool useParent = true);
+    AstFunction* lookupFunction(const string& name, bool useParent = true);
 
     uint32_t variablesCount() const { return _vars.size(); }
     uint32_t functionsCount() const { return _functions.size(); }
@@ -393,21 +395,22 @@ class BlockNode : public AstNode {
     AstNode(index), _scope(scope) {
     }
 
-    ~BlockNode();
+    ~BlockNode() {
+    }
 
     Scope* scope() const {
         return _scope;
     }
 
-    uint32_t nodes() const {
+    virtual uint32_t nodes() const {
         return _nodes.size();
     }
 
-    AstNode* nodeAt(uint32_t index) const {
+    virtual AstNode* nodeAt(uint32_t index) const {
         return _nodes[index];
     }
 
-    void add(AstNode* node) {
+    virtual void add(AstNode* node) {
         _nodes.push_back(node);
     }
 
@@ -419,6 +422,35 @@ class BlockNode : public AstNode {
 
     COMMON_NODE_FUNCTIONS(BlockNode);
 };
+
+class NativeCallNode : public AstNode {
+    string _nativeName;
+    Signature _signature;
+  public:
+    NativeCallNode(uint32_t index,
+                   const string& nativeName,
+                   vector<pair<VarType,string> >& signature) :
+    AstNode(index), _nativeName(nativeName), _signature(signature) {
+    }
+
+    ~NativeCallNode() {
+    }
+
+    const string& nativeName() const {
+        return _nativeName;
+    }
+
+    const Signature& nativeSignature() const {
+        return _signature;
+    }
+
+
+    virtual void visitChildren(AstVisitor* visitor) const {
+    }
+
+    COMMON_NODE_FUNCTIONS(NativeCallNode);
+};
+
 
 class ForNode : public AstNode {
     const AstVar* _var;
@@ -548,21 +580,17 @@ class ReturnNode : public AstNode {
 
 class FunctionNode : public AstNode {
     const string _name;
-    vector<pair<VarType,string> > _signature;
+    Signature _signature;
     BlockNode* _body;
 
   public:
     FunctionNode(uint32_t index,
                  const string& name,
-                 // Element 0 is return type.
-                 vector<pair<VarType,string> >& signature,
+                 Signature& signature,
                  BlockNode* body) :
-    AstNode(index), _name(name), _body(body) {
+    AstNode(index), _name(name), _signature(signature), _body(body) {
         assert(_body != 0);
         assert(signature.size() > 0);
-        for (uint32_t i = 0; i < signature.size(); i++) {
-          _signature.push_back(signature[i]);
-        }
     }
 
     const string& name() const {
@@ -583,6 +611,10 @@ class FunctionNode : public AstNode {
 
     const string& parameterName(uint32_t index) const {
         return _signature[index + 1].second;
+    }
+
+    const Signature& signature() const {
+        return _signature;
     }
 
     BlockNode* body() const {
