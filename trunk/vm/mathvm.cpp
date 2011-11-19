@@ -64,6 +64,7 @@ void Bytecode::dump(ostream& out) const {
                 out << name << " @" << getUInt16(bci + 1);
                 break;
             case BC_CALL:
+            case BC_CALLNATIVE:
                 out << name << " *" << getUInt16(bci + 1);
                 break;
             case BC_LOADDVAR:
@@ -188,11 +189,31 @@ uint16_t Code::makeStringConstant(const string& str) {
     return id;
 }
 
+uint16_t Code::makeNativeFunction(const string& name, const Signature& signature, const void* address) {
+    NativeMap::iterator it = _nativeById.find(name);
+    if (it != _nativeById.end()) {
+        return (*it).second;
+    }
+    uint16_t id = _natives.size();
+    _nativeById[name] = id;
+    _natives.push_back(pair<const void*, Signature>(address, signature));
+    return id;
+}
+
 const string& Code::constantById(uint16_t id) const {
     if (id >= _constants.size()) {
         return _constants[0];
     }
     return _constants[id];
+}
+
+const void* Code::nativeById(uint16_t id,
+                             const Signature** signature) const {
+    if (id >= _natives.size()) {
+        return 0;
+    }
+    *signature = &_natives[id].second;
+    return _natives[id].first;
 }
 
 void Code::disassemble(ostream& out, FunctionFilter* filter) {

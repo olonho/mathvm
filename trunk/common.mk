@@ -14,7 +14,7 @@ MATHVM = $(BIN)/mvm
 MATHVMTGZ = ../MathVM.tgz
 
 CXX        = g++
-CFLAGS     += -Wall -Werror -D_REENTRANT $(USER_CFLAGS)
+CFLAGS     += -Wall -Werror -fPIC -D_REENTRANT $(USER_CFLAGS)
 LIBS_ROOT = $(VM_ROOT)/libs
 ASMJIT_CFLAGS = -Wno-error
 INCLUDE    = -I$(VM_ROOT)/include -I$(LIBS_ROOT)
@@ -22,26 +22,31 @@ VM_INCLUDE = -I$(VM_ROOT)/vm
 ASMJIT_INCLUDE = -I$(LIBS_ROOT)/asmjit
 USER_INCLUDE = -I$(ROOT)
 DEFS       = $(USER_DEFS) -D_POSIX_SOURCE
-THREAD_LIB = -lpthread $(USER_LIBS)
+THREAD_LIB = -lpthread 
 OBJ_SUFF   = .o
+LIBS = $(USER_LIBS) $(THREAD_LIB)
 
 
 ifneq (,$(findstring MINGW,$(OS)))
  DEFS += -DMATHVM_WIN
 else
  DEFS += -DMATHVM_POSIX
+ LIBS += -ldl
 endif
 
 ifneq (,$(findstring Darwin,$(OS)))
- ASMJIT_CFLAGS += -D_DARWIN_C_SOURCE
+ CFLAGS += -D_DARWIN_C_SOURCE
 endif
 
 ASMJIT_OBJ = \
         $(OBJ)/AssemblerX86X64$(OBJ_SUFF) \
         $(OBJ)/CodeGenerator$(OBJ_SUFF) \
+        $(OBJ)/Compiler$(OBJ_SUFF) \
+        $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
         $(OBJ)/CpuInfo$(OBJ_SUFF) \
         $(OBJ)/Defs$(OBJ_SUFF) \
         $(OBJ)/DefsX86X64$(OBJ_SUFF) \
+        $(OBJ)/Logger$(OBJ_SUFF) \
         $(OBJ)/MemoryManager$(OBJ_SUFF) \
         $(OBJ)/OperandX86X64$(OBJ_SUFF) \
         $(OBJ)/Platform$(OBJ_SUFF) \

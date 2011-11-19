@@ -104,7 +104,7 @@ Status* Parser::parseTopLevel() {
     }
     assert(topBlock != 0);
     // Make pseudo-function for top level code.
-    vector<pair<VarType,string> > signature;
+    Signature signature;
     signature.push_back(pair<VarType,string>(VT_VOID, "return"));
     _topmostScope->declareFunction(
       new FunctionNode(0, AstFunction::top_name,
@@ -256,7 +256,7 @@ FunctionNode* Parser::parseFunction() {
     const string& name = currentTokenValue();
     consumeToken();
 
-    vector<pair<VarType, string> > signature;
+    Signature signature;
     signature.push_back(pair<VarType, string>(returnType, "return"));
 
     ensureToken(tLPAREN);
@@ -273,27 +273,41 @@ FunctionNode* Parser::parseFunction() {
         }
         consumeToken();
         signature.push_back(pair<VarType, string>(parameterType, parameterName));
+
         if (currentToken() == tCOMMA) {
             consumeToken();
         }
     }
     ensureToken(tRPAREN);
 
+    BlockNode* body = 0;
     pushScope();
     for (uint32_t i = 1; i < signature.size(); i++) {
-        const string& name = signature[i].second;
-        VarType type = signature[i].first;
-        if (!_currentScope->declareVariable(name, type)) {
-            error("Formal %s already declared", name.c_str());
-        }
+      const string& name = signature[i].second;
+      VarType type = signature[i].first;
+      if (!_currentScope->declareVariable(name, type)) {
+          error("Formal \"%s\" already declared", name.c_str());
+      }
     }
-    BlockNode* body = parseBlock(true);
-
-    if (body->nodes() == 0 ||
-        !(body->nodeAt(body->nodes() - 1)->isReturnNode())) {
+    if ((currentToken() == tIDENT) && currentTokenValue() == "native") {
+      consumeToken();
+      if (currentToken() != tSTRING) {
+          error("Native name expected, got %s", tokenStr(currentToken()));
+      }
+      pushScope();
+      body = new BlockNode(_currentTokenIndex, _currentScope);
+      body->add(new NativeCallNode(tokenIndex, currentTokenValue(), signature));
+      consumeToken();
+      ensureToken(tSEMICOLON);
+      body->add(new ReturnNode(0, 0));
+      popScope();
+    } else {
+      body = parseBlock(true);
+      if (body->nodes() == 0 ||
+          !(body->nodeAt(body->nodes() - 1)->isReturnNode())) {
         body->add(new ReturnNode(0, defaultReturnExpr(returnType)));
+      }
     }
-
     popScope();
 
     if (_currentScope->lookupFunction(name) != 0) {
