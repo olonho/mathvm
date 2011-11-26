@@ -225,6 +225,10 @@ void TypeVisitor::visitCallNode(mathvm::CallNode* node) {
   }
 }
 
+void TypeVisitor::visitNativeCallNode(mathvm::NativeCallNode* node) {
+  throw new TranslationException("Native calls are not supported!", node);
+}
+
 void TypeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   using namespace mathvm;
   nodeInfo.setNodeInfo(node, VT_VOID);

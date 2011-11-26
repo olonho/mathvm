@@ -16,6 +16,7 @@ class Executable {
     TranslatableFunctions metaData;
 public:
     Executable();
+    virtual ~Executable();
     virtual mathvm::Status* execute(std::vector<mathvm::Var*, std::allocator<mathvm::Var*> >& vars);
 
     void addFunc(uint16_t id, MyBytecodeFunction* func) { idToFunction[id] = func; functionToId[func] = id;}
