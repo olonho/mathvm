@@ -13,7 +13,7 @@ MY_ASMJIT_OBJ += $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
 
 all: $(OUT) $(BIN)/main
 
-OBJ_DEPS = $(MATHVM_OBJ) $(MY_ASMJIT_OBJ) $(OBJ)/main$(OBJ_SUFF) \
+OBJ_DEPS = $(MATHVM_OBJ) $(OBJ)/main$(OBJ_SUFF) \
 	  $(OBJ)/JITCompiler$(OBJ_SUFF)  $(OBJ)/Interpreter$(OBJ_SUFF) \
 	  $(OBJ)/TranslationUtils$(OBJ_SUFF) $(OBJ)/SymbolVisitor$(OBJ_SUFF) \
 	  $(OBJ)/TypeVisitor$(OBJ_SUFF) $(OBJ)/CodeVisitor$(OBJ_SUFF) \

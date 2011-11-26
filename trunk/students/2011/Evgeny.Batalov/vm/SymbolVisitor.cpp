@@ -147,6 +147,10 @@ void SymbolVisitor::visitCallNode(mathvm::CallNode* node) {
   caller.calledFuncs.push_back(callee.id); 
 }
 
+void SymbolVisitor::visitNativeCallNode(mathvm::NativeCallNode* node) {
+  throw new TranslationException("Native calls are not supported!", node);
+}
+
 void SymbolVisitor::visitReturnNode(mathvm::ReturnNode* node) {
   using namespace mathvm;
   node->visitChildren(this);

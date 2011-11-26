@@ -21,4 +21,8 @@ void Executable::disassemble(std::ostream& out, mathvm::FunctionFilter *f) const
   }
 }
 
+Executable::~Executable() {
+  using namespace mathvm;
+}
+
 

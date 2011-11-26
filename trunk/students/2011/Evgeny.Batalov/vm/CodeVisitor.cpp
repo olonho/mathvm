@@ -35,11 +35,11 @@ void CodeVisitor::visit() {
       case VT_INT: case VT_STRING:
         //BC_ILOAD0 yet
         mainCode->data()[i*2] = BCA_VM_SPECIFIC;
-        //mainCode->data()[i*2-1] = BC_ILOAD0;
+        mainCode->data()[i*2 + 1] = BC_ILOAD0;
       break;
       case VT_DOUBLE:
         mainCode->data()[i*2] = BCA_VM_SPECIFIC;
-        mainCode->data()[i*2-1] = BC_DLOAD0;
+        mainCode->data()[i*2 + 1] = BC_DLOAD0;
       break;
       default:
       break;
@@ -369,6 +369,10 @@ void CodeVisitor::visitCallNode(mathvm::CallNode* node) {
   TranslatableFunction& callingFunc = executable->getMetaData()[curFuncId];
   calledFunc.genCallingCode(callingFunc, this, cCode(), node, info.type);
   cast(node);
+}
+
+void CodeVisitor::visitNativeCallNode(mathvm::NativeCallNode* node) {
+  throw new TranslationException("Native calls are not supported!", node);
 }
 
 void CodeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {

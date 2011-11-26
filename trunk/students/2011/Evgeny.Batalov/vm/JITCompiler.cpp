@@ -192,7 +192,7 @@ void JITCompiler::compileFunc(size_t funcId) {
                          ssaStack.push_back(_res);
                          cc.unuse(*_prev.xmm); } break;
       case BC_INEG:    cc.neg(*ssaStack.back().gp); break;
-      case BC_DPRINT:  { const char* fmtStr = "%e";
+      case BC_DPRINT:  { const char* fmtStr = "%g";
                          AnyVar _fmtStr = newSSAGPVar((int64_t)fmtStr, cc);
                          AnyVar _toPrint = ssaStack.back(); ssaStack.pop_back();
                          ECall* _call = cc.call(imm((size_t)printfD));
