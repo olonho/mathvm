@@ -383,4 +383,8 @@ void BytecodeVisitor::visitCallNode(CallNode* node) {
   bcode_->addInt16(id);
 }
 
+void BytecodeVisitor::visitNativeCallNode(mathvm::NativeCallNode*) {
+  //stub
+}
+
 }
