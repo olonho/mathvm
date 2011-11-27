@@ -28,7 +28,7 @@ Status* BytecodeTranslator::translate(
   BytecodeVisitor* visitor = new BytecodeVisitor(mvm_code);
   visitor->visitBlockNode(top->node()->body());
   function->bytecode()->add(BC_STOP);
-  //function->bytecode()->dump(std::cout);
+  //function->bytecode()->dump(std::cerr);
   mvm_code->set_bytecode(function->bytecode());
   *code = (Code *)mvm_code;
   delete parser;
