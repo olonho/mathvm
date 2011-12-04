@@ -497,9 +497,19 @@ namespace mathvm {
       return NativeLabel<int32_t>(this);
     }
 
+    void jcc_rel32(char cond, int32_t rel) {
+      addInt16(x86_cond(JCC_REL32, cond));
+      addInt32(rel);
+    }
+
     NativeLabel<int32_t> jmp_rel32() {
       add(JMP_REL32);
       return NativeLabel<int32_t>(this);
+    }
+
+    void jmp_rel32(int32_t rel) {
+      addInt16(JMP_REL32);
+      addInt32(rel);
     }
 
     // --------------------------------------------------------------------------------

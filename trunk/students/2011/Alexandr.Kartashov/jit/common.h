@@ -13,6 +13,10 @@
 #define VISIT(type)                             \
   void visit##type(type* node)
 
+#define VISITQ(cls, type)                       \
+  void cls::visit##type(type* node)
+
+#define VISITQD(type) VISITQ(VISITOR, type)  
 
 #define ABORT(x...)                             \
   printf(x);                                    \
@@ -103,7 +107,8 @@ namespace mathvm {
       STOR_CONST,     // _const is valid
       STOR_LOCAL,     // _avar is valid
       STOR_TEMP,      // RAX :)
-      STOR_CALL,
+      STOR_CALL,      // the result of a function call
+      STOR_EXTERN,    // closured variable
       STOR_ARG
     };
 
@@ -329,9 +334,13 @@ namespace mathvm {
 
     CallNode* callList;
 
-    /* Call result for call node */
+    /* Call result for a call node */
 
     FlowVar* callRes;
+
+    /* Last value of a counter for a FOR node */
+    
+    FlowVar* lastVal;
   };
 
 #define VAR_INFO(v) ((VarInfo*)(v->info()))

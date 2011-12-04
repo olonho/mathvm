@@ -71,11 +71,6 @@ namespace mathvm {
       _pstack.pop();
     }
 
-    /*
-    void incLocNum() {
-    }
-    */
-
     void addLocal(AstVar* v) {
       _pool->addInfo(v);
 
@@ -84,15 +79,10 @@ namespace mathvm {
       info(v)->fPos = _curFun->localsNumber();
       info(v)->owner = _curFun;
 
-      _curFun->setLocalsNumber(_curFun->localsNumber() + 1);
-    }
+      _curFun->addLocalVar(v, info(v)->fv);
 
-    /*
-    FlowVar* addLocal() {
-      _curFun->setLocalsNumber(_curFun->localsNumber() + 1);
+      //_curFun->setLocalsNumber(_curFun->localsNumber() + 1);
     }
-    */
-    
 
     VISIT(BinaryOpNode) {
       _pool->addInfo(node);
@@ -177,6 +167,17 @@ namespace mathvm {
       info(node)->type = (ValType)node->var()->type();
       info(node)->depth = 0;
 
+      if (_curFun != info(node->var())->owner) {
+        if (!_curFun->fvar(node->var())) {
+          FlowVar* externVar = _pool->allocFlowVar();
+          externVar->_stor = FlowVar::STOR_EXTERN;
+          externVar->_vi = info(node->var());
+          externVar->_type = node->var()->type();
+
+          _curFun->addExternVar(node->var(), externVar);
+        }
+      }
+
       restoreParent();
     }
    
@@ -198,7 +199,26 @@ namespace mathvm {
       node->visitChildren(this);
       info(node)->depth = 0;
 
-      addLocal((AstVar*)node->var());      
+      //addLocal((AstVar*)node->var());
+
+      FlowVar* lastVal;
+      VarInfo* vi;
+      
+      _pool->alloc(&lastVal);
+      _pool->alloc(&vi);
+
+      vi->kind = VarInfo::KV_LOCAL;
+      vi->fPos = _curFun->localsNumber();
+      vi->owner = _curFun;
+
+      lastVal->_vi = vi;
+      lastVal->_type = VT_INT;
+      lastVal->_stor = FlowVar::STOR_LOCAL;
+      lastVal->_storIdx = _curFun->localsNumber();
+
+      info(node)->lastVal = lastVal;
+      
+      _curFun->addLocalVar(NULL, lastVal);
 
       restoreParent();
     }

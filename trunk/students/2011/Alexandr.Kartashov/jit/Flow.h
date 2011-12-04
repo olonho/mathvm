@@ -19,14 +19,16 @@ namespace mathvm {
     to->refList = from;
   }
 
-  class Flow : private AstVisitor {
+  /* Combines flow chart generation */
+
+  class Flow /*: private AstVisitor */ {
 
     typedef std::deque<AstNode*> Branches;
 
   public:
     Flow(AstFunction* root, CompilerPool* pool) {
       FlatPass1 f(root, pool);
-      FlatPass2 f2(f.branches(), pool);
+      FlatPass2 f2(info(root->node())->funRef, f.branches(), pool);
       RegAllocator ra(root);
 
       _pool = pool;
@@ -39,14 +41,17 @@ namespace mathvm {
     }
 
   private:
-    
+
+    /* General flow generator */
+
     class Flattener : protected AstVisitor {
 
     public:
-      Flattener(CompilerPool* pool, FunctionCollector* fcol = NULL) {
+      Flattener(NativeFunction* fun, CompilerPool* pool) {
         _pool = pool;
         _ncur = NULL;
         _curBlock = NULL;
+        _curf = fun;
 
         _retAnchor = allocAnchor();
       }
@@ -287,7 +292,7 @@ namespace mathvm {
             }
           } else {
             //printf("%s", typeid(*p).name());
-            ABORT(" Not supported yet");
+            ABORT("Not supported yet");
           }
 
           addRef(fn, to);
@@ -349,7 +354,11 @@ namespace mathvm {
         res->_type = node->var()->type();
 
         fn->type = FlowNode::COPY;
-        fn->u.op.u.copy.from = info(node->var())->fv;
+        if (_curf->fvar(node->var())) {   // A native function is unable to resolve its aguments (though probably should...)
+          fn->u.op.u.copy.from = _curf->fvar(node->var());
+        } else {
+          fn->u.op.u.copy.from = info(node->var())->fv;
+        }
         fn->u.op.result = fn->u.op.u.copy.to = res;
         
         info(node)->fn = fn;
@@ -499,16 +508,7 @@ namespace mathvm {
         jump->type = FlowNode::JUMP;
         jump->u.branch = _retAnchor;
         addRef(jump, _retAnchor);
-
         attach(jump);
-
-        // TODO: Add jump to the exit node
-
-        /*
-        fn->type = FlowNode::RETURN;
-        fn->u.op.u.un.op = info(node->returnExpr())->fn->u.op.result;
-        info(node)->fn = fn;
-        */        
       }
 
       template<typename T>
@@ -546,16 +546,19 @@ namespace mathvm {
 
       BlockNode* _curBlock;
       FlowNode* _retAnchor;
+      NativeFunction* _curf;
     };
 
     // --------------------------------------------------------------------------------
 
+    /* Compiles linear flows */
+
     class FlatPass1 : public Flattener {
     public:
       FlatPass1(AstFunction* root, CompilerPool* pool) 
-        : Flattener(pool)
+        : Flattener(info(root->node())->funRef, pool)
       {
-        _curf = info(root->node())->funRef;
+        //_curf = info(root->node())->funRef;
         root->node()->body()->visit(this);
 
         attach(_retAnchor);
@@ -566,6 +569,7 @@ namespace mathvm {
       }
 
     private:
+      /*
       FlowVar* addLocal(VarType type) {
         VarInfo* vi;
         FlowVar* fv;
@@ -585,6 +589,7 @@ namespace mathvm {
 
         return fv;
       }
+      */
       
 
       VISIT(IfNode) {
@@ -650,7 +655,7 @@ namespace mathvm {
         FlowNode* forEnd;
         FlowNode* jump;
         FlowVar* counter = info(node->var())->fv;
-        FlowVar* lastVal;  // Stores the last value of the counter
+        //FlowVar* lastVal;  // Stores the last value of the counter
         FlowVar* temp;
 
         forBegin = allocAnchor();
@@ -664,12 +669,12 @@ namespace mathvm {
         fn->u.op.u.copy.to = counter;
         attach(fn);
 
-        lastVal = addLocal(VT_INT);
+        //lastVal = addLocal(VT_INT);
 
         _pool->alloc(&fn);
         fn->type = FlowNode::COPY;
         fn->u.op.u.copy.from = info(node->inExpr()->asBinaryOpNode()->right())->fn->u.op.result;
-        fn->u.op.u.copy.to = lastVal;
+        fn->u.op.u.copy.to = info(node)->lastVal;
         attach(fn);        
 
         attach(forBegin);
@@ -683,7 +688,7 @@ namespace mathvm {
         
         _pool->alloc(&fn);
         fn->type = FlowNode::COPY;
-        fn->u.op.u.copy.from = lastVal;
+        fn->u.op.u.copy.from = info(node)->lastVal;
         fn->u.op.u.copy.to = temp;
         attach(fn);
         
@@ -721,7 +726,7 @@ namespace mathvm {
 
     private:
       Branches _branches;
-      NativeFunction* _curf;
+      
     };
 
     // --------------------------------------------------------------------------------
@@ -731,8 +736,8 @@ namespace mathvm {
     class FlatPass2 : private AstVisitor {
       class SubexpCompiler : public Flattener {
       public:
-        SubexpCompiler(AstNode* root, CompilerPool* pool) 
-          : Flattener(pool) 
+        SubexpCompiler(NativeFunction* fun, AstNode* root, CompilerPool* pool) 
+          : Flattener(fun, pool) 
         {
           root->visit(this);
         }
@@ -770,9 +775,10 @@ namespace mathvm {
       }
 
     public:
-      FlatPass2(Branches& branches, CompilerPool* pool) {
+      FlatPass2(NativeFunction* curf, Branches& branches, CompilerPool* pool) {
         _inIf = false;
         _pool = pool;
+        _curf = curf;
         
         for (Branches::iterator it = branches.begin();
              it != branches.end();
@@ -785,7 +791,7 @@ namespace mathvm {
 
     private:
       
-
+      /*
       VISIT(BinaryOpNode) {
         move(node);
       }
@@ -815,13 +821,13 @@ namespace mathvm {
       }
 
       VISIT(ForNode) {
-        
-      }
+       
+      }*/
 
       VISIT(WhileNode) {
         _ncur = info(node)->last;
 
-        SubexpCompiler comp(node->whileExpr(), _pool);
+        SubexpCompiler comp(_curf, node->whileExpr(), _pool);
 
         insert(comp);
 
@@ -842,7 +848,8 @@ namespace mathvm {
           }
         }
       }
-    
+
+      /*
       VISIT(BlockNode) {
         node->visitChildren(this);
       }
@@ -851,6 +858,7 @@ namespace mathvm {
       VISIT(ReturnNode) {
         move(node);
       }
+      */
 
       void genIfJump(IfNode* node) {
         FlowNode* jump;
@@ -865,7 +873,7 @@ namespace mathvm {
       VISIT(IfNode) {
         _ncur = info(node)->last;
 
-        SubexpCompiler comp(node->ifExpr(), _pool);
+        SubexpCompiler comp(_curf, node->ifExpr(), _pool);
 
         insert(comp);
 
@@ -908,6 +916,7 @@ namespace mathvm {
       bool _inIf;
       CompilerPool* _pool;
       FlowNode* _ncur;
+      NativeFunction* _curf;
     };
 
     // --------------------------------------------------------------------------------
@@ -916,6 +925,7 @@ namespace mathvm {
     CompilerPool* _pool;
     FlowNode* _first;
 
+    /*
     static bool isBranch(AstNode* node) {
       return node->isIfNode() || node->isForNode() || node->isWhileNode();
     }
@@ -1007,6 +1017,6 @@ namespace mathvm {
     }
 
     void visit(AstFunction* af) {
-    }
+    }*/
   };
 }
