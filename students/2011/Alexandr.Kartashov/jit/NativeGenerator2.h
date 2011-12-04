@@ -10,6 +10,16 @@ namespace mathvm {
 
   static char rmap[] = {RCX, RDX, RBX, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15};
 
+  /**
+   *  The stack frame structure:
+   *
+   *  [RBP] --- the previous frame pointer
+   *  [RBP - 8] --- the pointer to the current NativeFunction
+   *  [RBP - 16] --- old RDI (for the top function only)
+   *  [RBP - 24(16)] --- locals
+   *  [Temparary call storage]
+   */
+
   class NativeGenerator2 {
     
   public:
@@ -18,17 +28,39 @@ namespace mathvm {
 
       X86Code* code = _curf->code();
       size_t nargs = 0;
-      size_t locNum = _curf->localsNumber() + _curf->callStorageSize();      
+      size_t locNum = _curf->localsNumber() + _curf->externVars() + _curf->callStorageSize();      
       bool isTop = af->name() == AstFunction::top_name;
-      bool noArgs = af->parametersNumber() == 0;
+      bool noArgs;
 
-      code->mov_rr(RAX, RSP);
+      if (!isTop) {
+        noArgs = af->parametersNumber() == 0;
+      } else {
+        noArgs = _curf->localsNumber() == 0;
+      }
+
+      /*
+      if (isTop) {
+        _localsBase = 3*8;                                        // RBP + [current function] + RDI
+      } else {
+        _localsBase = 2*8;                                        // RBP + [current function]
+      }
+      */
+      _localsBase = 2;                                            // RBP + [current function]
+
+      _extBase = _localsBase + _curf->localsNumber();
+      _callBase = _extBase + _curf->externVars();
+
+      //code->mov_rr(RAX, RSP); ???
       
       code->push_r(RBP);
       code->mov_rr(RBP, RSP);
 
-      if ((!isTop || (isTop && noArgs)) && locNum % 2 == 1) {   // Stack frame alignment (I'd like to kill the person who suggested this :(
-        locNum++;                                               // We have RBP and RDI stored and odd number of locals
+      code->mov_r_imm(RAX, (uint64_t)_curf);
+      code->push_r(RAX);
+
+      if ((!isTop || (isTop && noArgs)) && locNum % 2 == 0) {   // Stack frame alignment (I'd like to kill the person who suggested this :(
+        locNum++;                                               // We have RBP, RDI, and the pointer to the current function stored 
+                                                                // and odd number of locals
       } else if (isTop && locNum % 2 == 1) {
         locNum++;
       }
@@ -46,11 +78,28 @@ namespace mathvm {
         code->push_r(RDI);
         code->mov_rr(RSI, RDI);
         code->mov_rr(RDI, RBP);
-        code->sub_rm_imm(RDI, nargs*VAR_SIZE);
+        code->sub_rm_imm(RDI, (_localsBase + nargs)*VAR_SIZE);
         code->mov_r_imm(RCX, nargs);
         code->add(REPNE);
         code->add(x86_rex(0, 0, 1));
         code->add(MOVS_W);        
+      }
+
+      for (NativeFunction::Vars::const_iterator vit = _curf->vars().begin();
+           vit != _curf->vars().end();
+           ++vit) {
+        if (vit->second->_stor == FlowVar::STOR_EXTERN) {
+          code->mov_r_imm(RDX, (uint64_t)vit->second->_vi->owner);
+          code->mov_rr(RAX, RBP);
+
+          code->mov_rm(RAX, RAX, 0);   // RAX --- the previous stack pointer
+          code->mov_rm(RCX, RAX, -8);  // RCX --- the current NativeFunction
+          code->cmp_rr(RCX, RDX);
+          code->jcc_rel32(CC_NE, -23);  // 6 + 6 + 6 + 5
+
+          code->sub_r_imm(RAX, VAR_SIZE*(_localsBase + vit->second->_vi->fPos)); // it's better to use LEA...
+          code->mov_mr(RAX, RBP, -VAR_SIZE*(_extBase + vit->second->_storIdx));
+        }
       }
 
       _code = code;
@@ -59,7 +108,7 @@ namespace mathvm {
       if (isTop && !noArgs) {
         code->pop_r(RDI);
         code->mov_rr(RSI, RBP);
-        code->sub_rm_imm(RSI, nargs*VAR_SIZE);
+        code->sub_rm_imm(RSI, (_localsBase + nargs)*VAR_SIZE);
 
         code->mov_r_imm(RCX, nargs);
         code->add(REPNE);
@@ -67,7 +116,7 @@ namespace mathvm {
         code->add(MOVS_W);
       }
 
-      code->add_rm_imm(RSP, locNum*VAR_SIZE);
+      code->add_rm_imm(RSP, (locNum + 1)*VAR_SIZE);  // locNum + owner
       code->pop_r(RBP);
 
       code->ret(af->parametersNumber()*VAR_SIZE);
@@ -172,6 +221,11 @@ namespace mathvm {
         _code->op(ireg(dst), mem(src));                                 \
         break;                                                          \
                                                                         \
+      case FlowVar::STOR_EXTERN:                                        \
+        _code->mov(Reg(RAX), mem(src));                                \
+        _code->op(ireg(dst), mem(RAX));                                 \
+        break;                                                          \
+                                                                        \
       case FlowVar::STOR_REGISTER:                                      \
         _code->op(ireg(dst), ireg(src));                                \
         break;                                                          \
@@ -199,7 +253,7 @@ namespace mathvm {
       break;                                                            \
                                                                         \
     case FlowVar::STOR_TEMP:                                            \
-      switch (src->_stor) {                                             \
+    switch (src->_stor) {                                               \
       case FlowVar::STOR_ARG:                                           \
       case FlowVar::STOR_CALL:                                          \
       case FlowVar::STOR_LOCAL:                                         \
@@ -208,6 +262,18 @@ namespace mathvm {
                                                                         \
       case FlowVar::STOR_REGISTER:                                      \
         _code->op(Reg(RAX), ireg(src));                                 \
+        break;                                                          \
+                                                                        \
+      default:                                                          \
+        ABORT("Not supported");                                         \
+      }                                                                 \
+      break;                                                            \
+                                                                        \
+    case FlowVar::STOR_EXTERN:                                          \
+      switch(src->_stor) {                                              \
+      case FlowVar::STOR_REGISTER:                                      \
+        _code->mov(Reg(RAX), mem(dst));                                 \
+        _code->op(mem(RAX), ireg(src));                                 \
         break;                                                          \
                                                                         \
       default:                                                          \
@@ -645,20 +711,28 @@ namespace mathvm {
   Mem mem(FlowVar* fv) {
     switch (fv->_stor) {
     case FlowVar::STOR_LOCAL:
-      return Mem(RBP, -VAR_SIZE*fv->_vi->fPos - 8);
+      return Mem(RBP, -VAR_SIZE*(_localsBase + fv->_vi->fPos));
       break;
 
     case FlowVar::STOR_CALL:
-      return Mem(RBP, -VAR_SIZE*(fv->_vi->fPos + _curf->localsNumber()) - 8);
+      return Mem(RBP, -VAR_SIZE*(_callBase + fv->_vi->fPos));
       break;
 
     case FlowVar::STOR_ARG:
       return Mem(RBP, VAR_SIZE*fv->_vi->fPos + 16);
       break;
 
+    case FlowVar::STOR_EXTERN:
+      return Mem(RBP, -VAR_SIZE*(_extBase + fv->_storIdx));
+      break;
+
     default:
       ABORT("Not supported yet");
     }
+  }
+
+  Mem mem(int base) {
+    return Mem(base, 0);
   }
 
   Reg ireg(FlowVar* fv) {
@@ -669,5 +743,9 @@ namespace mathvm {
     X86Code* _code;
     //AstFunction* _curf;
     NativeFunction* _curf;
+
+    size_t _localsBase;
+    size_t _extBase;
+    size_t _callBase;
   };
 }

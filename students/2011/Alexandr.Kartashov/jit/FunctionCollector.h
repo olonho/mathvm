@@ -8,61 +8,27 @@
 
 // ================================================================================
 
+class Runtime;
+
 namespace mathvm {
   class FunctionCollector : private AstVisitor {
   public:
     typedef std::deque<AstFunction*> Functions;
 
-    FunctionCollector(AstFunction* root, Runtime* runtime, CompilerPool* pool) {
-      collectFunctions(root, runtime, pool);
-    }
+    FunctionCollector(AstFunction* root, Runtime* runtime, CompilerPool* pool);
 
-    void collectFunctions(AstFunction* root, Runtime* runtime, CompilerPool* pool) {
-      _runtime = runtime;
-      _pool = pool;
-      visit(root);
-    }
+    void collectFunctions(AstFunction* root, Runtime* runtime, CompilerPool* pool);
 
-    const Functions& functions() const {
-      return _functions;
-    }
+    const Functions& functions() const;
 
   private:
-    VISIT(ForNode) {
-      node->visitChildren(this);
-    }
+    VISIT(ForNode);
+    VISIT(WhileNode);
+    VISIT(IfNode);
+    VISIT(BlockNode);
+    VISIT(FunctionNode);
 
-    VISIT(WhileNode) {
-      node->visitChildren(this);
-    }
-    
-    VISIT(IfNode) {
-      node->visitChildren(this);
-    }
-          
-    VISIT(BlockNode) {
-      Scope::FunctionIterator fi(node->scope());
-
-      while (fi.hasNext()) {
-        visit(fi.next());        
-      }
-    }
-    
-    VISIT(FunctionNode) {
-      node->visitChildren(this);
-    }
-
-    void visit(AstFunction* af) {
-      Scope::VarIterator argsIt(af->scope());
-        
-      NativeFunction* nf = _runtime->createFunction(af);
-      _pool->addInfo(af->node());
-      info(af->node())->funRef = nf;
-
-      _functions.push_back(af);
-      
-      af->node()->visit(this);
-    }
+    void visit(AstFunction* af);
 
   private:
     Runtime* _runtime;

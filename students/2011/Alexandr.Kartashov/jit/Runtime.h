@@ -33,11 +33,17 @@ namespace mathvm {
       uint32_t _pos;
     };
 
+    // --------------------------------------------------------------------------------
+
     typedef std::deque<Ref> Refs;
+    typedef std::map<const AstVar*, FlowVar*> Vars;
+
+    // --------------------------------------------------------------------------------
 
     NativeFunction(AstFunction* af) 
       : TranslatedFunction(af),
-        _linked(false){ }
+        _linked(false),
+        _extVars(0) { }
 
     NativeCode* code() {
       return &_code;
@@ -82,7 +88,42 @@ namespace mathvm {
       return _callStor;
     }
 
+    size_t externVars() const {
+      return _extVars;
+    }
+
+    void addExternVar(const AstVar* v, FlowVar* fv) {
+      //fv->kind = FlowVar::FV_LOCAL;
+      fv->_stor = FlowVar::STOR_EXTERN;
+      fv->_storIdx = _extVars;
+
+      _vars.insert(std::make_pair(v, fv));      
+      _extVars++;
+    }
+
+    void addLocalVar(const AstVar* v, FlowVar* fv) {
+      if (v) {
+        _vars.insert(std::make_pair(v, fv));
+      }
+      setLocalsNumber(localsNumber() + 1);
+    }
+
+    FlowVar* fvar(const AstVar* v) {
+      Vars::iterator it = _vars.find(v);
+      if (it != _vars.end()) {
+        return it->second;
+      } else {
+        return NULL;
+      }
+    }
+
+    Vars& vars() {
+      return _vars;
+    }
+
   private:
+    //typedef std::deque<AstVar*> ExternVars;
+
     VarType _retType;    
     NativeCode _code;
     Refs _inRefs;   // who references us
@@ -93,7 +134,10 @@ namespace mathvm {
     char* _start;   // function entry point address
     bool _linked;
 
-    //std::multimap<X86Code*, LazyLabel*> _refs;
+    size_t _extVars;
+
+    //ExternVars _externVars;
+    Vars _vars;
   };
 
   // --------------------------------------------------------------------------------
