@@ -48,33 +48,35 @@ def buildOptions():
 diff = '/usr/bin/diff'
 
 def runTest(mvm, root, test, doublerun):
-    expectFile = None
-    testFile = os.path.join(root, test+'.mvm')
-    if doublerun:
-      result1 = runProg(mvm, testFile)
-      expectFile = os.path.join('/tmp', 'temp.mvm')
-      writeFile(expectFile, result1)
-      result = runProg(mvm, expectFile)
-    else:
-      expectFile = os.path.join(root, test+'.expect')
-      result = runProg(mvm, testFile)
-    expect = readFile(expectFile)
-    if expect == result:
-        print 'Test "'+test+'" has PASSED'
-    else:
-        print 'Test "'+test+'" has FAILED'
-        print 'Expected: '
-        print '**************************'
-        print expect
-        print 'Result: '
-        print '**************************'
-        print result
-        print '**************************'
-        pipe = subprocess.Popen([diff, '-u', '-b', expectFile, '-'],
-                            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        (out, err) = pipe.communicate(result)
-        print out
-
+    try:
+        expectFile = None
+        testFile = os.path.join(root, test+'.mvm')
+        if doublerun:
+            result1 = runProg(mvm, testFile)
+            expectFile = os.path.join('/tmp', 'temp.mvm')
+            writeFile(expectFile, result1)
+            result = runProg(mvm, expectFile)
+        else:
+            expectFile = os.path.join(root, test+'.expect')
+            result = runProg(mvm, testFile)
+        expect = readFile(expectFile)
+        if expect == result:
+            print 'Test "'+test+'" has PASSED'
+        else:
+            print 'Test "'+test+'" has FAILED'
+            print 'Expected: '
+            print '**************************'
+            print expect
+            print 'Result: '
+            print '**************************'
+            print result
+            print '**************************'
+            pipe = subprocess.Popen([diff, '-u', '-b', expectFile, '-'],
+                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            (out, err) = pipe.communicate(result)
+            print out
+    except:
+        print "Failed to execute the test " + test
 
 def main(argv):
   global options
