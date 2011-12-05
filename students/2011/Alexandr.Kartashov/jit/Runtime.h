@@ -143,10 +143,14 @@ namespace mathvm {
   // --------------------------------------------------------------------------------
 
   class Runtime : public Code {
-    typedef std::vector<std::string> Strings;
+    typedef std::deque<std::string> Strings;
     typedef std::deque<NativeFunction*> Functions;
+    //typedef std::deque<size_t> NFs;
+    typedef std::map<std::string, size_t> NFMap;
 
   public:
+    Runtime();
+
     NativeFunction* createFunction(AstFunction* fNode);
 
     Status* execute(std::vector<mathvm::Var*, std::allocator<Var*> >& args);
@@ -156,6 +160,8 @@ namespace mathvm {
       return _strings.back().c_str();
     }
 
+    size_t addNativeFunction(const std::string& name);
+
     void link();
 
     ~Runtime();
@@ -163,6 +169,10 @@ namespace mathvm {
   private:
     Functions _functions;
     Strings _strings;
+
+    void* _mainHandle;
+    //NFs _nfs;
+    NFMap _nfMap;
 
     NativeFunction* _topf;
     std::map<std::string, size_t> _topArgMap;
