@@ -58,8 +58,12 @@ namespace mathvm {
     }
 
     VISIT(LoadNode) {
-      info(node)->fn->u.op.result->_stor = FlowVar::STOR_REGISTER;
-      info(node)->fn->u.op.result->_storIdx = _curReg;
+      if (node->var()->type() != VT_STRING) {
+        info(node)->fn->u.op.result->_stor = FlowVar::STOR_REGISTER;
+        info(node)->fn->u.op.result->_storIdx = _curReg;
+      } else {
+        info(node)->fn->u.op.result->_stor = FlowVar::STOR_TEMP;
+      }
     }
 
     VISIT(ForNode) {

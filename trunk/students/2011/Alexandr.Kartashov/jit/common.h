@@ -152,6 +152,13 @@ namespace mathvm {
       _avar = NULL;
     }
 
+    void init(const char* v) {
+      _type = VT_STRING;
+      _const.stringConst = v;
+      _stor = STOR_CONST;
+      _avar = NULL;
+    }
+
     VarType _type;
     const AstVar*  _avar;
     const VarInfo* _vi;
@@ -161,6 +168,7 @@ namespace mathvm {
     union {
       int64_t intConst;
       double doubleConst;
+      const char* stringConst;
     } _const;
 
     Storage _stor;
@@ -170,6 +178,7 @@ namespace mathvm {
   // --------------------------------------------------------------------------------
 
   #define INVALID_OFFSET 0xFFFFFFFF
+#define INVALID_NCTE (size_t)(-1)
   
   struct FlowNode {
     enum Type {
@@ -254,10 +263,6 @@ namespace mathvm {
       } assign;
 
 
-      /*struct { 
-        
-        } condBranch;*/
-
       FlowNode* branch;
 
       struct {
@@ -341,6 +346,11 @@ namespace mathvm {
     /* Last value of a counter for a FOR node */
     
     FlowVar* lastVal;
+
+    /* A native function node description */
+    
+    //size_t nctEntry;      // The native call table entry containing the address of the routine to be called
+    size_t procAddress;
   };
 
 #define VAR_INFO(v) ((VarInfo*)(v->info()))

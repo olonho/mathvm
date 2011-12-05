@@ -8,7 +8,14 @@
 namespace mathvm {
   #define VAR_SIZE 8
 
+  /* The mapping from abstract registers to machine registers */
+
   static char rmap[] = {RCX, RDX, RBX, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15};
+
+  /* Native function argument placement */
+
+  static const char iamap[] = { RDI, RSI, RDX, RCX, R8, R9 };
+
 
   /**
    *  The stack frame structure:
@@ -415,7 +422,53 @@ namespace mathvm {
     FlowVar* src = node->u.op.u.copy.from;
     FlowVar* dst = node->u.op.u.copy.to;
 
-    BIN_OP(mov);
+    if (src->_type != VT_STRING) {
+      BIN_OP(mov);
+    } else {
+      // I don't know where to put this code
+
+      switch (dst->_stor) {
+      case FlowVar::STOR_TEMP:
+        switch (src->_stor) {
+        case FlowVar::STOR_CONST:
+          _code->mov_r_imm(RAX, (uint64_t)src->_const.stringConst);
+          break;
+
+        case FlowVar::STOR_LOCAL:
+          _code->mov(Reg(RAX), mem(src));
+          break;
+
+        default:
+          ABORT("Not supported");
+        }
+        break;
+
+      case FlowVar::STOR_LOCAL:
+        switch (src->_stor) {
+        case FlowVar::STOR_TEMP:
+          _code->mov(mem(dst), Reg(RAX));
+          break;
+          
+        default:
+          ABORT("Not supported");
+        }               
+      break;
+
+      case FlowVar::STOR_CALL:
+        switch (src->_stor) {
+        case FlowVar::STOR_TEMP:
+          _code->mov(mem(dst), Reg(RAX));
+          break;
+
+        default:
+         ABORT("Not supported");
+        }
+        break;
+
+      default:
+        ABORT("Not supported");
+      }
+    }
   }
 
   void genAdd(FlowNode* node) {
@@ -487,6 +540,7 @@ namespace mathvm {
 
     switch (op->_type) {
     case VT_INT:
+    case VT_STRING:
       switch (op->_stor) {
       case FlowVar::STOR_REGISTER:
         _code->push(ireg(op));
@@ -496,6 +550,16 @@ namespace mathvm {
       case FlowVar::STOR_CALL:
       case FlowVar::STOR_LOCAL:
         _code->push(mem(op));
+        break;
+
+      case FlowVar::STOR_TEMP:
+        _code->push_r(RAX);
+        break;
+
+      case FlowVar::STOR_EXTERN:
+        _code->mov(Reg(RAX), mem(op));
+        _code->mov(Reg(RAX), mem(RAX));
+        _code->push_r(RAX);
         break;
 
       default:
@@ -527,8 +591,6 @@ namespace mathvm {
   }
 
   void genPrint(FlowNode* node) {
-    static const char iamap[] = { RDI, RSI, RDX, RCX, R8, R9 };      
-
     PrintNode* pn = node->u.print.ref;
     size_t iarg = 1, darg = 0;
     size_t carg = 0;
@@ -537,6 +599,11 @@ namespace mathvm {
       AstNode* child = pn->operandAt(i);
 
       switch (info(child)->type) {
+      case VAL_STRING:
+        if (child->isStringLiteralNode()) {
+          break;
+        }
+
       case VAL_INT:
         _code->mov_rm(iamap[iarg], RSP, VAR_SIZE*(node->u.print.args - carg - 1));
         iarg++;
@@ -594,38 +661,6 @@ namespace mathvm {
       }
 
       node->label = _code->jcc_rel32(cond);
-
-      /*
-      switch (node->type) {
-      case FlowNode::LT:
-        node->label = _code->jcc_rel32(CC_L);
-        break;
-
-      case FlowNode::LE:
-        node->label = _code->jcc_rel32(CC_LE);
-        break;
-
-      case FlowNode::GT:
-        node->label = _code->jcc_rel32(CC_G);
-        break;
-
-      case FlowNode::GE:
-        node->label = _code->jcc_rel32(CC_GE);
-        break;
-
-      case FlowNode::EQ:
-        node->label = _code->jcc_rel32(CC_E);
-        break;
-
-      case FlowNode::NEQ:
-        node->label = _code->jcc_rel32(CC_NE);
-        break;
-
-      default:
-        ABORT("Should never happen");
-      }
-      */
-
       break;
 
     case VT_DOUBLE:
@@ -699,11 +734,53 @@ namespace mathvm {
   // --------------------------------------------------------------------------------
 
   void genCall(FlowNode* node) {
-    NativeFunction* callee = info(node->u.op.u.call.af->node())->funRef;
+    FunctionNode* fn = node->u.op.u.call.af->node();
+    if (!info(fn)->procAddress) { 
+      // A function we compiled
 
-    assert(callee != NULL);
-    
-    _curf->addRef(_code->call_rel(), callee);    
+      NativeFunction* callee = info(fn)->funRef;
+      
+      assert(callee != NULL);
+      
+      _curf->addRef(_code->call_rel(), callee);    
+    } else {                   
+      // An external native function
+
+      AstFunction* af = node->u.op.u.call.af;
+      size_t pn = af->parametersNumber();
+      size_t iarg, darg, carg;
+
+      iarg = darg = carg = 0;
+
+      for (size_t i = 0; i < pn; ++i) {
+        switch (af->parameterType(i)) {
+        case VAL_STRING:
+        case VAL_INT:
+          _code->mov_rm(iamap[iarg], RSP, VAR_SIZE*carg);
+          iarg++;
+          carg++;
+          break;
+
+      case VAL_DOUBLE:
+        _code->movq_xmm_m(darg, RSP, VAR_SIZE*carg);
+        darg++;
+        carg++;
+        break;
+
+      default:
+        break;
+        }
+      }
+
+      _code->mov_r_imm(RAX, darg);
+      _code->add_r_imm(RSP, VAR_SIZE*pn);
+      _code->mov_r_imm(RBX, (uint64_t)info(fn)->procAddress);
+      _code->call_r(RBX);
+
+      if (af->returnType() == VT_DOUBLE) {
+        _code->movq_r_xmm(RAX, XMM0);
+      }
+    }
   }
 
   // --------------------------------------------------------------------------------

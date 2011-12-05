@@ -1,4 +1,5 @@
 #include <map>
+#include <dlfcn.h>
 
 #include "ast.h"
 #include "Runtime.h"
@@ -8,6 +9,12 @@
 typedef void (*TopFunc)(size_t*);
 
 namespace mathvm {
+
+  Runtime::Runtime() {
+    _mainHandle = dlopen(NULL, RTLD_NOW | RTLD_NOLOAD);
+  }
+
+  // --------------------------------------------------------------------------------
 
   void Runtime::link() {
     size_t codeSize = 0;
@@ -64,6 +71,33 @@ namespace mathvm {
 
     mprotect(_exec, codeSize, PROT_READ | PROT_EXEC);
   }
+
+  // --------------------------------------------------------------------------------
+
+  size_t Runtime::addNativeFunction(const std::string& name) {
+    if (_nfMap.find(name) == _nfMap.end()) {
+      size_t addr = (size_t)dlsym(_mainHandle, name.c_str());
+      if (addr) {
+        _nfMap[name] = addr;
+          /*
+          _nfs.size();
+        _nfs.push_back(addr);
+          */
+
+        return addr;
+      } else {
+        return NULL;
+      }
+    } else {
+      return _nfMap[name];
+    }
+  }
+
+  /*
+  void** nfTable() {
+    return &_nfs[0];
+  }
+  */
 
   // --------------------------------------------------------------------------------
 
@@ -158,5 +192,6 @@ namespace mathvm {
 
   Runtime::~Runtime() {
     munmap(_exec, _codeSize);
+    dlclose(_mainHandle);
   }
 }

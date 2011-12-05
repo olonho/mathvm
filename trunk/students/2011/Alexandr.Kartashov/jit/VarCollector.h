@@ -281,7 +281,11 @@ namespace mathvm {
           break;
 
         case VAL_STRING:
-          s << info(n)->string;
+          if (node->operandAt(i)->isStringLiteralNode()) {
+            s << info(n)->string;
+          } else {
+            s << "%s";
+          }
           break;          
 
         case VAL_DOUBLE:
@@ -324,5 +328,18 @@ namespace mathvm {
 
       restoreParent();
     }
+
+    /*
+    VISIT(NativeCallNode) {
+      _pool->addInfo(node);
+      info(node)->nativeAddress = _runtime->addNativeFunction(node->nativeName());
+      
+      if (!info(node)->nativeAddress) {
+        ABORT("Failed to lookup %s!", node->nativeName().c_str());
+      }
+
+      node->visitChildren(this);
+    }
+    */
   };
 }

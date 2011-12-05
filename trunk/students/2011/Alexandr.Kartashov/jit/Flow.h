@@ -354,7 +354,7 @@ namespace mathvm {
         res->_type = node->var()->type();
 
         fn->type = FlowNode::COPY;
-        if (_curf->fvar(node->var())) {   // A native function is unable to resolve its aguments (though probably should...)
+        if (_curf->fvar(node->var())) {   // A NativeFunction is unable to resolve its aguments (though probably should...)
           fn->u.op.u.copy.from = _curf->fvar(node->var());
         } else {
           fn->u.op.u.copy.from = info(node->var())->fv;
@@ -536,6 +536,12 @@ namespace mathvm {
     
       VISIT(IntLiteralNode) {
         literal(node, node->literal());
+      }
+
+      VISIT(StringLiteralNode) {
+        literal(node, info(node)->string);
+
+        info(node)->fn->u.op.result->_stor = FlowVar::STOR_TEMP;  // I think it's impossible to do anything but copy with strings
       }
 
     protected:
