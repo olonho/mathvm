@@ -117,11 +117,16 @@ Status* MachCodeTranslatorImpl::translate(const string& program, Code* *result) 
     return new Status();
 }
 
-MachCodeFunction::MachCodeFunction(AstFunction* function) :
-  TranslatedFunction(function) {
+MachCodeFunction::MachCodeFunction(MachCodeImpl* owner, BytecodeFunction* bcfunc) :
+  TranslatedFunction(bcfunc->name(), bcfunc->signature()) {
 }
 
 MachCodeFunction::~MachCodeFunction() {
+}
+
+
+Status* MachCodeFunction::execute(vector<Var*>* vars) {
+    return 0;
 }
 
 void MachCodeFunction::disassemble(ostream& out) const {

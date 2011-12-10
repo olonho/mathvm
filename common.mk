@@ -19,7 +19,7 @@ LIBS_ROOT = $(VM_ROOT)/libs
 ASMJIT_CFLAGS = -Wno-error
 INCLUDE    = -I$(VM_ROOT)/include -I$(LIBS_ROOT)
 VM_INCLUDE = -I$(VM_ROOT)/vm
-ASMJIT_INCLUDE = -I$(LIBS_ROOT)/asmjit
+ASMJIT_INCLUDE = -I$(LIBS_ROOT)/AsmJit
 USER_INCLUDE = -I$(ROOT)
 DEFS       = $(USER_DEFS) -D_POSIX_SOURCE
 THREAD_LIB = -lpthread 
@@ -84,7 +84,7 @@ $(OBJ)/%$(OBJ_SUFF): $(ROOT)/%.cpp \
 	$(VM_ROOT)/common.mk $(USER_DEPS)
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
-$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/%.cpp
+$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/AsmJit/%.cpp
 	$(CXX) -c $(DEFS) $(CFLAGS) $(ASMJIT_CFLAGS) $(INCLUDE) $(ASMJIT_INCLUDE) $< -o $@
 
 $(OUT):
