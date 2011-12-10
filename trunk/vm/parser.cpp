@@ -9,7 +9,7 @@
 
 namespace mathvm {
 
-Parser::Parser() {
+Parser::Parser() : _top(0),  _currentScope(0),  _topmostScope(0) {
 }
 
 Parser::~Parser() {
@@ -18,9 +18,13 @@ Parser::~Parser() {
 
 Status* Parser::parseProgram(const string& code) {
     Scanner scanner;
-    Status* s = scanner.scan(code, _tokens);
-    if (s) {
-        return s;
+    try {
+         Status* s = scanner.scan(code, _tokens);
+         if (s) {
+             return s;
+         }
+    } catch (ErrorInfoHolder* error) {
+        return new Status(error->getMessage(), error->getPosition());
     }
     return parseTopLevel();
 }
@@ -74,9 +78,11 @@ void  Parser::ensureKeyword(const string& keyword) {
 void Parser::error(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    vsnprintf(_msgBuffer, sizeof(_msgBuffer), format, args);
-    va_end(args);
-    throw _msgBuffer;
+    verror(tokenIndexToOffset(_currentTokenIndex), format, args);        
+}
+
+uint32_t Parser::tokenIndexToOffset(uint32_t tokenIndex) const {
+    return _tokens.positionOf(tokenIndex);
 }
 
 void Parser::pushScope() {
@@ -99,13 +105,13 @@ Status* Parser::parseTopLevel() {
     _top = 0;
     try {
         topBlock = parseBlock(false);
-    } catch (char* error) {
-        return new Status(error, _tokens.positionOf(_currentTokenIndex));
+    } catch (ErrorInfoHolder* error) {
+        return new Status(error->getMessage(), error->getPosition());
     }
     assert(topBlock != 0);
     // Make pseudo-function for top level code.
     Signature signature;
-    signature.push_back(pair<VarType,string>(VT_VOID, "return"));
+    signature.push_back(SignatureElement(VT_VOID, "return"));
     _topmostScope->declareFunction(
       new FunctionNode(0, AstFunction::top_name,
                        signature, topBlock));
@@ -257,7 +263,7 @@ FunctionNode* Parser::parseFunction() {
     consumeToken();
 
     Signature signature;
-    signature.push_back(pair<VarType, string>(returnType, "return"));
+    signature.push_back(SignatureElement(returnType, "return"));
 
     ensureToken(tLPAREN);
     while (currentToken() != tRPAREN) {
@@ -272,7 +278,7 @@ FunctionNode* Parser::parseFunction() {
             error("identifier expected");
         }
         consumeToken();
-        signature.push_back(pair<VarType, string>(parameterType, parameterName));
+        signature.push_back(SignatureElement(parameterType, parameterName));
 
         if (currentToken() == tCOMMA) {
             consumeToken();
@@ -433,7 +439,7 @@ static inline bool isUnaryOp(TokenKind token) {
 }
 
 static inline bool isBinaryOp(TokenKind token) {
-    return (token >= tADD && token <= tDIV) ||
+    return (token >= tADD && token <= tMOD) ||
            (token == tRANGE) ||
            (token >= tEQ && token <= tLE) ||
            (token == tAND || token <= tOR);
@@ -479,7 +485,7 @@ AstNode* Parser::parseUnary() {
         ensureToken(tRPAREN);
         return expr;
     } else {
-        assert(false);
+        error("Unexpected token: %s", tokenStr(currentToken()));
         return 0;
     }
 }

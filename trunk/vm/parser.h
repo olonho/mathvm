@@ -8,14 +8,13 @@
 namespace mathvm {
 
 // We implement simple top down parser.
-class Parser {
+class Parser : public ErrorInfoHolder {
     AstFunction* _top;
     Scope* _currentScope;
     Scope* _topmostScope;
     TokenList _tokens;
     TokenKind _currentToken;
     uint32_t _currentTokenIndex;
-    char _msgBuffer[256];
 
     void error(const char* msg, ...);
     TokenKind currentToken();
@@ -53,6 +52,7 @@ class Parser {
     Status* parseProgram(const string& code);
     AstFunction* top() const;
     const TokenList& tokens() const { return _tokens; }
+    uint32_t tokenIndexToOffset(uint32_t tokenIndex) const;
 };
 
 }

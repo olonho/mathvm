@@ -30,7 +30,7 @@ class TokenList {
     void dump();
 };
 
-class Scanner {
+class Scanner : ErrorInfoHolder {
     int32_t _position, _maxPosition;
     int32_t _tokenStart;
     const string* _code;
@@ -47,6 +47,8 @@ class Scanner {
     void scanIdent();
     void scanNumber();
     void scanString();
+    
+    void error(const char* msg, ...);
 
   public:
     Scanner() :

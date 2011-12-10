@@ -42,7 +42,8 @@ void TokenList::dump() {
 
 bool Scanner::isLetter(char ch) {
     return (('A' <= ch) && (ch <= 'Z')) ||
-        (('a' <= ch) && (ch <= 'z'));
+            (('a' <= ch) && (ch <= 'z')) || 
+            (ch == '_');
 }
 
 bool Scanner::isDigit(char ch) {
@@ -106,12 +107,14 @@ void Scanner::scanNumber() {
         }
         break;
     }
-
+    
     while (isDigit(_ch) ||
            (_ch == '.' && isDigit(lookAhead())) ||
-           (_ch == 'e' && (isDigit(lookAhead()) || lookAhead() == '-' || lookAhead() == '+')) ||
-           (_ch == '-') || (_ch == '+')
+           (_ch == 'e' && (isDigit(lookAhead()) || lookAhead() == '-' || lookAhead() == '+'))
         ) {
+        if (_ch == 'e') {
+            readChar();
+        }
         readChar();
     }
     size_t len = _position - tokenStart;
@@ -269,6 +272,9 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
         case '/':
             kind = tDIV;
             break;
+        case '%':
+            kind = tMOD;
+            break;
         case ';':
             kind = tSEMICOLON;
             break;
@@ -295,10 +301,9 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
 
         if (kind != tUNDEF) {
             _tokens->add(_position, kind);
-            continue;
+        } else {
+            error("Bad token: %c", _ch);
         }
-
-        cout << "Bad token: " << int(_ch) << endl;
     }
 
     _tokens->add(_position, tEOF);
@@ -307,4 +312,11 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
 
     return 0;
 }
+
+void Scanner::error(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verror(_position, format, args);        
+}
+
 }

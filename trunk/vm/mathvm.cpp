@@ -1,6 +1,8 @@
 #include "mathvm.h"
 #include "ast.h"
 
+#include <stdio.h>
+
 #include <iostream>
 
 using namespace std;
@@ -145,8 +147,10 @@ void Var::print() {
     }
 }
 
+const string Code::empty_string;
+
 Code::Code() {
-    _constants.push_back("");
+    _constants.push_back(empty_string);
 }
 
 Code::~Code() {
@@ -196,12 +200,13 @@ uint16_t Code::makeNativeFunction(const string& name, const Signature& signature
     }
     uint16_t id = _natives.size();
     _nativeById[name] = id;
-    _natives.push_back(pair<const void*, Signature>(address, signature));
+    _natives.push_back(NativeFunctionDescriptor(name, signature, address));
     return id;
 }
 
 const string& Code::constantById(uint16_t id) const {
     if (id >= _constants.size()) {
+        assert(false);
         return _constants[0];
     }
     return _constants[id];
@@ -212,8 +217,9 @@ const void* Code::nativeById(uint16_t id,
     if (id >= _natives.size()) {
         return 0;
     }
-    *signature = &_natives[id].second;
-    return _natives[id].first;
+    const NativeFunctionDescriptor& nfd = _natives[id];
+    *signature = &nfd.signature();
+    return nfd.code();
 }
 
 void Code::disassemble(ostream& out, FunctionFilter* filter) {
@@ -240,16 +246,31 @@ TranslatedFunction::TranslatedFunction(AstFunction* function) :
   _id(INVALID_ID),
   _locals(0), _params(function->parametersNumber()),
   _name(function->name()) {
-  _signature.push_back(pair<VarType, string>
-                       (function->returnType(), "return"));
-
-  for (uint32_t i = 0; i < function->parametersNumber(); i++) {
-      _signature.push_back(pair<VarType, string>
-                           (function->parameterType(i), function->parameterName(i)));
+    _signature.push_back(SignatureElement(function->returnType(), "return"));
+    for (uint32_t i = 0; i < function->parametersNumber(); i++) {
+        _signature.push_back(SignatureElement(function->parameterType(i), function->parameterName(i)));
   }
 }
 
+TranslatedFunction::TranslatedFunction(const string& name, const Signature& signature) :
+    _id(INVALID_ID), _locals(0), _params(signature.size() - 1), _name(name),
+    _signature(signature) {
+}
+
 TranslatedFunction::~TranslatedFunction() {
+}
+
+void ErrorInfoHolder::error(uint32_t position, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verror(position, format, args);
+}
+
+void ErrorInfoHolder::verror(uint32_t position, const char* format, va_list args) {
+    _position = position;
+    vsnprintf(_msgBuffer, sizeof(_msgBuffer), format, args);
+    va_end(args);
+    throw this;
 }
 
 }

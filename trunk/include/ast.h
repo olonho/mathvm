@@ -28,6 +28,7 @@ namespace mathvm {
     DO(tSUB, "-", 12)                           \
     DO(tMUL, "*", 13)                           \
     DO(tDIV, "/", 13)                           \
+    DO(tMOD, "%", 13)                           \
     DO(tINCRSET, "+=", 14)                      \
     DO(tDECRSET, "-=", 14)                      \
     DO(tDOUBLE, "", 0)                          \
@@ -87,6 +88,16 @@ FOR_NODES(FORWARD_DECLARATION)
 #undef FORWARD_DECLARATION
 
 class Scope;
+
+class CustomDataHolder {    
+    void* _info;
+  public:
+    void* info() const { return _info; }
+    void setInfo(void* info) { _info = info; }
+  protected:
+    CustomDataHolder() : _info(0) {}
+};
+
 /**
  * This class represents variable in AST tree, without actual
  * binding to particular storage. It's up to implementation
@@ -94,7 +105,7 @@ class Scope;
  * Generally, every variable must be guaranteed to be available
  * for at least lifetime of its scope.
  */
-class AstVar {
+class AstVar : public CustomDataHolder {
     const string _name;
     VarType _type;
     Scope* _owner;
@@ -108,7 +119,7 @@ class AstVar {
 };
 
 class FunctionNode;
-class AstFunction {
+class AstFunction : public CustomDataHolder {
     FunctionNode* _function;
     Scope* _owner;
   public:
@@ -207,9 +218,8 @@ class AstVisitor {
     virtual bool is##type() const { return true; }            \
     virtual type* as##type() { return this; }
 
-class AstNode {
+class AstNode : public CustomDataHolder {
     uint32_t _index;
-    void* _info;
   public:
     AstNode(uint32_t index) :
         _index(index) {
@@ -222,9 +232,6 @@ class AstNode {
     uint32_t position() const {
         return _index;
     }
-    void* info() const { return _info; }
-    void setInfo(void* info) { _info = info; }
-
 
 #define CHECK_FUNCTION(type, name)                  \
     virtual bool is##type() const { return false; } \
@@ -634,8 +641,8 @@ class CallNode : public AstNode {
 
 public:
    CallNode(uint32_t index,
-                    const string& name,
-                    vector<AstNode*>& parameters) :
+            const string& name,
+            vector<AstNode*>& parameters) :
        AstNode(index), _name(name) {
         for (uint32_t i = 0; i < parameters.size(); i++) {
           _parameters.push_back(parameters[i]);

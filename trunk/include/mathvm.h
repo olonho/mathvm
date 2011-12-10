@@ -2,6 +2,7 @@
 #define _MATHVM_H
 
 #include <stdint.h>
+#include <stdarg.h>
 
 #include <cassert>
 #include <iostream>
@@ -34,6 +35,7 @@ using namespace std;
         DO(IMUL, "Multiply 2 ints on TOS, push value back.", 1)         \
         DO(DDIV, "Divide 2 doubles on TOS (upper to lower), push value back.", 1) \
         DO(IDIV, "Divide 2 ints on TOS (upper to lower), push value back.", 1) \
+        DO(IMOD, "Modulo operation on 2 ints on TOS (upper to lower), push value back.", 1) \
         DO(DNEG, "Negate double on TOS.", 1)                            \
         DO(INEG, "Negate int on TOS.", 1)                               \
         DO(IPRINT, "Pop and print integer TOS.", 1)                     \
@@ -80,7 +82,7 @@ using namespace std;
         DO(STORECTXIVAR, "Pop TOS and store to int variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
         DO(STORECTXSVAR, "Pop TOS and store to string variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
         DO(DCMP, "Compare 2 topmost doubles, pushing libc-stryle comparator value cmp(upper, lower) as integer.", 1) \
-        DO(ICMP, "Compare 2 topmost ints, pushing libc-stryle comparator value cmp(upper, lower) as integer.", 1) \
+        DO(ICMP, "Compare 2 topmost ints, pushing libc-style comparator value cmp(upper, lower) as integer.", 1) \
         DO(JA, "Jump always, next two bytes - signed offset of jump destination.", 3) \
         DO(IFICMPNE, "Compare two topmost integers and jump if upper != lower, next two bytes - signed offset of jump destination.", 3) \
         DO(IFICMPE, "Compare two topmost integers and jump if upper == lower, next two bytes - signed offset of jump destination.", 3) \
@@ -111,7 +113,8 @@ typedef enum {
 } VarType;
 
 // Element 0 is return type.
-typedef vector<pair<VarType,string> > Signature;
+typedef pair<VarType,string> SignatureElement;
+typedef vector<SignatureElement> Signature;
 
 const uint16_t INVALID_ID = 0xffff;
 
@@ -387,6 +390,7 @@ class TranslatedFunction {
     Signature _signature;
 public:
     TranslatedFunction(AstFunction* function);
+    TranslatedFunction(const string& name, const Signature& signature);
     virtual ~TranslatedFunction();
 
     const string& name() const { return _name; }
@@ -400,7 +404,7 @@ public:
         return _signature[index + 1].second;
     }
     uint16_t parametersNumber() const { return _params; }
-
+    const Signature& signature() const { return _signature; }
     void setLocalsNumber(uint16_t locals) {
       _locals = locals;
     }
@@ -436,20 +440,27 @@ public:
     }
 };
 
-class MachCodeFunction : public TranslatedFunction {
-public:
-    MachCodeFunction(AstFunction* function);
-    virtual ~MachCodeFunction();
-
-    virtual void disassemble(ostream& out) const;
-};
-
 class FunctionFilter {
   public:
     virtual bool matches(TranslatedFunction* function) = 0;
 };
 
-class NativeFunction;
+class NativeFunctionDescriptor {
+    string _name;
+    Signature _signature;
+    const void* _code;
+
+  public:
+    NativeFunctionDescriptor(const string& aName,
+                             const Signature& aSignature,
+                             const void* aCode) :
+    _name(aName), _signature(aSignature), _code(aCode) {
+    }
+
+    const string& name() const { return _name; }
+    const Signature& signature() const { return _signature; }
+    const void* code() const { return _code; }
+};
 class Code {
     typedef map<string, uint16_t> FunctionMap;
     typedef map<string, uint16_t> ConstantMap;
@@ -457,11 +468,11 @@ class Code {
 
     vector<TranslatedFunction*> _functions;
     vector<string> _constants;
-    vector<pair<const void*, Signature> > _natives;
+    vector<NativeFunctionDescriptor> _natives;
     FunctionMap _functionById;
     ConstantMap _constantById;
     NativeMap _nativeById;
-
+    static const string empty_string;
 public:
     Code();
     virtual ~Code();
@@ -489,6 +500,59 @@ public:
      * output to the stream.
      */
     virtual void disassemble(ostream& out = cout, FunctionFilter* filter = 0);
+
+    class FunctionIterator {
+        Code* _code;
+        vector<TranslatedFunction*>::iterator _it;
+    public:
+        FunctionIterator(Code* code) : _code(code) {
+            _it = _code->_functions.begin();
+        }
+
+        bool hasNext() { return _it != _code->_functions.end(); }
+
+        TranslatedFunction* next() {
+            if (!hasNext()) {
+                return 0;
+            }
+            return *_it++;
+        }
+    };
+    class NativeFunctionIterator {
+        Code* _code;
+        vector<NativeFunctionDescriptor>::iterator _it;
+    public:
+        NativeFunctionIterator(Code* code) : _code(code) {
+            _it = _code->_natives.begin();
+        }
+
+        bool hasNext() { return _it != _code->_natives.end(); }
+
+        NativeFunctionDescriptor& next() {
+            if (!hasNext()) {
+                return *_it;
+            }
+            return *_it++;
+        }
+    };
+    class ConstantIterator {
+        Code* _code;
+        vector<string>::iterator _it;
+    public:
+        ConstantIterator(Code* code) : _code(code) {
+            _it = _code->_constants.begin() + 1;
+        }
+
+        bool hasNext() { return _it != _code->_constants.end(); }
+
+        const string& next() {
+            if (!hasNext()) {
+                assert(false);
+                return Code::empty_string;
+            }
+            return *_it++;
+        }
+    };
 };
 
 class Translator {
@@ -524,6 +588,20 @@ class MachCodeTranslatorImpl : public Translator {
     virtual ~MachCodeTranslatorImpl();
 
     virtual Status* translate(const string& program, Code* *code);
+};
+
+class ErrorInfoHolder {
+  protected:
+    char _msgBuffer[512];
+    uint32_t _position;
+    ErrorInfoHolder() : _position(0) {
+        _msgBuffer[0] = '\0';
+    }
+  public:
+    const char* getMessage() const { return _msgBuffer; }
+    uint32_t getPosition() const { return _position; }
+    void error(uint32_t position, const char* format, ...);
+    void verror(uint32_t position, const char* format, va_list args);
 };
 
 // Utility functions.
