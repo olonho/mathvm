@@ -232,6 +232,7 @@ static uint16_t x86_cond(uint16_t insn, char cond) {
 #define MOV_RM_IMM   0xC7  // RO = 0
 #define CALL_REL32   0xE8
 #define JMP_REL32    0xE9
+#define CVTSD2SI     0x2D0FF2
 #define ADDSD        0x580FF2
 #define MULSD        0x590FF2
 #define SUBSD        0x5C0FF2

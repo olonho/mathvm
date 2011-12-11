@@ -206,6 +206,10 @@ namespace mathvm {
           fn->type = FlowNode::DIV;
           break;
 
+        case tMOD:
+          fn->type = FlowNode::MOD;
+          break;
+
         case tLT:
           fn->type = FlowNode::LT;
           break;
@@ -299,19 +303,35 @@ namespace mathvm {
         }
 
         fn->u.op.u.bin.op1 = info(node->left())->fn->u.op.result;
-        fn->u.op.u.bin.op2 = info(node->right())->fn->u.op.result;
-
-        /*
-        if (isArith(node->kind()) && node->kind() != tDIV) {
-          fn->u.op.result = fn->u.op.u.bin.op1;
+        
+        if (info(node->left())->type == info(node->right())->type) {          
+          fn->u.op.u.bin.op2 = info(node->right())->fn->u.op.result;
         } else {
-        */
+          FlowNode* cvt;
+
+          _pool->alloc(&cvt);
+          cvt->u.op.u.un.op = info(node->right())->fn->u.op.result;
+          _pool->alloc(&cvt->u.op.result);
+
+          if (info(node->left())->type == VAL_INT && info(node->right())->type == VAL_DOUBLE) {
+            cvt->type = FlowNode::D2I;
+            cvt->u.op.result->_type = VT_INT;
+          } else if (info(node->left())->type == VAL_DOUBLE && info(node->right())->type == VAL_INT) {
+            cvt->type = FlowNode::I2D;
+            cvt->u.op.result->_type = VT_DOUBLE;
+          } else {
+            ABORT("Failed to cast!");
+          }
+
+          fn->u.op.u.bin.op2 = cvt->u.op.result;
+          attach(cvt);
+        }
+
         FlowVar* res;
         _pool->alloc(&res);
         res->_type = (VarType)info(node)->type;
         info(node)->fn->u.op.result = res;
-          //}
-        
+
         attach(fn);
       }
 
@@ -460,6 +480,8 @@ namespace mathvm {
 
         for (int i = (int)node->parametersNumber() - 1; i >= 0; i--) {
           AstNode* op = node->parameterAt(i);
+
+          op->visit(this);
 
           FlowNode* push;
           _pool->alloc(&push);

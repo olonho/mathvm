@@ -178,7 +178,7 @@ namespace mathvm {
   // --------------------------------------------------------------------------------
 
   #define INVALID_OFFSET 0xFFFFFFFF
-#define INVALID_NCTE (size_t)(-1)
+  #define INVALID_NCTE (size_t)(-1)
   
   struct FlowNode {
     enum Type {
@@ -191,6 +191,7 @@ namespace mathvm {
       SUB,
       MUL,
       DIV,
+      MOD,
       NEG,
       INC,
 
@@ -214,7 +215,10 @@ namespace mathvm {
       ALIGN,
       UNALIGN,
 
-      NOP
+      NOP,
+
+      D2I,
+      I2D
     };
 
     Type type;

@@ -440,6 +440,58 @@ namespace mathvm {
 
     // --------------------------------------------------------------------------------
 
+    void mod(const Reg& dst, const Reg& src) {
+      mov_rr(RAX, dst._r);
+
+      push_r(RDX);
+      push_r(RCX);
+      
+      mov_rr(RCX, src._r);
+      xor_rr(RDX, RDX);
+      div_r(RCX);
+
+      mov_rr(RAX, RDX);
+      
+      pop_r(RCX);
+      pop_r(RDX);
+
+      mov_rr(dst._r, RAX);
+    }
+
+    void mod(const XmmReg& dst, const XmmReg& src) {
+      ABORT("Not implemented");
+    }
+
+    void mod(const Reg& r, const Imm& imm) {
+      ABORT("Not implemented");
+    }
+
+    void mod(const XmmReg& r, const Mem& mem) {
+      ABORT("Not implemented");
+    }
+
+    void mod(const Mem& mem, const XmmReg& r) {
+      ABORT("Not implemented");
+    }
+
+    void mod(const Reg& r, const Mem& mem) {
+      ABORT("Not implemented");
+    }
+
+    void mod(const Mem& mem, const Reg& reg) {
+      ABORT("Not implemented");
+    }
+
+    void mod(const XmmReg& r1, const Reg& r2) {
+      ABORT("Not implemented");
+    }
+
+    void mod(const Reg& r1, const XmmReg& r2) {
+      ABORT("Not implemented");
+    }
+
+    // --------------------------------------------------------------------------------
+
     void neg_r(char r) {
       add(x86_rex(r, 3, 1));
       add(NEG_RM);
@@ -606,46 +658,24 @@ namespace mathvm {
     }
 
     // --------------------------------------------------------------------------------
-    /* Code linking */
 
-    /*
-    void addReloc(const char* p) {
-      _relocs.push_back(Reloc(p, current()));
-      addTyped<int32_t>(0);
+    void cvtsd2si(Reg r, XmmReg xmm) {
+      add(0xF2);
+      add(x86_rex(r._r, xmm._r, 1));
+      addUInt16(0x2D0F);
+      add(x86_modrm(MOD_RR, r._r, xmm._r));
     }
 
-    void link() {
-      _size = _data.size();
-      _x86code = (char*)mmap(NULL, _size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-      memcpy(_x86code, &_data[0], _size);
-      _data.clear();
-
-      for (Relocs::const_iterator it = _relocs.begin(); it != _relocs.end(); ++it) {
-        *(int32_t*)(_x86code + it->offset) = (_x86code + it->offset + sizeof(int32_t)) - it->anchor;
-      }
-
-      mprotect(_x86code, _size, PROT_READ | PROT_EXEC);
+    void cvtsi2sd(XmmReg xmm, Reg r) {
+      add(0xF2);
+      add(x86_rex(xmm._r, r._r, 1));
+      addUInt16(0x2A0F);
+      add(x86_modrm(MOD_RR, xmm._r, r._r));
     }
-    */
+
+    // --------------------------------------------------------------------------------    
 
   private:
-    /*
-    struct Reloc {
-      Reloc(const char* anch, uint32_t off) {
-        anchor = anch;
-        offset = off;
-      }
-
-      const char* anchor;
-      uint32_t offset;
-    };
-
-    typedef std::deque<Reloc> Relocs;
-
-    Relocs _relocs;
-    char* _x86code;
-    */
-
     size_t _size;
   };
 

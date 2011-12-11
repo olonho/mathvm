@@ -17,12 +17,8 @@ MVM  = $(BIN)/mvm
 
 all: .ast-patched $(MVM)
 
-#.ast-patched:
-#	patch -p0 -d $(VM_ROOT)/include < ast.patch
-#	touch .ast-patched
-
 $(MVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJS) $(UTIL) $(USER_HEADERS)
-	$(CXX) -o $@ $(MATHVM_OBJ) $(LOCAL_INC) $(USER_OBJS) $(THREAD_LIB)
+	$(CXX) -o $@ $(MATHVM_OBJ) $(LOCAL_INC) $(USER_OBJS) $(THREAD_LIB) $(USER_LIBS)
 
 tests:
 	ln -s $(VM_ROOT)/tests .

@@ -45,19 +45,10 @@ namespace mathvm {
         noArgs = _curf->localsNumber() == 0;
       }
 
-      /*
-      if (isTop) {
-        _localsBase = 3*8;                                        // RBP + [current function] + RDI
-      } else {
-        _localsBase = 2*8;                                        // RBP + [current function]
-      }
-      */
       _localsBase = 2;                                            // RBP + [current function]
 
       _extBase = _localsBase + _curf->localsNumber();
       _callBase = _extBase + _curf->externVars();
-
-      //code->mov_rr(RAX, RSP); ???
       
       code->push_r(RBP);
       code->mov_rr(RBP, RSP);
@@ -189,6 +180,10 @@ namespace mathvm {
           genDiv(node);
           break;
 
+        case FlowNode::MOD:
+          genMod(node);
+          break;
+
         case FlowNode::NOP:
           break;
 
@@ -206,7 +201,13 @@ namespace mathvm {
 
         case FlowNode::UNALIGN:
           _code->add_r_imm(RSP, 8);
-          break;          
+          break;
+
+
+        case FlowNode::I2D:
+        case FlowNode::D2I:
+          genCvt(node);
+          break;
 
         default:
           ABORT("Not supported");          
@@ -251,6 +252,13 @@ namespace mathvm {
         break;                                                          \
                                                                         \
       case FlowVar::STOR_TEMP:                                          \
+        _code->op(mem(dst), Reg(RAX));                                  \
+        break;                                                          \
+                                                                        \
+      case FlowVar::STOR_LOCAL:                                         \
+      case FlowVar::STOR_ARG:                                           \
+      case FlowVar::STOR_CALL:                                          \
+        _code->mov(Reg(RAX), mem(src));                                 \
         _code->op(mem(dst), Reg(RAX));                                  \
         break;                                                          \
                                                                         \
@@ -497,6 +505,13 @@ namespace mathvm {
     FlowVar* dst = node->u.op.u.bin.op1;
 
     BIN_OP(div);
+  }
+
+  void genMod(FlowNode* node) {
+    FlowVar* src = node->u.op.u.bin.op2;
+    FlowVar* dst = node->u.op.u.bin.op1;
+
+    BIN_OP(mod);
   }
 
   void genNeg(FlowNode* node) {
@@ -780,6 +795,35 @@ namespace mathvm {
       if (af->returnType() == VT_DOUBLE) {
         _code->movq_r_xmm(RAX, XMM0);
       }
+    }
+  }
+
+  // --------------------------------------------------------------------------------
+
+  void genCvt(FlowNode* node) {
+    node->u.op.result->_stor = node->u.op.u.un.op->_stor;
+    node->u.op.result->_storIdx = node->u.op.u.un.op->_storIdx;
+
+    switch (node->u.op.result->_type) {
+    case VT_INT:
+      if (node->u.op.u.un.op->_stor == FlowVar::STOR_REGISTER) {
+        _code->cvtsd2si(ireg(node->u.op.result), XmmReg(node->u.op.u.un.op->_storIdx));
+      } else {
+        ABORT("Not supported");
+      }
+
+      break;
+
+    case VT_DOUBLE:
+      if (node->u.op.u.un.op->_stor == FlowVar::STOR_REGISTER) {
+        _code->cvtsi2sd(XmmReg(node->u.op.result->_storIdx), ireg(node->u.op.u.un.op));
+      } else {
+        ABORT("Not supported");
+      }
+      break;
+
+    default:
+      ABORT("Not supported");
     }
   }
 
