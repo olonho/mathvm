@@ -43,6 +43,7 @@ using namespace std;
         DO(SPRINT, "Pop and print string TOS.", 1)                      \
         DO(I2D,  "Convert int on TOS to double.", 1)                    \
         DO(D2I,  "Convert double on TOS to int.", 1)                    \
+        DO(S2I,  "Convert string on TOS to int.", 1)                    \
         DO(SWAP, "Swap 2 topmost values.", 1)                           \
         DO(POP, "Remove topmost value.", 1)                             \
         DO(LOADDVAR0, "Load double from variable 0, push on TOS.", 1)   \
@@ -220,7 +221,9 @@ public:
     }
 
     ~Label() {
-        assert(_relocations.size() == 0);
+        // Shall be like that, but we can hit this path
+        // if exception thrown before label bound.
+        // assert(_relocations.size() == 0);
     }
 
     uint32_t bci() const {

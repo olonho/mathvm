@@ -6,6 +6,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#ifdef MATHVM_WITH_SDL
+#include <SDL/SDL.h>
+#endif
+
 using namespace std;
 
 namespace mathvm {
@@ -76,5 +80,96 @@ VarType nameToType(const string& typeName) {
     }
     return VT_INVALID;
 }
+
+extern "C" void unsafe_setMem(void* base, int64_t offset, int64_t value, int64_t width) {
+    uint8_t* ptr = (uint8_t*)base + offset;
+    switch(width) {
+        case 1:
+            *(uint8_t*)ptr = value;
+            break;
+        case 2:
+            *(uint16_t*)ptr = value;
+            break;
+        case 4:
+            *(uint32_t*)ptr = value;
+            break;
+        case 8:
+            *(uint64_t*)ptr = value;
+            break;
+        default:
+            assert(false);
+    }
+}
+
+extern "C" int64_t unsafe_getMem(void* base, int64_t offset, int64_t width) {
+    uint8_t* ptr = (uint8_t*)base + offset;
+    switch(width) {
+        case 1:
+            return *(uint8_t*)ptr;
+        case 2:
+            return *(uint16_t*)ptr;
+        case 4:
+            return *(uint32_t*)ptr;
+        case 8:
+            return *(uint64_t*)ptr;
+        default:
+            assert(false);
+            return 0;
+    }
+}
+
+#ifdef MATHVM_WITH_SDL
+SDL_Surface * sdl_screen = 0;
+
+extern "C" int64_t unsafe_videoInitFramebuffer(int64_t width, int64_t height, int64_t bpp, int64_t fullscreen) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        return 0;
+    }
+
+    int flags = SDL_HWSURFACE;
+    if (fullscreen) {
+        flags |= SDL_FULLSCREEN;
+    }
+    if (!(sdl_screen = SDL_SetVideoMode(width, height, bpp, flags))) {
+        SDL_Quit();
+        return 0;
+    }
+
+    return 1;
+}
+
+extern "C" void unsafe_videoDeinitFramebuffer() {
+    SDL_Quit();
+}
+
+extern "C" int64_t unsafe_videoCheckEvent() {
+    SDL_Event event;
+    if (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_QUIT:
+            case SDL_KEYDOWN:
+                return 1;
+        }
+    }
+    return 0;
+}
+
+extern "C" void* unsafe_videoGrabFramebuffer() {
+    if (SDL_MUSTLOCK(sdl_screen)) {
+        if (SDL_LockSurface(sdl_screen) < 0) {
+            return 0;
+        }
+    }
+    return sdl_screen->pixels;
+}
+
+extern "C" void unsafe_videoReleaseFramebuffer() {
+    if (SDL_MUSTLOCK(sdl_screen)) {
+        SDL_UnlockSurface(sdl_screen);
+    }
+    SDL_Flip(sdl_screen);
+}
+
+#endif // MATHVM_WITH_SDL
 
 } // namespace mathvm

@@ -23,7 +23,7 @@ namespace mathvm {
     DO(tGE,     ">=", 10)                       \
     DO(tLT,     "<", 10)                        \
     DO(tLE,     "<=", 10)                       \
-    DO(tRANGE, "..", 12)                        \
+    DO(tRANGE, "..", 9)                         \
     DO(tADD, "+", 12)                           \
     DO(tSUB, "-", 12)                           \
     DO(tMUL, "*", 13)                           \
