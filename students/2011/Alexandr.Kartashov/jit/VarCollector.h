@@ -96,9 +96,11 @@ namespace mathvm {
                  info(node->right())->depth
                  ) + 1;
 
+      /*
       if (NODE_INFO(node->left())->type != NODE_INFO(node->left())->type) {
         ABORT("Type mismatch");
       }
+      */
 
       switch (node->kind()) {
       case tEQ:
