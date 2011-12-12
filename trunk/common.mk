@@ -14,7 +14,7 @@ MATHVM = $(BIN)/mvm
 MATHVMTGZ = ../MathVM.tgz
 
 CXX        = g++
-CFLAGS     += -Wall -Werror -fPIC -D_REENTRANT $(USER_CFLAGS)
+CFLAGS     += -Wall -Werror -D_REENTRANT -fPIC $(USER_CFLAGS)
 LIBS_ROOT = $(VM_ROOT)/libs
 ASMJIT_CFLAGS = -Wno-error
 INCLUDE    = -I$(VM_ROOT)/include -I$(LIBS_ROOT)
@@ -35,9 +35,22 @@ else
 endif
 
 ifneq (,$(findstring Darwin,$(OS)))
- CFLAGS += -D_DARWIN_C_SOURCE
+ ifneq ($(WITH_SDL),)
+  DEFS += -I/opt/local/include
+  LIBS += -L/opt/local/lib -framework cocoa -lSDLmain
+ endif
+ DEFS += -D_DARWIN_C_SOURCE
 endif
-
+ 
+ifneq (,$(findstring Linux,$(OS)))
+ LIBS += -rdynamic
+endif
+ 
+ifneq ($(WITH_SDL),)
+  DEFS += -DMATHVM_WITH_SDL
+  LIBS += -lSDL
+endif
+ 
 ASMJIT_OBJ = \
         $(OBJ)/AssemblerX86X64$(OBJ_SUFF) \
         $(OBJ)/CodeGenerator$(OBJ_SUFF) \
