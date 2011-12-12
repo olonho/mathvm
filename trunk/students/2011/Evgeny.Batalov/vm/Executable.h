@@ -29,15 +29,29 @@ public:
     
     void addNativeFunc(uint16_t id, MyNativeFunction* func) { idToNativeFunction[id] = func; }
     
-    MyBytecodeFunction* funcById(uint16_t id) { return idToFunction[id]; }
+    MyBytecodeFunction* funcById(uint16_t id) { 
+      IdToFunction::iterator it = idToFunction.find(id); 
+      if (it != idToFunction.end()) {
+        return idToFunction[id]; 
+      } else {
+        return NULL;
+      }
+    }
     
-    MyNativeFunction* nativeFuncById(uint16_t id) { return idToNativeFunction[id]; }
+    MyNativeFunction* nativeFuncById(uint16_t id) { 
+      IdToNativeFunction::iterator it = idToNativeFunction.find(id); 
+      if (it != idToNativeFunction.end()) {
+        return idToNativeFunction[id]; 
+      } else {
+        return NULL;
+      }
+    }
     
     uint16_t idByFunc(mathvm::TranslatedFunction* func) { return functionToId[static_cast<MyBytecodeFunction*>(func)]; }
     
     MyBytecodeFunction* getMain() { return idToFunction.begin()->second; }
     
-    size_t funcCount() { return idToFunction.size(); }
+    size_t funcCount() { return idToFunction.size() + idToNativeFunction.size(); }
     
     uint16_t makeStringConstant(const std::string& str) {
       idToStringConstant[stringConstantCounter] = str; 

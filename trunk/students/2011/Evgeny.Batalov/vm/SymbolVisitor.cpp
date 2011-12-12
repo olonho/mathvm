@@ -150,6 +150,7 @@ void SymbolVisitor::visitCallNode(mathvm::CallNode* node) {
 
 void SymbolVisitor::visitNativeCallNode(mathvm::NativeCallNode* node) {
   funcContexts[curFuncId].type = FT_NATIVE;
+  funcContexts[curFuncId].funcName = node->nativeName();
 }
 
 void SymbolVisitor::visitReturnNode(mathvm::ReturnNode* node) {

@@ -109,11 +109,13 @@ void Interpreter::interpret() {
       case BC_CALLNATIVE:{ uint16_t func_id = *cstack->ip.var_++;
                            InterpreterNativeFunc interp_func = 
                              getNativeFunc(func_id);
-                           /*MyNativeFunction *native_func = 
-                             executable.nativeFuncById(func_id);*/
+                           MyNativeFunction *native_func = 
+                             executable.nativeFuncById(func_id);
                            size_t res = interp_func((void*)(stack - 1));
                            //stack -= native_func->getSignature().size() - 1;
-                           stack++->any_ = res;
+                           if (native_func->getReturnType() != VT_VOID) {
+                             stack++->any_ = res;
+                           }
                          } break;
       case BC_RETURN:    --cstack;
                          break;
@@ -222,9 +224,11 @@ InterpreterNativeFunc Interpreter::getNativeFunc(uint16_t id) {
         cc.movq(retGP, retXMM);
         cc.ret(retGP);
         break;}
-      case VT_VOID:
-         cc.ret(); 
-        break;
+      case VT_VOID:{
+         GPVar retGP = cc.newGP();
+         cc.mov(retGP, imm(0));
+         cc.ret(retGP); 
+        break;}
       default:{
         GPVar retGP = cc.newGP();
         _call->setReturn(retGP);
