@@ -1,15 +1,9 @@
 VM_ROOT = ../../../..
 ROOT = .
 USER_CFLAGS = -ggdb3 
-#-DNDEBUG
+#USER_LIBS = -ldl
 #OPT = y
 include $(VM_ROOT)/common.mk
-
-MY_ASMJIT_OBJ += $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
-	         $(OBJ)/Compiler$(OBJ_SUFF) \
-	         $(OBJ)/Operand$(OBJ_SUFF) \
-	         $(OBJ)/Logger$(OBJ_SUFF) \
-	         $(OBJ)/Assembler$(OBJ_SUFF)
 
 all: $(OUT) $(BIN)/main
 
@@ -26,7 +20,7 @@ INCLUDE_DEPS = ExecutionEnv.h JITCompiler.h Interpreter.h \
 	  ByteCodeAnnotations.h
 
 $(BIN)/main: dirs $(INCLUDE_DEPS) $(OBJ_DEPS)
-	$(CXX) $(USER_FLAGS) -o $@ $(THREAD_LIB) $(OBJ_DEPS)
+	$(CXX) $(USER_FLAGS) -o $@ $(LIBS) $(OBJ_DEPS)
 	
 dirs:
 	mkdir -p ./build/debug

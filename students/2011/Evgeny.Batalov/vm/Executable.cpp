@@ -2,7 +2,7 @@
 #include "Executable.h"
 
 Executable::Executable() 
-  : stringConstantCounter(0) 
+  : stringConstantCounter(0)
   {}
 
 mathvm::Status* Executable::execute(std::vector<mathvm::Var*, std::allocator<mathvm::Var*> >& vars) {

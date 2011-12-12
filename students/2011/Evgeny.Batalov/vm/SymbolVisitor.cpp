@@ -111,6 +111,7 @@ void SymbolVisitor::pushScope(mathvm::Scope* node) {
     mathvm::AstFunction* funcNode = fit.next(); 
     FunctionContext func;
     func.id = funcContexts.size();
+    func.type = FT_MVM;
     func.funcName = funcNode->name();
     for(size_t i = 0; i < funcNode->parametersNumber(); ++i) {
        func.parameters.push_back(funcNode->parameterName(i));
@@ -143,12 +144,12 @@ void SymbolVisitor::visitCallNode(mathvm::CallNode* node) {
   using namespace mathvm;
   node->visitChildren(this);
   FunctionContext& caller = funcContexts[curFuncId];
-  FunctionContext& callee =   funcContexts[funcDefs.topSymbolData(node->name())];
+  FunctionContext& callee = funcContexts[funcDefs.topSymbolData(node->name())];
   caller.calledFuncs.push_back(callee.id); 
 }
 
 void SymbolVisitor::visitNativeCallNode(mathvm::NativeCallNode* node) {
-  throw new TranslationException("Native calls are not supported!", node);
+  funcContexts[curFuncId].type = FT_NATIVE;
 }
 
 void SymbolVisitor::visitReturnNode(mathvm::ReturnNode* node) {
@@ -166,6 +167,12 @@ void SymbolVisitor::print(std::ostream& out) {
   for(; func != funcContexts.end(); ++func) {
     out << std::endl << "----------------------------------------" << std::endl;
     out << "Function " << func->funcName << " id: " << func->id << std::endl;
+    out << "Type ";
+    if (func->type == FT_NATIVE) {
+      out << "NATIVE" << std::endl;
+    } else {
+      out << "MVM" << std::endl;
+    }
     Strings::iterator str_it = func->parameters.begin();
     out << "Parameters: " << std::endl;
     for(; str_it != func->parameters.end(); ++str_it) {

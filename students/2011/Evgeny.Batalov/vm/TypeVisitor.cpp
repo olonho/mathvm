@@ -226,7 +226,7 @@ void TypeVisitor::visitCallNode(mathvm::CallNode* node) {
 }
 
 void TypeVisitor::visitNativeCallNode(mathvm::NativeCallNode* node) {
-  throw new TranslationException("Native calls are not supported!", node);
+  //throw new TranslationException("Native calls are not supported!", node);
 }
 
 void TypeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
@@ -264,9 +264,10 @@ void TypeVisitor::visitReturnNode(mathvm::ReturnNode* node) {
   if (node->returnExpr()) {
     node->returnExpr()->visit(this);
     NodeInfo& info = nodeInfo.getNodeInfo(node->returnExpr());
-    VarType uppedType = upType(funcParams.topSymbolData(curFuncName).returnType, info.type);
-    if (uppedType != info.type) {
-      info.convertTo = uppedType;
+    VarType funcRetType =
+      funcParams.topSymbolData(curFuncName).returnType; 
+    if (funcRetType != info.type) {
+      info.convertTo = funcRetType;
     }
   }
 }
@@ -301,8 +302,9 @@ mathvm::VarType TypeVisitor::binNodeType(mathvm::BinaryOpNode* node, mathvm::Ast
   NodeInfo& nr = nodeInfo.getNodeInfo(right);
   if (nl.type == VT_INT && nr.type == VT_INT) {
     switch (op) {
-      case tADD:case tSUB:case tMUL:case tDIV:case tOR:case tAND:
-      case tEQ:case tNEQ:case tGT:case tLT:case tGE:case tLE:
+      case tADD: case tSUB: case tMUL: case tDIV: case tOR:
+      case tAND: case tEQ: case tNEQ: case tGT: case tLT: 
+      case tGE: case tLE: case tMOD:
         return VT_INT;
       break;
       case tRANGE:

@@ -1,8 +1,8 @@
 #pragma once
 #include <stdlib.h>
-#include <asmjit/Compiler.h>
-#include <asmjit/Logger.h>
-#include <asmjit/MemoryManager.h>
+#include <AsmJit/Compiler.h>
+#include <AsmJit/Logger.h>
+#include <AsmJit/MemoryManager.h>
 #include "Executable.h"
 #include "ByteCodeAnnotations.h"
 
