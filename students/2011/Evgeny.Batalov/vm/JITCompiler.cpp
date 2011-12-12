@@ -5,8 +5,12 @@
 
 void JITCompiler::compileAll() {
   size_t funcId = 0; 
+  
   for(; funcId != executable.funcCount(); ++funcId) {
-    compileFunc(funcId);
+    if (executable.getMetaData()
+        [funcId].getProto().type == FT_MVM) {
+      compileFunc(funcId);
+    }
   }
 }
 

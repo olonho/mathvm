@@ -1,7 +1,5 @@
 #include "CodeVisitor.h"
 
-void* MyNativeFunction::libcHandler;
-
 CodeVisitor::CodeVisitor(mathvm::AstFunction* top, 
                          const FunctionContexts& funcContexts, 
                          const FunctionNodeToIndex& funcNodeToIndex, 
@@ -14,6 +12,7 @@ CodeVisitor::CodeVisitor(mathvm::AstFunction* top,
                          , curBytecode(0)
                          , curBlock(0)
 {
+  MyNativeFunction::initNatives();
   executable = new Executable();
   FunctionContexts::const_iterator it = funcContexts.begin();
   /*for(; it != funcContexts.end(); ++it) {
@@ -24,7 +23,6 @@ CodeVisitor::CodeVisitor(mathvm::AstFunction* top,
   for(; it != funcContexts.end(); ++it) {
     executable->getMetaData().push_back(TranslatableFunction(*it)); 
   }
-  MyNativeFunction::initNatives();
 }
 
 void CodeVisitor::visit() { 
@@ -389,8 +387,8 @@ void CodeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
 
   if (transFunc.getProto().type == FT_NATIVE) {
     executable->addNativeFunc(funcNodeToIndex[node],
-        new MyNativeFunction(node->name(), 
-          node->returnType(), node->signature()));
+        new MyNativeFunction(transFunc.getProto().funcName, 
+          transFunc.getProto().typeInfo.returnType, node->signature()));
   } else {
     AstFunction *astFunc = new AstFunction(node, 0);
     MyBytecodeFunction *func = 

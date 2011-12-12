@@ -1,7 +1,9 @@
 VM_ROOT = ../../../..
 ROOT = .
 USER_CFLAGS = -ggdb3 
-#USER_LIBS = -ldl
+WITH_SDL = 1
+#USER_LIBS = -lSDL
+#USER_DEFS = -DVERBOSE
 #OPT = y
 include $(VM_ROOT)/common.mk
 
@@ -11,7 +13,7 @@ OBJ_DEPS = $(MATHVM_OBJ) $(OBJ)/main$(OBJ_SUFF) \
 	  $(OBJ)/JITCompiler$(OBJ_SUFF)  $(OBJ)/Interpreter$(OBJ_SUFF) \
 	  $(OBJ)/TranslationUtils$(OBJ_SUFF) $(OBJ)/SymbolVisitor$(OBJ_SUFF) \
 	  $(OBJ)/TypeVisitor$(OBJ_SUFF) $(OBJ)/CodeVisitor$(OBJ_SUFF) \
-	  $(OBJ)/Executable$(OBJ_SUFF)
+	  $(OBJ)/Executable$(OBJ_SUFF) $(OBJ)/ExecutionEnv$(OBJ_SUFF)
 
 INCLUDE_DEPS = ExecutionEnv.h JITCompiler.h Interpreter.h \
 	  TranslationUtils.h SymbolVisitor.h TypeVisitor.h \

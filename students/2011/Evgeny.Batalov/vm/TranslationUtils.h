@@ -11,7 +11,6 @@
 #include <ast.h>
 #include <mathvm.h>
 
-//#define VERBOSE
 #ifdef VERBOSE
 #define DEBUG(str) std::cerr << str
 #else
@@ -528,18 +527,17 @@ struct MyNativeFunction {
     : name(name)
     , returnType(returnType)
     , signature(signature) {
-    ptr = dlsym(libcHandler, name.c_str());
+    ptr = dlsym(allLibsHandler, name.c_str());
     if (ptr == NULL) {
       throw new TranslationException(
           "Couldn't resolve dynamic symbol " +
-          name + 
-          " in libc", NULL);
+          name, NULL);
     }
   }
 
   static void initNatives() {
-    libcHandler = dlopen(NULL, RTLD_LAZY | RTLD_GLOBAL);
-    if (libcHandler == NULL) {
+    allLibsHandler = dlopen(NULL, RTLD_LAZY | RTLD_GLOBAL);
+    if (allLibsHandler == NULL) {
       throw new TranslationException(
           "Couldn't find dynamic library libc", NULL);
     }
@@ -568,7 +566,7 @@ struct MyNativeFunction {
   void *ptr;
 
 
-  static void* libcHandler;
+  static void* allLibsHandler;
 };
 
 inline uint64_t getTimeMs() {

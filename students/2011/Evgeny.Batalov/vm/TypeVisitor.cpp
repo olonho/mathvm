@@ -32,7 +32,8 @@ void TypeVisitor::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
   VarType resType = VT_INVALID;
   node->operand()->visit(this);
   NodeInfo& nop = nodeInfo.getNodeInfo(node->operand());
-  if (nop.type == VT_INT && node->kind() == tNOT) {
+  if ((nop.type == VT_INT || nop.type == VT_STRING)
+      && node->kind() == tNOT) {
     resType = VT_INT;        
   } else if (nop.type == VT_INT && node->kind() == tSUB) {
     resType = VT_INT;
