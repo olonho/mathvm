@@ -1,5 +1,7 @@
 #include "CodeVisitor.h"
 
+void* MyNativeFunction::libcHandler;
+
 CodeVisitor::CodeVisitor(mathvm::AstFunction* top, 
                          const FunctionContexts& funcContexts, 
                          const FunctionNodeToIndex& funcNodeToIndex, 
@@ -14,10 +16,15 @@ CodeVisitor::CodeVisitor(mathvm::AstFunction* top,
 {
   executable = new Executable();
   FunctionContexts::const_iterator it = funcContexts.begin();
+  /*for(; it != funcContexts.end(); ++it) {
+    std::cout << "Function context: " << it->funcName << std::endl;
+  }
+  it = funcContexts.begin();*/
+
   for(; it != funcContexts.end(); ++it) {
     executable->getMetaData().push_back(TranslatableFunction(*it)); 
   }
-
+  MyNativeFunction::initNatives();
 }
 
 void CodeVisitor::visit() { 
@@ -372,27 +379,36 @@ void CodeVisitor::visitCallNode(mathvm::CallNode* node) {
 }
 
 void CodeVisitor::visitNativeCallNode(mathvm::NativeCallNode* node) {
-  throw new TranslationException("Native calls are not supported!", node);
 }
 
 void CodeVisitor::visitFunctionNode(mathvm::FunctionNode* node) {
   using namespace mathvm;
+  
+  TranslatableFunction& transFunc =
+    executable->getMetaData()[funcNodeToIndex[node]];
 
-  AstFunction *astFunc = new AstFunction(node, 0);
-  MyBytecodeFunction *func = new MyBytecodeFunction(astFunc, &executable->getMetaData()[funcNodeToIndex[node]]);
-  
-  executable->addFunc(funcNodeToIndex[node], func);
-  
-  MyBytecode* parentBytecode = &cCode();
-  curBytecode = func->bytecode();
-  size_t parentFuncId = curFuncId;
-  curFuncId = funcNodeToIndex[node];
-  
-  node->body()->visit(this);
-  cCode().addByte(mathvm::BC_STOP);
-  
-  curBytecode = parentBytecode;
-  curFuncId = parentFuncId;
+  if (transFunc.getProto().type == FT_NATIVE) {
+    executable->addNativeFunc(funcNodeToIndex[node],
+        new MyNativeFunction(node->name(), 
+          node->returnType(), node->signature()));
+  } else {
+    AstFunction *astFunc = new AstFunction(node, 0);
+    MyBytecodeFunction *func = 
+      new MyBytecodeFunction(astFunc, &transFunc);
+
+    executable->addFunc(funcNodeToIndex[node], func);
+
+    MyBytecode* parentBytecode = &cCode();
+    curBytecode = func->bytecode();
+    size_t parentFuncId = curFuncId;
+    curFuncId = funcNodeToIndex[node];
+
+    node->body()->visit(this);
+    cCode().addByte(mathvm::BC_STOP);
+
+    curBytecode = parentBytecode;
+    curFuncId = parentFuncId;
+  }
   cast(node);
 }
 
@@ -497,6 +513,9 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
       case tDIV:
         cCode().addByte(BC_IDIV);
         break;
+      case tMOD:
+        cCode().addByte(BC_IMOD);
+        break;
       case tOR:{
         Label lblTrue1(&cCode()); //result of op is true but POP
         cCode().addByte(BC_ILOAD0);
@@ -546,6 +565,7 @@ void  CodeVisitor::procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resTy
 
         cCode().bind(lblFalse1);
         nextBCJumped();
+        cCode().addByte(BCA_VM_SPECIFIC);
         cCode().addByte(BC_POP);
         cCode().bind(lblFalse);
         nextBCJumped();

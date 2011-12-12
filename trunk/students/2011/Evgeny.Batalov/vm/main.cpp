@@ -11,6 +11,9 @@ int main(int argc, char* argv[]) {
   }
 
   bool opt = argv[2] != 0;
+  if (!opt) {
+    std::cout << "Hint: type \"prog_name.mvm opt\" to force JIT" << std::endl;
+  }
 
   std::ifstream f(argv[1]);
   std::string program((std::istreambuf_iterator<char>(f)),

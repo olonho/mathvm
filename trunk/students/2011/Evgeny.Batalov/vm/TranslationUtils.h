@@ -1,4 +1,5 @@
 #pragma once 
+#include <dlfcn.h>
 #include <ostream>
 #include <map>
 #include <set>
@@ -80,8 +81,14 @@ bool symUsed(const SymbolsUse& a, const std::string& str, size_t user);
 bool symUsed(const Strings& a, const std::string& str);
 const SymbolUse& findSymUse(const SymbolsUse& sUses , const std::string& sym);
 
+enum FunctionType {
+  FT_NATIVE,
+  FT_MVM
+};
+
 struct FunctionContext {
   size_t id;
+  FunctionType type;
   std::string funcName;
   Strings parameters;
   Strings locals; //includes vars in child scopes
@@ -272,8 +279,13 @@ class TranslatableFunction {
       }
     }
     //call func
-    bcode.addByte(BC_CALL);
-    bcode.addTyped((uint16_t)proto.id);
+    if (proto.type == FT_NATIVE) {
+      bcode.addByte(mathvm::BC_CALLNATIVE);
+      bcode.addTyped((uint16_t)proto.id);
+    } else {
+      bcode.addByte(BC_CALL);
+      bcode.addTyped((uint16_t)proto.id);
+    }
     if (retType != VT_VOID) {
       //store function result to IVAR0 register
       bcode.addByte(BCA_VM_SPECIFIC);
@@ -438,6 +450,7 @@ class MyBytecode: public mathvm::Bytecode {
             out << name << " @" << getUInt16(bci + 1);
             break;
           case BC_CALL:
+          case BC_CALLNATIVE:
             out << name << " *" << getUInt16(bci + 1);
             break;
           case BC_LOADDVAR:
@@ -504,6 +517,58 @@ class MyBytecodeFunction: public mathvm::TranslatedFunction {
   virtual void disassemble(std::ostream& out) const { 
     _bytecode->dump(out);
   }
+};
+
+struct MyNativeFunction {
+
+  MyNativeFunction(
+      const std::string& name,
+      mathvm::VarType returnType,
+      const mathvm::Signature& signature) 
+    : name(name)
+    , returnType(returnType)
+    , signature(signature) {
+    ptr = dlsym(libcHandler, name.c_str());
+    if (ptr == NULL) {
+      throw new TranslationException(
+          "Couldn't resolve dynamic symbol " +
+          name + 
+          " in libc", NULL);
+    }
+  }
+
+  static void initNatives() {
+    libcHandler = dlopen(NULL, RTLD_LAZY | RTLD_GLOBAL);
+    if (libcHandler == NULL) {
+      throw new TranslationException(
+          "Couldn't find dynamic library libc", NULL);
+    }
+  }
+
+  void* getPtr() {
+    return ptr;
+  }
+
+  const mathvm::Signature& getSignature() const {
+    return signature;
+  }
+
+  const std::string& getName() const {
+    return name;
+  }
+
+  mathvm::VarType getReturnType() const {
+    return returnType;
+  }
+
+  private:
+  std::string name;
+  mathvm::VarType returnType;
+  mathvm::Signature signature;
+  void *ptr;
+
+
+  static void* libcHandler;
 };
 
 inline uint64_t getTimeMs() {

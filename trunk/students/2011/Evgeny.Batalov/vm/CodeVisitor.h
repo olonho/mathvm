@@ -27,7 +27,7 @@ class CodeVisitor: public mathvm::AstVisitor {
     MyBytecode  *curBytecode;
     mathvm::BlockNode *curBlock;
     MyBytecode&  cCode()  { return *curBytecode; }
-    mathvm::BlockNode& cBlock() { return *curBlock;    }
+    mathvm::BlockNode& cBlock() { return *curBlock; }
 
     void transError(std::string str = "", mathvm::AstNode *node = 0);
     void procBinNode(mathvm::BinaryOpNode* node, mathvm::VarType resType, 

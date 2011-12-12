@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib.h>
 #include <stdio.h>
+#include <map>
 #include "ByteCodeAnnotations.h"
 #include "Executable.h"
 
@@ -8,6 +9,7 @@
 #define CALL_STACK_SIZE 4 * 1024 * 1024
 
 typedef union {
+  size_t any_;
   double double_;
   int64_t int_;
   const char* str_;
@@ -19,6 +21,9 @@ struct CallStackItem {
   UserStackItem* frame_beg;
 };
 
+typedef size_t (*InterpreterNativeFunc)(void* sp);
+typedef std::map<uint16_t, InterpreterNativeFunc> InterpreterNativeFuncMap;
+
 class Interpreter {
 
   Executable& executable;
@@ -27,6 +32,9 @@ class Interpreter {
   size_t callStackPos;
   size_t userStackPos;
   VMRegisters regs;
+  InterpreterNativeFuncMap nativeFuncMap;
+  
+  InterpreterNativeFunc getNativeFunc(uint16_t id);
 
   public:
   Interpreter(Executable& executable) 
