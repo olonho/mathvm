@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #ifdef MATHVM_WITH_SDL
 #include <SDL/SDL.h>
@@ -119,7 +120,7 @@ extern "C" int64_t unsafe_getMem(void* base, int64_t offset, int64_t width) {
 }
 
 #ifdef MATHVM_WITH_SDL
-SDL_Surface * sdl_screen = 0;
+static SDL_Surface * sdl_screen = 0;
 
 extern "C" int64_t unsafe_videoInitFramebuffer(int64_t width, int64_t height, int64_t bpp, int64_t fullscreen) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -168,6 +169,12 @@ extern "C" void unsafe_videoReleaseFramebuffer() {
         SDL_UnlockSurface(sdl_screen);
     }
     SDL_Flip(sdl_screen);
+}
+
+extern "C" int64_t native_timestamp() {
+    struct timeval tv;    
+    gettimeofday(&tv, 0);
+    return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
 #endif // MATHVM_WITH_SDL
