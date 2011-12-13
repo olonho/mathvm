@@ -122,16 +122,18 @@ void Scanner::scanNumber() {
     _position--;
 }
 
-static inline char unescape(char ch) {
+char Scanner::unescape(char ch) {
     switch (ch) {
     case 'n':
         return '\n';
+    case 'r':
+        return '\r';
     case '\\':
         return '\\';
     case 't':
         return '\t';
     default:
-        assert(false);
+        error("Unknown escape sequence \\%c", ch); 
         return '\0';
     }
 }

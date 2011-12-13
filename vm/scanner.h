@@ -47,6 +47,8 @@ class Scanner : ErrorInfoHolder {
     void scanIdent();
     void scanNumber();
     void scanString();
+
+    char unescape(char ch);
     
     void error(const char* msg, ...);
 
