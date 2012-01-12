@@ -230,7 +230,7 @@ namespace mathvm {
         break;                                                          \
                                                                         \
       case FlowVar::STOR_EXTERN:                                        \
-        _code->mov(Reg(RAX), mem(src));                                \
+        _code->mov(Reg(RAX), mem(src));                                 \
         _code->op(ireg(dst), mem(RAX));                                 \
         break;                                                          \
                                                                         \
@@ -277,6 +277,10 @@ namespace mathvm {
                                                                         \
       case FlowVar::STOR_REGISTER:                                      \
         _code->op(Reg(RAX), ireg(src));                                 \
+        break;                                                          \
+                                                                        \
+      case FlowVar::STOR_CONST:                                         \
+        _code->op(Reg(RAX), Imm(src->_const.intConst));                 \
         break;                                                          \
                                                                         \
       default:                                                          \
@@ -442,8 +446,10 @@ namespace mathvm {
           _code->mov_r_imm(RAX, (uint64_t)src->_const.stringConst);
           break;
 
+        case FlowVar::STOR_ARG:
         case FlowVar::STOR_LOCAL:
           _code->mov(Reg(RAX), mem(src));
+          //          _code->mov(Reg(RAX), mem(src));
           break;
 
         default:
@@ -454,6 +460,11 @@ namespace mathvm {
       case FlowVar::STOR_LOCAL:
         switch (src->_stor) {
         case FlowVar::STOR_TEMP:
+          _code->mov(mem(dst), Reg(RAX));
+          break;
+
+        case FlowVar::STOR_CALL:
+          _code->mov(Reg(RAX), mem(src));
           _code->mov(mem(dst), Reg(RAX));
           break;
           
@@ -666,6 +677,7 @@ namespace mathvm {
     char cond;
 
     switch (src->_type) {
+    case VT_STRING:
     case VT_INT:
       INT_OP(cmp);
 
@@ -776,14 +788,14 @@ namespace mathvm {
           carg++;
           break;
 
-      case VAL_DOUBLE:
-        _code->movq_xmm_m(darg, RSP, VAR_SIZE*carg);
-        darg++;
-        carg++;
-        break;
+        case VAL_DOUBLE:
+          _code->movq_xmm_m(darg, RSP, VAR_SIZE*carg);
+          darg++;
+          carg++;
+          break;
 
-      default:
-        break;
+        default:
+          break;
         }
       }
 

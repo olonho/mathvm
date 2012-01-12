@@ -593,7 +593,18 @@ namespace mathvm {
     }
 
     void cmp(const Reg& r, const Imm& imm) {
-      ABORT("Not implemented");
+      if (imm._v == 0) {
+        add(x86_rex(r._r, r._r, 1));
+        add(TEST_RM_R);
+        add(x86_modrm(MOD_RR, r._r, r._r));
+      } else if (imm._v < (uint64_t)(1<<(imm._v*8))) {
+        add(x86_rex(r._r, 0, 1));
+        add(CMP_RM_IMM);
+        add(x86_modrm(MOD_RR, 7, r._r));
+        addInt32((int32_t)imm._v);
+      } else {
+        ABORT("Not implemented");
+      }
     }
 
     void cmp(const Reg& r, const Mem& mem) {

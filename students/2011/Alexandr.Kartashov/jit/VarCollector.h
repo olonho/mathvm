@@ -28,12 +28,21 @@ namespace mathvm {
       Scope* argScope = af->scope();
 
       if (argScope) {
-        Scope::VarIterator argsIt(argScope);
-        size_t p = 0;
+        //Scope::VarIterator argsIt(argScope);
 
         _curFun = info(af->node())->funRef;
+
+        for (size_t p = 0; p < af->parametersNumber(); ++p) {
+
+          /*
         while (argsIt.hasNext()) {
           AstVar* v = argsIt.next();
+          */
+
+          AstVar* v = argScope->lookupVariable(af->parameterName(p));
+          if (!v) {
+            ABORT("Failed to lookup a variable %s", af->parameterName(p).c_str());
+          }
 
           _pool->addInfo(v);
           info(v)->initialized = false;
@@ -42,7 +51,7 @@ namespace mathvm {
           info(v)->owner = _curFun;
           info(v)->fv->init(v);
 
-          ++p;
+          // ++p;
         }
       }
 
@@ -80,8 +89,6 @@ namespace mathvm {
       info(v)->owner = _curFun;
 
       _curFun->addLocalVar(v, info(v)->fv);
-
-      //_curFun->setLocalsNumber(_curFun->localsNumber() + 1);
     }
 
     VISIT(BinaryOpNode) {
@@ -96,12 +103,6 @@ namespace mathvm {
                  info(node->right())->depth
                  ) + 1;
 
-      /*
-      if (NODE_INFO(node->left())->type != NODE_INFO(node->left())->type) {
-        ABORT("Type mismatch");
-      }
-      */
-
       switch (node->kind()) {
       case tEQ:
       case tNEQ:
@@ -110,7 +111,10 @@ namespace mathvm {
       case tLE:          
       case tOR:
       case tAND:
-        info(node)->type = VAL_INT;
+        //info(node)->type = VAL_INT;
+        // I don't know what can it result in...
+
+        info(node)->type = VAL_BOOL;
         break;
 
       default:

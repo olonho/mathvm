@@ -11,7 +11,7 @@ typedef void (*TopFunc)(size_t*);
 namespace mathvm {
 
   Runtime::Runtime() {
-    _mainHandle = dlopen(NULL, RTLD_NOW | RTLD_NOLOAD);
+    _mainHandle = dlopen(NULL, RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
   }
 
   // --------------------------------------------------------------------------------
