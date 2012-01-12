@@ -177,6 +177,63 @@ namespace mathvm {
         _ncur = node;
       }
 
+      
+      void genLogic(FlowNode* fn, AstNode* node) {
+        static FlowNode::Type negCond[] = { FlowNode::GE, FlowNode::GT, FlowNode::LE, FlowNode::GE, FlowNode::NEQ, FlowNode::EQ }; 
+
+        AstNode* p = info(node)->parent;
+        FlowNode* to;
+
+        if (p->isIfNode() || p->isWhileNode()) {
+          to = info(info(node)->parent)->trueBranch.begin;
+
+          fn->u.op.trueBranch = to;
+          fn->u.op.falseBranch = NULL;
+        } else if (p->isBinaryOpNode()) { // parent is an AND or OR operator
+          AstNode* dn = getDecisionNode(p);
+
+          switch (p->asBinaryOpNode()->kind()) {
+          case tAND: {
+            to = info(dn)->falseBranch.begin;
+
+            fn->u.op.falseBranch = to;    // Branch if false
+            fn->u.op.trueBranch = NULL;
+          }
+            break;
+
+          case tOR:
+          default:
+            ABORT("Not supported yet");
+          }
+        } else if (p->isUnaryOpNode() && p->asUnaryOpNode()->kind() == tNOT) {
+          // Parent is a NOT operator
+          p = info(p)->parent;
+          
+          AstNode* dn = getDecisionNode(p);
+          if (p->isBinaryOpNode()) {
+            switch (p->asBinaryOpNode()->kind()) {
+            case tAND:
+              to = info(dn)->falseBranch.begin;
+                
+              fn->type = negCond[fn->type - FlowNode::LT];  
+              fn->u.op.trueBranch = NULL;      // Branch if true
+              fn->u.op.falseBranch = to;
+              break;
+                
+            default:
+              ABORT("Not supported");
+            }
+          } else {
+            ABORT("Not supported");
+          }
+        } else {
+          //printf("%s", typeid(*p).name());
+          ABORT("Not supported yet");
+        }
+
+        addRef(fn, to);
+      }
+
       VISIT(BinaryOpNode) {
         FlowNode* fn;
 
@@ -242,64 +299,8 @@ namespace mathvm {
           ABORT("Not supported");
         }
 
-        //printf("%s\n", typeid(*node).name());
-        
         if (isComp(node->kind())) {
-          static FlowNode::Type negCond[] = { FlowNode::GE, FlowNode::GT, FlowNode::LE, FlowNode::GE, FlowNode::NEQ, FlowNode::EQ }; 
-
-          AstNode* p = info(node)->parent;
-          FlowNode* to;
-
-          //printf("%s\n", typeid(*p).name());
-
-          if (p->isIfNode() || p->isWhileNode()) {
-            to = info(info(node)->parent)->trueBranch.begin;
-
-            fn->u.op.trueBranch = to;
-            fn->u.op.falseBranch = NULL;
-          } else if (p->isBinaryOpNode()) { // parent is an AND or OR operator
-            AstNode* dn = getDecisionNode(p);
-
-            switch (p->asBinaryOpNode()->kind()) {
-            case tAND: {
-              to = info(dn)->falseBranch.begin;
-
-              fn->u.op.falseBranch = to;    // Branch if false
-              fn->u.op.trueBranch = NULL;
-            }
-              break;
-
-            case tOR:
-            default:
-              ABORT("Not supported yet");
-            }
-          } else if (p->isUnaryOpNode() && p->asUnaryOpNode()->kind() == tNOT) {
-            // Parent is a NOT operator
-            p = info(p)->parent;
-
-            AstNode* dn = getDecisionNode(p);
-            if (p->isBinaryOpNode()) {
-              switch (p->asBinaryOpNode()->kind()) {
-              case tAND:
-                to = info(dn)->falseBranch.begin;
-                
-                fn->type = negCond[fn->type - FlowNode::LT];  
-                fn->u.op.trueBranch = NULL;      // Branch if true
-                fn->u.op.falseBranch = to;
-                break;
-                
-              default:
-                ABORT("Not supported");
-              }
-            } else {
-              ABORT("Not supported");
-            }
-          } else {
-            //printf("%s", typeid(*p).name());
-            ABORT("Not supported yet");
-          }
-
-          addRef(fn, to);
+          genLogic(fn, node);
         }
 
         fn->u.op.u.bin.op1 = info(node->left())->fn->u.op.result;
@@ -344,6 +345,27 @@ namespace mathvm {
         info(node)->fn = fn;
         switch (node->kind()) {
         case tNOT:
+          if (info(node)->type != VAL_BOOL) {
+            fn->type = FlowNode::EQ;
+            genLogic(fn, node);
+
+            fn->u.op.u.bin.op1 = info(node->operand())->fn->u.op.result;
+
+            switch (info(node)->type) {
+            case VAL_INT:              
+              fn->u.op.u.bin.op2 = _pool->getPredefConst(CompilerPool::IntZero);
+              break;
+
+            case VAL_STRING:
+              fn->u.op.u.bin.op2 = _pool->getPredefConst(CompilerPool::StringNull);
+              break;
+
+            default:
+              ABORT("Not supported");
+            }
+          }
+
+          attach(fn);
           return;
 
         case tSUB:
@@ -767,6 +789,13 @@ namespace mathvm {
         SubexpCompiler(NativeFunction* fun, AstNode* root, CompilerPool* pool) 
           : Flattener(fun, pool) 
         {
+          AstNode* block = root;
+          while (!block->isBlockNode()) {
+            block = info(block)->parent;
+          }
+
+          _curBlock = block->asBlockNode();
+          
           root->visit(this);
         }
       };
@@ -813,8 +842,6 @@ namespace mathvm {
              ++it) {
           (*it)->visit(this);
         }
-
-        //root->node()->body()->visit(this);
       }
 
     private:
@@ -915,6 +942,8 @@ namespace mathvm {
             genIfJump(node);
             break;
           }
+        } else {
+          genIfJump(node);
         }
 
         /*

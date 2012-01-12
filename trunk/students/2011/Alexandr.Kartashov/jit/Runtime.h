@@ -19,6 +19,16 @@
 
 namespace mathvm {
 
+  /*
+class Test {
+public:
+  int testFun(int x) {
+    return 2*x;
+  }
+};
+  */
+
+
   // --------------------------------------------------------------------------------
 
   class NativeFunction : public TranslatedFunction {
