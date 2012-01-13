@@ -106,24 +106,30 @@ namespace mathvm {
           assert(callee != NULL);
 
           attach(call);
-          
-          FlowVar* temp;
-          FlowNode* stor;
 
-          _pool->alloc(&temp);
-          temp->_type = callee->returnType();
-          temp->_stor = FlowVar::STOR_TEMP;
+          if (callee->returnType() != VT_VOID) {
+            FlowVar* temp;
+            FlowNode* stor;
+
+            _pool->alloc(&temp);
+            temp->_type = callee->returnType();
+            temp->_stor = FlowVar::STOR_TEMP;
             
-          _pool->alloc(&stor);
-          stor->type = FlowNode::COPY;
-          stor->u.op.u.copy.from = temp;
-          stor->u.op.u.copy.to = call->u.op.result;
-          attach(stor);
+            _pool->alloc(&stor);
+            stor->type = FlowNode::COPY;
+            stor->u.op.u.copy.from = temp;
+            stor->u.op.u.copy.to = call->u.op.result;
+            attach(stor);
+          }
 
           if (cn->parametersNumber() % 2) {
             _pool->alloc(&align);
             align->type = FlowNode::UNALIGN;
             attach(align);
+          }
+
+          if (cn == node) {
+            break;          // If the call point is a call node...
           }
         }
       }
@@ -488,8 +494,11 @@ namespace mathvm {
       }
 
       VISIT(CallNode) {
-        FlowNode* align;
+        genCalls(node);
 
+        //FlowNode* align;
+
+        /*
         if (_curBlock->scope()->lookupFunction(node->name())->returnType() != VT_VOID) {
           return;
         }    
@@ -527,6 +536,7 @@ namespace mathvm {
           align->type = FlowNode::UNALIGN;
           attach(align);
         }
+        */
       }
 
       VISIT(ReturnNode) {
