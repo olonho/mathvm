@@ -28,17 +28,9 @@ namespace mathvm {
       Scope* argScope = af->scope();
 
       if (argScope) {
-        //Scope::VarIterator argsIt(argScope);
-
         _curFun = info(af->node())->funRef;
 
         for (size_t p = 0; p < af->parametersNumber(); ++p) {
-
-          /*
-        while (argsIt.hasNext()) {
-          AstVar* v = argsIt.next();
-          */
-
           AstVar* v = argScope->lookupVariable(af->parameterName(p));
           if (!v) {
             ABORT("Failed to lookup a variable %s", af->parameterName(p).c_str());
@@ -50,8 +42,6 @@ namespace mathvm {
           info(v)->fPos = p;
           info(v)->owner = _curFun;
           info(v)->fv->init(v);
-
-          // ++p;
         }
       }
 

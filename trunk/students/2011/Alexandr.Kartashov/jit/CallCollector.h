@@ -12,6 +12,7 @@ namespace mathvm {
     CallCollector(AstFunction* root, CompilerPool* pool) {
       _pool = pool;
       _caller = NULL;
+      _callPoint = NULL;
       _storSize = _maxStor = 0;
       _curBlock = NULL;
 
@@ -25,6 +26,14 @@ namespace mathvm {
     }
 
   private:
+    void saveCallPoint(AstNode* node) {
+      _oldCallPoint = _callPoint;
+      _callPoint = node;
+    }
+
+    void restoreCallPoint() {
+      _callPoint = _oldCallPoint;
+    }
 
     void updateCallStorage(AstNode* node) {
       if (node == _caller) {
@@ -58,7 +67,9 @@ namespace mathvm {
     }
 
     VISIT(WhileNode) {
+      saveCallPoint(node->whileExpr());
       node->visitChildren(this);
+      restoreCallPoint();
       updateCallStorage(node);
     }
     
@@ -66,7 +77,14 @@ namespace mathvm {
       BlockNode* oldBlock = _curBlock;
       _curBlock = node;
 
-      node->visitChildren(this);
+      saveCallPoint(NULL);
+      for (uint32_t i = 0; i < node->nodes(); ++i) {
+        _callPoint = node->nodeAt(i);
+        node->nodeAt(i)->visit(this);
+      }
+      restoreCallPoint();
+
+      //node->visitChildren(this);
       updateCallStorage(node);
 
       _curBlock = oldBlock;
@@ -78,20 +96,35 @@ namespace mathvm {
     }
 
     VISIT(IfNode) {
+      saveCallPoint(node);
+      _callPoint = node->ifExpr();
       node->visitChildren(this);
+      restoreCallPoint();
       updateCallStorage(node);
     }
 
     VISIT(CallNode) {
+      info(node)->callList = info(_callPoint)->callList;
+      info(_callPoint)->callList = node;
+
       if (!info(node)->parent->isBlockNode()) {
         if (!_caller) {
           _caller = info(node)->parent;
         }
-
+        
+        /*
         info(node)->callList = info(_caller)->callList;
         info(_caller)->callList = node;
+        */
 
-        node->visitChildren(this);
+        saveCallPoint(NULL);
+        for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
+          _callPoint = node->parameterAt(i);
+          node->parameterAt(i)->visit(this);
+        }
+        restoreCallPoint();
+
+        //node->visitChildren(this);
 
         FlowVar* res;
         VarInfo* vi;
@@ -123,6 +156,10 @@ namespace mathvm {
     CompilerPool* _pool;
     BlockNode* _curBlock;
     AstNode* _caller;
+
+    AstNode* _callPoint;
+    AstNode* _oldCallPoint;
+
     size_t _storSize;
     size_t _maxStor;
   };
