@@ -51,7 +51,7 @@ int main(int argc, char** argv)
       else cout << ": ";
       cout << ex.what() << endl;
     }
-    delete generator;
+    //delete generator;
 	}
 	else 
 	{
