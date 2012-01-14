@@ -5,7 +5,7 @@
 #include "MyInterpreter.h"
 #include "FirstPassVisitor.h"
 
-struct ByteCodeGenerator : mathvm::AstVisitor
+struct ByteCodeGenerator : mathvm::AstVisitor, ICodeGenerator
 {
   virtual void visitUnaryOpNode(mathvm::UnaryOpNode* node);
   virtual void visitBinaryOpNode(mathvm::BinaryOpNode* node);
@@ -22,7 +22,7 @@ struct ByteCodeGenerator : mathvm::AstVisitor
   virtual void visitPrintNode(mathvm::PrintNode* node);
   virtual void visitReturnNode(mathvm::ReturnNode* node);
   virtual void visitCallNode(mathvm::CallNode* node);
-  void Translate( mathvm::AstFunction * rootNode);
+  void Compile( mathvm::AstFunction * rootNode);
   mathvm::Code* GetCode();
 
   mathvm::VarType GetNodeType (mathvm::AstNode* node);
