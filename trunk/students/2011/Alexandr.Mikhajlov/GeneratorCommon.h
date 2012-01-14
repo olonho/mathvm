@@ -10,6 +10,11 @@
 #include <cstdarg>
 #include <stdio.h>
 
+struct ICodeGenerator {
+	virtual void Compile( mathvm::AstFunction * rootNode) = 0;
+  virtual mathvm::Code* GetCode() = 0;
+};
+
 
 struct TranslationException {
   TranslationException(std::string const& message) : myMessage(message), myNode(NULL) {

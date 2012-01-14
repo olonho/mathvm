@@ -7,10 +7,15 @@
 
 #include "parser.h"
 #include "ByteCodeGenerator.h"
+#include "NativeGenerator.h"
 
 using namespace std;
 using namespace mathvm;
 
+ICodeGenerator* CreateGenerator(std::string const & name) {
+	if (name.compare("native") == 0) return new NativeGenerator;
+	return new ByteCodeGenerator;
+}
 
 int main(int argc, char** argv) 
 {
@@ -29,9 +34,9 @@ int main(int argc, char** argv)
 
 	if (status == NULL) 
 	{
-    ByteCodeGenerator * generator = new ByteCodeGenerator;
+    ICodeGenerator * generator = CreateGenerator("");
     try {
-      generator->Translate(parser->top());    
+      generator->Compile(parser->top());    
       Code* code = generator->GetCode();
 			vector<Var*> v;
       code->execute(v);
@@ -62,6 +67,6 @@ int main(int argc, char** argv)
 	}
 
 	delete parser;
-
+	system("pause");
 	return 0;
 }

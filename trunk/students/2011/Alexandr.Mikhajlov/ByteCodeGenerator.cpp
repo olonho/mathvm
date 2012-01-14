@@ -382,7 +382,7 @@ mathvm::Code* ByteCodeGenerator::GetCode()
   return &myCode;
 }
 
-void ByteCodeGenerator::Translate( mathvm::AstFunction * main )
+void ByteCodeGenerator::Compile( mathvm::AstFunction * main )
 {
   myFirstPassVisitor.visit(main);
 

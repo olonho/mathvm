@@ -1,0 +1,101 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="MVM">
+      <UniqueIdentifier>{2e02cff2-cb3d-469b-9099-a8c561715565}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ASMJIT">
+      <UniqueIdentifier>{2e05780b-f535-428e-b2a3-6975a9b8b8ab}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\vm\ast.cpp">
+      <Filter>MVM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\vm\interpreter.cpp">
+      <Filter>MVM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\vm\jit.cpp">
+      <Filter>MVM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\vm\mathvm.cpp">
+      <Filter>MVM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\vm\parser.cpp">
+      <Filter>MVM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\vm\scanner.cpp">
+      <Filter>MVM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\vm\translator.cpp">
+      <Filter>MVM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\vm\utils.cpp">
+      <Filter>MVM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\Util.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\Platform.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\OperandX86X64.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\Operand.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\MemoryManager.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\Logger.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\DefsX86X64.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\Defs.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\CpuInfo.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\CompilerX86X64.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\Compiler.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\CodeGenerator.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\AssemblerX86X64.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\asmjit\Assembler.cpp">
+      <Filter>ASMJIT</Filter>
+    </ClCompile>
+    <ClCompile Include="ByteCodeGenerator.cpp" />
+    <ClCompile Include="FirstPassVisitor.cpp" />
+    <ClCompile Include="GeneratorCommon.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MyInterpreter.cpp" />
+    <ClCompile Include="NativeGenerator.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\vm\jit.h">
+      <Filter>MVM</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\vm\parser.h">
+      <Filter>MVM</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\vm\scanner.h">
+      <Filter>MVM</Filter>
+    </ClInclude>
+    <ClInclude Include="ByteCodeGenerator.h" />
+    <ClInclude Include="FirstPassVisitor.h" />
+    <ClInclude Include="GeneratorCommon.h" />
+    <ClInclude Include="MyInterpreter.h" />
+    <ClInclude Include="NativeGenerator.h" />
+  </ItemGroup>
+</Project>
