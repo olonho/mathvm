@@ -25,7 +25,6 @@ struct ByteCodeGenerator : mathvm::AstVisitor, ICodeGenerator
   void Compile( mathvm::AstFunction * rootNode);
   mathvm::Code* GetCode();
 
-  mathvm::VarType GetNodeType (mathvm::AstNode* node);
 
 
   ByteCodeGenerator();
@@ -52,7 +51,6 @@ private:
 
   bool TryFindVariable( ScopeInfo * info, uint16_t &id, std::string const& varName, bool &isClosure );
 
-  NodeInfo const & GetNodeInfo(mathvm::AstNode* node);
 
   Interpeter myCode;
   mathvm::Bytecode* myBytecode;

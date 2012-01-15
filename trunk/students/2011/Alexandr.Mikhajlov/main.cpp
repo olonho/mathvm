@@ -34,12 +34,14 @@ int main(int argc, char** argv)
 
 	if (status == NULL) 
 	{
-    ICodeGenerator * generator = CreateGenerator("");
+    ICodeGenerator * generator = CreateGenerator(argc == 3 ? argv[2] : "");
     try {
       generator->Compile(parser->top());    
       Code* code = generator->GetCode();
-			vector<Var*> v;
-      code->execute(v);
+			if (code) {
+				vector<Var*> v;
+				code->execute(v);
+			}
     }
 		catch (TranslationException & ex) {
       cout << "Translation ERROR";

@@ -7,7 +7,7 @@ namespace mathvm.Tests
 {
 	public abstract class BaseTest
 	{
-		public virtual string ExecutablePath { get { return @"..\..\..\Debug\mathvm.exe"; } }
+		public virtual string ExecutablePath { get { return @"..\..\..\x64\Debug\mathvm.exe"; } }
 		public virtual string TestsDirectory { get { return Path.Combine(VmRoot, "tests"); } }
 		public virtual string VmRoot { get { return @"..\..\..\..\..\..\"; } }
 

@@ -10,10 +10,7 @@
 #include <cstdarg>
 #include <stdio.h>
 
-struct ICodeGenerator {
-	virtual void Compile( mathvm::AstFunction * rootNode) = 0;
-  virtual mathvm::Code* GetCode() = 0;
-};
+
 
 
 struct TranslationException {
@@ -116,4 +113,22 @@ struct NodeInfo {
   ScopeInfo * scopeInfo;
 
   NodeInfo (mathvm::VarType type, ScopeInfo * scopeInfo) : nodeType(type), scopeInfo(scopeInfo) {}
+};
+
+struct ICodeGenerator {
+	virtual void Compile( mathvm::AstFunction * rootNode) = 0;
+  virtual mathvm::Code* GetCode() = 0;
+
+	NodeInfo const & GetNodeInfo( mathvm::AstNode* node )
+	{
+		void* p = node->info();
+		if (p == NULL) throw TranslationException("Node info is missing");
+		NodeInfo * info = (NodeInfo*)p;
+		return *info;
+	}
+
+	mathvm::VarType GetNodeType( mathvm::AstNode* node )
+	{
+		return GetNodeInfo(node).nodeType;
+	}
 };
