@@ -12,19 +12,6 @@ Printer::Printer()
 	isSemicolonNeeded = true;
 }
 
-string Printer::varTypeToString(mathvm::VarType varType)
-{
-	string varTypeStr;
-	switch (varType) {
-		case VT_DOUBLE :  varTypeStr = "double";  break;
-		case VT_INT : 	  varTypeStr = "int";     break;
-		case VT_STRING :  varTypeStr = "string";  break;
-		case VT_VOID:     varTypeStr = "void";    break;
-		case VT_INVALID : varTypeStr = "INVALID"; break;
-	}
-	return varTypeStr;
-}
-
 void Printer::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 {
 	cout << "(";
@@ -139,10 +126,10 @@ void Printer::visitBlockNode( mathvm::BlockNode* node )
 	Scope::FunctionIterator funcIt(node->scope());
 	while(funcIt.hasNext()) {
 		AstFunction *func = funcIt.next();
-		cout << "function " << varTypeToString(func->returnType()) << " " << func->name() << "(";
+		cout << "function " << typeToName(func->returnType()) << " " << func->name() << "(";
 		uint32_t count = func->parametersNumber();
 		for (uint32_t i = 0; i < count; ++i) {
-			cout << varTypeToString(func->parameterType(i)) << " " << func->parameterName(i);
+			cout << typeToName(func->parameterType(i)) << " " << func->parameterName(i);
 			if (i != count - 1)
 				cout << ", ";
 		}
@@ -162,7 +149,7 @@ void Printer::visitBlockNode( mathvm::BlockNode* node )
 	Scope::VarIterator it(node->scope());
 	while(it.hasNext()) {
 		AstVar *var = it.next();
-		cout << varTypeToString(var->type()) << " " << var->name() << ";\n";
+		cout << typeToName(var->type()) << " " << var->name() << ";\n";
 	}
 	node->visitChildren(this);
 }
