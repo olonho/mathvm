@@ -350,7 +350,20 @@ void Interpeter::Print( int64_t value )
 
 void Interpeter::Print( double value )
 {
-  std::cout << value;
+	std::stringstream stream;
+	stream << value;
+	std::string s = stream.str();
+	int i = s.find("e+0");
+	if (i != -1) {
+		s.replace(i, 3, "e+");
+	}
+
+	i = s.find("e-0");
+	if (i != -1) {
+		s.replace(i, 3, "e-");
+	}
+
+  std::cout << s;
 }
 
 void Interpeter::Print( char const * value )

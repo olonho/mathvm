@@ -91,6 +91,7 @@ void ByteCodeGenerator::visitLoadNode( mathvm::LoadNode* node )
 
 void ByteCodeGenerator::visitStoreNode( mathvm::StoreNode* node )
 {
+	node->value()->visit(this);
   bool isClosure = false;
   VarId id = GetVariableId(node, node->var()->name(), &isClosure);
   VarType expectedType = node->var()->type();
@@ -451,10 +452,6 @@ ByteCodeGenerator::~ByteCodeGenerator()
 {
 }
 
-mathvm::VarType ByteCodeGenerator::GetNodeType( mathvm::AstNode* node )
-{
-  return GetNodeInfo(node).nodeType;
-}
 
 VarId ByteCodeGenerator::GetVariableId( mathvm::AstNode* currentNode, std::string const& varName, bool* isClosure_out /*= NULL*/ )
 {
@@ -477,13 +474,6 @@ VarId ByteCodeGenerator::GetVariableId( mathvm::AstNode* currentNode, std::strin
   return result;
 }
 
-NodeInfo const & ByteCodeGenerator::GetNodeInfo( mathvm::AstNode* node )
-{
-  void* p = node->info();
-  if (p == NULL) throw TranslationException("Node info is missing");
-  NodeInfo * info = (NodeInfo*)p;
-  return *info;
-}
 
 bool ByteCodeGenerator::TryFindVariable( ScopeInfo * info, uint16_t &id, std::string const& varName, bool &isClosure )
 {

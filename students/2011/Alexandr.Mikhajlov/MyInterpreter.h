@@ -31,7 +31,7 @@ private:
   mathvm::AstNode* myNode;
 };
 
-#pragma pack(1)
+//#pragma pack(1)
 struct StackVariable {
   union {
     double d;
@@ -43,7 +43,7 @@ struct StackVariable {
   T getTyped(T const& var);
 };
 
-#pragma pack(1)
+//#pragma pack(1)
 struct StackFrame {
   uint32_t ip;
   StackFrame * prevFrame;
