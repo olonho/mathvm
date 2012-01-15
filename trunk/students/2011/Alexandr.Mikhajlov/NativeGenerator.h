@@ -7,6 +7,11 @@
 #include "asmjit\Compiler.h"
 #include <asmjit/AsmJit.h>
 #include <stack>
+	
+union AsmVarPtr{
+	AsmJit::GPVar *Integer;
+	AsmJit::XMMVar *Double;
+};
 
 struct MyNativeCode : mathvm::Code {
 	virtual mathvm::Status* execute(std::vector<mathvm::Var*>& vars){return NULL;}
@@ -20,9 +25,9 @@ private:
 
 struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
 	virtual void visitUnaryOpNode(mathvm::UnaryOpNode* node) {}
-  virtual void visitBinaryOpNode(mathvm::BinaryOpNode* node){}
+  virtual void visitBinaryOpNode(mathvm::BinaryOpNode* node);
   virtual void visitStringLiteralNode(mathvm::StringLiteralNode* node);
-  virtual void visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node){}
+  virtual void visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node);
   virtual void visitIntLiteralNode(mathvm::IntLiteralNode* node);
   virtual void visitLoadNode(mathvm::LoadNode* node){}
   virtual void visitStoreNode(mathvm::StoreNode* node){}
@@ -42,10 +47,14 @@ struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
 
 
 private:
-	std::stack<AsmJit::GPVar> myVars;
   FirstPassVisitor myFirstPassVisitor;
 	MyNativeCode myCode;
 
 	AsmJit::Compiler* myCompiler;
 
+	AsmVarPtr myResultVar;
+
+	AsmVarPtr CreateAsmVar(mathvm::VarType type);
+	AsmVarPtr VisitWithTypeControl( mathvm::AstNode * node, mathvm::VarType expectedType );
+	bool TryDoArithmetics(mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right, mathvm::VarType expectedType );
 };
