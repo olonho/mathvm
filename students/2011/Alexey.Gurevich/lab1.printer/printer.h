@@ -19,9 +19,6 @@ class Printer : public mathvm::AstVisitor {
 	virtual void visitCallNode(mathvm::CallNode* node);
 	virtual void visitPrintNode(mathvm::PrintNode* node);
 
-	// auxiliary
-	static std::string varTypeToString(mathvm::VarType varType);
-
 public:
 	Printer();
 
