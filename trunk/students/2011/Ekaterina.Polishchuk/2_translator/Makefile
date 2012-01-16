@@ -1,7 +1,7 @@
 ROOT     = .
 VM_ROOT  = ../../../..
 USER_OBJ = $(OBJ)/main$(OBJ_SUFF) $(OBJ)/MyTranslator$(OBJ_SUFF)
-USER_HEADERS = $(ROOT)/TranslationException.h $(ROOT)/MyCode.h $(ROOT)/VariableMap.h
+USER_HEADERS = $(ROOT)/TranslationException.h $(ROOT)/MyCode.h $(ROOT) $(ROOT)/VariableMap.h $(ROOT)
 
 include $(VM_ROOT)/common.mk
 
