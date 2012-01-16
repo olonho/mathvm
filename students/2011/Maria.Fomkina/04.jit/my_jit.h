@@ -5,6 +5,8 @@
 
 namespace mathvm {
 
+class MachCodeFunction;
+
 class MachCodeImpl : public Code {
     void* _code;
   public:
@@ -20,6 +22,14 @@ class MachCodeImpl : public Code {
     void setCode(void* code) { _code = code; }
 };
 
+class MachCodeFunction : public TranslatedFunction {
+public:
+    MachCodeFunction(MachCodeImpl* owner, BytecodeFunction* bytecode);
+    virtual ~MachCodeFunction();
+
+    virtual Status* execute(vector<Var*>* vars = 0);
+    virtual void disassemble(ostream& out) const;
+};
 
 }
 
