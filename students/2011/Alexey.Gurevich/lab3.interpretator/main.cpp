@@ -21,11 +21,6 @@ int main(int argc, char** argv)
 	Translator* translator = Translator::create("my_translator");
 	Status* status = translator->translate(program, &code);
 	if (status == NULL) {
-		// for checking correctness of my translator
-		// only main pseudo-function:
-		//((BytecodeFunction*)code->functionByName(AstFunction::top_name))->disassemble(std::cout);
-		// all functions:
-		// code->disassemble(std::cout);
 		vector<mathvm::Var*> vars;
 		Status* executeStatus = code->execute(vars);
 		if (executeStatus != NULL) {

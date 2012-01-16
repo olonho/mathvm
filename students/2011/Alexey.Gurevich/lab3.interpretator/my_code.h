@@ -30,7 +30,9 @@ class MyCode : public Code {
 public:
 	MyCode() {}
 	~MyCode() {
-		// TODO: free varMap_;
+		for (map<uint16_t, Var*>::iterator it=varMap_.begin() ; it != varMap_.end(); ++it) {
+			delete it->second;
+		}
 	}
 	Status* execute(vector<Var*>& vars);
 
