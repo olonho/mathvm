@@ -1,7 +1,7 @@
 #include "mathvm.h"
 #include "my_translator.h"
 #include "mvm_code.h"
-#include "jit.h"
+#include "my_jit.h"
 
 #include <stdio.h>
 #include <iostream> 
