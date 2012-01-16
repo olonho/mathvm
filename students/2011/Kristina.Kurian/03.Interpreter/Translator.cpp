@@ -218,9 +218,7 @@ void Translator::visitNativeCallNode( mathvm::NativeCallNode* node ) {
 
 void Translator::checkTypeInt(mathvm::AstNode* expr) {
     expr->visit(this);
-    if (currentType != mathvm::VT_INT) {
-        typeMismatch("int", expr, currentType);
-    }
+    assert(currentType == mathvm::VT_INT);
     currentType = mathvm::VT_INVALID;
 }
 
@@ -344,22 +342,19 @@ void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
 
 void Translator::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
     node->operand()->visit(this);
-    switch (node->kind()) {
-        case mathvm::tSUB: switch (currentType) {
+    if (node->kind() == mathvm::tSUB) {
+        switch (currentType) {
             case mathvm::VT_INT: code->add(mathvm::BC_INEG); break;
             case mathvm::VT_DOUBLE: code->add(mathvm::BC_DNEG); break;
-            default: typeMismatch("int or double", node->operand(), currentType);
-        } break;
-        case mathvm::tNOT: {
+            default: assert(false); break;
+        } 
+    } else if (node->kind() == mathvm::tNOT) {
             if (currentType != mathvm::VT_INT) {
                 typeMismatch("int", node->operand(), currentType);
             }
             code->add(mathvm::BC_ILOAD0);
             triple(mathvm::BC_IFICMPE);
-            break;
-        }
-        default: INTERNAL_ERROR
-    }
+    } else throwError(node, "Internal error");
 }
 
 void Translator::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
@@ -390,9 +385,7 @@ void Translator::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
         if (sizeof(float) == 8) {
             float l = node->literal();
             put(&l, sizeof(l));
-        } else throwError(node, "I'm sorry, Dave. "
-            "I'm afraid I can't compile a code with floating point numbers, "
-            "cause your system doesn't have 8-byte numbers.");
+        } else throwError(node, "Error: could not comilate code");
     }
     currentType = mathvm::VT_DOUBLE;
 }
@@ -496,8 +489,7 @@ void Translator::visitIfNode(mathvm::IfNode* node) {
 
 void Translator::addVar(mathvm::AstNode* node, const std::string& name) {
     if (overflow) {
-        throwError(node, "I'm sorry, Dave. I'm afraid you exceeded the limit of"
-            " variables which is %d.", (unsigned long long)1 + VarInt(-1));
+        throwError(node, "Error: limit variable");
     }
     vars[name].push_back(currentVar++);
     if (!currentVar) {
@@ -551,7 +543,9 @@ void Translator::visitBlockNode(mathvm::BlockNode* node) {
     }
 }
 
-void Translator::visitFunctionNode(mathvm::FunctionNode* node) { INTERNAL_ERROR }
+void Translator::visitFunctionNode(mathvm::FunctionNode* node) { 
+	throwError(node, "Error: internal error");
+}
 
 void Translator::visitPrintNode(mathvm::PrintNode* node) {
     for (uint32_t i = 0; i < node->operands(); ++i) {
@@ -572,19 +566,16 @@ void Translator::visitPrintNode(mathvm::PrintNode* node) {
 void Translator::visitReturnNode(mathvm::ReturnNode* node) {
     if (node->returnExpr()) {
         if (resultType == mathvm::VT_VOID) {
-            throwError(node, "Returning a value from a void function");
+            throwError(node, "Error: Returning a value");
         }
         node->returnExpr()->visit(this);
         if (resultType != currentType) {
-            if (currentType == mathvm::VT_INT && resultType == mathvm::VT_DOUBLE) {
-                code->add(mathvm::BC_I2D);
-            } else {
-                typeMismatch(typeToName(resultType), node->returnExpr(), currentType);
-            }
+	    assert(currentType == mathvm::VT_DOUBLE || resultType == mathvm::VT_INT);	
+            code->add(mathvm::BC_I2D);            
         }
     } else {
         if (resultType != mathvm::VT_VOID) {
-            throwError(node, "Returning no value from a non-void function");
+            throwError(node, "Error: Returning no value from a non-void function");
         }
     }
     currentType = mathvm::VT_INVALID;
