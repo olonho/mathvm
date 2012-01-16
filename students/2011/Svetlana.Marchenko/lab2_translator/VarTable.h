@@ -4,20 +4,19 @@
 #include <string>
 #include <stdio.h>
 
-using std::map;
+using std::vector;
 using std::string;
 
-typedef unsigned char uint8_t;
-
-
 class VarTable {
-	map<string, uint8_t> _vars;
-	uint8_t _counter;
+	vector<string> _vars;
+	uint16_t _startIndex;
+
 	public:
-		VarTable(): 
-			_counter(0) 
+		VarTable(int startIndex): 
+			_startIndex(startIndex)
 		{}
-		uint8_t getIdByName(const string& varName);
-		uint8_t addVar(const string& varName);
-	
+		
+		uint16_t tryFindIdByName(const string& varName);
+		uint16_t addVar(const string& varName);
+		uint16_t varsCount();
 };
