@@ -10,11 +10,11 @@ class Printer : public mathvm::AstVisitor {
 	virtual void visitLoadNode(mathvm::LoadNode* node);
 	virtual void visitStoreNode(mathvm::StoreNode* node);
 	virtual void visitBlockNode(mathvm::BlockNode* node);
-	virtual void visitNativeCallNode(mathvm::NativeCallNode* node); // TODO
+	virtual void visitNativeCallNode(mathvm::NativeCallNode* node);
 	virtual void visitForNode(mathvm::ForNode* node);
 	virtual void visitWhileNode(mathvm::WhileNode* node);
 	virtual void visitIfNode(mathvm::IfNode* node);
-	virtual void visitReturnNode(mathvm::ReturnNode* node); // TODO
+	virtual void visitReturnNode(mathvm::ReturnNode* node);
 	virtual void visitFunctionNode(mathvm::FunctionNode* node);
 	virtual void visitCallNode(mathvm::CallNode* node);
 	virtual void visitPrintNode(mathvm::PrintNode* node);
