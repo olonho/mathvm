@@ -128,7 +128,8 @@ void VisitorSourcePrinter::visitBlockNode(mathvm::BlockNode *node) {
 				&& !node->nodeAt(i)->isWhileNode()
 				&& !node->nodeAt(i)->isIfNode()
 				&& !node->nodeAt(i)->isFunctionNode()
-				&& !node->nodeAt(i)->isStoreNode()) {
+				//&& !node->nodeAt(i)->isStoreNode()
+				) {
 			m_stream << ";" << std::endl;
 		}
 	}
