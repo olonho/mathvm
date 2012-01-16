@@ -3,7 +3,7 @@
 
 #include "mathvm.h"
 
-struct MvmCode: mathvm::Code {
+struct MvmCode: public mathvm::Code {
     mathvm::Status* execute(std::vector<mathvm::Var*>& vars) {
         disassemble();
         return 0;

@@ -162,22 +162,19 @@ void Translator::visitBinaryOpNode(mathvm::BinaryOpNode* node) {
 
 void Translator::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
     node->operand()->visit(this);
-    switch (node->kind()) {
-        case mathvm::tSUB: switch (currentType) {
+    if (node->kind() == mathvm::tSUB) {
+        switch (currentType) {
             case mathvm::VT_INT: code->add(mathvm::BC_INEG); break;
             case mathvm::VT_DOUBLE: code->add(mathvm::BC_DNEG); break;
-            default: typeMismatch("int or double", node->operand(), currentType);
-        } break;
-        case mathvm::tNOT: {
+            default: assert(false); break;
+        } 
+    } else if (node->kind() == mathvm::tNOT) {
             if (currentType != mathvm::VT_INT) {
                 typeMismatch("int", node->operand(), currentType);
             }
             code->add(mathvm::BC_ILOAD0);
             triple(mathvm::BC_IFICMPE);
-            break;
-        }
-        default: throwError(node, "Internal error");
-    }
+    } else throwError(node, "Internal error");
 }
 
 void Translator::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
@@ -243,7 +240,8 @@ void Translator::visitStoreNode(mathvm::StoreNode* node) {
         case mathvm::tASSIGN: break;
         case mathvm::tINCRSET:
         case mathvm::tDECRSET: right = &tnode; break;
-        default: throwError(node, "Internal error");
+        default: assert(false);
+			break;
     }
     right->visit(this);
     if (node->var()->type() != currentType) {
@@ -253,7 +251,8 @@ void Translator::visitStoreNode(mathvm::StoreNode* node) {
         case mathvm::VT_DOUBLE: putVar(mathvm::BC_STOREDVAR, node); break;
         case mathvm::VT_INT: putVar(mathvm::BC_STOREIVAR, node); break;
         case mathvm::VT_STRING: putVar(mathvm::BC_STORESVAR, node); break;
-        default: throwError(node, "Internal error");
+        default: assert(false);
+			break;
     }
     currentType = mathvm::VT_INVALID;
 }
@@ -409,11 +408,8 @@ void Translator::visitReturnNode(mathvm::ReturnNode* node) {
         }
         node->returnExpr()->visit(this);
         if (resultType != currentType) {
-            if (currentType == mathvm::VT_INT && resultType == mathvm::VT_DOUBLE) {
-                code->add(mathvm::BC_I2D);
-            } else {
-                typeMismatch(typeToName(resultType), node->returnExpr(), currentType);
-            }
+	    assert(currentType == mathvm::VT_DOUBLE || resultType == mathvm::VT_INT);	
+            code->add(mathvm::BC_I2D);            
         }
     } else {
         if (resultType != mathvm::VT_VOID) {
