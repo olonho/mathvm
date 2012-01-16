@@ -430,11 +430,6 @@ Status* MyCode::executeBytecode(Bytecode* bytecode) {
 			default : {
 				return new Status("Not handled instruction", insnIndex);
 			}
-
-
-		/*
-		DO(CALLNATIVE, "Call native function, next two bytes - id of the native function.", 3)  \
-		 */
 		}
 	}
 
