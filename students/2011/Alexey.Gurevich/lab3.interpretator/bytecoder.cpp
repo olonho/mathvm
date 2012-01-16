@@ -1,6 +1,7 @@
 #include "bytecoder.h"
 #include <iostream>
 #include <iomanip>
+#include <dlfcn.h>
 
 using namespace mathvm;
 using std::cout;
@@ -140,7 +141,6 @@ void Bytecoder::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 				case tSUB : bytecode_->addInsn(BC_ISUB); break;
 				case tMUL : bytecode_->addInsn(BC_IMUL); break;
 				case tDIV : bytecode_->addInsn(BC_IDIV); break;
-				case tMOD : bytecode_->addInsn(BC_IMOD); break;
 				case tEQ  :
 				case tNEQ :
 				case tGT  :
