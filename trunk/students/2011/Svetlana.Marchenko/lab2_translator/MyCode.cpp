@@ -9,4 +9,4 @@ MyCode::~MyCode(void)
 {
 }
 
-mathvm::Status* MyCode::execute(std::vector<mathvm::Var*> vars) { return NULL; }
+mathvm::Status* execute(std::vector<mathvm::Var*>& vars) { return NULL; }
