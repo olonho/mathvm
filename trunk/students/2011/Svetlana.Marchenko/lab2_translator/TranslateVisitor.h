@@ -4,14 +4,20 @@
 #include "mathvm.h"
 #include "VarTable.h"
 #include "MyCode.h"
+#include "ScopeWrapper.h"
 
 class TranslateVisitor: public mathvm::AstVisitor {
-	VarTable _varTable;
-	mathvm::Bytecode _byteCode;
+	mathvm::Bytecode *_byteCode;
 	mathvm::VarType _operandType;
 	MyCode _code;
+	ScopeWrapper *_scope;
+		
 public:
-	TranslateVisitor(): _operandType(mathvm::VT_INVALID) {
+	TranslateVisitor(): 
+		_byteCode(0),
+		_operandType(mathvm::VT_INVALID),
+		_scope(0)
+	{
 	}
     
 #define VISITOR_FUNCTION(type, name) \
@@ -21,8 +27,8 @@ public:
 #undef VISITOR_FUNCTION
 
     void visit( mathvm::BlockNode * rootNode );
-    mathvm::Bytecode* GetBytecode();
-    std::vector<std::string> GetStringsVector();
+    //mathvm::Bytecode* getBytecode();
+    std::vector<std::string> getStringsVector();
     void dump();
 
 };
