@@ -47,7 +47,9 @@ int main(int argc, char* argv[]) {
     } else {
         uint32_t line = 0, offset = 0;
         mathvm::positionToLineOffset(text, p.tokens().positionOf(r.getPosition()), line, offset);
-        fprintf(stderr, "%d: %d: %s\n", line, offset + 1, r.getError().c_str());
+        printf("Cannot translate expression: expression at %d,%d; Error: %s\n",
+        		line, offset, r.getError().c_str());
+ 
     }
     return 0;
 }
