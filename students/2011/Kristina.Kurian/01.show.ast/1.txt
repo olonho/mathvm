@@ -1,0 +1,396 @@
+Generaing AST representations...
+Generating AST from ../../../../tests/add.mvm
+==== Compare original: ====
+int i;
+double d;
+
+i = 1;
+d = 2.0;
+
+print ('i+1=', i+1,'\n');
+print ('d+1=', d+1.0,'\n');
+print ('i+123456789012345=', i+123456789012345,'\n');
+print ('d+1e9=',d+1e9,'\n');
+
+==== and generated: =====
+double d;
+int i;
+i = 1;
+d = 2.0;
+print('i+1=', (i + 1), '\n');
+print('d+1=', (d + 1.0), '\n');
+print('i+123456789012345=', (i + 123456789012345), '\n');
+print('d+1e9=', (d + 1e09), '\n');
+
+Generating AST from ../../../../tests/div.mvm
+==== Compare original: ====
+int i;
+double d;
+
+i = 19;
+d = 7.0;
+
+print ('i / 6=', i / 6,'\n');
+print ('d / 3=', d / 3.0,'\n');
+print ('i / 123456789012345=', i/ 123456789012345,'\n');
+print ('d / 1e15=',d/1e15,'\n');
+
+==== and generated: =====
+double d;
+int i;
+i = 19;
+d = 7.0;
+print('i / 6=', (i / 6), '\n');
+print('d / 3=', (d / 3.0), '\n');
+print('i / 123456789012345=', (i / 123456789012345), '\n');
+print('d / 1e15=', (d / 1e15), '\n');
+
+Generating AST from ../../../../tests/expr.mvm
+==== Compare original: ====
+int i;
+int j;
+int k;
+
+double y;
+double z;
+double t;
+
+y = 11.0;
+t = 7.0;
+
+z = t + 2.0 * y - 1.0;
+print(z, '\n');
+
+z = (t + 2.0) * y - 1.0;
+print(z, '\n');
+
+i = 2;
+j = 7;
+
+k = j / 2 + 1;
+print(k, '\n');
+
+k = j * i / -3;
+print(k, '\n');
+
+==== and generated: =====
+int i;
+int j;
+int k;
+double t;
+double y;
+double z;
+y = 11.0;
+t = 7.0;
+z = ((t + (2.0 * y)) - 1.0);
+print(z, '\n');
+z = (((t + 2.0) * y) - 1.0);
+print(z, '\n');
+i = 2;
+j = 7;
+k = ((j / 2) + 1);
+print(k, '\n');
+k = ((j * i) / ( -3));
+print(k, '\n');
+
+Generating AST from ../../../../tests/for.mvm
+==== Compare original: ====
+int i;
+int j;
+
+j = 3;
+
+print ('Begin.\n');
+for (i in -3..4)  {
+    j += i; print(i, ' ');
+}
+print('\n', j, '\n');
+print ('The end.\n');
+
+==== and generated: =====
+int i;
+int j;
+j = 3;
+print('Begin.\n');
+for (i in (( -3) .. 4)) {
+j += i;
+print(i, ' ');
+}
+print('\n', j, '\n');
+print('The end.\n');
+
+Generating AST from ../../../../tests/function.mvm
+==== Compare original: ====
+function int add(int x, int y) {
+    return x + y;
+}
+
+function void doit() {
+    print('Hi\n');
+}
+
+function double mul5(int max, double x1, double x2, double x3, double x4, double x5) {
+    double r;
+
+    r = 1.0;
+
+    if (max > 1) {
+        r = r * x1;
+    }
+
+    if (max > 2) {
+        r = r * x2;
+    }
+
+    if (max > 3) {
+        r = r * x3;
+    }
+
+    if (max > 4) {
+        r = r * x4;
+    }
+
+    if (max > 5) {
+        r = r * x5;
+    }
+
+    return r;
+}
+
+function int fact(int n) {
+    if (n < 3) {
+        return n;
+    }
+    return n*fact(n-1);
+}
+
+print(add(2, 3), '\n');
+doit();
+print(mul5(2, 2.0, 0.0, 0.0, 0.0, 0.0), '\n');
+print(mul5(4, 2.0, 3.0, 4.0, 5.0, 0.0), '\n');
+print(mul5(5, 2.0, 3.0, 4.0, 5.0, 6.0), '\n');
+print(fact(9),'\n');
+
+==== and generated: =====
+function int add(int x, int y) {
+return (x + y);
+}
+
+function void doit() {
+print('Hi\n');
+return;
+}
+
+function int fact(int n) {
+if ((n < 3)) {
+return n;
+}
+return (n * fact((n - 1))
+);
+}
+
+function double mul5(int max, double x1, double x2, double x3, double x4, double x5) {
+double r;
+r = 1.0;
+if ((max > 1)) {
+r = (r * x1);
+}
+if ((max > 2)) {
+r = (r * x2);
+}
+if ((max > 3)) {
+r = (r * x3);
+}
+if ((max > 4)) {
+r = (r * x4);
+}
+if ((max > 5)) {
+r = (r * x5);
+}
+return r;
+}
+
+print(add(2, 3)
+, '\n');
+doit()
+print(mul5(2, 2.0, 0.0, 0.0, 0.0, 0.0)
+, '\n');
+print(mul5(4, 2.0, 3.0, 4.0, 5.0, 0.0)
+, '\n');
+print(mul5(5, 2.0, 3.0, 4.0, 5.0, 6.0)
+, '\n');
+print(fact(9)
+, '\n');
+
+Generating AST from ../../../../tests/if.mvm
+==== Compare original: ====
+int x;
+int y;
+
+x = 7;
+y = 8;
+
+if (x < y && y > 1 && !(x < 2)) {
+    print('1: Less\n');
+}
+
+if (x == y) {
+    print('2: Equal\n');
+} else {
+    print('2: Different\n');
+}
+
+if (x <= 7) {
+    print('3: Lesser\n');
+} else {
+    print('3: Greater\n');
+}
+
+if (x >= 77) {
+    print('4: Greater\n');
+} else {
+    print('4: Lesser\n');
+}
+
+==== and generated: =====
+int x;
+int y;
+x = 7;
+y = 8;
+if ((((x < y) && (y > 1)) && ( !(x < 2)))) {
+print('1: Less\n');
+}
+if ((x == y)) {
+print('2: Equal\n');
+} else {
+print('2: Different\n');
+
+}
+if ((x <= 7)) {
+print('3: Lesser\n');
+} else {
+print('3: Greater\n');
+
+}
+if ((x >= 77)) {
+print('4: Greater\n');
+} else {
+print('4: Lesser\n');
+
+}
+
+Generating AST from ../../../../tests/literal.mvm
+==== Compare original: ====
+print(1, '\n');
+print(-2, '\n');
+print(1234567890123456, '\n');
+print(-1234567890123456, '\n');
+
+print(1.0, '\n');
+print(-2.0, '\n');
+print(1e8, '\n');
+print(1e-8, '\n');
+
+==== and generated: =====
+print(1, '\n');
+print(( -2), '\n');
+print(1234567890123456, '\n');
+print(( -1234567890123456), '\n');
+print(1.0, '\n');
+print(( -2.0), '\n');
+print(1e08, '\n');
+print(1e-08, '\n');
+
+Generating AST from ../../../../tests/mul.mvm
+==== Compare original: ====
+int i;
+double d;
+
+i = 3;
+d = 7.0;
+
+print ('i*6=', i*6,'\n');
+print ('d*3=', d*3.0,'\n');
+print ('i*123456789012345=', i*123456789012345,'\n');
+print ('d*1e15=',d*1e15,'\n');
+
+==== and generated: =====
+double d;
+int i;
+i = 3;
+d = 7.0;
+print('i*6=', (i * 6), '\n');
+print('d*3=', (d * 3.0), '\n');
+print('i*123456789012345=', (i * 123456789012345), '\n');
+print('d*1e15=', (d * 1e15), '\n');
+
+Generating AST from ../../../../tests/sub.mvm
+==== Compare original: ====
+int i;
+double d;
+
+i = 1;
+d = 2.0;
+
+print ('i-1=', i-1,'\n');
+print ('d-1=', d-1.0,'\n');
+print ('i-123456789012345=', i-123456789012345,'\n');
+print ('d-1e9=',d-1e9,'\n');
+
+==== and generated: =====
+double d;
+int i;
+i = 1;
+d = 2.0;
+print('i-1=', (i - 1), '\n');
+print('d-1=', (d - 1.0), '\n');
+print('i-123456789012345=', (i - 123456789012345), '\n');
+print('d-1e9=', (d - 1e09), '\n');
+
+Generating AST from ../../../../tests/var.mvm
+==== Compare original: ====
+double d;
+int x;
+
+x = 5;
+d = 2.0;
+
+==== and generated: =====
+double d;
+int x;
+x = 5;
+d = 2.0;
+
+Generating AST from ../../../../tests/while.mvm
+==== Compare original: ====
+int x;
+int y;
+
+x = 3;
+
+while (x < 19) {
+    print(x,'\n');
+    x += 1;
+}
+
+y = 4;
+
+while (x > 0 && (x + 1) > y) {
+    print(x,'\n');
+    x -= 1;
+}
+
+==== and generated: =====
+int x;
+int y;
+x = 3;
+while ((x < 19)) {
+print(x, '\n');
+x += 1;
+}
+y = 4;
+while (((x > 0) && ((x + 1) > y))) {
+print(x, '\n');
+x -= 1;
+}
+
