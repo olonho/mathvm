@@ -6,6 +6,6 @@ class MyCode :
 public:
   MyCode(void);
   ~MyCode(void);
-  mathvm::Status* execute(std::vector<mathvm::Var*> vars);
+  mathvm::Status* execute(std::vector<mathvm::Var*>& vars) {return NULL;}
 };
 

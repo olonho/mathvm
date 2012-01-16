@@ -1,6 +1,6 @@
 #pragma once 
 
-#incluce "ast.h"
+#include "ast.h"
 #include "mathvm.h"
 
 #include "VarTable.h"
@@ -27,7 +27,7 @@ class ScopeWrapper {
 			
 	public:
 				
-		ScopeWrapper(ScopeWrapper *parent = 0, bool isFunction, const std::string &functionName = "", isInitialized = false, mathvm::Code *code=0) : 
+		ScopeWrapper(ScopeWrapper *parent = 0, bool isFunction = false, const std::string &functionName = "", bool isInitialized = false, mathvm::Code *code=0) : 
 			_isFunction(isFunction),
 			_funcScopeInitialized(isInitialized),
 			_parentScope(parent)
@@ -40,11 +40,11 @@ class ScopeWrapper {
 			} else {
 				_functionInfo = parent->_functionInfo;
 			}
-			if (parent) startIndex += _parent->getVarsCount();
+			if (parent) startIndex += _parentScope->getVarsCount();
 			_varsTable = new VarTable(startIndex);
 		}
 		
-		~FunctionScopeWrapper() {
+		~ScopeWrapper() {
 			delete _varsTable;
 		}
 		
@@ -70,14 +70,14 @@ class ScopeWrapper {
 		}
 			
 		uint16_t addVar(const string& varName) {
-			_varsTable->addVar(varName);
+			return _varsTable->addVar(varName);
 		}
 		
 		uint16_t getVarsCount() {
 			int count = _varsTable->varsCount();
 			ScopeWrapper *parent = _parentScope;
 			while (parent) {
-				count += parent->_varsTable->size();
+				count += parent->_varsTable->varsCount();
 				parent = parent->_parentScope;
 			}
 			return count;
@@ -87,6 +87,6 @@ class ScopeWrapper {
 		
 		void setInitialized(bool initialized) { _funcScopeInitialized = initialized; }
 		
-		Scope* getParentScope () { return _parentScope; }
+		ScopeWrapper* getParentScope () { return _parentScope; }
 
 };

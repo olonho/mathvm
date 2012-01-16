@@ -10,11 +10,11 @@ uint16_t calculateScopeMaxLocals(mathvm::Scope *scope);
 uint16_t calculateFuncMaxLocals(mathvm::FunctionNode *functNode);
 
 mathvm::AstFunction* extractAstFunction(mathvm::FunctionNode *funcNode) {
-	mathvm::Scope *searchScope = functNode->body()->scope();
+	mathvm::Scope *searchScope = funcNode->body()->scope();
 	return searchScope->lookupFunction(funcNode->name());
 }
 
-uint16_t calculateFuncMaxLocals(mathvm::FunctionNode *functNode) {
+uint16_t calculateFuncMaxLocals(mathvm::FunctionNode *funcNode) {
 	mathvm::Scope *searchScope = funcNode->body()->scope();
 	
 	int count = searchScope->variablesCount();
@@ -30,7 +30,7 @@ uint16_t calculateScopeMaxLocals(mathvm::Scope *scope) {
 	int count = scope->variablesCount();
 	int maxChildCount = 0;
 	for (int i = 0; i < scope->childScopeNumber(); ++i) {
-		int count = calculate(scope->childScopeAt(i));
+		int count = calculateScopeMaxLocals(scope->childScopeAt(i));
 		maxChildCount = std::max (maxChildCount, count);
 	}
 	return count + maxChildCount;

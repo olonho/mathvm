@@ -6,7 +6,6 @@
 
 #include "parser.h"
 #include "TranslateVisitor.h"
-#include "BytecodeInterpreter.h"
 
 using namespace std;
 using namespace mathvm;
@@ -30,15 +29,9 @@ int main(int argc, char** argv)
   if (status == NULL) 
   {
     TranslateVisitor * visitor = new TranslateVisitor;
-    visitor->visit(parser->top());
+	visitor->visitFunctionNode(parser->top()->node());
     visitor->dump();
     cout << "-------Output--------\n";
-
-    BytecodeInterpreter interpreter;
-    *interpreter.bytecode() = *visitor->GetBytecode();
-    interpreter.setVarPoolSize(256);
-    *interpreter.strings() = visitor->GetStringsVector();
-    interpreter.execute(std::vector<Var*>());
   }
   else 
   {

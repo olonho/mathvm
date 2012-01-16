@@ -27,7 +27,7 @@ public:
 #undef VISITOR_FUNCTION
 
     void visit( mathvm::BlockNode * rootNode );
-    //mathvm::Bytecode* getBytecode();
+    mathvm::Bytecode* getBytecode();
     std::vector<std::string> getStringsVector();
     void dump();
 
