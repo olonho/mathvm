@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <iostream>
-
+#include <BytecodeInterpreter.h>
 #include "mathvm.h"
 #include "ast.h"
-#include "translator.h"
+#include "mytranslator.h"
 #include "parser.h"
-//#include "BytecodeInterpreter.h"
+#include "myinterpreter.h"
 
 using namespace std;
 using namespace mathvm;
@@ -22,21 +22,11 @@ int main(int argc, char** argv)
   Status* status = parser->parseProgram(code);
   if (status == NULL) 
   {
-      GeneratingVisitor visitor;
-      try {
-		visitor.visit(parser->top());
-	  } catch (GeneratingException e){
-		  cout << e.message();
-	  }
-      visitor.dump();
-      
-      /*cout << "-------Output--------\n";
-
-      BytecodeInterpreter interpreter;
-      *interpreter.bytecode() = *visitor->GetBytecode();
-      interpreter.setVarPoolSize(256);
-      *interpreter.strings() = visitor->GetStringsVector();
-      interpreter.execute(std::vector<Var*>());*/
+      GeneratingVisitor *visitor = new GeneratingVisitor;
+      visitor->visit(parser->top());
+      visitor->dump();
+      cout << "-------Output--------\n";      
+	  visitor->getCode()->execute(std::vector<Var*>());
   }
   else 
   {
@@ -52,5 +42,7 @@ int main(int argc, char** argv)
   }
   
   delete parser;
+
+  system("pause");
   return 0;
 }
