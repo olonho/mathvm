@@ -1,0 +1,84 @@
+int WIDTH;
+WIDTH = 640;
+int HEIGHT;
+HEIGHT = 480;
+int BPP;
+BPP = 32;
+
+function void setMem(string base, int offset, int value, int width) native 'unsafe_setMem';
+function int getMem(string base, int offset, int width) native 'unsafe_getMem';
+function int videoInitFramebuffer(int width, int height, int bpp, int fullscreen) native 'unsafe_videoInitFramebuffer';
+function void videoDenitFramebuffer() native 'unsafe_videoDeinitFramebuffer';
+function int videoCheckEvent() native 'unsafe_videoCheckEvent';
+function string videoGrabFramebuffer() native 'unsafe_videoGrabFramebuffer';
+function void videoReleaseFramebuffer() native 'unsafe_videoReleaseFramebuffer';
+
+function void setPixel(string mem, int x, int y, int r, int g, int b) {
+    int color;
+    color = (r % 256) * 65536 + (g % 256) *256 + (b % 256);
+    setMem(mem, (x + y*WIDTH) * BPP / 8 , color, 4);
+}
+
+function int timestamp() native 'native_timestamp';
+
+function double sinNative(double x) native 'sin';
+function double cosNative(double x) native 'cos';
+
+function int int(double d) {
+    return 0 + d;
+}
+
+double t;
+t = 0.0;
+double chainsaw;
+chainsaw = 0.01;
+
+function void clrScr(string fb) {
+  int y; int x;
+  for (y in 0..(HEIGHT-1)) {
+    for (x in 0..(WIDTH-1)) {
+      setPixel(fb, x, y, 0, 0, 0);
+    }
+  }
+}
+
+function void drawFrame() {
+  string fb;
+  fb = videoGrabFramebuffer();
+  if (!fb) {
+    print('fb', fb, '\n');
+    return;
+  }
+  double tOld;
+  tOld = t;
+  clrScr(fb);
+  while(t < tOld + 100.0) {
+    setPixel(fb, 
+        int(WIDTH / 2 * (cosNative(chainsaw * t) + 1)),
+        int(HEIGHT / 2 * (sinNative(t) + 1)), 
+        255, 255, 255);
+    t += 0.01;
+  }
+  videoReleaseFramebuffer();
+}
+
+
+if (videoInitFramebuffer(WIDTH, HEIGHT, BPP, 0) == 0) {
+  print('Cannot init video\n');
+  return;
+}
+
+int start;
+while (videoCheckEvent() == 0) {
+  chainsaw = 0.01;
+  start = timestamp();
+  while(chainsaw < 1.0) {
+    drawFrame();
+    chainsaw += 0.01;
+  }
+  print('Rendered all lissjous by ', 
+    (timestamp() - start) / 1000000,
+    ' secs', '\r\n');
+}
+
+videoDenitFramebuffer();
