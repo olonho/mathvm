@@ -47,10 +47,12 @@ void TranslateVisitor::visitIfNode( IfNode* node) {
 	if (node->elseBlock() != NULL) {
 		node->elseBlock()->visit(this);
 		_byteCode->addBranch(BC_JA, endLabel);
+	} else {
+		_byteCode->addBranch(BC_JA, endLabel);
 	}
 	_byteCode->bind(thenLabel);
 	node->thenBlock()->visit(this);
-	_byteCode->addBranch(BC_JA, endLabel);
+	//_byteCode->addBranch(BC_JA, endLabel);
 	_byteCode->bind(endLabel); 
 
 }
@@ -138,7 +140,6 @@ void TranslateVisitor::visitStoreNode( StoreNode* node) {
 				_byteCode->addInsn(insn);
 				if (!theSameFunction) _byteCode->addUInt16(varInfo._functionId);
 				_byteCode->addUInt16(varInfo._id);
-				_byteCode->addInsn(BC_SWAP);
 				_byteCode->addInsn(BC_ISUB);
 				break;
 			default:
@@ -233,47 +234,67 @@ void TranslateVisitor::visitBinaryOpNode( BinaryOpNode* node) {
 	Label returnFalseLabel(_byteCode);
 	Label endLabel(_byteCode);
 
-	node->left()->visit(this);
-	leftType = _operandType;
-	if (leftType == VT_INVALID || leftType == VT_STRING) {
-		throw TranslationException("Invalid left operand type: only int or double types can be used for binary operations ");
-	}
-
-	if (opKind == tOR && leftType == VT_INT) {
+	if (opKind == tADD || opKind == tSUB || opKind == tMUL || opKind == tDIV) {
+		node->right()->visit(this);
+		rightType = _operandType;
+		node->left()->visit(this);
+		leftType = _operandType;
+		bool isInt = (leftType == VT_INT);
+		if (rightType != leftType) {
+			_byteCode->addInsn(BC_SWAP);
+			(isInt) ? _byteCode->addInsn(BC_D2I) : _byteCode->addInsn(BC_I2D);
+			_byteCode->addInsn(BC_SWAP);
+		}
+		switch (opKind) {
+		case tADD:
+			isInt ? _byteCode->addInsn(BC_IADD): _byteCode->addInsn(BC_DADD); break;
+		case tSUB:
+			isInt ? _byteCode->addInsn(BC_ISUB): _byteCode->addInsn(BC_DSUB); break;
+		case tMUL:
+			isInt ? _byteCode->addInsn(BC_IMUL): _byteCode->addInsn(BC_DMUL); break;
+		case tDIV:
+			isInt ? _byteCode->addInsn(BC_IDIV): _byteCode->addInsn(BC_DDIV); break;
+		default:
+			break;
+		}
+	
+	} else if (opKind == tAND) {
+		node->left()->visit(this);
 		_byteCode->addInsn(BC_ILOAD1);
-		_byteCode->addBranch(BC_IFICMPE, returnTrueLabel);
-	}
-
-	if (opKind == tAND && leftType == VT_INT) {
+		_byteCode->addBranch(BC_IFICMPNE, returnFalseLabel);
+		node->right()->visit(this);
+		_byteCode->addInsn(BC_ILOAD1);
+		_byteCode->addBranch(BC_IFICMPNE, returnFalseLabel);
+		_byteCode->addInsn(BC_ILOAD1);
+		_byteCode->addBranch(BC_JA, endLabel);
+		_byteCode->bind(returnFalseLabel);
 		_byteCode->addInsn(BC_ILOAD0);
-		_byteCode->addBranch(BC_IFICMPE, returnFalseLabel);
-	}
-
-	node->right()->visit(this);
-	rightType = _operandType;
-	if (rightType == VT_INVALID || rightType == VT_STRING) {
-		throw TranslationException("Invalid right operand type: only int or double types can be used for binary operations ");
-	}
-
-	if ((opKind == tOR || opKind == tAND) && rightType == VT_INT) {
+		_byteCode->bind(endLabel);
+	} else if (opKind == tOR) {
+		node->left()->visit(this);
 		_byteCode->addInsn(BC_ILOAD1);
 		_byteCode->addBranch(BC_IFICMPE, returnTrueLabel);
-		_byteCode->addBranch(BC_JA, returnFalseLabel);
-	}
-
-	if (leftType == VT_INT && rightType == VT_DOUBLE)
-		_byteCode->addInsn(BC_D2I);
-
-	if (leftType ==  VT_DOUBLE && rightType == VT_INT)
-		_byteCode->addInsn(BC_I2D);
-
-	bool isInt = (leftType == VT_INT); 
-
-	if (opKind == tEQ || opKind == tNEQ || opKind == tGT || 
-		opKind == tGE || opKind == tLT || opKind == tLE) {
-
-			isInt ? _byteCode->addInsn(BC_ICMP) : _byteCode->addInsn(BC_DCMP);
-			switch (opKind) {
+		node->right()->visit(this);
+		_byteCode->addInsn(BC_ILOAD1);
+		_byteCode->addBranch(BC_IFICMPE, returnTrueLabel);
+		_byteCode->addInsn(BC_ILOAD0);
+		_byteCode->addBranch(BC_JA, endLabel);
+		_byteCode->bind(returnTrueLabel);
+		_byteCode->addInsn(BC_ILOAD1);
+		_byteCode->bind(endLabel);
+	} else {
+		node->right()->visit(this);
+		rightType = _operandType;
+		node->left()->visit(this);
+		leftType = _operandType;
+		bool isInt = (leftType == VT_INT);
+		if (leftType != rightType) {
+			_byteCode->addInsn(BC_SWAP);
+			(isInt) ? _byteCode->addInsn(BC_D2I) : _byteCode->addInsn(BC_I2D);
+			_byteCode->addInsn(BC_SWAP);	
+		}
+		(isInt) ? _byteCode->addInsn(BC_ICMP) : _byteCode->addInsn(BC_DCMP);
+		switch (opKind) {
 			case tEQ:
 				_byteCode->addInsn(BC_ILOAD0);
 				_byteCode->addBranch(BC_IFICMPE, returnTrueLabel);
@@ -283,60 +304,30 @@ void TranslateVisitor::visitBinaryOpNode( BinaryOpNode* node) {
 				_byteCode->addBranch(BC_IFICMPNE, returnTrueLabel);
 				break;
 			case tGT:
-				_byteCode->addInsn(BC_ILOADM1);
+				_byteCode->addInsn(BC_ILOAD1);
 				_byteCode->addBranch(BC_IFICMPE, returnTrueLabel);
 				break;
 			case tGE:
-				_byteCode->addInsn(BC_ILOAD1);
+				_byteCode->addInsn(BC_ILOADM1);
 				_byteCode->addBranch(BC_IFICMPNE, returnTrueLabel);
 				break;
 			case tLT:
-				_byteCode->addInsn(BC_ILOAD1);
+				_byteCode->addInsn(BC_ILOADM1);
 				_byteCode->addBranch(BC_IFICMPE, returnTrueLabel);
 				break;
 			case tLE:
-				_byteCode->addInsn(BC_ILOADM1);
+				_byteCode->addInsn(BC_ILOAD1);
 				_byteCode->addBranch(BC_IFICMPNE, returnTrueLabel);
 				break;
 			default:
 				break;
-			}
-			_byteCode->addInsn(BC_ILOAD0);
-			_byteCode->addBranch(BC_JA, endLabel);
-	}
-
-	if (opKind == tOR || opKind == tAND) {
-		_byteCode->bind(returnFalseLabel);
+		}
 		_byteCode->addInsn(BC_ILOAD0);
 		_byteCode->addBranch(BC_JA, endLabel);
-
+		_byteCode->bind(returnTrueLabel);
+		_byteCode->addInsn(BC_ILOAD1);
+		_byteCode->bind(endLabel);
 	}
-
-
-	switch (opKind) {
-	case tADD:
-		isInt ? _byteCode->addInsn(BC_IADD): _byteCode->addInsn(BC_DADD);
-		_byteCode->addBranch(BC_JA, endLabel);
-		break;
-	case tSUB:
-		isInt ? _byteCode->addInsn(BC_ISUB): _byteCode->addInsn(BC_DSUB);
-		_byteCode->addBranch(BC_JA, endLabel);
-		break;
-	case tMUL:
-		isInt ? _byteCode->addInsn(BC_IMUL): _byteCode->addInsn(BC_DMUL);
-		_byteCode->addBranch(BC_JA, endLabel);
-		break;
-	case tDIV:
-		isInt ? _byteCode->addInsn(BC_IDIV): _byteCode->addInsn(BC_DDIV);
-		_byteCode->addBranch(BC_JA, endLabel);
-		break;
-	default:
-		break;
-
-	}
-	_byteCode->bind(returnTrueLabel);
-	_byteCode->addInsn(BC_ILOAD1);
-	_byteCode->bind(endLabel);
 
 }
 
@@ -434,6 +425,7 @@ void TranslateVisitor::visitFunctionNode( FunctionNode* node) {
 	_byteCode = new  Bytecode();
 	ScopeWrapper *parentScope = _scope;
 	_scope = new ScopeWrapper(parentScope, true, node->name(), false, &_code); 
+	addParametersToScope(_scope, node);
 	_operandType =  VT_INVALID;
 	//process function body 
 	node->body()->visit(this);
@@ -447,6 +439,14 @@ void TranslateVisitor::visitFunctionNode( FunctionNode* node) {
 	_byteCode = prevByteCode;
 	delete _scope;
 	_scope = parentScope; 
+}
+
+void TranslateVisitor::addParametersToScope(ScopeWrapper* scope, FunctionNode* node) {
+	AstFunction* astFunc = extractAstFunction(node);
+	scope->setParametersNumber(astFunc->parametersNumber()); 
+	for (int i = 0; i < astFunc->parametersNumber(); ++i) {
+		scope->addVar(astFunc->parameterName(i));	
+	}
 }
 
 void TranslateVisitor::visit(  BlockNode * rootNode )
@@ -473,9 +473,9 @@ void TranslateVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 
 
-Bytecode* TranslateVisitor::getBytecode()
+Code* TranslateVisitor::getBytecode()
 {
-	return _byteCode;
+	return &_code;
 }
 
 std::vector<std::string> TranslateVisitor::getStringsVector()
