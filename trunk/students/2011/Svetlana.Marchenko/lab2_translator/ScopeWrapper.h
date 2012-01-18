@@ -8,13 +8,16 @@
 struct FunctionInfo {
 	std::string _name;
 	uint16_t _id;
+	uint16_t _parametersCount;
 	
-	FunctionInfo() : _name(""), _id(0) {}
+	FunctionInfo() : _name(""), _id(0), _parametersCount(0) {}
 };
 
 struct VarInfo {
 	uint16_t _functionId;
 	uint16_t _id;
+
+	VarInfo() : _functionId(0), _id(0) {}
 };
 
 class ScopeWrapper {
@@ -88,5 +91,7 @@ class ScopeWrapper {
 		void setInitialized(bool initialized) { _funcScopeInitialized = initialized; }
 		
 		ScopeWrapper* getParentScope () { return _parentScope; }
+
+		void setParametersNumber(uint16_t count) { _functionInfo._parametersCount = count; }
 
 };

@@ -11,6 +11,8 @@ class TranslateVisitor: public mathvm::AstVisitor {
 	mathvm::VarType _operandType;
 	MyCode _code;
 	ScopeWrapper *_scope;
+
+	void addParametersToScope(ScopeWrapper* scope, mathvm::FunctionNode* node);
 		
 public:
 	TranslateVisitor(): 
@@ -27,7 +29,7 @@ public:
 #undef VISITOR_FUNCTION
 
     void visit( mathvm::BlockNode * rootNode );
-    mathvm::Bytecode* getBytecode();
+    mathvm::Code* getBytecode();
     std::vector<std::string> getStringsVector();
     void dump();
 

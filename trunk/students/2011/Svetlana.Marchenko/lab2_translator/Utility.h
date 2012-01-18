@@ -17,7 +17,7 @@ mathvm::AstFunction* extractAstFunction(mathvm::FunctionNode *funcNode) {
 uint16_t calculateFuncMaxLocals(mathvm::FunctionNode *funcNode) {
 	mathvm::Scope *searchScope = funcNode->body()->scope();
 	
-	int count = searchScope->variablesCount();
+	int count = funcNode->parametersNumber() + searchScope->variablesCount();
 	int max = 0;
 	for (int i = 0; i < searchScope->childScopeNumber(); ++i) {
 		int scopeMaxCount = calculateScopeMaxLocals(searchScope->childScopeAt(i));
