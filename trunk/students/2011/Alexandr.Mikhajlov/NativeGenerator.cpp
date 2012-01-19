@@ -214,6 +214,10 @@ void NativeGenerator::visitBinaryOpNode(mathvm::BinaryOpNode* node)
 	if (myResultVar.Integer == NULL) return;
 
 	if (TryDoArithmetics(node, left, right, expectedType)) return;
+	if (expectedType == mathvm::VT_INT) {
+		TryDoIntegerLogic(node, left, right);
+		return;
+	}
 }
 
 VarId NativeGenerator::GetVariableId( mathvm::AstNode* currentNode, std::string const& varName, bool* isClosure_out /*= NULL*/ )
@@ -400,6 +404,18 @@ void NativeGenerator::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 			myCompiler->movq(*myResultVar.Double, itemp);
 			myCompiler->subsd(*myResultVar.Double, dtemp);
 		}
+		break;
+	case tNOT:
+		AsmJit::Label lTrue = myCompiler->newLabel();
+		AsmJit::Label lEnd  = myCompiler->newLabel();
+		myCompiler->cmp(*myResultVar.Integer, imm(0));
+		myCompiler->je(lTrue);
+		myCompiler->mov(*myResultVar.Integer, imm(0));
+		myCompiler->jmp(lEnd);
+		myCompiler->bind(lTrue);
+		myCompiler->mov(*myResultVar.Integer, imm(1));
+		myCompiler->bind(lEnd);
+
 	}
 }
 
@@ -429,6 +445,38 @@ void NativeGenerator::visitIfNode( mathvm::IfNode* node )
 
 	myCompiler->bind(lEnd);
 	myResultVar = old;
+}
+
+void NativeGenerator::TryDoIntegerLogic( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right )
+{
+	myCompiler->cmp(*left.Integer, *right.Integer);
+
+	AsmJit::Label lTrue = myCompiler->newLabel();
+	AsmJit::Label lEnd = myCompiler->newLabel();
+
+	switch (node->kind()) 
+	{
+	case tEQ:
+	case tAND:
+		myCompiler->je(lTrue); break;
+	case tNEQ:
+		myCompiler->jne(lTrue); break;
+	case tGT:
+		myCompiler->jg(lTrue); break;
+	case tGE:
+		myCompiler->je(lTrue); break;
+	case tLT:
+		myCompiler->jl(lTrue); break;
+	case tLE:
+		myCompiler->jle(lTrue); break;
+	default: throw TranslationException("Invalid operation type");
+	}
+
+	myCompiler->mov(*myResultVar.Integer, imm(0));
+	myCompiler->jmp(lEnd);
+	myCompiler->bind(lTrue);
+	myCompiler->mov(*myResultVar.Integer, imm(1));
+	myCompiler->bind(lEnd);
 }
 
 
