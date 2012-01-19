@@ -42,7 +42,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
-		/* ********* Constant operations ***********/
+			/* ********* Constant operations ***********/
 		case BC_ILOAD: {
 			m_stack.pushInt(m_bytecode.getInt64(position));
 			position += sizeof(uint64_t);
@@ -60,7 +60,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
-		/* ********* Memory operations **********/
+			/* ********* Memory operations **********/
 		case BC_STOREIVAR: {
 			uint16_t addr = m_bytecode.getInt16(position);
 			position += sizeof(uint16_t);
@@ -113,7 +113,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
-		/* *** Variable allocation **********/
+			/* *** Variable allocation **********/
 		case BC_STORECTXIVAR: {
 			uint16_t addr = m_bytecode.getInt16(position);
 			position += sizeof(uint16_t);
@@ -138,7 +138,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
-		/* *** Simple data operations ****/
+			/* *** Simple data operations ****/
 		case BC_INEG: {
 			m_stack.pushInt(-m_stack.popInt());
 			break;
@@ -159,7 +159,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
-		/* *** control  handling *****/
+			/* *** control  handling *****/
 		case BC_JA: {
 			position += (short) m_bytecode.getInt16(position);
 			break;
@@ -229,7 +229,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			//break;
 		}
 
-		/* ***** Arithmetics ***********/
+			/* ***** Arithmetics ***********/
 		case BC_IADD: {
 			m_stack.pushInt(m_stack.popInt() + m_stack.popInt());
 			break;
@@ -275,7 +275,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
-		/* ************    CAST   ************* */
+			/* ************    CAST   ************* */
 		case BC_I2D: {
 			m_stack.pushDouble(m_stack.popInt());
 			break;
@@ -283,6 +283,31 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 
 		case BC_D2I: {
 			m_stack.pushInt(m_stack.popDouble());
+			break;
+		}
+
+			/* ********* functions **********/
+
+		case BC_CALL: {
+			m_var_table.openPage();
+			m_call_stack.push(position + 2);
+			position = m_bytecode.getInt16(position);
+			//std::cerr << ">>> call pos " << position << std::endl;
+			break;
+		}
+
+		case BC_RETURN: {
+			position = m_call_stack.top();
+			//m_var_table.dump();
+			m_var_table.closePage();
+			//std::cerr << ">>> return pos " << position << std::endl;
+			m_call_stack.pop();
+			break;
+		}
+
+			/* ******* misc **************/
+		case BC_POP: {
+			m_stack.popInt();
 			break;
 		}
 

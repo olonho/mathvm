@@ -8,6 +8,7 @@
 #ifndef CODE_H_
 #define CODE_H_
 
+#include <stack>
 #include "mathvm.h"
 #include "ExecStack.h"
 #include "PSVarTable.h"
@@ -22,6 +23,7 @@ public:
 private:
 	mathvm::Bytecode m_bytecode;
 	ExecStack m_stack;
+	std::stack<uint16_t> m_call_stack;
 	VarTableExecute m_var_table;
 };
 
