@@ -124,27 +124,46 @@ void PSTranslator::visitLoadNode(mathvm::LoadNode *node) {
 void PSTranslator::visitForNode(mathvm::ForNode *node) {
 }
 
+void PSTranslator::visitFunctionNode(mathvm::FunctionNode *node) {
+	node->visitChildren(this);
+	//node->body()->visit(this);
+}
+
+void PSTranslator::visitWhileNode(mathvm::WhileNode *node) {
+}
+
 void PSTranslator::visitUnaryOpNode(mathvm::UnaryOpNode *node) {
 	node->visitChildren(this);
 
 	switch (node->kind()) {
-	/*
-	 case tNOT: {
-	 switch (m_last_result) {
-	 case RT_int: {
 
-	 break;
-	 }
-	 case RT_double: {
+	case tNOT: {
+		Label set0(&m_bytecode);
+		Label end(&m_bytecode);
 
-	 break;
-	 }
-	 case RT_string: {
-	 throw MVException("No operations with strings!");
-	 }
-	 }
-	 }
-	 break;*/
+		m_bytecode.addInsn(BC_ILOAD0);
+		m_bytecode.addBranch(BC_IFICMPNE, set0);
+		m_bytecode.addInsn(BC_ILOAD1);
+		m_bytecode.addBranch(BC_JA, end);
+		m_bytecode.bind(set0);
+		m_bytecode.addInsn(BC_ILOAD0);
+		m_bytecode.bind(end);
+		/*switch (m_last_result) {
+
+		 case RT_int: {
+
+		 break;
+		 }
+		 case RT_double: {
+
+		 break;
+		 }
+		 case RT_string: {
+		 throw MVException("No operations with strings!");
+		 }
+		 }*/
+		break;
+	}
 	case tSUB: {
 		switch (m_last_result) {
 		case VT_INT: {
@@ -169,55 +188,127 @@ void PSTranslator::visitUnaryOpNode(mathvm::UnaryOpNode *node) {
 	}
 }
 
-void PSTranslator::visitFunctionNode(mathvm::FunctionNode *node) {
-	node->visitChildren(this);
-	//node->body()->visit(this);
-}
-
-void PSTranslator::visitWhileNode(mathvm::WhileNode *node) {
-}
-
 void PSTranslator::visitBinaryOpNode(mathvm::BinaryOpNode *node) {
 	node->right()->visit(this);
-	//VarType right_var_type = m_last_result;
+	VarType right_var_type = m_last_result;
 	node->left()->visit(this);
-	//VarType left_var_type = m_last_result;
+	VarType left_var_type = m_last_result;
 
-	switch (node->kind()) {
-	case tADD:
-		if (m_last_result == VT_INT){
-			m_bytecode.addInsn(BC_IADD);
-		}else{
-			m_bytecode.addInsn(BC_DADD);
+	const TokenKind op = node->kind();
+	if (right_var_type == VT_STRING || left_var_type == VT_STRING) {
+		throw MVException("No operations with strings!", node->position());
+	} else if (right_var_type != left_var_type && (op == tADD || op == tSUB
+			|| op == tMUL || op == tDIV)) {
+		//cast, cast...
+		if (right_var_type == VT_DOUBLE) {
+			castIntToDouble();
+			left_var_type = m_last_result;
+		} else {
+			castDoubleToInt();
+			left_var_type = m_last_result;
 		}
-		break;
-	case tSUB:
-		if (m_last_result == VT_INT){
-			m_bytecode.addInsn(BC_ISUB);
-		}else{
-			m_bytecode.addInsn(BC_DSUB);
-		}
-		break;
-	case tMUL:
-		if (m_last_result == VT_INT){
-			m_bytecode.addInsn(BC_IMUL);
-		}else{
-			m_bytecode.addInsn(BC_DMUL);
-		}
-		break;
-	case tDIV:
-		if (m_last_result == VT_INT){
-			m_bytecode.addInsn(BC_IDIV);
-		}else{
-			m_bytecode.addInsn(BC_DDIV);
-		}
-		break;
-	case tMOD:
+	}
+
+	if (op == tADD || op == tSUB || op == tMUL || op == tDIV || op == tMOD) {
+		switch (op) {
+		case tADD:
+			if (m_last_result == VT_INT) {
+				m_bytecode.addInsn(BC_IADD);
+			} else {
+				m_bytecode.addInsn(BC_DADD);
+			}
+			break;
+		case tSUB:
+			if (m_last_result == VT_INT) {
+				m_bytecode.addInsn(BC_ISUB);
+			} else {
+				m_bytecode.addInsn(BC_DSUB);
+			}
+			break;
+		case tMUL:
+			if (m_last_result == VT_INT) {
+				m_bytecode.addInsn(BC_IMUL);
+			} else {
+				m_bytecode.addInsn(BC_DMUL);
+			}
+			break;
+		case tDIV:
+			if (m_last_result == VT_INT) {
+				m_bytecode.addInsn(BC_IDIV);
+			} else {
+				m_bytecode.addInsn(BC_DDIV);
+			}
+			break;
+		case tMOD:
 			m_bytecode.addInsn(BC_IMOD);
-		break;
+			break;
 
-	default:
-		return;
+		default:
+			std::cerr << "busy doing nothing" << std::endl;
+		}
+	} else if (op == tEQ || op == tNEQ || op == tGT || op == tGE || op == tLT || op
+			== tLE) {
+		Label set1(&m_bytecode);
+		Label end(&m_bytecode);
+
+		switch (op) {
+		case tEQ:
+			std::cerr << " >>> EQ" << std::endl;
+			m_bytecode.addBranch(BC_IFICMPE, set1);
+			break;
+
+		case tNEQ:
+			m_bytecode.addBranch(BC_IFICMPNE, set1);
+			break;
+
+		case tGT:
+			m_bytecode.addBranch(BC_IFICMPG, set1);
+			break;
+
+		case tGE:
+			m_bytecode.addBranch(BC_IFICMPGE, set1);
+			break;
+
+		case tLT:
+			m_bytecode.addBranch(BC_IFICMPL, set1);
+			break;
+
+		case tLE:
+			m_bytecode.addBranch(BC_IFICMPLE, set1);
+			break;
+
+		default:
+			std::cerr << "busy doing nothing" << std::endl;
+		}
+		m_bytecode.addInsn(BC_ILOAD0);
+		m_bytecode.addBranch(BC_JA, end);
+		m_bytecode.bind(set1);
+		m_bytecode.addInsn(BC_ILOAD1);
+		m_bytecode.bind(end);
+	} else if (op == tOR || op == tAND) {
+		switch (op) {
+		case tOR:
+			m_bytecode.addInsn(BC_IADD);
+			break;
+
+		case tAND:
+			m_bytecode.addInsn(BC_IMUL);
+			break;
+
+		default:
+			std::cerr << "busy doing nothing" << std::endl;
+		}
+		Label set1(&m_bytecode);
+		Label end(&m_bytecode);
+		m_bytecode.addInsn(BC_ILOAD0);
+		m_bytecode.addBranch(BC_IFICMPNE, set1);
+		m_bytecode.addInsn(BC_ILOAD0);
+		m_bytecode.addBranch(BC_JA, end);
+		m_bytecode.bind(set1);
+		m_bytecode.addInsn(BC_ILOAD1);
+		m_bytecode.bind(end);
+	} else {
+
 	}
 }
 
@@ -301,4 +392,14 @@ void PSTranslator::visitCallNode(mathvm::CallNode *node) {
 }
 
 void PSTranslator::visitReturnNode(mathvm::ReturnNode* node) {
+}
+
+void PSTranslator::castIntToDouble() {
+	m_bytecode.add(BC_I2D);
+	m_last_result = VT_DOUBLE;
+}
+
+void PSTranslator::castDoubleToInt() {
+	m_bytecode.add(BC_D2I);
+	m_last_result = VT_INT;
 }

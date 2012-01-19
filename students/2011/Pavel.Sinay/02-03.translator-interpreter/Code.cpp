@@ -25,6 +25,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 	while (position != m_bytecode.length()) {
 		Instruction inst = m_bytecode.getInsn(position++);
 		switch (inst) {
+		/********** Printing ***********/
 		case BC_IPRINT: {
 			uint64_t value = m_stack.popInt();
 			std::cout << (long int) value;
@@ -40,6 +41,8 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			std::cout << str;
 			break;
 		}
+
+		/* ********* Constant operations ***********/
 		case BC_ILOAD: {
 			m_stack.pushInt(m_bytecode.getInt64(position));
 			position += sizeof(uint64_t);
@@ -57,6 +60,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
+		/* ********* Memory operations **********/
 		case BC_STOREIVAR: {
 			uint16_t addr = m_bytecode.getInt16(position);
 			position += sizeof(uint16_t);
@@ -109,6 +113,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
+		/* *** Variable allocation **********/
 		case BC_STORECTXIVAR: {
 			uint16_t addr = m_bytecode.getInt16(position);
 			position += sizeof(uint16_t);
@@ -133,6 +138,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
+		/* *** Simple data operations ****/
 		case BC_INEG: {
 			m_stack.pushInt(-m_stack.popInt());
 			break;
@@ -148,6 +154,12 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
+		case BC_ILOAD1: {
+			m_stack.pushInt(1);
+			break;
+		}
+
+		/* *** control  handling *****/
 		case BC_JA: {
 			position += (short) m_bytecode.getInt16(position);
 			break;
@@ -156,7 +168,6 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 		case BC_IFICMPNE: {
 			short jump_addr = (short) m_bytecode.getInt16(position)
 					- sizeof(uint16_t);
-		//	std::cout << ">>> JA=" << jump_addr << std::endl;
 			position += sizeof(uint16_t);
 			if (m_stack.popInt() != m_stack.popInt()) {
 				position += jump_addr;
@@ -164,6 +175,61 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
+		case BC_IFICMPE: {
+			short jump_addr = (short) m_bytecode.getInt16(position)
+					- sizeof(uint16_t);
+			position += sizeof(uint16_t);
+			if (m_stack.popInt() == m_stack.popInt()) {
+				position += jump_addr;
+			}
+			break;
+		}
+
+		case BC_IFICMPG: {
+			short jump_addr = (short) m_bytecode.getInt16(position)
+					- sizeof(uint16_t);
+			position += sizeof(uint16_t);
+			if (m_stack.popInt() > m_stack.popInt()) {
+				position += jump_addr;
+			}
+			break;
+		}
+
+		case BC_IFICMPGE: {
+			short jump_addr = (short) m_bytecode.getInt16(position)
+					- sizeof(uint16_t);
+			position += sizeof(uint16_t);
+			if (m_stack.popInt() >= m_stack.popInt()) {
+				position += jump_addr;
+			}
+			break;
+		}
+
+		case BC_IFICMPL: {
+			short jump_addr = (short) m_bytecode.getInt16(position)
+					- sizeof(uint16_t);
+			position += sizeof(uint16_t);
+			if (m_stack.popInt() < m_stack.popInt()) {
+				position += jump_addr;
+			}
+			break;
+		}
+
+		case BC_IFICMPLE: {
+			short jump_addr = (short) m_bytecode.getInt16(position)
+					- sizeof(uint16_t);
+			position += sizeof(uint16_t);
+			if (m_stack.popInt() <= m_stack.popInt()) {
+				position += jump_addr;
+			}
+			break;
+		}
+
+		case BC_STOP: {
+			//break;
+		}
+
+		/* ***** Arithmetics ***********/
 		case BC_IADD: {
 			m_stack.pushInt(m_stack.popInt() + m_stack.popInt());
 			break;
@@ -209,9 +275,17 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
-		case BC_STOP: {
-			//break;
+		/* ************    CAST   ************* */
+		case BC_I2D: {
+			m_stack.pushDouble(m_stack.popInt());
+			break;
 		}
+
+		case BC_D2I: {
+			m_stack.pushInt(m_stack.popDouble());
+			break;
+		}
+
 		default:
 			//break;
 			throw MVException(
