@@ -108,7 +108,8 @@ inline void printfD(char* fmt, double val) {
 inline void printfI(char* fmt, int64_t val) {
   printf(fmt, val);
 }
-
+/* AsmJit fails with register allocation on following instructions
+ * with implicit operands*/
 inline int64_t idiv(int64_t a, int64_t b) {
   return a / b;
 }
@@ -117,12 +118,18 @@ inline int64_t imod(int64_t a, int64_t b) {
   return a % b;
 }
 
+/* ucomisd Works in simple tests but I am not shure about all */
 inline int64_t dcmp(double a, double b) {
   if (a < b)
     return -1;
   if (a > b)
     return 1;
   return 0;
+}
+
+/* AsmJit generates cvtsi2sd for 32 bit registers but should for 64  */
+inline double i2d(int64_t a) {
+  return (double)a;
 }
 //end of functions
 
@@ -228,8 +235,12 @@ void JITCompiler::compileFunc(size_t funcId) {
                           cc.unuse(*_fmtStr.gp); cc.unuse(*_toPrint.gp);} break;
       case BC_I2D:      {AnyVar _int = ssaStack.back();
                           ssaStack.pop_back();
-                          AnyVar _double = newSSAXMMVar(cc);
-                          cc.cvtsi2sd(*_double.xmm, *_int.gp);
+                          AnyVar _double = newSSAXMMVar(cc);                    
+                          ECall* _call = cc.call(imm((size_t)i2d));
+                           _call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<double, int64_t>());
+                           _call->setArgument(0, *_int.gp);
+                           _call->setReturn(*_double.xmm);
+                          //cc.cvtsi2sd(*_double.xmm, *_int.gp);
                           ssaStack.push_back(_double);
                           cc.unuse(*_int.gp);} break; 
       case BC_D2I:       {AnyVar _int = newSSAGPVar(cc);
@@ -388,19 +399,12 @@ void JITCompiler::compileFunc(size_t funcId) {
                            ssaStack.push_back(_func_res);
                            cc.unuse(*_tos1.gp); cc.unuse(*_tos2.gp);
                          } break;
-      case BC_SWAP:      { throw new TranslationException("BC_SWAP is not implemented JIT", 0);
+      case BC_SWAP:      { throw new TranslationException("BC_SWAP is not implemented in JIT", 0);
                          } break;
       case BC_DCMP:      { AnyVar _tos1 = ssaStack.back(); ssaStack.pop_back(); 
                            AnyVar _tos2 = ssaStack.back(); ssaStack.pop_back();
                            AnyVar _res  = newSSAGPVar(cc);
-                           //FIXME: try to make it in assembler
-                           /*GPVar _tmp1(cc.newGP());
-                             GPVar _tmp2(cc.newGP());
-                             cc.movq(_tmp1, *_tos1.xmm);
-                             cc.movq(_tmp2, *_tos2.xmm);
-                             cc.cmp(_tmp1, _tmp2);
-                             cc.unuse(_tmp1); cc.unuse(_tmp2);
-                           //cc.ucomisd(*_tos1.xmm, *_tos2.xmm);
+                           /*cc.ucomisd(*_tos1.xmm, *_tos2.xmm);
                            AsmJit::Label lblGt = cc.newLabel();
                            AsmJit::Label lblLs = cc.newLabel();
                            AsmJit::Label lblEnd = cc.newLabel();

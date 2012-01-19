@@ -202,7 +202,8 @@ class TranslatableFunction {
       it = addresses.find(std::make_pair(sUse.first, sUse.second));
     }
     if (it == addresses.end()) {
-      throw new TranslationException("Internal error", 0); 
+      throw new TranslationException("No variable " + varName + " in " + proto.funcName +".\n" 
+                                     "Compiler needs all functions which use closures to be called at least once", 0);
     }
     DEBUG("Getting address in " << proto.funcName << " of " << 
         varName << " with value " <<  it->second.addresses[it->second.curAddr]
