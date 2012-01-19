@@ -535,5 +535,40 @@ void NativeGenerator::DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarTyp
 	}
 }
 
+void NativeGenerator::visitForNode( mathvm::ForNode* node )
+{
+	AsmVarPtr old = myResultVar;
+	myResultVar = CreateAsmVar(mathvm::VT_INT);
+	
+	AsmJit::Label lCheck = myCompiler->newLabel();
+	AsmJit::Label lEnd = myCompiler->newLabel();
+
+	BinaryOpNode * range = node->inExpr()->asBinaryOpNode();
+	if (range == NULL || range->kind() != tRANGE) throw TranslationException("Range not specified in for statement");
+	uint16_t varId = GetVariableId(node, node->var()->name()).id;
+	auto ptr = qword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
+	
+	// init counter
+	range->left()->visit(this);
+	myCompiler->mov(ptr, *myResultVar.Integer);
+	
+	myCompiler->bind(lCheck);
+
+	// counter >= right
+	range->right()->visit(this);
+	myCompiler->cmp(ptr, *myResultVar.Integer);
+	myCompiler->jg(lEnd);
+
+	node->body()->visit(this);
+
+	// increment counter
+	myCompiler->add(ptr, imm(1));
+	myCompiler->jmp(lCheck);
+
+	myCompiler->bind(lEnd);
+
+	myResultVar = old;
+}
+
 
 
