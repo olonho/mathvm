@@ -6,42 +6,12 @@
 #include "Translator.h"
 #include "AstShowVisitor.h"
 #include "BytecodeFunction.h"
-
-#define INTERNAL_ERROR \
-    throwError(node, "Internal error at %s:%d", __FILE__, __LINE__);
-
-void throwError(const mathvm::AstNode* node, const char* format, ...) {
-    char *buf;
-    va_list args;
-    va_start(args, format);
-    vasprintf(&buf, format, args);
-    mathvm::Status s(buf, node ? node->position() : mathvm::Status::INVALID_POSITION);
-    free(buf);
-    throw s;
-}
-
-struct FunInfo {
-    std::set<const mathvm::AstVar*> freeVars;
-    std::set<std::pair<FunInfo*, mathvm::Scope*> > callees;
-    BytecodeFunction* bcfun;
-};
+#include "Exception.cpp"
+#include "Label.h"
 
 std::map<const mathvm::CallNode*, FunInfo*> callNodes;
 std::map<const mathvm::AstFunction*, FunInfo> infos;
 std::set<const mathvm::AstVar*> globals;
-
-class Label {
-    mathvm::Label label;
-    mathvm::Bytecode* code;
-public:
-    Label(mathvm::Bytecode* c): label(c), code(c) {}
-    ~Label() {
-        if (!label.isBound()) {
-            code->bind(label);
-        }
-    }
-    mathvm::Label& operator()() { return label; }
-};
 
 class FreeVarsVisitor: public mathvm::AstVisitor {
     FunInfo* info;
@@ -199,18 +169,6 @@ public:
     }
 };
 
-std::string showExpr(mathvm::AstNode* node) {
-    std::stringstream str;
-    AstShowVisitor v(str);
-    v.show(node);
-    return str.str();
-}
-
-void typeMismatch(const char* e, mathvm::AstNode* expr, mathvm::VarType a) {
-    throwError(expr, "Expected expression of type %s, but %s has type %s",
-        e, showExpr(expr).c_str(), typeToName(a));
-}
-
 // TODO
 void Translator::visitNativeCallNode( mathvm::NativeCallNode* node ) {
 ///
@@ -234,12 +192,15 @@ void Translator::put(const void* buf_, unsigned int size) {
 
 void Translator::putVar(mathvm::Instruction ins, const mathvm::AstVar* var, mathvm::AstNode* node) {
     const std::vector<VarInt>& v = vars[var->name()];
-    if (v.empty()) INTERNAL_ERROR
+    if (v.empty()) {
+	assert(false);
+    }
+	
     if (v.size() == 1 && globals.count(var)) {
         switch (ins) {
             case mathvm::BC_LOADIVAR: code->add(mathvm::BC_LOADDVAR); break;
             case mathvm::BC_STOREIVAR: code->add(mathvm::BC_STOREDVAR); break;
-            default: INTERNAL_ERROR
+            default: assert(false);
         }
     } else {
         code->add(ins);
@@ -415,7 +376,7 @@ void Translator::visitStoreNode(mathvm::StoreNode* node) {
         case mathvm::tASSIGN: break;
         case mathvm::tINCRSET:
         case mathvm::tDECRSET: right = &tnode; break;
-        default: INTERNAL_ERROR
+        default: assert(false);
     }
     right->visit(this);
     if (node->var()->type() != currentType) {
@@ -556,7 +517,7 @@ void Translator::visitPrintNode(mathvm::PrintNode* node) {
             case mathvm::VT_STRING: code->add(mathvm::BC_SPRINT); break;
             case mathvm::VT_VOID: typeMismatch("int or double or string",
                 node->operandAt(i), mathvm::VT_VOID); break;
-            default: INTERNAL_ERROR
+            default: assert(false);
         }
         currentType = mathvm::VT_INVALID;
     }

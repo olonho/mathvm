@@ -7,5 +7,5 @@ all: $(OUT) $(BIN)/interpreter
 
 COMMON = $(MATHVM_OBJ) $(OBJ)/Translator.o $(OBJ)/AstShowVisitor.o $(OBJ)/MvmCode.o
 
-$(BIN)/interpreter: $(OBJ)/main.o $(COMMON) Translator.h BytecodeFunction.h MvmCode.h
+$(BIN)/interpreter: $(OBJ)/main.o $(COMMON) Translator.h BytecodeFunction.h MvmCode.h Exception.cpp Label.h
 	$(CXX) -o $@ $< $(COMMON) $(THREAD_LIB)
