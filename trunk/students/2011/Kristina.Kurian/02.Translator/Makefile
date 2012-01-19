@@ -7,8 +7,8 @@ all: $(OUT) $(BIN)/translator
 
 COMMON = $(MATHVM_OBJ) $(OBJ)/Translator.o $(OBJ)/AstShowVisitor.o
 COMMON_BLD = $(COMMON) $(THREAD_LIB)
-COMMON_TRG = $(COMMON) 
-COMMON_TRG = $(COMMON) Translator.h
+COMMON_TRG = $(COMMON) Exception.cpp
+COMMON_TRG = $(COMMON) Exception.cpp Translator.h
 
 $(BIN)/translator: $(OBJ)/main.o $(COMMON_TRG)
 	$(CXX) -o $@ $< $(COMMON_BLD)
