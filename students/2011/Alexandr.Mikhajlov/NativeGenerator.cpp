@@ -12,6 +12,7 @@ using namespace AsmJit;
 using namespace mathvm;
 using namespace std;
 
+extern bool silentMode;
 
 void PrintInt(int64_t value) {
 	printf("%d", value);
@@ -20,6 +21,50 @@ void PrintInt(int64_t value) {
 void PrintString(int64_t address) {
 	std::string * s = (std::string*)address;
 	printf("%s", s->c_str());
+}
+
+
+StackFrame* MyNativeCode::AllocateFrame( uint16_t functionId )
+{
+	BytecodeFunction * fun = (BytecodeFunction*) this->functionById(functionId);
+	StackFrame * frame = AddFrame(fun->localsNumber(), functionId);
+	frame->prevFrame = myCurrentFrame;
+	if (myCurrentFrame) {
+		if (myCurrentFrame->functionId != functionId) frame->prevDifferentFrame = myCurrentFrame;
+		else frame->prevDifferentFrame = myCurrentFrame->prevDifferentFrame;
+	} 
+	assert(fun);
+	myCurrentFrame = frame;
+
+	return frame;
+}
+
+void MyNativeCode::Init()
+{
+	myFrameStackPoolIP = 0;
+	myCurrentFrame = NULL;
+
+	AllocateFrameStack(50*1024);
+	AllocateFrame(0);
+}
+
+void MyNativeCode::AllocateFrameStack( int stackSizeInKb )
+{
+	myFrameStackPoolSize = stackSizeInKb * 1024;
+	myFrameStackPool = new char[myFrameStackPoolSize];
+}
+
+StackFrame * MyNativeCode::AddFrame( uint16_t localsNumber, uint16_t functionId )
+{
+	StackFrame * result = new (&myFrameStackPool[myFrameStackPoolIP]) StackFrame(localsNumber, functionId);
+	myFrameStackPoolIP += result->size;
+	return result;
+}
+
+void* MyNativeCode::GetCurrentLocalsPtr( void* codeAddr )
+{
+	MyNativeCode * code = (MyNativeCode*)codeAddr;
+	return code->myCurrentFrame->vars;
 }
 
 void PrintDouble( double value )
@@ -41,6 +86,12 @@ void PrintDouble( double value )
 }
 
 
+int64_t idiv(int64_t a, int64_t b) {
+	return a / b;
+
+}
+
+
 void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 {
 	myFirstPassVisitor.visit(rootNode);
@@ -49,19 +100,22 @@ void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 	myCompiler = new Compiler;
 	
 	FileLogger logger(stderr);
-  myCompiler->setLogger(&logger);
+  if (!silentMode)myCompiler->setLogger(&logger);
 
 	myCompiler->newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
 	myCompiler->getFunction()->setHint(FUNCTION_HINT_NAKED, true);
 
-	CreateAsmVar(mathvm::VT_INT);
+	myLocalsPtr = GPVar(myCompiler->newGP());
+	myCompiler->mov(myLocalsPtr, imm((sysint_t)new int[256]));
 
-	rootNode->node()->body()->visit(this);
+	rootNode->node()->visit(this);
 	
 	myCompiler->ret();
 	myCompiler->endFunction();
 
 	void * pt = myCompiler->make();
+
+	myCode.Init();
 
 	auto fun = function_cast<void (*)()>(pt);
 	fun();
@@ -161,6 +215,91 @@ void NativeGenerator::visitBinaryOpNode(mathvm::BinaryOpNode* node)
 	if (TryDoArithmetics(node, left, right, expectedType)) return;
 }
 
+VarId NativeGenerator::GetVariableId( mathvm::AstNode* currentNode, std::string const& varName, bool* isClosure_out /*= NULL*/ )
+{
+	ScopeInfo * info = GetNodeInfo(currentNode).scopeInfo;
+	bool isClosure = false;
+	uint16_t id = 0;
+	while (info) {
+		if (info->TryFindVariableId(varName, id)) break;
+		if (info->IsFunction()) isClosure = true;
+		info = info->GetParent();
+	}
+
+	if (info == NULL) throw TranslationException("Undefined variable: " + varName);
+
+	VarId result;
+	result.id = id;
+	result.ownerFunction = info->GetFunctionId();
+
+	if (isClosure_out) *isClosure_out = isClosure;
+	return result;
+}
+
+void NativeGenerator::visitStoreNode( mathvm::StoreNode* node )
+{
+	AsmVarPtr old = myResultVar;
+	myResultVar = CreateAsmVar(node->var()->type());
+	
+	node->value()->visit(this);
+	bool isClosure = false;
+	VarId id = GetVariableId(node, node->var()->name(), &isClosure);
+	VarType expectedType = node->var()->type();
+
+	if (isClosure == false) {
+		switch (expectedType) {
+		case mathvm::VT_INT:
+		case mathvm::VT_STRING:
+			myCompiler->mov(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Integer);
+			break;
+		case mathvm::VT_DOUBLE:
+			myCompiler->movq(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Double);
+			break;
+		}
+	}
+}
+
+
+void NativeGenerator::visitLoadNode( mathvm::LoadNode* node )
+{
+	bool isClosure = false;
+	VarId id = GetVariableId(node, node->var()->name(), &isClosure);
+	switch(node->var()->type()) {
+	case mathvm::VT_INT:
+	case mathvm::VT_STRING:
+		myCompiler->mov(*myResultVar.Integer, dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)));
+		break;
+	case mathvm::VT_DOUBLE:
+		myCompiler->movq(*myResultVar.Double, dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)));
+		break;
+	}
+
+}
+
+
+void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
+{
+	NodeInfo const & nodeInfo = GetNodeInfo(node->body());
+	BytecodeFunction *bfun = new BytecodeFunction(nodeInfo.scopeInfo->GetAstFunction());
+	bfun->setLocalsNumber(nodeInfo.scopeInfo->GetTotalVariablesNum());
+	myCode.addFunction(bfun);
+
+	//ECall * ctx = myCompiler->call(imm((size_t)idiv));
+	//ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder2<int64_t,int64_t,int64_t>());
+	//ctx->setArgument(0, imm(5));
+	//ctx->setArgument(1, imm(6));
+	//ctx->setReturn(myLocalsPtr);
+
+	//ECall * call = myCompiler->call(imm((sysint_t) MyNativeCode::GetCurrentLocalsPtr));
+	//call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, int>() );
+	//call->setArgument(0, imm((sysint_t) &myCode));
+	//call->setReturn(myLocalsPtr);
+
+	node->visitChildren(this);
+	
+	//myCode.addFunction()
+}
+
 AsmVarPtr NativeGenerator::VisitWithTypeControl( mathvm::AstNode * node, mathvm::VarType expectedType )
 {
 	mathvm::VarType type = GetNodeType(node);
@@ -185,10 +324,6 @@ AsmVarPtr NativeGenerator::VisitWithTypeControl( mathvm::AstNode * node, mathvm:
 	return myResultVar;
 }
 
-int64_t idiv(int64_t a, int64_t b) {
-	return a / b;
-
-}
 
 bool NativeGenerator::TryDoArithmetics( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right, mathvm::VarType expectedType )
 {
@@ -247,4 +382,26 @@ bool NativeGenerator::TryDoArithmetics( mathvm::BinaryOpNode* node, AsmVarPtr le
 	}
 	return false;
 }
+
+void NativeGenerator::visitUnaryOpNode( mathvm::UnaryOpNode* node )
+{
+	node->operand()->visit(this);
+	VarType operandType = GetNodeType(node->operand());
+
+	switch (node->kind()) {
+	case tSUB: 
+		if (operandType == mathvm::VT_INT) myCompiler->neg(*myResultVar.Integer);
+		else {
+			GPVar itemp(myCompiler->newGP());
+			XMMVar dtemp(myCompiler->newXMM());
+			myCompiler->mov(itemp, imm(0));
+			myCompiler->movq(dtemp, *myResultVar.Double);
+			myCompiler->movq(*myResultVar.Double, itemp);
+			myCompiler->subsd(*myResultVar.Double, dtemp);
+		}
+	}
+}
+
+
+
 

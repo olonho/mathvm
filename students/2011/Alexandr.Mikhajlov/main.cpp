@@ -12,6 +12,8 @@
 using namespace std;
 using namespace mathvm;
 
+bool silentMode = false;
+
 ICodeGenerator* CreateGenerator(std::string const & name) {
 	if (name.compare("native") == 0) return new NativeGenerator;
 	return new ByteCodeGenerator;
@@ -22,6 +24,10 @@ int main(int argc, char** argv)
 	if (argc < 2) {
 		std::cerr << "Specify file to process\n";
 		return 1;
+	}
+
+	if (argc == 4 && strcmp(argv[3], "silent") == 0) {
+		silentMode = true;
 	}
 
 	char* code = mathvm::loadFile(argv[1]);
@@ -69,6 +75,6 @@ int main(int argc, char** argv)
 	}
 
 	delete parser;
-	system("pause");
+	if (!silentMode)system("pause");
 	return 0;
 }
