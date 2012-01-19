@@ -10,7 +10,16 @@
 
 #include <vector>
 #include <map>
-#include "StackVar.h"
+#include "mathvm.h"
+
+struct VarWithAddr: mathvm::Var {
+	uint16_t addr;
+
+	VarWithAddr(mathvm::Var const& var) :
+		Var(var), addr(0) {
+	}
+	;
+};
 
 class PSVarTable {
 public:
@@ -20,14 +29,28 @@ public:
 	void openPage();
 	void closePage();
 
-	void addVar(std::string const& name);
-	uint16_t getVarAddr(std::string name);
-
 	void dump() const;
 
+protected:
+	std::vector<std::vector<VarWithAddr> > m_pages_;
+};
+
+class PSVarTableTranslate: public PSVarTable {
+public:
+
+	PSVarTableTranslate() :
+	m_var_addr(0) {}
+	void addVar(mathvm::Var var);
+	uint16_t getVarAddr(std::string name);
 private:
-	std::vector<std::map<std::string, uint16_t> > m_pages;
 	uint16_t m_var_addr;
+};
+
+class VarTableExecute : public PSVarTable {
+public:
+	void allocVar(mathvm::Var var, uint16_t addr);
+	void setVar(mathvm::Var var, uint16_t addr);
+	VarWithAddr getVar(uint16_t addr);
 };
 
 #endif /* PSVARTABLE_H_ */

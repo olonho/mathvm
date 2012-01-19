@@ -30,14 +30,16 @@ Status* PSTranslator::translate(const std::string& program, Code* *code) {
 	mathvm::Parser parser;
 	mathvm::Status* status = parser.parseProgram(program.c_str());
 	if (status == NULL) {
-		VisitorSourcePrinter printer(std::cout);
-		std::cout << "--------------Printing--------------" << std::endl;
+		VisitorSourcePrinter printer(std::cerr);
+		std::cerr << "--------------Printing--------------" << std::endl;
 		parser.top()->node()->visit(&printer);
-		std::cout << "--------------Translating--------------" << std::endl;
+		std::cerr << "--------------Translating--------------" << std::endl;
+
+		*code = new PSCode();
+		m_code = *code;
 		try {
 			parser.top()->node()->visit(this);
-
-			//m_bytecode.dump(std::cout);
+			m_bytecode.dump(std::cerr);
 			//			ExecStack stack;
 			//			//stack.pushDouble(12);
 			//			stack.pushInt(123);
@@ -46,50 +48,125 @@ Status* PSTranslator::translate(const std::string& program, Code* *code) {
 			//			// stack.popDouble();
 			//			std::cout << i << " " << d << std::endl;
 		} catch (MVException const& e) {
-			std::cerr << "EXCEPTION: " << e.what() << std::endl;
+			//std::cerr << "EXCEPTION: " << e.what() << std::endl;
+			return new Status(e.what(), e.getPosition());
 		}
-		*code = new PSCode();
+
 		(*((PSCode**) code))->setByteCode(m_bytecode);
 		return new Status;
 	} else {
-		if (status->isError()) {
-			uint32_t position = status->getPosition();
-			uint32_t line = 0, offset = 0;
-			mathvm::positionToLineOffset(program.c_str(), position, line,
-					offset);
-			printf("Cannot translate expression: expression at %d,%d; "
-				"error '%s'\n", line, offset, status->getError().c_str());
-		}
 		return status;
 	}
 }
 
 void PSTranslator::visitIfNode(mathvm::IfNode *node) {
+	Label label_then(&m_bytecode);
+	Label label_else(&m_bytecode);
+	Label label_end(&m_bytecode);
+	node->ifExpr()->visit(this);
+
+	if (m_last_result != VT_INT) {
+		throw MVException("logical statement is not int", node->position());
+	}
+	m_bytecode.addInsn(BC_ILOAD0);
+	m_bytecode.addBranch(BC_IFICMPNE, label_then);
+	if (node->elseBlock()) {
+		node->elseBlock()->visitChildren(this);
+		m_bytecode.addBranch(BC_JA, label_end);
+	} else {
+		m_bytecode.addBranch(BC_JA, label_end);
+	}
+	m_bytecode.bind(label_then);
+	node->thenBlock()->visitChildren(this);
+	m_bytecode.bind(label_end);
 }
 
 void PSTranslator::visitPrintNode(mathvm::PrintNode *node) {
 	for (unsigned int i = 0; i < node->operands(); ++i) {
 		node->operandAt(i)->visit(this);
 		switch (m_last_result) {
-		case RT_int:
+		case VT_INT:
 			m_bytecode.addInsn(BC_IPRINT);
 			break;
-		case RT_double:
+		case VT_DOUBLE:
 			m_bytecode.addInsn(BC_DPRINT);
 			break;
-		case RT_string:
+		case VT_STRING:
 			m_bytecode.addInsn(BC_SPRINT);
+			break;
+		default:
+			throw MVException("Invalid variable type", node->position());
 		}
 	}
 }
 
 void PSTranslator::visitLoadNode(mathvm::LoadNode *node) {
+	switch (node->var()->type()) {
+	case VT_INT:
+		m_bytecode.addInsn(BC_LOADIVAR);
+		m_last_result = VT_INT;
+		break;
+	case VT_DOUBLE:
+		m_bytecode.addInsn(BC_LOADDVAR);
+		m_last_result = VT_DOUBLE;
+		break;
+	case VT_STRING:
+		m_bytecode.addInsn(BC_LOADSVAR);
+		m_last_result = VT_STRING;
+		break;
+	default:
+		throw MVException("Invalid variable type", node->position());
+	}
+
+	m_bytecode.addInt16(m_var_table.getVarAddr(node->var()->name()));
 }
 
 void PSTranslator::visitForNode(mathvm::ForNode *node) {
 }
 
 void PSTranslator::visitUnaryOpNode(mathvm::UnaryOpNode *node) {
+	node->visitChildren(this);
+
+	switch (node->kind()) {
+	/*
+	 case tNOT: {
+	 switch (m_last_result) {
+	 case RT_int: {
+
+	 break;
+	 }
+	 case RT_double: {
+
+	 break;
+	 }
+	 case RT_string: {
+	 throw MVException("No operations with strings!");
+	 }
+	 }
+	 }
+	 break;*/
+	case tSUB: {
+		switch (m_last_result) {
+		case VT_INT: {
+			m_bytecode.addInsn(BC_INEG);
+			break;
+		}
+		case VT_DOUBLE: {
+			m_bytecode.addInsn(BC_DNEG);
+			break;
+		}
+		case VT_STRING: {
+			throw MVException("No operations with strings!", node->position());
+			default:
+			throw MVException("Invalid variable type", node->position());
+		}
+		}
+	}
+		break;
+	default: {
+		throw MVException("Invalid unary operation", node->position());
+	}
+	}
 }
 
 void PSTranslator::visitFunctionNode(mathvm::FunctionNode *node) {
@@ -101,14 +178,75 @@ void PSTranslator::visitWhileNode(mathvm::WhileNode *node) {
 }
 
 void PSTranslator::visitBinaryOpNode(mathvm::BinaryOpNode *node) {
+	node->right()->visit(this);
+	//VarType right_var_type = m_last_result;
+	node->left()->visit(this);
+	//VarType left_var_type = m_last_result;
+
+	switch (node->kind()) {
+	case tADD:
+		if (m_last_result == VT_INT){
+			m_bytecode.addInsn(BC_IADD);
+		}else{
+			m_bytecode.addInsn(BC_DADD);
+		}
+		break;
+	case tSUB:
+		if (m_last_result == VT_INT){
+			m_bytecode.addInsn(BC_ISUB);
+		}else{
+			m_bytecode.addInsn(BC_DSUB);
+		}
+		break;
+	case tMUL:
+		if (m_last_result == VT_INT){
+			m_bytecode.addInsn(BC_IMUL);
+		}else{
+			m_bytecode.addInsn(BC_DMUL);
+		}
+		break;
+	case tDIV:
+		if (m_last_result == VT_INT){
+			m_bytecode.addInsn(BC_IDIV);
+		}else{
+			m_bytecode.addInsn(BC_DDIV);
+		}
+		break;
+	case tMOD:
+			m_bytecode.addInsn(BC_IMOD);
+		break;
+
+	default:
+		return;
+	}
 }
 
 void PSTranslator::visitBlockNode(mathvm::BlockNode *node) {
 	m_var_table.openPage();
 	mathvm::Scope::VarIterator it(node->scope());
 	while (it.hasNext()) {
-		mathvm::AstVar *var = it.next();
-		m_var_table.addVar(var->name());
+		mathvm::AstVar *var_it = it.next();
+		m_var_table.addVar(Var(var_it->type(), var_it->name()));
+
+		switch (var_it->type()) {
+		case VT_INT:
+			m_bytecode.addInsn(BC_STORECTXIVAR);
+			m_bytecode.addInt16(m_var_table.getVarAddr(var_it->name()));
+			m_bytecode.addInt16(0);
+			break;
+		case VT_DOUBLE:
+			m_bytecode.addInsn(BC_STORECTXDVAR);
+			m_bytecode.addInt16(m_var_table.getVarAddr(var_it->name()));
+			m_bytecode.addInt16(0);
+			break;
+		case VT_STRING:
+			m_bytecode.addInsn(BC_STORECTXSVAR);
+			m_bytecode.addInt16(m_var_table.getVarAddr(var_it->name()));
+			m_bytecode.addInt16(0);
+			break;
+		default:
+			throw MVException("Invalid variable type", node->position());
+		}
 	}
 
 	mathvm::Scope::FunctionIterator f_it(node->scope());
@@ -124,26 +262,39 @@ void PSTranslator::visitBlockNode(mathvm::BlockNode *node) {
 void PSTranslator::visitIntLiteralNode(mathvm::IntLiteralNode *node) {
 	m_bytecode.addInsn(BC_ILOAD);
 	m_bytecode.addInt64(node->literal());
-	m_last_result = RT_int;
+	m_last_result = VT_INT;
 }
 
 void PSTranslator::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
 	m_bytecode.addInsn(BC_SLOAD);
-	m_bytecode.addInt16(node->literal().size());
-	std::string::const_iterator it = node->literal().begin();
-	for (; it != node->literal().end(); ++it) {
-		m_bytecode.addByte(*it);
-	}
-	m_last_result = RT_string;
+	m_bytecode.addInt16(m_code->makeStringConstant(node->literal()));
+	m_last_result = VT_STRING;
 }
 
 void PSTranslator::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
 	m_bytecode.addInsn(BC_DLOAD);
 	m_bytecode.addDouble(node->literal());
-	m_last_result = RT_double;
+	m_last_result = VT_DOUBLE;
 }
 
 void PSTranslator::visitStoreNode(mathvm::StoreNode *node) {
+	node->value()->visit(this);
+	uint16_t addr = m_var_table.getVarAddr(node->var()->name());
+	switch (node->var()->type()) {
+	case VT_INT:
+		m_bytecode.addInsn(BC_STOREIVAR);
+		break;
+	case VT_DOUBLE:
+		m_bytecode.addInsn(BC_STOREDVAR);
+		break;
+	case VT_STRING:
+		m_bytecode.addInsn(BC_STORESVAR);
+		break;
+	default:
+		throw MVException("Invalid result type", node->position());
+	}
+
+	m_bytecode.addInt16(addr);
 }
 
 void PSTranslator::visitCallNode(mathvm::CallNode *node) {

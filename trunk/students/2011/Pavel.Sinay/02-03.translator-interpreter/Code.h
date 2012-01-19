@@ -10,6 +10,7 @@
 
 #include "mathvm.h"
 #include "ExecStack.h"
+#include "PSVarTable.h"
 
 class PSCode: public mathvm::Code {
 public:
@@ -21,6 +22,7 @@ public:
 private:
 	mathvm::Bytecode m_bytecode;
 	ExecStack m_stack;
+	VarTableExecute m_var_table;
 };
 
 #endif /* CODE_H_ */

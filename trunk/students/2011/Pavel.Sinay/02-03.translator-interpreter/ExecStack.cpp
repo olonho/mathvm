@@ -9,6 +9,8 @@
 #include "MVException.h"
 #include <iostream>
 
+using namespace mathvm;
+
 ExecStack::ExecStack() {
 	// TODO Auto-generated constructor stub
 
@@ -19,63 +21,43 @@ ExecStack::~ExecStack() {
 }
 
 void ExecStack::pushInt(uint64_t i) {
-	StackVarInt *si = new StackVarInt(i);
-	push(si);
+	Var var(VT_INT, "");
+	var.setIntValue(i);
+	m_stack.push_back(var);
 }
 
 void ExecStack::pushDouble(double d) {
-	StackVarDouble *sd = new StackVarDouble(d);
-	push(sd);
+	Var var(VT_DOUBLE, "");
+	var.setDoubleValue(d);
+	m_stack.push_back(var);
 }
 
 void ExecStack::pushString(std::string s) {
-	StackVarString *ss = new StackVarString(s);
-	push(ss);
+	Var var(VT_STRING, "");
+	var.setStringValue(s.c_str());
+	m_stack.push_back(var);
 }
 
-uint64_t ExecStack::popInt() {
-	StackVarInt *si = static_cast<StackVarInt*>(pop());
-	int i = si->i;
-	delete si;
-	if (si->id != StackVarInt::etalon_id){
-		throw(MVException("Stack variable is not int"));
-	}
-	return i;
+long int ExecStack::popInt() {
+	Var var = pop();
+	return var.getIntValue();
 }
 
 double ExecStack::popDouble() {
-	StackVarDouble *sd = static_cast<StackVarDouble*>(pop());
-	double d = sd->d;
-	delete sd;
-	if (sd->id != StackVarDouble::etalon_id){
-		throw(MVException("Stack variable is not double"));
-	}
-	return d;
+	Var var = pop();
+	return var.getDoubleValue();
 }
 
 std::string ExecStack::popString() {
-	StackVarString *ss = static_cast<StackVarString*>(pop());
-	std::string s = ss->s;
-	delete ss;
-	if (ss->id != StackVarString::etalon_id){
-		throw(MVException("Stack variable is not string"));
-	}
-	return s;
+	Var var = pop();
+	return var.getStringValue();
 }
 
-StackVar *ExecStack::pop() {
-	if (m_head == NULL){
-		throw MVException("Bottom of stack");
+Var ExecStack::pop() {
+	if (m_stack.size() == 0) {
+		throw(MVException("Stack is empty"));
 	}
-	StackVar *var = m_head;
-	m_head = m_head->pred;
-	if (m_head == NULL){
-		//throw MVException("Bottom of stack");
-	}
+	Var var = m_stack.back();
+	m_stack.pop_back();
 	return var;
-}
-
-void ExecStack::push(StackVar *var) {
-		var->pred = m_head;
-		m_head = var;
 }
