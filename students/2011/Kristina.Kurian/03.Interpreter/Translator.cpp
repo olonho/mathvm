@@ -172,6 +172,9 @@ public:
 // TODO
 void Translator::visitNativeCallNode( mathvm::NativeCallNode* node ) {
 ///
+    code->addInsn(mathvm::BC_CALLNATIVE);
+     uint16_t nativeFunctionId = prog->makeNativeFunction(node->nativeName(), node->nativeSignature(), 0);
+     code->addUInt16(nativeFunctionId);	
 }
 
 void Translator::checkTypeInt(mathvm::AstNode* expr) {
@@ -310,12 +313,10 @@ void Translator::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
             default: assert(false); break;
         } 
     } else if (node->kind() == mathvm::tNOT) {
-            if (currentType != mathvm::VT_INT) {
-                typeMismatch("int", node->operand(), currentType);
-            }
+	    assert(currentType == mathvm::VT_INT);	
             code->add(mathvm::BC_ILOAD0);
             triple(mathvm::BC_IFICMPE);
-    } else throwError(node, "Internal error");
+    } else assert(false);
 }
 
 void Translator::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
@@ -363,7 +364,21 @@ void Translator::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
 }
 
 void Translator::visitLoadNode(mathvm::LoadNode* node) {
-    putVar(mathvm::BC_LOADIVAR, node->var(), node);
+    putVar(mathvm::BC_LOADIVAR, node->var(), node);/*
+    switch (node->var()->type()) {
+        case mathvm::VT_DOUBLE: 
+		putVar(mathvm::BC_LOADDVAR, node->var(), node); 
+		break;
+        case mathvm::VT_INT: 
+		putVar(mathvm::BC_LOADIVAR, node->var(), node); 
+		break;
+        case mathvm::VT_STRING: 
+		putVar(mathvm::BC_LOADSVAR, node->var(), node); 
+		break;
+        default: 
+		assert(false);
+		break;
+    }	*/
     currentType = node->var()->type();
 }
 
@@ -505,7 +520,7 @@ void Translator::visitBlockNode(mathvm::BlockNode* node) {
 }
 
 void Translator::visitFunctionNode(mathvm::FunctionNode* node) { 
-	throwError(node, "Error: internal error");
+	assert(false);
 }
 
 void Translator::visitPrintNode(mathvm::PrintNode* node) {
