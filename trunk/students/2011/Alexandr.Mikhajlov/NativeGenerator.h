@@ -42,10 +42,7 @@ struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
   virtual void visitIntLiteralNode(mathvm::IntLiteralNode* node);
   virtual void visitLoadNode(mathvm::LoadNode* node);
   virtual void visitStoreNode(mathvm::StoreNode* node);
-
-	void SetVariable( mathvm::VarType expectedType, VarId &id );
-
-	virtual void visitForNode(mathvm::ForNode* node){}
+	virtual void visitForNode(mathvm::ForNode* node);
   virtual void visitWhileNode(mathvm::WhileNode* node);
   virtual void visitIfNode(mathvm::IfNode* node);
   virtual void visitBlockNode(mathvm::BlockNode* node);
@@ -54,7 +51,9 @@ struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
   virtual void visitReturnNode(mathvm::ReturnNode* node){}
   virtual void visitCallNode(mathvm::CallNode* node){}
   void Compile( mathvm::AstFunction * rootNode);
-  virtual mathvm::Code* GetCode()
+	void SetVariable( mathvm::VarType expectedType, VarId &id );
+  
+	virtual mathvm::Code* GetCode()
 	{
 		return NULL;
 	}
@@ -71,7 +70,7 @@ private:
 	AsmVarPtr CreateAsmVar(mathvm::VarType type);
 	AsmVarPtr VisitWithTypeControl( mathvm::AstNode * node, mathvm::VarType expectedType );
 	bool TryDoArithmetics(mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right, mathvm::VarType expectedType );
-	VarId GetVariableId( mathvm::AstNode* currentNode, std::string const& varName, bool* isClosure_out /*= NULL*/ );
+	VarId GetVariableId( mathvm::AstNode* currentNode, std::string const& varName, bool* isClosure_out = NULL );
 	void TryDoIntegerLogic( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right );
 	void IncrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
 	void DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
