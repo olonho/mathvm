@@ -11,6 +11,7 @@
 #include "ast.h"
 #include "Code.h"
 #include "PSVarTable.h"
+#include "PSFuncTable.h"
 
 class PSTranslator : public mathvm::AstVisitor {
 public:
@@ -38,11 +39,12 @@ private:
 	mathvm::Code *m_code;
 	mathvm::Bytecode m_bytecode;
 	PSVarTableTranslate m_var_table;
+	PSFuncTable m_func_table;
 	mathvm::VarType m_last_result;
 
 	void castIntToDouble();
 	void castDoubleToInt();
-
+	void allocVar(mathvm::Var &var);
 };
 
 #endif /* TRANSLATOR__H_ */
