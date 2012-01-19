@@ -252,18 +252,11 @@ void NativeGenerator::visitStoreNode( mathvm::StoreNode* node )
 	VarType expectedType = node->var()->type();
 
 	if (isClosure == false) {
-		switch (expectedType) {
-		case mathvm::VT_INT:
-		case mathvm::VT_STRING:
-			myCompiler->mov(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Integer);
-			break;
-		case mathvm::VT_DOUBLE:
-			myCompiler->movq(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Double);
-			break;
-		}
+		if (node->op() == tASSIGN) SetVariable(expectedType, id);
+		else if (node->op() == tINCRSET) IncrSetVariable(myLocalsPtr, expectedType, id.id);
+		else if (node->op() == tDECRSET) DecrSetVariable(myLocalsPtr, expectedType, id.id);
 	}
 }
-
 
 void NativeGenerator::visitLoadNode( mathvm::LoadNode* node )
 {
@@ -479,6 +472,68 @@ void NativeGenerator::TryDoIntegerLogic( mathvm::BinaryOpNode* node, AsmVarPtr l
 	myCompiler->bind(lEnd);
 }
 
+void NativeGenerator::visitWhileNode( mathvm::WhileNode* node )
+{
+	AsmJit::Label lEnd = myCompiler->newLabel();
+	AsmJit::Label lCheck = myCompiler->newLabel();
+
+	myCompiler->bind(lCheck);
+	node->whileExpr()->visit(this);
+	myCompiler->cmp(*myResultVar.Integer, imm(0));
+	myCompiler->je(lEnd);
+
+	node->loopBlock()->visit(this);
+	myCompiler->jmp(lCheck);
+
+	myCompiler->bind(lEnd);
+}
+
+void NativeGenerator::SetVariable( mathvm::VarType expectedType, VarId &id )
+{
+	switch (expectedType) {
+	case mathvm::VT_INT:
+	case mathvm::VT_STRING:
+		myCompiler->mov(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Integer);
+		break;
+	case mathvm::VT_DOUBLE:
+		myCompiler->movq(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Double);
+		break;
+	}
+}
+
+void NativeGenerator::IncrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId )
+{
+	auto ptr = dword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
+
+	switch (type) {
+	case mathvm::VT_INT:
+		myCompiler->add(ptr, *myResultVar.Integer);
+		break;
+	case mathvm::VT_DOUBLE:
+		XMMVar temp(myCompiler->newXMM());
+		myCompiler->movq(temp, ptr);
+		myCompiler->addsd(temp, *myResultVar.Double);
+		myCompiler->movq(*myResultVar.Double, temp);
+		break;
+	}
+}
+
+void NativeGenerator::DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId )
+{
+	auto ptr = dword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
+
+	switch (type) {
+	case mathvm::VT_INT:
+		myCompiler->sub(ptr, *myResultVar.Integer);
+		break;
+	case mathvm::VT_DOUBLE:
+		XMMVar temp(myCompiler->newXMM());
+		myCompiler->movq(temp, ptr);
+		myCompiler->subsd(temp, *myResultVar.Double);
+		myCompiler->movq(*myResultVar.Double, temp);
+		break;
+	}
+}
 
 
 
