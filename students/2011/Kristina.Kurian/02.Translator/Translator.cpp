@@ -7,28 +7,7 @@
 
 #include "Translator.h"
 #include "AstShowVisitor.h"
-
-void throwError(mathvm::AstNode* node, const char* format, ...) {
-    char *buf;
-    va_list args;
-    va_start(args, format);
-    vasprintf(&buf, format, args);
-    mathvm::Status s(buf, node->position());
-    free(buf);
-    throw s;
-}
-
-std::string showExpr(mathvm::AstNode* node) {
-    std::stringstream str;
-    AstShowVisitor v(str);
-    v.show(node);
-    return str.str();
-}
-
-void typeMismatch(const char* e, mathvm::AstNode* expr, mathvm::VarType a) {
-    throwError(expr, "Expected expression of type %s, but %s has type %s",
-        e, showExpr(expr).c_str(), typeToName(a));
-}
+#include "Exception.cpp"
 
 void Translator::checkTypeInt(mathvm::AstNode* expr) {
     expr->visit(this);
@@ -42,6 +21,9 @@ Translator::Translator(mathvm::Code* p): prog(p), currentVar(0),
 // TODO
 void Translator::visitNativeCallNode( mathvm::NativeCallNode* node ) {
 ///
+     code->addInsn(mathvm::BC_CALLNATIVE);
+     uint16_t nativeFunctionId = prog->makeNativeFunction(node->nativeName(), node->nativeSignature(), 0);
+     code->addUInt16(nativeFunctionId);
 }
 
 void Translator::put(const void* buf_, unsigned int size) {
@@ -169,17 +151,16 @@ void Translator::visitUnaryOpNode(mathvm::UnaryOpNode* node) {
             default: assert(false); break;
         } 
     } else if (node->kind() == mathvm::tNOT) {
-            if (currentType != mathvm::VT_INT) {
-                typeMismatch("int", node->operand(), currentType);
-            }
+	    assert(currentType == mathvm::VT_INT);	
             code->add(mathvm::BC_ILOAD0);
             triple(mathvm::BC_IFICMPE);
-    } else throwError(node, "Internal error");
+    } else assert(false);
 }
 
 void Translator::visitStringLiteralNode(mathvm::StringLiteralNode* node) {
     code->add(mathvm::BC_SLOAD);
-    code->addInt16(prog->makeStringConstant(node->literal()));
+    uint16_t strConstantId = prog->makeStringConstant(node->literal());
+    code->addInt16(strConstantId);
     currentType = mathvm::VT_STRING;
 }
 
@@ -210,6 +191,7 @@ void Translator::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node) {
     currentType = mathvm::VT_DOUBLE;
 }
 
+
 void Translator::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
     int64_t l = node->literal();
     switch (l) {
@@ -223,10 +205,18 @@ void Translator::visitIntLiteralNode(mathvm::IntLiteralNode* node) {
 
 void Translator::visitLoadNode(mathvm::LoadNode* node) {
     switch (node->var()->type()) {
-        case mathvm::VT_DOUBLE: putVar(mathvm::BC_LOADDVAR, node); break;
-        case mathvm::VT_INT: putVar(mathvm::BC_LOADIVAR, node); break;
-        case mathvm::VT_STRING: putVar(mathvm::BC_LOADSVAR, node); break;
-        default: throwError(node, "Internal error");
+        case mathvm::VT_DOUBLE: 
+		putVar(mathvm::BC_LOADDVAR, node); 
+		break;
+        case mathvm::VT_INT: 
+		putVar(mathvm::BC_LOADIVAR, node); 
+		break;
+        case mathvm::VT_STRING: 
+		putVar(mathvm::BC_LOADSVAR, node); 
+		break;
+        default: 
+		assert(false);
+		break;
     }
     currentType = node->var()->type();
 }
@@ -256,13 +246,12 @@ void Translator::visitStoreNode(mathvm::StoreNode* node) {
     }
     currentType = mathvm::VT_INVALID;
 }
-
+	
 void Translator::visitForNode(mathvm::ForNode* node) {
     if (node->var()->type() != mathvm::VT_INT) {
         throwError(node, "Variable %s should have type int", node->var()->name().c_str());
     }
-    mathvm::BinaryOpNode* in =
-        dynamic_cast<mathvm::BinaryOpNode*>(node->inExpr());
+    mathvm::BinaryOpNode* in = node->inExpr()->asBinaryOpNode();	
     if (!in || in->kind() != mathvm::tRANGE) {
         node->inExpr()->visit(this);
         typeMismatch("range", node->inExpr(), currentType);
@@ -291,6 +280,7 @@ void Translator::visitWhileNode(mathvm::WhileNode* node) {
         dynamic_cast<mathvm::IntLiteralNode*>(node->whileExpr());
     if (in) {
         if (in->literal() == 0) {
+	    throwError(node, "Internal Error");	
             return;
         }
     } else {
@@ -307,19 +297,19 @@ void Translator::visitWhileNode(mathvm::WhileNode* node) {
 void Translator::visitIfNode(mathvm::IfNode* node) {
     checkTypeInt(node->ifExpr());
     code->add(mathvm::BC_ILOAD0);
-    mathvm::Label label(code);
-    code->addBranch(mathvm::BC_IFICMPE, label);
+    mathvm::Label lElse(code);
+    code->addBranch(mathvm::BC_IFICMPE, lElse);
     node->thenBlock()->visit(this);
     currentType = mathvm::VT_INVALID;
     if (node->elseBlock()) {
         mathvm::Label label1(code);
         code->addBranch(mathvm::BC_JA, label1);
-        code->bind(label);
+        code->bind(lElse);
         node->elseBlock()->visit(this);
         currentType = mathvm::VT_INVALID;
         code->bind(label1);
     } else {
-        code->bind(label);
+        code->bind(lElse);
     }
 }
 
@@ -411,11 +401,7 @@ void Translator::visitReturnNode(mathvm::ReturnNode* node) {
 	    assert(currentType == mathvm::VT_DOUBLE || resultType == mathvm::VT_INT);	
             code->add(mathvm::BC_I2D);            
         }
-    } else {
-        if (resultType != mathvm::VT_VOID) {
-            throwError(node, "Error: Returning no value from a non-void function");
-        }
-    }
+    } 
     currentType = mathvm::VT_INVALID;
     code->add(mathvm::BC_RETURN);
 }
