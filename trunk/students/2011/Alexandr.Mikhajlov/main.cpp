@@ -40,7 +40,7 @@ int main(int argc, char** argv)
 
 	if (status == NULL) 
 	{
-    ICodeGenerator * generator = CreateGenerator(argc == 3 ? argv[2] : "");
+    ICodeGenerator * generator = CreateGenerator(argc >= 3 ? argv[2] : "");
     try {
       generator->Compile(parser->top());    
       Code* code = generator->GetCode();

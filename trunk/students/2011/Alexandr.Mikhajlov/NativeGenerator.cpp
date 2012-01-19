@@ -15,7 +15,7 @@ using namespace std;
 extern bool silentMode;
 
 void PrintInt(int64_t value) {
-	printf("%d", value);
+	std::cout << value;
 }
 
 void PrintString(int64_t address) {
@@ -183,6 +183,7 @@ void NativeGenerator::visitStringLiteralNode(mathvm::StringLiteralNode* node)
 	uint16_t id = myCode.makeStringConstant(node->literal());
 	std::string const & s = myCode.constantById(id);
 	int64_t p = (int64_t)(void*)&s;
+	p = (int64_t)new std::string(node->literal());
 	myCompiler->mov(*myResultVar.Integer, p);
 }
 
@@ -400,6 +401,34 @@ void NativeGenerator::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 			myCompiler->subsd(*myResultVar.Double, dtemp);
 		}
 	}
+}
+
+void NativeGenerator::visitIfNode( mathvm::IfNode* node )
+{
+	AsmVarPtr old = myResultVar;
+	myResultVar = CreateAsmVar(mathvm::VT_INT);
+
+	AsmJit::Label lEnd = myCompiler->newLabel();
+
+	node->ifExpr()->visit(this);
+
+	if (node->elseBlock()) {
+		AsmJit::Label lFalse = myCompiler->newLabel();
+		myCompiler->cmp(*myResultVar.Integer, imm(0));
+		myCompiler->je(lFalse);
+		node->thenBlock()->visit(this);
+		myCompiler->ja(lEnd);
+		myCompiler->bind(lFalse);
+		node->elseBlock()->visit(this);
+	} 
+	else {
+		myCompiler->cmp(*myResultVar.Integer, imm(0));
+		myCompiler->je(lEnd);
+		node->thenBlock()->visit(this);
+	}
+
+	myCompiler->bind(lEnd);
+	myResultVar = old;
 }
 
 

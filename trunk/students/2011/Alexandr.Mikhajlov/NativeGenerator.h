@@ -44,7 +44,7 @@ struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
   virtual void visitStoreNode(mathvm::StoreNode* node);
   virtual void visitForNode(mathvm::ForNode* node){}
   virtual void visitWhileNode(mathvm::WhileNode* node){}
-  virtual void visitIfNode(mathvm::IfNode* node){}
+  virtual void visitIfNode(mathvm::IfNode* node);
   virtual void visitBlockNode(mathvm::BlockNode* node);
   virtual void visitFunctionNode(mathvm::FunctionNode* node);
   virtual void visitPrintNode(mathvm::PrintNode* node);
