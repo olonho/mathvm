@@ -40,6 +40,9 @@ private:
 	PSVarTableTranslate m_var_table;
 	mathvm::VarType m_last_result;
 
+	void castIntToDouble();
+	void castDoubleToInt();
+
 };
 
 #endif /* TRANSLATOR__H_ */
