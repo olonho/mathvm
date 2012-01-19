@@ -10,7 +10,7 @@
 
 #include <string>
 #include <stdint.h>
-#include "StackVar.h"
+#include "mathvm.h"
 
 class ExecStack {
 public:
@@ -21,7 +21,7 @@ public:
 	void pushDouble(double d);
 	void pushString(std::string s);
 
-	uint64_t popInt();
+	long int popInt();
 	double popDouble();
 	std::string popString();
 
@@ -30,10 +30,9 @@ public:
 	std::string getString();
 
 private:
-	StackVar *m_head;
+	std::vector<mathvm::Var> m_stack;
 
-	StackVar *pop();
-	void push(StackVar *var);
+	mathvm::Var pop();
 };
 
 #endif /* EXECSTACK_H_ */

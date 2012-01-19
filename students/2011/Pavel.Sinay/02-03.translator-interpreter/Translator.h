@@ -12,8 +12,6 @@
 #include "Code.h"
 #include "PSVarTable.h"
 
-enum TResultType  {RT_int, RT_double, RT_string};
-
 class PSTranslator : public mathvm::AstVisitor {
 public:
 	PSTranslator();
@@ -37,9 +35,10 @@ public:
 	virtual void visitReturnNode(mathvm::ReturnNode* node);
 
 private:
+	mathvm::Code *m_code;
 	mathvm::Bytecode m_bytecode;
-	PSVarTable m_var_table;
-	TResultType m_last_result;
+	PSVarTableTranslate m_var_table;
+	mathvm::VarType m_last_result;
 
 };
 

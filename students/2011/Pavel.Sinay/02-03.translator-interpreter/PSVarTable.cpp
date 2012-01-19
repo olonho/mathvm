@@ -9,8 +9,9 @@
 #include "PSVarTable.h"
 #include "MVException.h"
 
-PSVarTable::PSVarTable() :
-	m_var_addr(0) {
+using namespace mathvm;
+
+PSVarTable::PSVarTable() {
 	// TODO Auto-generated constructor stub
 
 }
@@ -20,42 +21,100 @@ PSVarTable::~PSVarTable() {
 }
 
 void PSVarTable::openPage() {
-	m_pages.resize(m_pages.size() + 1);
+	m_pages_.resize(m_pages_.size() + 1);
 }
 
 void PSVarTable::closePage() {
-	m_pages.pop_back();
+	m_pages_.pop_back();
 }
 
-void PSVarTable::addVar(std::string const& name) {
-	if (m_pages.back().find(name) != m_pages.back().end()){
-		throw MVException("Variable '" + name + "' already declared");
+void PSVarTable::dump() const {
+	std::cerr << "--------------Variable table dump--------------" << std::endl;
+	std::vector<std::vector<VarWithAddr> >::const_iterator it_page =
+			m_pages_.begin();
+	int page = 0;
+	for (; it_page != m_pages_.end(); ++it_page) {
+		std::cerr << "Page " << page++ << std::endl;
+		std::vector<VarWithAddr>::const_iterator it = it_page->begin();
+		for (; it != it_page->end(); ++it) {
+			std::cerr << "  " << it->name() << " " << it->addr << std::endl;
+		}
+		std::cerr << std::endl;
 	}
-	m_pages.back().insert(std::make_pair(name, m_var_addr++));
 }
 
-uint16_t PSVarTable::getVarAddr(std::string name) {
-	std::vector<std::map<std::string, uint16_t> >::const_reverse_iterator it = m_pages.rend();
-	for(; it != m_pages.rbegin(); --it){
-		if (it->find(name) != it->end()){
-			return it->find(name)->second;
+void PSVarTableTranslate::addVar(mathvm::Var var) {
+	std::vector<VarWithAddr>::iterator it = m_pages_.back().begin();
+	for (; it != m_pages_.back().end(); ++it) {
+		if (it->name() == var.name()) {
+			throw MVException("Variable '" + var.name() + "' already declared");
+		}
+	}
+
+	VarWithAddr var_a = var;
+	var_a.addr = m_var_addr++;
+	m_pages_.back().push_back(var_a);
+}
+
+uint16_t PSVarTableTranslate::getVarAddr(std::string name) {
+	std::vector<std::vector<VarWithAddr> >::const_reverse_iterator it_page =
+			m_pages_.rbegin();
+	for (; it_page != m_pages_.rend(); ++it_page) {
+		std::vector<VarWithAddr>::const_iterator it = it_page->begin();
+		for (; it != m_pages_.back().end(); ++it) {
+			if (it->name() == name) {
+				return it->addr;
+			}
 		}
 	}
 
 	throw MVException("Variable '" + name + "' is not declared");
 }
 
-void PSVarTable::dump() const{
-	std::cout << "--------------Variable table dump--------------" << std::endl;
-	std::vector<std::map<std::string, uint16_t> >::const_iterator it_pages = m_pages.begin();
+void VarTableExecute::allocVar(mathvm::Var var, uint16_t addr){
+	VarWithAddr var_a = var;
+	var_a.addr = addr;
+	m_pages_.back().push_back(var_a);
+}
 
-	int page = 0;
-	for(; it_pages != m_pages.end(); ++it_pages){
-		std::cout << "Page " << page++ << std::endl;
-		std::map<std::string, uint16_t>::const_iterator it_var = it_pages->begin();
-		for(; it_var != it_pages->end(); ++it_var){
-			std::cout << "  " << it_var->first << " " << it_var->second << std::endl;
+void VarTableExecute::setVar(Var var, uint16_t addr) {
+
+	std::vector<std::vector<VarWithAddr> >::reverse_iterator it_page =
+			m_pages_.rbegin();
+	for (; it_page != m_pages_.rend(); ++it_page) {
+		std::vector<VarWithAddr>::iterator it = it_page->begin();
+		for (; it != m_pages_.back().end(); ++it) {
+			if (it->addr == addr) {
+				switch (it->type()) {
+				case VT_INT:
+					it->setIntValue(var.getIntValue());
+					return;
+				case VT_DOUBLE:
+					it->setDoubleValue(var.getDoubleValue());
+					return;
+				case VT_STRING:
+					it->setStringValue(var.getStringValue());
+					return;
+				default:
+					throw MVException("Invalid variable type");
+				}
+			}
 		}
-		std::cout << std::endl;
 	}
+
+	throw MVException("Variable with address '" + intToStr(addr) + "' is not found");
+}
+
+VarWithAddr VarTableExecute::getVar(uint16_t addr) {
+	std::vector<std::vector<VarWithAddr> >::reverse_iterator it_page =
+			m_pages_.rbegin();
+	for (; it_page != m_pages_.rend(); ++it_page) {
+		std::vector<VarWithAddr>::iterator it = it_page->begin();
+		for (; it != m_pages_.back().end(); ++it) {
+			if (it->addr == addr) {
+				return *it;
+			}
+		}
+	}
+	throw MVException("Variable with address '" + intToStr(addr) + "' is not found");
 }
