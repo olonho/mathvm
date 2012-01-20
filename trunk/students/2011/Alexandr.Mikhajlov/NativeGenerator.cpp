@@ -3,10 +3,10 @@
 #include <string>
 #include <sstream>
 
-#include "asmjit\Build.h"
-#include "AsmJit/Assembler.h"
-#include "AsmJit/Compiler.h"
-#include "AsmJit/MemoryManager.h"
+#include "asmjit/Build.h"
+
+#include "asmjit/Compiler.h"
+#include "asmjit/MemoryManager.h"
 
 using namespace AsmJit;
 using namespace mathvm;
@@ -70,21 +70,20 @@ void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 	myResultVar.Integer = NULL;
 
 	myCompiler = new Compiler;
-  if (!silentMode)myCompiler->setLogger(&logger);
+  /*if (!silentMode)*/myCompiler->setLogger(&logger);
 
 	rootNode->node()->visit(this);
 
-	auto top = function_cast<void (*)()>(myFunctions[0]);
-
-	myLocalsPointer = new int64_t[DEFAULT_STACK_SIZE];
-	myLocalsPointerOrigin = myLocalsPointer;
-	memset(myLocalsPointer, 0, DEFAULT_STACK_SIZE * sizeof(int64_t));
-	myLocalsPointer[0] = -1;
-	myLocalsPointer[1] = sizeof(int64_t) * 2;
-	myLocalsPointer = &myLocalsPointer[2]; // It should point directly to vars block. Access size and id with negative offset
+	 myLocalsPointer = new int64_t[DEFAULT_STACK_SIZE];
+        myLocalsPointerOrigin = myLocalsPointer;
+        memset(myLocalsPointer, 0, DEFAULT_STACK_SIZE * sizeof(int64_t));
+        myLocalsPointer[0] = -1;
+        myLocalsPointer[1] = sizeof(int64_t) * 2;
+        myLocalsPointer = &myLocalsPointer[2]; // It should point directly to vars block. Access size and id with negative offse
 
 
-	top();
+
+	function_cast<void (*)()>(myFunctions[0])();
 
 	//myCompiler = new Compiler;
 	//if (!silentMode)myCompiler->setLogger(&logger);
@@ -113,10 +112,12 @@ uint32_t ToAsmJitType(mathvm::VarType type) {
 	switch (type) {
 	case mathvm::VT_INT:
 	case mathvm::VT_STRING:
-		return AsmJit::VARIABLE_TYPE::VARIABLE_TYPE_INT64;
+		return VARIABLE_TYPE_INT64;
 	case mathvm::VT_DOUBLE:
-		return AsmJit::VARIABLE_TYPE::VARIABLE_TYPE_DOUBLE;
+		return VARIABLE_TYPE_DOUBLE;
+	default: return 0;
 	}
+	return 0;
 }
 
 void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
@@ -136,14 +137,14 @@ void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
 
 	Compiler * old = myCompiler;
 	myCompiler = new Compiler;
-	if (!silentMode)myCompiler->setLogger(&logger);
+	/*if (!silentMode)*/myCompiler->setLogger(&logger);
 
 	uint32_t argsTypes[256] = {0};
-	for (int i = 0; i < astFunction->parametersNumber(); ++i) {
+	for (uint16_t i = 0; i < astFunction->parametersNumber(); ++i) {
 		argsTypes[i] = ToAsmJitType(astFunction->parameterType(i));
 	}
 
-	EFunction* fun = myCompiler->newFunction_(CALL_CONV_DEFAULT, argsTypes, astFunction->parametersNumber(), ToAsmJitType(astFunction->returnType()));
+	myCompiler->newFunction_(CALL_CONV_DEFAULT, argsTypes, astFunction->parametersNumber(), ToAsmJitType(astFunction->returnType()));
 	myCompiler->getFunction()->setHint(FUNCTION_HINT_NAKED, true);
 	myCompiler->comment("Function: %s", astFunction->name().c_str());
 
@@ -178,7 +179,7 @@ void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
 	//call->setArgument(0, myLocalsPtr);
 
 	// Loading parameters:
-	for (int i = 0; i < nodeInfo.scopeInfo->GetAstFunction()->parametersNumber(); ++i) {
+	for (uint16_t i = 0; i < nodeInfo.scopeInfo->GetAstFunction()->parametersNumber(); ++i) {
 		if (astFunction->parameterType(i) == VT_DOUBLE) 
 			myCompiler->movq(qword_ptr(myLocalsPtr, i * sizeof(int64_t)), myCompiler->argXMM(i));
 		else 
@@ -216,7 +217,7 @@ void NativeGenerator::visitCallNode( mathvm::CallNode* node )
 	ECall* ctx = myCompiler->call(myFunctions[id]);
 
 	uint32_t argsTypes[256] = {0};
-	for (int i = 0; i < node->parametersNumber(); ++i) {
+	for (uint16_t i = 0; i < node->parametersNumber(); ++i) {
 		argsTypes[i] = ToAsmJitType(GetNodeType(node->parameterAt(i)));
 	}
 
@@ -224,7 +225,7 @@ void NativeGenerator::visitCallNode( mathvm::CallNode* node )
 
 	AsmVarPtr old = myResultVar;
 
-	for (int i = 0; i < node->parametersNumber(); ++i) {
+	for (uint16_t i = 0; i < node->parametersNumber(); ++i) {
 		VarType type = GetNodeType(node->parameterAt(i));
 		myResultVar = CreateAsmVar(type);
 		node->parameterAt(i)->visit(this);
@@ -250,22 +251,23 @@ void NativeGenerator::visitPrintNode(mathvm::PrintNode* node)
 
 		switch (GetNodeType(op)) {
 		case mathvm::VT_INT: 
-			ctx = myCompiler->call(PrintInt);
+			ctx = myCompiler->call((sysint_t)PrintInt);
 			ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, int64_t>());
 			ctx->setArgument(0, *myResultVar.Integer);
 			break;
 
 		case mathvm::VT_STRING: 
-			ctx = myCompiler->call(PrintString);
+			ctx = myCompiler->call((sysint_t)PrintString);
 			ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, int64_t>());
 			ctx->setArgument(0, *myResultVar.Integer);
 			break;
 
 		case mathvm::VT_DOUBLE: 
-			ctx = myCompiler->call(PrintDouble);
+			ctx = myCompiler->call((sysint_t)PrintDouble);
 			ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, double>());
 			ctx->setArgument(0, *myResultVar.Double);
 			break;
+		default: return;
 		}
   }
 
@@ -356,7 +358,7 @@ VarId NativeGenerator::GetVariableId( mathvm::AstNode* currentNode, std::string 
 
 void NativeGenerator::visitStoreNode( mathvm::StoreNode* node )
 {
-	AsmVarPtr old = myResultVar;
+	//AsmVarPtr old = myResultVar;
 	myResultVar = CreateAsmVar(node->var()->type());
 	
 	node->value()->visit(this);
@@ -383,6 +385,7 @@ void NativeGenerator::visitLoadNode( mathvm::LoadNode* node )
 	case mathvm::VT_DOUBLE:
 		myCompiler->movq(*myResultVar.Double, dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)));
 		break;
+	default: return;
 	}
 }
 
@@ -392,7 +395,7 @@ void NativeGenerator::visitLoadNode( mathvm::LoadNode* node )
 AsmVarPtr NativeGenerator::VisitWithTypeControl( mathvm::AstNode * node, mathvm::VarType expectedType )
 {
 	mathvm::VarType type = GetNodeType(node);
-	if (expectedType == VT_STRING || type == VT_STRING) throw new std::exception("Binary operations for strings not supported");
+	if (expectedType == VT_STRING || type == VT_STRING) return AsmVarPtr();//throw new std::exception("Binary operations for strings not supported");
 	
 	node->visit(this);
 
@@ -468,6 +471,7 @@ bool NativeGenerator::TryDoArithmetics( mathvm::BinaryOpNode* node, AsmVarPtr le
 			return true;
 		}
 		break;
+	default: return false;
 	}
 	return false;
 }
@@ -489,7 +493,7 @@ void NativeGenerator::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 			myCompiler->subsd(*myResultVar.Double, dtemp);
 		}
 		break;
-	case tNOT:
+	case tNOT: {
 		AsmJit::Label lTrue = myCompiler->newLabel();
 		AsmJit::Label lEnd  = myCompiler->newLabel();
 		myCompiler->cmp(*myResultVar.Integer, imm(0));
@@ -498,8 +502,8 @@ void NativeGenerator::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 		myCompiler->jmp(lEnd);
 		myCompiler->bind(lTrue);
 		myCompiler->mov(*myResultVar.Integer, imm(1));
-		myCompiler->bind(lEnd);
-
+		myCompiler->bind(lEnd);}
+	default: return;
 	}
 }
 
@@ -589,40 +593,43 @@ void NativeGenerator::SetVariable( mathvm::VarType expectedType, VarId &id )
 	case mathvm::VT_DOUBLE:
 		myCompiler->movq(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Double);
 		break;
+	default: return;
 	}
 }
 
 void NativeGenerator::IncrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId )
 {
-	auto ptr = dword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
+	Mem ptr = dword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
 
 	switch (type) {
 	case mathvm::VT_INT:
 		myCompiler->add(ptr, *myResultVar.Integer);
 		break;
-	case mathvm::VT_DOUBLE:
+	case mathvm::VT_DOUBLE:{
 		XMMVar temp(myCompiler->newXMM());
 		myCompiler->movq(temp, ptr);
 		myCompiler->addsd(temp, *myResultVar.Double);
-		myCompiler->movq(*myResultVar.Double, temp);
+		myCompiler->movq(*myResultVar.Double, temp);}
 		break;
+	default: return;
 	}
 }
 
 void NativeGenerator::DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId )
 {
-	auto ptr = dword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
+	Mem ptr = dword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
 
 	switch (type) {
 	case mathvm::VT_INT:
 		myCompiler->sub(ptr, *myResultVar.Integer);
 		break;
-	case mathvm::VT_DOUBLE:
+	case mathvm::VT_DOUBLE:{
 		XMMVar temp(myCompiler->newXMM());
 		myCompiler->movq(temp, ptr);
 		myCompiler->subsd(temp, *myResultVar.Double);
-		myCompiler->movq(*myResultVar.Double, temp);
+		myCompiler->movq(*myResultVar.Double, temp);}
 		break;
+	default: return;
 	}
 }
 
@@ -637,7 +644,7 @@ void NativeGenerator::visitForNode( mathvm::ForNode* node )
 	BinaryOpNode * range = node->inExpr()->asBinaryOpNode();
 	if (range == NULL || range->kind() != tRANGE) throw TranslationException("Range not specified in for statement");
 	uint16_t varId = GetVariableId(node, node->var()->name()).id;
-	auto ptr = qword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
+	Mem ptr = qword_ptr(myLocalsPtr, varId * sizeof(uint64_t));
 	
 	// init counter
 	range->left()->visit(this);

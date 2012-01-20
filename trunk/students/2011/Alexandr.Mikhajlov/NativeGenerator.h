@@ -4,7 +4,7 @@
 #include "ast.h"
 #include "GeneratorCommon.h"
 #include "FirstPassVisitor.h"
-#include "asmjit\Compiler.h"
+#include "asmjit/Compiler.h"
 #include <asmjit/AsmJit.h>
 #include <stack>
 #include "MyInterpreter.h"
