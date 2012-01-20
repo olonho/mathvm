@@ -1,0 +1,13 @@
+function int f(int x) {
+	//int r;
+	if(x <= 1){
+		return x;
+	}
+int r;
+		r = f(x-1);
+		return r + f(x-2);
+	
+}
+
+
+print(f(25), '\n');

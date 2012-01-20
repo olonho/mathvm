@@ -51,6 +51,8 @@ public:
 	void allocVar(mathvm::Var var, uint16_t addr);
 	void setVar(mathvm::Var var, uint16_t addr);
 	VarWithAddr getVar(uint16_t addr);
+private:
+	std::vector<mathvm::Var*> m_topmost_vars;
 };
 
 #endif /* PSVARTABLE_H_ */

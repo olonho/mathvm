@@ -168,7 +168,7 @@ void VisitorSourcePrinter::visitCallNode(mathvm::CallNode *node) {
 }
 
 void VisitorSourcePrinter::visitReturnNode(mathvm::ReturnNode* node) {
-	m_stream << "RETURN_NODE";
+	m_stream << "<RETURN_NODE>";
 	m_stream << "return ";
 	node->visitChildren(this);
 }

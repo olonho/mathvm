@@ -159,7 +159,7 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 			break;
 		}
 
-			/* *** control  handling *****/
+			/* ********** flow control ****************/
 		case BC_JA: {
 			position += (short) m_bytecode.getInt16(position);
 			break;
@@ -288,8 +288,15 @@ Status* PSCode::execute(std::vector<Var*>& vars) {
 
 			/* ********* functions **********/
 
+		case BC_CALLNATIVE:{
+			//m_var_table.openPage();
+			break;
+		}
+
 		case BC_CALL: {
 			m_var_table.openPage();
+			//m_var_table.dump();
+			//m_var_table.dump();
 			m_call_stack.push(position + 2);
 			position = m_bytecode.getInt16(position);
 			//std::cerr << ">>> call pos " << position << std::endl;

@@ -1,0 +1,13 @@
+int a;
+int b;
+
+function void func(int a) {
+	b = a;
+}
+
+a = 1;
+b = 2;
+
+func(4);
+
+print(b, '\n');

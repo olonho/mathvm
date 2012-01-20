@@ -1,0 +1,21 @@
+function int func(int a, int b, int c) {
+	function int func(int a){
+		return a + 1;
+	}
+
+	c = a + b;
+	print(c, '\n');
+	print(func(a), '\n');
+	return 0;
+}
+
+int a;
+int b;
+int c;
+a = 1;
+b = 2;
+c = 3;
+
+func(4,5,6);
+
+print(c, '\n');

@@ -57,11 +57,12 @@ void PSVarTableTranslate::addVar(mathvm::Var var) {
 }
 
 uint16_t PSVarTableTranslate::getVarAddr(std::string name) {
+	//dump();
 	std::vector<std::vector<VarWithAddr> >::const_reverse_iterator it_page =
 			m_pages_.rbegin();
 	for (; it_page != m_pages_.rend(); ++it_page) {
 		std::vector<VarWithAddr>::const_iterator it = it_page->begin();
-		for (; it != m_pages_.back().end(); ++it) {
+		for (; it != it_page->end(); ++it) {
 			if (it->name() == name) {
 				return it->addr;
 			}
@@ -83,8 +84,9 @@ void VarTableExecute::setVar(Var var, uint16_t addr) {
 			m_pages_.rbegin();
 	for (; it_page != m_pages_.rend(); ++it_page) {
 		std::vector<VarWithAddr>::iterator it = it_page->begin();
-		for (; it != m_pages_.back().end(); ++it) {
+		for (; it != it_page->end(); ++it) {
 			if (it->addr == addr) {
+
 				switch (it->type()) {
 				case VT_INT:
 					it->setIntValue(var.getIntValue());
@@ -96,7 +98,7 @@ void VarTableExecute::setVar(Var var, uint16_t addr) {
 					it->setStringValue(var.getStringValue());
 					return;
 				default:
-					throw MVException("Invalid variable type");
+					throw MVException("Invalid variable type ,addr = " + intToStr(addr));
 				}
 			}
 		}
@@ -110,7 +112,7 @@ VarWithAddr VarTableExecute::getVar(uint16_t addr) {
 			m_pages_.rbegin();
 	for (; it_page != m_pages_.rend(); ++it_page) {
 		std::vector<VarWithAddr>::iterator it = it_page->begin();
-		for (; it != m_pages_.back().end(); ++it) {
+		for (; it != it_page->end(); ++it) {
 			if (it->addr == addr) {
 				return *it;
 			}
@@ -118,3 +120,4 @@ VarWithAddr VarTableExecute::getVar(uint16_t addr) {
 	}
 	throw MVException("Variable with address '" + intToStr(addr) + "' is not found");
 }
+
