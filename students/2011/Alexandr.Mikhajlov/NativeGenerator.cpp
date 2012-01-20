@@ -12,7 +12,12 @@ using namespace AsmJit;
 using namespace mathvm;
 using namespace std;
 
+const int DEFAULT_STACK_SIZE = 1024;
+
 extern bool silentMode;
+
+FileLogger logger(stderr);
+
 
 void PrintInt(int64_t value) {
 	std::cout << value;
@@ -23,49 +28,6 @@ void PrintString(int64_t address) {
 	printf("%s", s->c_str());
 }
 
-
-StackFrame* MyNativeCode::AllocateFrame( uint16_t functionId )
-{
-	BytecodeFunction * fun = (BytecodeFunction*) this->functionById(functionId);
-	StackFrame * frame = AddFrame(fun->localsNumber(), functionId);
-	frame->prevFrame = myCurrentFrame;
-	if (myCurrentFrame) {
-		if (myCurrentFrame->functionId != functionId) frame->prevDifferentFrame = myCurrentFrame;
-		else frame->prevDifferentFrame = myCurrentFrame->prevDifferentFrame;
-	} 
-	assert(fun);
-	myCurrentFrame = frame;
-
-	return frame;
-}
-
-void MyNativeCode::Init()
-{
-	myFrameStackPoolIP = 0;
-	myCurrentFrame = NULL;
-
-	AllocateFrameStack(50*1024);
-	AllocateFrame(0);
-}
-
-void MyNativeCode::AllocateFrameStack( int stackSizeInKb )
-{
-	myFrameStackPoolSize = stackSizeInKb * 1024;
-	myFrameStackPool = new char[myFrameStackPoolSize];
-}
-
-StackFrame * MyNativeCode::AddFrame( uint16_t localsNumber, uint16_t functionId )
-{
-	StackFrame * result = new (&myFrameStackPool[myFrameStackPoolIP]) StackFrame(localsNumber, functionId);
-	myFrameStackPoolIP += result->size;
-	return result;
-}
-
-void* MyNativeCode::GetCurrentLocalsPtr( void* codeAddr )
-{
-	MyNativeCode * code = (MyNativeCode*)codeAddr;
-	return code->myCurrentFrame->vars;
-}
 
 void PrintDouble( double value )
 {
@@ -88,38 +50,121 @@ void PrintDouble( double value )
 
 int64_t idiv(int64_t a, int64_t b) {
 	return a / b;
-
 }
 
 
+void test() {
+	int k = 5;
+	int * p = &k;
+	*p = 10;
+
+}
+
 void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 {
+	//test();
+
 	myFirstPassVisitor.visit(rootNode);
 	myResultVar.Integer = NULL;
 
 	myCompiler = new Compiler;
-	
-	FileLogger logger(stderr);
   if (!silentMode)myCompiler->setLogger(&logger);
 
-	myCompiler->newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
-	myCompiler->getFunction()->setHint(FUNCTION_HINT_NAKED, true);
-
-	myLocalsPtr = GPVar(myCompiler->newGP());
-	myCompiler->mov(myLocalsPtr, imm((sysint_t)new int[256]));
-
 	rootNode->node()->visit(this);
+
+	auto top = function_cast<void (*)()>(myFunctions[0]);
+
+	myLocalsPointer = new int64_t[DEFAULT_STACK_SIZE];
+	memset(myLocalsPointer, 0, DEFAULT_STACK_SIZE * sizeof(int64_t));
+	myLocalsPointer[0] = -1;
+	myLocalsPointer[1] = sizeof(int64_t) * 2;
+	myLocalsPointer = &myLocalsPointer[2]; // It should point directly to vars block. Access size and id with negative offset
+
+	top();
+
+	//myCompiler = new Compiler;
+	//if (!silentMode)myCompiler->setLogger(&logger);
+	//	
+	//myCompiler->newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+	//myCompiler->getFunction()->setHint(FUNCTION_HINT_NAKED, true);
+
+	//myLocalsPtr = GPVar(myCompiler->newGP());
+	//myCompiler->mov(myLocalsPtr, imm((sysint_t)myLocalsPointer));
+	//	
+	//ECall * ctx = myCompiler->call(top);
+	//ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+
+	//myCompiler->ret();
+	//myCompiler->endFunction();
+
+	//void * pt = myCompiler->make();
+
+	//auto fun = function_cast<void (*)()>(pt);
+	//fun();
+}
+
+void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
+{
+	uint16_t id = myFirstPassVisitor.GetFunctionId(node->name());
+	NodeInfo const & nodeInfo = GetNodeInfo(node->body());
+	uint16_t varsNum = nodeInfo.scopeInfo->GetTotalVariablesNum();
+
+	BlockNode * block = node->body();
+	Scope::FunctionIterator it(block->scope());
+	while (it.hasNext()) {
+		AstFunction * astFun = it.next();
+		astFun->node()->visit(this);
+	}
+
+	Compiler * old = myCompiler;
+	myCompiler = new Compiler;
+	if (!silentMode)myCompiler->setLogger(&logger);
+
+	EFunction* fun = myCompiler->newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+
+	GPVar  oldPtr = myLocalsPtr;
+	myLocalsPtr = GPVar(myCompiler->newGP());
+
 	
+	// Prolog
+	GPVar sz(myCompiler->newGP()); // Size of previous stack frame
+	GPVar localsPtr(myCompiler->newGP()); // Pointer to local vars
+
+	myCompiler->mov(localsPtr, imm((sysint_t)&myLocalsPointer));
+	myCompiler->mov(myLocalsPtr, qword_ptr(localsPtr));
+	//
+	myCompiler->mov(sz, qword_ptr(myLocalsPtr, -sizeof(int64_t)));
+
+	myCompiler->mov(qword_ptr(myLocalsPtr, - 2 * sizeof(int16_t)), imm(id)); // Write id to stack frame
+	myCompiler->mov(qword_ptr(myLocalsPtr, - sizeof(int16_t)), imm((2 + varsNum) *sizeof(int64_t))); // Write total frame size
+	
+	myCompiler->add(myLocalsPtr, sz);
+	myCompiler->mov(qword_ptr(localsPtr), myLocalsPtr);
+
+	// Body
+	block->visit(this);
+
+	// Epilog
+	myCompiler->sub(myLocalsPtr, sz);
+	myCompiler->mov(qword_ptr(localsPtr), myLocalsPtr);
+
 	myCompiler->ret();
 	myCompiler->endFunction();
 
-	void * pt = myCompiler->make();
+	myFunctions[id] = myCompiler->make();
 
-	myCode.Init();
-
-	auto fun = function_cast<void (*)()>(pt);
-	fun();
+	myCompiler = old;
+	myLocalsPtr = oldPtr;
 }
+
+
+void NativeGenerator::visitCallNode( mathvm::CallNode* node )
+{
+	uint16_t id = myFirstPassVisitor.GetFunctionId(node->name());
+	ECall* ctx = myCompiler->call(myFunctions[id]);
+	ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+}
+
 
 void NativeGenerator::visitPrintNode(mathvm::PrintNode* node) 
 {
@@ -180,10 +225,7 @@ void NativeGenerator::visitBlockNode(mathvm::BlockNode* node)
 
 void NativeGenerator::visitStringLiteralNode(mathvm::StringLiteralNode* node)
 {
-	uint16_t id = myCode.makeStringConstant(node->literal());
-	std::string const & s = myCode.constantById(id);
-	int64_t p = (int64_t)(void*)&s;
-	p = (int64_t)new std::string(node->literal());
+	int64_t p = (int64_t)new std::string(node->literal());
 	myCompiler->mov(*myResultVar.Integer, p);
 }
 
@@ -271,32 +313,10 @@ void NativeGenerator::visitLoadNode( mathvm::LoadNode* node )
 		myCompiler->movq(*myResultVar.Double, dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)));
 		break;
 	}
-
 }
 
 
-void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
-{
-	NodeInfo const & nodeInfo = GetNodeInfo(node->body());
-	BytecodeFunction *bfun = new BytecodeFunction(nodeInfo.scopeInfo->GetAstFunction());
-	bfun->setLocalsNumber(nodeInfo.scopeInfo->GetTotalVariablesNum());
-	myCode.addFunction(bfun);
 
-	//ECall * ctx = myCompiler->call(imm((size_t)idiv));
-	//ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder2<int64_t,int64_t,int64_t>());
-	//ctx->setArgument(0, imm(5));
-	//ctx->setArgument(1, imm(6));
-	//ctx->setReturn(myLocalsPtr);
-
-	//ECall * call = myCompiler->call(imm((sysint_t) MyNativeCode::GetCurrentLocalsPtr));
-	//call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, int>() );
-	//call->setArgument(0, imm((sysint_t) &myCode));
-	//call->setReturn(myLocalsPtr);
-
-	node->visitChildren(this);
-	
-	//myCode.addFunction()
-}
 
 AsmVarPtr NativeGenerator::VisitWithTypeControl( mathvm::AstNode * node, mathvm::VarType expectedType )
 {
