@@ -47,7 +47,6 @@ int main(int argc, char** argv) {
     assert(code != 0);
     vector<Var*> vars;
     Status* execStatus = code->execute(vars);
-    printf("OK!\n");
     if (execStatus->isError()) {
       printf("Cannot execute expression: error: %s\n",
              execStatus->getError().c_str());
