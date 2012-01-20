@@ -56,6 +56,7 @@ private:
 	void DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
 	AsmJit::GPVar myLocalsPtr;// Obsolete
 	int64_t* myLocalsPointer;
+	int64_t* myLocalsPointerOrigin;
 
 	AsmJit::GPVar myStackFramePointer;
 

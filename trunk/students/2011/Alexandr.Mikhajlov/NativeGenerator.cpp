@@ -23,6 +23,17 @@ void PrintInt(int64_t value) {
 	std::cout << value;
 }
 
+void PrintMemory(int64_t address) {
+	int64_t * p = (int64_t*)address;
+	int64_t sz = *(p-1);
+	std::cout << "ID: " << *(p - 2) << " Size: " << sz << "(";
+
+	for (int64_t * ip = p + (sz - 2 * sizeof(int64_t)) / sizeof(int64_t) ; p != ip; ++p ) {
+		cout << *p << ", ";
+	}
+	cout << ")\n";
+}
+
 void PrintString(int64_t address) {
 	std::string * s = (std::string*)address;
 	printf("%s", s->c_str());
@@ -53,17 +64,8 @@ int64_t idiv(int64_t a, int64_t b) {
 }
 
 
-void test() {
-	int k = 5;
-	int * p = &k;
-	*p = 10;
-
-}
-
 void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 {
-	//test();
-
 	myFirstPassVisitor.visit(rootNode);
 	myResultVar.Integer = NULL;
 
@@ -75,10 +77,12 @@ void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 	auto top = function_cast<void (*)()>(myFunctions[0]);
 
 	myLocalsPointer = new int64_t[DEFAULT_STACK_SIZE];
+	myLocalsPointerOrigin = myLocalsPointer;
 	memset(myLocalsPointer, 0, DEFAULT_STACK_SIZE * sizeof(int64_t));
 	myLocalsPointer[0] = -1;
 	myLocalsPointer[1] = sizeof(int64_t) * 2;
 	myLocalsPointer = &myLocalsPointer[2]; // It should point directly to vars block. Access size and id with negative offset
+
 
 	top();
 
@@ -101,6 +105,18 @@ void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 
 	//auto fun = function_cast<void (*)()>(pt);
 	//fun();
+	// 
+	int x = 0; x++;
+}
+
+uint32_t ToAsmJitType(mathvm::VarType type) {
+	switch (type) {
+	case mathvm::VT_INT:
+	case mathvm::VT_STRING:
+		return AsmJit::VARIABLE_TYPE::VARIABLE_TYPE_INT64;
+	case mathvm::VT_DOUBLE:
+		return AsmJit::VARIABLE_TYPE::VARIABLE_TYPE_DOUBLE;
+	}
 }
 
 void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
@@ -108,6 +124,8 @@ void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
 	uint16_t id = myFirstPassVisitor.GetFunctionId(node->name());
 	NodeInfo const & nodeInfo = GetNodeInfo(node->body());
 	uint16_t varsNum = nodeInfo.scopeInfo->GetTotalVariablesNum();
+	AstFunction * astFunction = nodeInfo.scopeInfo->GetAstFunction();
+	
 
 	BlockNode * block = node->body();
 	Scope::FunctionIterator it(block->scope());
@@ -120,7 +138,14 @@ void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
 	myCompiler = new Compiler;
 	if (!silentMode)myCompiler->setLogger(&logger);
 
-	EFunction* fun = myCompiler->newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+	uint32_t argsTypes[256] = {0};
+	for (int i = 0; i < astFunction->parametersNumber(); ++i) {
+		argsTypes[i] = ToAsmJitType(astFunction->parameterType(i));
+	}
+
+	EFunction* fun = myCompiler->newFunction_(CALL_CONV_DEFAULT, argsTypes, astFunction->parametersNumber(), ToAsmJitType(astFunction->returnType()));
+	myCompiler->getFunction()->setHint(FUNCTION_HINT_NAKED, true);
+	myCompiler->comment("Function: %s", astFunction->name().c_str());
 
 	GPVar  oldPtr = myLocalsPtr;
 	myLocalsPtr = GPVar(myCompiler->newGP());
@@ -130,19 +155,46 @@ void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
 	GPVar sz(myCompiler->newGP()); // Size of previous stack frame
 	GPVar localsPtr(myCompiler->newGP()); // Pointer to local vars
 
+	myCompiler->comment("My Prolog");
+
 	myCompiler->mov(localsPtr, imm((sysint_t)&myLocalsPointer));
 	myCompiler->mov(myLocalsPtr, qword_ptr(localsPtr));
 	//
 	myCompiler->mov(sz, qword_ptr(myLocalsPtr, -sizeof(int64_t)));
 
-	myCompiler->mov(qword_ptr(myLocalsPtr, - 2 * sizeof(int16_t)), imm(id)); // Write id to stack frame
-	myCompiler->mov(qword_ptr(myLocalsPtr, - sizeof(int16_t)), imm((2 + varsNum) *sizeof(int64_t))); // Write total frame size
-	
 	myCompiler->add(myLocalsPtr, sz);
+
+	myCompiler->mov(qword_ptr(myLocalsPtr, - 2 * sizeof(int64_t)), imm(id)); // Write id to stack frame
+	myCompiler->mov(qword_ptr(myLocalsPtr, - sizeof(int64_t)), imm((2 + varsNum) *sizeof(int64_t))); // Write total frame size
+
+	
+
 	myCompiler->mov(qword_ptr(localsPtr), myLocalsPtr);
+
+	myCompiler->comment("Parameters loading");
+
+	//call = myCompiler->call(PrintInt);
+	//call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, int64_t>());
+	//call->setArgument(0, myLocalsPtr);
+
+	// Loading parameters:
+	for (int i = 0; i < nodeInfo.scopeInfo->GetAstFunction()->parametersNumber(); ++i) {
+		if (astFunction->parameterType(i) == VT_DOUBLE) 
+			myCompiler->movq(qword_ptr(myLocalsPtr, i * sizeof(int64_t)), myCompiler->argXMM(i));
+		else 
+			myCompiler->mov(qword_ptr(myLocalsPtr, i * sizeof(int64_t)), myCompiler->argGP(i));
+	}
+
+	myCompiler->comment("My Body");
 
 	// Body
 	block->visit(this);
+
+	//ECall * call = myCompiler->call(PrintMemory);
+	//call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, int64_t>());
+	//call->setArgument(0, myLocalsPtr);
+
+	myCompiler->comment("My Epilog");
 
 	// Epilog
 	myCompiler->sub(myLocalsPtr, sz);
@@ -162,7 +214,26 @@ void NativeGenerator::visitCallNode( mathvm::CallNode* node )
 {
 	uint16_t id = myFirstPassVisitor.GetFunctionId(node->name());
 	ECall* ctx = myCompiler->call(myFunctions[id]);
-	ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+
+	uint32_t argsTypes[256] = {0};
+	for (int i = 0; i < node->parametersNumber(); ++i) {
+		argsTypes[i] = ToAsmJitType(GetNodeType(node->parameterAt(i)));
+	}
+
+	ctx->_setPrototype(CALL_CONV_DEFAULT, argsTypes, node->parametersNumber(), VARIABLE_TYPE_INT64);
+
+	AsmVarPtr old = myResultVar;
+
+	for (int i = 0; i < node->parametersNumber(); ++i) {
+		VarType type = GetNodeType(node->parameterAt(i));
+		myResultVar = CreateAsmVar(type);
+		node->parameterAt(i)->visit(this);
+		if (type == VT_DOUBLE) ctx->setArgument(i, *myResultVar.Double);
+		else ctx->setArgument(i, *myResultVar.Integer);
+	}
+
+	myResultVar = old;
+
 }
 
 
