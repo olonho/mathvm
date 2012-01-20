@@ -1,6 +1,6 @@
 MVM=./build/debug/mvm
 TEST_FILES=../../../../tests
-FILES="var literal add sub mul div priority expr for if while function"
+FILES="var literal add sub mul div expr for if while function"
 TEST_FILES_ADD=../../../../tests/additional
 #FILES_ADD="3function casts closure function-call function-cast function vars"
 #FILES_ADD="function-call function-cast function 3function cast closure"
