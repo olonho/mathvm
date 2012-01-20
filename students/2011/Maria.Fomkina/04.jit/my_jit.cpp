@@ -133,9 +133,18 @@ Status* MachCodeGenerator::generate() {
   }
   _.mov(nbp, nsp);
 
+  std::vector<AsmJit::Label> labels_;
+  size_t length = 0;
+  length = length;
+  while (command != BC_STOP) {
+    command = bytecode_->get(length); 
+    labels_.push_back(_.newLabel());
+    ++length;
+  } 
+  command = bytecode_->get(pos);
   while (command != BC_STOP) {
     command = bytecode_->get(pos);
-    // std::cerr << "Command " << command << " at " << pos << std::endl;
+    _.bind(labels_[pos]);
     ++pos;
     switch (command) {
       case (BC_DLOAD): {
@@ -370,65 +379,66 @@ Status* MachCodeGenerator::generate() {
         pos += 2;
         break;
       }
-      // case (BC_JA): {
-      //   offset = bytecode_->getInt16(pos);
-      //   pos += offset;
-      //   break;
-      // }
-      // case (BC_IFICMPNE): {
-      //   offset = bytecode_->getInt16(pos);
-      //   arg = stack.top();
-      //   stack.pop();
-      //   type arg2 = stack.top();
-      //   stack.pop();
-      //   if (arg.i != arg2.i) pos += offset; else pos += 2;
-      //   break;
-      // }
-      // case (BC_IFICMPE): {
-      //   offset = bytecode_->getInt16(pos);
-      //   arg = stack.top();
-      //   stack.pop();
-      //   type arg2 = stack.top();
-      //   stack.pop();
-      //   if (arg.i == arg2.i) pos += offset; else pos += 2;
-      //   break;
-      // }
-      // case (BC_IFICMPG): {
-      //   offset = bytecode_->getInt16(pos);
-      //   arg = stack.top();
-      //   stack.pop();
-      //   type arg2 = stack.top();
-      //   stack.pop();
-      //   if (arg.i > arg2.i) pos += offset; else pos += 2;
-      //   break;
-      // }
-      // case (BC_IFICMPGE): {
-      //   offset = bytecode_->getInt16(pos);
-      //   arg = stack.top();
-      //   stack.pop();
-      //   type arg2 = stack.top();
-      //   stack.pop();
-      //   if (arg.i >= arg2.i) pos += offset; else pos += 2;
-      //   break;
-      // }
-      // case (BC_IFICMPL): {
-      //   offset = bytecode_->getInt16(pos);
-      //   arg = stack.top();
-      //   stack.pop();
-      //   type arg2 = stack.top();
-      //   stack.pop();
-      //   if (arg.i < arg2.i) pos += offset; else pos += 2;
-      //   break;
-      // }
-      // case (BC_IFICMPLE): {
-      //   offset = bytecode_->getInt16(pos);
-      //   arg = stack.top();
-      //   stack.pop();
-      //   type arg2 = stack.top();
-      //   stack.pop();
-      //   if (arg.i <= arg2.i) pos += offset; else pos += 2;
-      //   break;
-      // }
+      case (BC_JA): {
+         offset = bytecode_->getInt16(pos);
+        _.jmp(labels_[pos + offset]);
+        pos += 2;
+        break;
+      }
+      case (BC_IFICMPNE): {
+        offset = bytecode_->getInt16(pos);
+        _.pop(rax);
+        _.pop(rbx);
+        _.cmp(rax, rbx);
+        _.jne(labels_[pos + offset]);
+        pos += 2;
+        break;
+      }
+      case (BC_IFICMPE): {
+        offset = bytecode_->getInt16(pos);
+        _.pop(rax);
+        _.pop(rbx);
+        _.cmp(rax, rbx);
+        _.je(labels_[pos + offset]);
+        pos += 2;
+        break;
+      }
+      case (BC_IFICMPG): {
+        offset = bytecode_->getInt16(pos);
+        _.pop(rax);
+        _.pop(rbx);
+        _.cmp(rax, rbx);
+        _.jg(labels_[pos + offset]);
+        pos += 2;
+        break;
+      }
+      case (BC_IFICMPGE): {
+        offset = bytecode_->getInt16(pos);
+        _.pop(rax);
+        _.pop(rbx);
+        _.cmp(rax, rbx);
+        _.jge(labels_[pos + offset]);
+        pos += 2;
+        break;
+      }
+      case (BC_IFICMPL): {
+        offset = bytecode_->getInt16(pos);
+        _.pop(rax);
+        _.pop(rbx);
+        _.cmp(rax, rbx);
+        _.jl(labels_[pos + offset]);
+        pos += 2;
+        break;
+      }
+      case (BC_IFICMPLE): {
+        offset = bytecode_->getInt16(pos);
+        _.pop(rax);
+        _.pop(rbx);
+        _.cmp(rax, rbx);
+        _.jle(labels_[pos + offset]);
+        pos += 2;
+        break;
+      }
       case (BC_STOP): {
         break;
       }
