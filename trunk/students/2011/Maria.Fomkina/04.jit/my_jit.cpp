@@ -8,6 +8,12 @@
 #include <asmjit/Compiler.h>
 #include "bytecode_visitor.h"
 
+#define printddd _.mov(rdi, imm(reinterpret_cast<sysint_t>(this))); \
+        Mem m(rsp, 0); \
+        _.xorps(xmm0, xmm0); \
+        _.movlpd(xmm0, m); \
+        _.call((void*)printdd);
+
 using namespace AsmJit;
 using namespace std;
 
@@ -22,7 +28,8 @@ MachCodeImpl::~MachCodeImpl() {
 
 Status* MachCodeImpl::execute(vector<Var*>& vars) {
   int result = function_cast<int (*)()>(_code)();
-  cout << "returned " << result << endl;
+  result = result;
+  //cout << "returned " << result << endl;
   return new Status();
 }
 
@@ -50,15 +57,15 @@ public:
     Status* generate();
 
   int printd(double d) {
-    return printf("%f\n", 3.0);
+    return printf("%lld.%03lld", (long long)d, (long long)(d * 1e3) 
+                  - (long long)d * (long long)1e3);
   }
   
   int printi(long long i) {
-    return printf("%lld\n", i);
+    return printf("%lld", i);
   }
   
   int prints(long long i) {
-    printi(i);
     int16_t n = i;
     std::string s = _code->constantById(n);
     return printf("%s", s.c_str());
@@ -96,7 +103,7 @@ Status* MachCodeGenerator::generate() {
   BytecodeVisitor* visitor = new BytecodeVisitor(_code);
   visitor->visitBlockNode(_top->node()->body());
   function->bytecode()->add(BC_STOP);
-  function->bytecode()->dump(std::cout);
+  //function->bytecode()->dump(std::cout);
   Bytecode *bytecode_ = function->bytecode();
 
   uint8_t command = 0;
@@ -148,7 +155,6 @@ Status* MachCodeGenerator::generate() {
       case (BC_SLOAD): {
         arg.s = bytecode_->getInt16(pos);
         long long i = arg.s;
-        this->printi(i);
         _.mov(rax, imm(*(reinterpret_cast<int64_t*>(&i))));
         _.push(rax);
         pos += 2;
@@ -185,12 +191,12 @@ Status* MachCodeGenerator::generate() {
       }
       case (BC_DADD): {
         Mem m1(rsp, 0);
-        _.movlpd(xmm0, m1);
+        _.movsd(xmm0, m1);
         _.pop(rax);
         Mem m2(rsp, 0);
-        _.movlpd(xmm1, m2);
-        _.addpd(xmm0, xmm1);
-        _.movlpd(m2, xmm0);
+        _.movsd(xmm1, m2);
+        _.addsd(xmm0, xmm1);
+        _.movsd(m2, xmm0);
         break;
       }
       case (BC_IADD): {
@@ -202,12 +208,12 @@ Status* MachCodeGenerator::generate() {
       }
       case (BC_DSUB): {
         Mem m1(rsp, 0);
-        _.movlpd(xmm0, m1);
+        _.movsd(xmm0, m1);
         _.pop(rax);
         Mem m2(rsp, 0);
-        _.movlpd(xmm1, m2);
-        _.subpd(xmm0, xmm1);
-        _.movlpd(m2, xmm0);
+        _.movsd(xmm1, m2);
+        _.subsd(xmm0, xmm1);
+        _.movsd(m2, xmm0);
         break;
       }
       case (BC_ISUB): {
@@ -219,12 +225,12 @@ Status* MachCodeGenerator::generate() {
       }
       case (BC_DMUL): {
         Mem m1(rsp, 0);
-        _.movlpd(xmm0, m1);
+        _.movsd(xmm0, m1);
         _.pop(rax);
         Mem m2(rsp, 0);
-        _.movlpd(xmm1, m2);
-        _.mulpd(xmm0, xmm1);
-        _.movlpd(m2, xmm0);
+        _.movsd(xmm1, m2);
+        _.mulsd(xmm0, xmm1);
+        _.movsd(m2, xmm0);
         break;
       }
       case (BC_IMUL): {
@@ -234,32 +240,41 @@ Status* MachCodeGenerator::generate() {
         _.push(rax);
         break;
       }
-      // case (BC_DDIV): {
-      //   arg = stack.top();
-      //   stack.pop();
-      //   arg.d /= stack.top().d;
-      //   stack.pop();
-      //   stack.push(arg);
-      //   break;
-      // }
-      // case (BC_IDIV): {
-      //   _.pop(rax);
-      //   _.pop(rbx);
-      //   _.idiv(rbx);
-      //   _.push(rax);
-      //   break;
-      // }
-      // case (BC_DNEG): {
-      //   arg = stack.top();
-      //   arg.d = -arg.d;
-      //   stack.pop();
-      //   stack.push(arg);
-      //   break;
-      // }
-      case (BC_INEG): {
-        _.mov(rax, 0);
+      case (BC_DDIV): {
+        Mem m1(rsp, 0);
+        _.movsd(xmm0, m1);
+        _.pop(rax);
+        Mem m2(rsp, 0);
+        _.movsd(xmm1, m2);
+        _.divsd(xmm0, xmm1);
+        _.movsd(m2, xmm0);
+        break;
+      }
+      case (BC_IDIV): {
+        _.pop(rax);
+        _.mov(rdx, rax);
+        _.sar(rdx, 63);
         _.pop(rbx);
-        _.sub(rax, rbx);
+        _.idiv(rbx);
+        _.push(rax);
+        break;
+      }
+      case (BC_DNEG): {
+        arg.d = 0.0;
+        _.mov(rax, imm(*(reinterpret_cast<int64_t*>(&(arg.d)))));
+        _.push(rax);
+        Mem m1(rsp, 0);
+        _.movsd(xmm0, m1);
+        _.pop(rax);
+        Mem m2(rsp, 0);
+        _.movsd(xmm1, m2);
+        _.subpd(xmm0, xmm1);
+        _.movsd(m2, xmm0);
+        break;
+      }
+      case (BC_INEG): {
+        _.pop(rax);
+        _.neg(rax);
         _.push(rax);
         break;
       }
@@ -273,8 +288,8 @@ Status* MachCodeGenerator::generate() {
       case (BC_DPRINT): {
         _.mov(rdi, imm(reinterpret_cast<sysint_t>(this)));
         Mem m(rsp, 0);
-        _.xorps(xmm1, xmm1);
-        _.movlpd(xmm1, m);
+        _.xorps(xmm0, xmm0);
+        _.movsd(xmm0, m);
         _.call((void*)printdd);
         break;
       }
