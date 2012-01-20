@@ -8,12 +8,6 @@
 #include <asmjit/Compiler.h>
 #include "bytecode_visitor.h"
 
-#define printddd _.mov(rdi, imm(reinterpret_cast<sysint_t>(this))); \
-        Mem m(rsp, 0); \
-        _.xorps(xmm0, xmm0); \
-        _.movlpd(xmm0, m); \
-        _.call((void*)printdd);
-
 using namespace AsmJit;
 using namespace std;
 
@@ -56,15 +50,6 @@ public:
 
     Status* generate();
 
-  int printd(double d) {
-    return printf("%lld.%03lld", (long long)d, (long long)(d * 1e3) 
-                  - (long long)d * (long long)1e3);
-  }
-  
-  int printi(long long i) {
-    return printf("%lld", i);
-  }
-  
   int prints(long long i) {
     int16_t n = i;
     std::string s = _code->constantById(n);
@@ -88,12 +73,13 @@ int printss(MachCodeGenerator* self, long long i) {
   return self->prints(i);
 }
 
-int printdd(MachCodeGenerator* self, double d) {
-  return self->printd(d);
+int printi(long long i) {
+  return printf("%lld", i);
 }
 
-int printii(MachCodeGenerator* self, long long i) {
-  return self->printi(i);
+int printd(double d) {
+  return printf("%lld.%03lld", (long long)d, (long long)(d * 1e3) 
+                - (long long)d * (long long)1e3);
 }
 
 Status* MachCodeGenerator::generate() {
@@ -134,13 +120,17 @@ Status* MachCodeGenerator::generate() {
   _.mov(nbp, nsp);
 
   std::vector<AsmJit::Label> labels_;
-  size_t length = 0;
+  int length = 0;
   length = length;
+
   while (command != BC_STOP) {
     command = bytecode_->get(length); 
     labels_.push_back(_.newLabel());
     ++length;
   } 
+
+  printf("%d\r", 0); 
+
   command = bytecode_->get(pos);
   while (command != BC_STOP) {
     command = bytecode_->get(pos);
@@ -288,18 +278,17 @@ Status* MachCodeGenerator::generate() {
         break;
       }
       case (BC_IPRINT): {
-        _.mov(rdi, imm(reinterpret_cast<sysint_t>(this)));
         Mem m(rsp, 0);
-        _.mov(rsi, m);
-        _.call((void*)printii);
+        _.mov(rdi, m);
+        _.mov(eax, imm(0));
+        _.call((void*)printi);
         break;
       }
       case (BC_DPRINT): {
-        _.mov(rdi, imm(reinterpret_cast<sysint_t>(this)));
         Mem m(rsp, 0);
         _.xorps(xmm0, xmm0);
         _.movsd(xmm0, m);
-        _.call((void*)printdd);
+        _.call((void*)printd);
         break;
       }
       case (BC_SPRINT): {
