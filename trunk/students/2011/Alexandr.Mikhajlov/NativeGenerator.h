@@ -15,25 +15,6 @@ union AsmVarPtr{
 	AsmJit::XMMVar *Double;
 };
 
-struct MyNativeCode : mathvm::Code {
-	virtual mathvm::Status* execute(std::vector<mathvm::Var*>& vars){return NULL;}
-
-	MyNativeCode() : myAsmCodePtr(NULL) {}
-	int64_t GetLocalVarAddr(int64_t varId);
-	StackFrame* AllocateFrame(uint16_t functionId);
-	//void DeallocateFrame();
-	void Init();
-	void AllocateFrameStack( int stackSizeInKb );
-	StackFrame * AddFrame( uint16_t localsNumber, uint16_t functionId );
-//private: // Who cares on encapsulation?
-	void * myAsmCodePtr;
-	StackFrame * myCurrentFrame;
-	int myFrameStackPoolSize;
-	char* myFrameStackPool;
-	int myFrameStackPoolIP;
-	static void* GetCurrentLocalsPtr(void* codeAddr);
-};
-
 struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
 	virtual void visitUnaryOpNode(mathvm::UnaryOpNode* node);
   virtual void visitBinaryOpNode(mathvm::BinaryOpNode* node);
@@ -49,7 +30,7 @@ struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
   virtual void visitFunctionNode(mathvm::FunctionNode* node);
   virtual void visitPrintNode(mathvm::PrintNode* node);
   virtual void visitReturnNode(mathvm::ReturnNode* node){}
-  virtual void visitCallNode(mathvm::CallNode* node){}
+  virtual void visitCallNode(mathvm::CallNode* node);
   void Compile( mathvm::AstFunction * rootNode);
 	void SetVariable( mathvm::VarType expectedType, VarId &id );
   
@@ -61,7 +42,6 @@ struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
 
 private:
   FirstPassVisitor myFirstPassVisitor;
-	MyNativeCode myCode;
 
 	AsmJit::Compiler* myCompiler;
 
@@ -74,5 +54,11 @@ private:
 	void TryDoIntegerLogic( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right );
 	void IncrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
 	void DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
-	AsmJit::GPVar myLocalsPtr;
+	AsmJit::GPVar myLocalsPtr;// Obsolete
+	int64_t* myLocalsPointer;
+
+	AsmJit::GPVar myStackFramePointer;
+
+	std::map<uint16_t, void *> myFunctions;
+
 };
