@@ -16,14 +16,9 @@
 using namespace mathvm;
 
 PSTranslator::PSTranslator() {
-	//m_bytecode.addInsn(BC_ILOAD);
-	//m_bytecode.addInt64(10);
-	//m_bytecode.addInsn(BC_IPRINT);
-
 }
 
 PSTranslator::~PSTranslator() {
-	// TODO Auto-generated destructor stub
 }
 
 Status* PSTranslator::translate(const std::string& program, Code* *code) {
@@ -53,7 +48,7 @@ Status* PSTranslator::translate(const std::string& program, Code* *code) {
 
 void PSTranslator::visitFunctionNode(mathvm::FunctionNode *node) {
 	m_var_table.openPage();
-
+	m_func_table.openPage();
 	if (node->name() != "<top>") {
 		Label function_begin(&m_bytecode);
 		Label function_end(&m_bytecode);
@@ -63,7 +58,6 @@ void PSTranslator::visitFunctionNode(mathvm::FunctionNode *node) {
 
 		m_func_table.addFunc(
 				FuncInfo(node->name(), node->returnType(), function_begin.bci()));
-		m_func_table.dump();
 
 		for (uint32_t i = 0; i != node->parametersNumber(); ++i) {
 			Var var(node->parameterType(i), node->parameterName(i));
@@ -93,7 +87,9 @@ void PSTranslator::visitFunctionNode(mathvm::FunctionNode *node) {
 	} else {
 		node->body()->visit(this);
 	}
+	//m_func_table.dump();
 	m_var_table.closePage();
+	m_func_table.closePage();
 	m_last_result = VT_VOID;
 }
 
@@ -116,6 +112,7 @@ void PSTranslator::visitBlockNode(mathvm::BlockNode *node) {
 }
 
 void PSTranslator::visitCallNode(mathvm::CallNode *node) {
+	//m_bytecode.addInsn(BC_CALLNATIVE);
 	FuncInfo func = m_func_table.getFuncByName(node->name());
 
 	for (int i = node->parametersNumber() - 1; i >= 0; --i) {
@@ -366,7 +363,6 @@ void PSTranslator::visitBinaryOpNode(mathvm::BinaryOpNode *node) {
 
 		switch (op) {
 		case tEQ:
-			std::cerr << " >>> EQ" << std::endl;
 			m_bytecode.addBranch(BC_IFICMPE, set1);
 			break;
 

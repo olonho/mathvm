@@ -31,12 +31,14 @@ public:
 	PSFuncTable();
 	virtual ~PSFuncTable();
 
+	void openPage();
+	void closePage();
 	void addFunc(FuncInfo func_info);
 	FuncInfo getFuncByName(std::string const& name) const;
 	void dump() const;
 
 private:
-	std::vector<FuncInfo> m_func_table;
+	std::vector<std::vector<FuncInfo> > m_func_table;
 };
 
 #endif /* PSFUNCTABLE_H_ */
