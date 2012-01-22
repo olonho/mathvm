@@ -97,7 +97,7 @@ $(OBJ)/%$(OBJ_SUFF): $(ROOT)/%.cpp \
 	$(VM_ROOT)/common.mk $(USER_DEPS)
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
-$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/%.cpp
+$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/AsmJit/%.cpp
 	$(CXX) -c $(DEFS) $(CFLAGS) $(ASMJIT_CFLAGS) $(INCLUDE) $(ASMJIT_INCLUDE) $< -o $@
 
 $(OUT):
