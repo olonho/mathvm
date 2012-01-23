@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <iostream>
-#include <BytecodeInterpreter.h>
 #include "mathvm.h"
 #include "ast.h"
 #include "mytranslator.h"
@@ -25,8 +24,9 @@ int main(int argc, char** argv)
       GeneratingVisitor *visitor = new GeneratingVisitor;
       visitor->visit(parser->top());
       visitor->dump();
-      cout << "-------Output--------\n";      
-	  visitor->getCode()->execute(std::vector<Var*>());
+      cout << "-------Output--------\n";
+      std::vector<Var*> v;      
+      visitor->getCode()->execute(v);
   }
   else 
   {
@@ -43,6 +43,5 @@ int main(int argc, char** argv)
   
   delete parser;
 
-  system("pause");
   return 0;
 }

@@ -273,7 +273,11 @@ Status* GeneratedCode :: execute(std :: vector <Var* > & vars) {
 			dropFrame();
 			break; 
 		case BC_STOP :
-			return &Status();
+		default:
+		{
+			Status* status = new Status();
+			return status;
+		}
 		}
 	}
 }

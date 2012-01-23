@@ -38,7 +38,6 @@ void GeneratingVisitor :: visitBinaryOpNode(BinaryOpNode* node) {
 	if(previousType == VT_STRING || previousType == VT_INVALID) {
 		throw GeneratingException("Wrong type");
 	}
-	Instruction result;
 	if(kind == tOR) {
 		if(previousType == VT_INT) {
 			currentBytecode->addInsn(BC_ILOAD1);
@@ -134,7 +133,8 @@ void GeneratingVisitor :: visitBinaryOpNode(BinaryOpNode* node) {
 	currentBytecode->addInsn(BC_ILOAD0);
 	currentBytecode->bind(endLabel);
 }
-
+void GeneratingVisitor :: visitNativeCallNode(NativeCallNode* node){
+}
 void GeneratingVisitor ::  visitUnaryOpNode(UnaryOpNode* node) {
 	node->operand()->visit(this);
 	if(node->kind() == tSUB) {
@@ -190,7 +190,6 @@ bool GeneratingVisitor :: getVarId(string const & name, InfoId& id_out) {
 	Scope * localScope = currentScope;
 	uint16_t currentFunctionId = _ids[localScope]._function_id;
 	while(localScope) {
-		int count = 0;
 		InfoId id = _ids[localScope];
 		id_out = id;
 		if(id_out.variables.find(name) != id_out.variables.end()) {
@@ -456,7 +455,7 @@ void GeneratingVisitor ::  visitFunctionNode(FunctionNode* node) {
 	info_id._ast_function = id._ast_function;
 	info_id._is_function = true;
 	
-	for(int i = 0; i < node->parametersNumber(); ++i) {
+	for(unsigned int i = 0; i < node->parametersNumber(); ++i) {
 		info_id.variables[node->parameterName(i)] = i;
 	}
 	
