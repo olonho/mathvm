@@ -8,12 +8,6 @@
 
 typedef void (*CompiledFunc)();
 
-struct AsmVar {
-	AsmVar(AsmJit::BaseVar *var, mathvm::VarType type) : Var(var), Type(type) {}
-	AsmJit::BaseVar *Var;
-	mathvm::VarType Type;
-};
-
 union Value {
 	double Double;
 	int64_t Int;
@@ -23,9 +17,8 @@ union Value {
 class AstToAsm : public mathvm::AstVisitor
 {
 public:	
-	AstToAsm(int paramsCount = 0) : _currentFreeVarId(1), _currentFreeFuncId(0), _paramsCount(paramsCount), _localsCount(0) {}
-	virtual ~AstToAsm(void) {};
-	
+	AstToAsm(int paramsCount = 0) : _currentFreeVarId(1), _paramsCount(paramsCount), _localsCount(0) {}
+	virtual ~AstToAsm(void) {};	
 
 	CompiledFunc compile(mathvm::AstFunction *root);
 
@@ -59,7 +52,6 @@ private:
 	
 	struct FuncInfo {
 		std::string name;
-		//mathvm::VarType returnType;
 		VarsSearcherVisitor *vsv;
 		mathvm::AstFunction *funcNode;
 	};
@@ -69,13 +61,8 @@ private:
 	static int _funcCount;
 	static Value *_stack;
 	static int64_t *_framePtr;
-	//static int64_t *_localsPtr;
-	//static int64_t *_tosPtr;
 	AsmJit::GPVar *_frame;
-	//AsmJit::GPVar *_locals;
-	//AsmJit::GPVar *_tos;
 	
-
 	static void throwException(const std::string &what);
 
 	static void callProxy(uint64_t funcId) {
@@ -104,10 +91,6 @@ private:
 		_funcInfos[funcId].funcNode = funcNode;
 	}
 
-	/*static mathvm::VarType getFuncRetType(int64_t id) {
-		return _funcInfos[id].returnType;
-	}*/
-
 	static VarsSearcherVisitor * getFuncVarsVisitor(int64_t id) {
 		return _funcInfos[id].vsv;
 	}
@@ -115,10 +98,6 @@ private:
 	static void setFuncVarsVisitor(int64_t funcId, VarsSearcherVisitor *vsv) {
 		_funcInfos[funcId].vsv = vsv;
 	}
-
-	/*static void setFuncRetType(int64_t funcId, mathvm::VarType retType) {
-		_funcInfos[funcId].returnType = retType;
-	}*/
 
 	static void linkFunc(uint64_t funcId, CompiledFunc ptr) {
 		_functions[funcId] = ptr;
@@ -148,8 +127,6 @@ private:
 	AsmJit::GPVar * insertD2I(AsmJit::XMMVar *src);
 	void convertLastVarTo(mathvm::VarType type);
 
-	void insertData(const void *data, size_t size);
-	void insertVarId(const std::string &name);
 	uint16_t getVarId(const std::string &name);
 	uint32_t getVarOffset(const std::string &name);
 	uint32_t getParamOffset(int index);
@@ -157,15 +134,10 @@ private:
 	void checkIfInsn(AsmJit::CONDITION cond);
 	std::string typeToString(mathvm::VarType type);
 	
-	std::vector<AsmVar> _asmVars;
 	mathvm::VarType _lastType;
-	typedef uint16_t VarInt;
-	//std::map<std::string, std::vector<AsmVar> > _vars;
+	typedef uint16_t VarInt;	
 	std::map<std::string, std::vector<VarInt> > _vars;
 	int _currentFreeVarId;
-	int _currentFreeFuncId;
-	//mathvm::Bytecode *_bytecode;		
-	mathvm::Code *_code;	
 	AsmJit::BaseVar *_lastVar;	
 	int _paramsCount;
 	int _localsCount;

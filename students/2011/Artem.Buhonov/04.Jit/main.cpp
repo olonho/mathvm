@@ -26,21 +26,11 @@ int main(int argc, char** argv)
 		try {
 			CompiledFunc func = compiler.compile(parser->top());
 			func();
-			//generator.dump();
 		}
 		catch(Exception &e) {
 			printf("Compile error: %s\n", e.what().c_str());			
 			return 1;
 		}
-
-		/*try {
-			vector<mathvm::Var*> vars;
-			exCode.execute(vars);
-		}
-		catch(Exception &e) {
-			printf("Runtime error: %s!\n", e.what().c_str());
-			return 1;
-		}	*/	
 	}
 	else 
 	{
