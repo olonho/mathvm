@@ -19,7 +19,7 @@ uint16_t calculateFuncMaxLocals(mathvm::FunctionNode *funcNode) {
 	
 	int count = funcNode->parametersNumber() + searchScope->variablesCount();
 	int max = 0;
-	for (int i = 0; i < searchScope->childScopeNumber(); ++i) {
+	for (uint16_t i = 0; i < searchScope->childScopeNumber(); ++i) {
 		int scopeMaxCount = calculateScopeMaxLocals(searchScope->childScopeAt(i));
 		max = std::max(max, scopeMaxCount);
 	}
@@ -29,7 +29,7 @@ uint16_t calculateFuncMaxLocals(mathvm::FunctionNode *funcNode) {
 uint16_t calculateScopeMaxLocals(mathvm::Scope *scope) {
 	int count = scope->variablesCount();
 	int maxChildCount = 0;
-	for (int i = 0; i < scope->childScopeNumber(); ++i) {
+	for (uint16_t i = 0; i < scope->childScopeNumber(); ++i) {
 		int count = calculateScopeMaxLocals(scope->childScopeAt(i));
 		maxChildCount = std::max (maxChildCount, count);
 	}
