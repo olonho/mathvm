@@ -199,7 +199,7 @@ void AstToAsm::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 			case tSUB : _c.sub(static_cast<GPVar &>(*left), static_cast<GPVar &>(*right)); _lastVar = left; break;
 			case tMUL : _c.imul(static_cast<GPVar &>(*left), static_cast<GPVar &>(*right)); _lastVar = left; break;
 			case tDIV : {
-				ECall *ctx = _c.call(div);
+				ECall *ctx = _c.call((void *)div);
 				ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder2<int64_t, int64_t, int64_t>());
 				ctx->setArgument(0, static_cast<GPVar &>(*left));
 				ctx->setArgument(1, static_cast<GPVar &>(*right));
@@ -312,16 +312,16 @@ void AstToAsm::visitLoadNode( mathvm::LoadNode* node )
 		case VT_STRING : 	
 		case mathvm::VT_INT : {
 				GPVar *result = new GPVar(_c.newGP());
-				_c.mov(*result, qword_ptr(*_frame, getVarOffset(node->var()->name()) * sizeof (int64_t)));				
+				_c.mov(*result, qword_ptr(*_frame, getVarOffset(node->var()->name()) * sizeof (int64_t)));
 				_lastVar = result;
 				break;
 			}
 		case VT_DOUBLE : {
-				XMMVar *result = new XMMVar(_c.newXMM());				
+				XMMVar *result = new XMMVar(_c.newXMM());
 				_c.movq(*result, qword_ptr(*_frame, getVarOffset(node->var()->name()) * sizeof (int64_t)));
 				_lastVar = result;
 				break;
-			}		
+			}
 		default: throwException("Unknown type of variable " + node->var()->name());
 	}
 	//insertVarId(node->var()->name());
@@ -330,37 +330,37 @@ void AstToAsm::visitLoadNode( mathvm::LoadNode* node )
 
 void AstToAsm::visitStoreNode( mathvm::StoreNode* node )
 {
-	if (node->op() == tASSIGN) {			
-		node->value()->visit(this);	
+	if (node->op() == tASSIGN) {
+		node->value()->visit(this);
 		if (_lastType != node->var()->type()) {
 			if (_lastType == VT_DOUBLE && node->var()->type() == mathvm::VT_INT) {
 				GPVar *newVar = insertD2I(static_cast<XMMVar*>(_lastVar));
 				_c.unuse(*_lastVar);
 				delete _lastVar;
 				_lastVar = newVar;
-				_lastType = mathvm::VT_INT;				
+				_lastType = mathvm::VT_INT;
 			}
 			else if (_lastType == mathvm::VT_INT && node->var()->type() == VT_DOUBLE) {
 				XMMVar *newVar = insertI2D(static_cast<GPVar*>(_lastVar));
 				_c.unuse(*_lastVar);
 				delete _lastVar;
 				_lastVar = newVar;
-				_lastType = VT_DOUBLE;				
+				_lastType = VT_DOUBLE;
 			}
 			else {
 				throwException("Incompatible types in assigning");
 			}
 		}
 	}
-	uint16_t varOffset = getVarOffset(node->var()->name());
-	TokenKind binaryOp = tUNDEF;	
+	//uint16_t varOffset = getVarOffset(node->var()->name());
+	TokenKind binaryOp = tUNDEF;
 	switch (node->op()) {
 		case tASSIGN : break;
 		case tINCRSET : binaryOp = tADD; break;
 		case tDECRSET : binaryOp = tSUB; break;
 		default : throwException("Invalid assignment operation");
 	}
-		
+
 	if (node->op() == tINCRSET || node->op() == tDECRSET) {
 		LoadNode varNode(0, node->var());
 		BinaryOpNode binaryOpNode(0, binaryOp, &varNode, node->value());
@@ -379,7 +379,7 @@ void AstToAsm::visitStoreNode( mathvm::StoreNode* node )
 	switch (node->var()->type()) {
 		case VT_STRING :
 		case mathvm::VT_INT : {
-			_c.mov(qword_ptr(*_frame, getVarOffset(node->var()->name()) * sizeof (int64_t)), (GPVar &)*_lastVar);			
+			_c.mov(qword_ptr(*_frame, getVarOffset(node->var()->name()) * sizeof (int64_t)), (GPVar &)*_lastVar);
 			break;
 		}
 		case VT_DOUBLE : {
@@ -529,23 +529,23 @@ void AstToAsm::visitPrintNode( mathvm::PrintNode* node )
 			case VT_DOUBLE : _bytecode->addInsn(BC_DPRINT);  break;
 			case VT_STRING : _bytecode->addInsn(BC_SPRINT);  break;
 			default: ;
-		}*/		
+		}*/
 
 		switch(_lastType) {
 			case mathvm::VT_INT : {
-					ECall *ctx = _c.call(printInt);
+					ECall *ctx = _c.call((void *)printInt);
 					ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, int64_t>());
 					ctx->setArgument(0, static_cast<GPVar &>(*_lastVar));
 					break;
 				}
 			case VT_DOUBLE : {
-					ECall *ctx = _c.call(printDouble);
+					ECall *ctx = _c.call((void *)printDouble);
 					ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, double>());
 					ctx->setArgument(0, static_cast<XMMVar &>(*_lastVar));
 					break;
 				}
 			case VT_STRING : {
-					ECall *ctx = _c.call(printStr);
+					ECall *ctx = _c.call((void *)printStr);
 					ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, char *>());
 					ctx->setArgument(0, static_cast<GPVar &>(*_lastVar));
 					break;
@@ -637,7 +637,7 @@ void AstToAsm::visitCallNode( mathvm::CallNode* node )
 	GPVar newFrame(_c.newGP(1U, "newFrame"));
 	_c.mov(oldFrame, *_frame);
 	_c.mov(newFrame, *_frame);
-	
+
 
 	int freeVarsCount = vsv->freeVars().size();
 	_c.add(newFrame, imm((1 + _paramsCount + _localsCount + freeVarsCount) * sizeof (int64_t)));
@@ -664,7 +664,7 @@ void AstToAsm::visitCallNode( mathvm::CallNode* node )
 	}
 
 	vector<BaseVar *> params;
-	for (int i = 0; i < node->parametersNumber(); ++i) { // calculate and load parameter into new frame
+	for (int i = 0; i < (int)node->parametersNumber(); ++i) { // calculate and load parameter into new frame
 		node->parameterAt(i)->visit(this);
 		if (_lastType != getFuncNode(funcId)->parameterType(i)) {
 			convertLastVarTo(getFuncNode(funcId)->parameterType(i));
@@ -685,9 +685,9 @@ void AstToAsm::visitCallNode( mathvm::CallNode* node )
 				}
 			default : throwException("Unknown type of parameter");
 		}
-		
+
 	}
-	for (int i = 0; i < node->parametersNumber(); ++i) {
+	for (int i = 0; i < (int)node->parametersNumber(); ++i) {
 		switch(_lastType) {
 			case mathvm::VT_STRING :
 			case mathvm::VT_INT : _c.mov(qword_ptr(newFrame, (1 + freeVarsCount + i) * sizeof(int64_t)), static_cast<GPVar &>(*params[i])); break;
@@ -698,15 +698,13 @@ void AstToAsm::visitCallNode( mathvm::CallNode* node )
 	//_c.mov(oldFrame, *_frame);
 	//_c.add(*_frame, imm((1 + _paramsCount + _localsCount) * sizeof (int64_t)));
 	_c.mov(*_frame, newFrame);
-	
+
 	GPVar frameAddr(_c.newGP(1U, "frameAddr"));
 	_c.mov(frameAddr, imm((sysint_t)&_framePtr));
 	_c.mov(qword_ptr(frameAddr, 0), *_frame);
-	
-	
 	GPVar funcIdVar(_c.newGP(1U, "funcIdVar"));
 	_c.mov(funcIdVar, imm(funcId));
-	ECall *ctx = _c.call(callProxy);
+	ECall *ctx = _c.call((void *)callProxy);
 	ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, CompiledFunc>());
 	ctx->setArgument(0, funcIdVar);	
 
