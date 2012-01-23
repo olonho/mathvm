@@ -90,6 +90,12 @@ public:
 
 	virtual void visitBlockNode(mathvm::BlockNode * node) {
 
+		mathvm::Scope::VarIterator varIterator(node->scope());
+		while (varIterator.hasNext()) {
+			mathvm::AstVar * astVar = varIterator.next();
+			os << typeToName(astVar->type()) << " " << astVar->name() << ";" << std::endl;
+		}
+
 		mathvm::Scope::FunctionIterator functionIteator(node->scope());
 		while (functionIteator.hasNext()) {
 			mathvm::AstFunction * astFunction= functionIteator.next();
@@ -112,12 +118,6 @@ public:
 				astFunction->node()->body()->visit(this);
 				os << "}"  << std::endl;
 			}
-		}
-
-		mathvm::Scope::VarIterator varIterator(node->scope());
-		while (varIterator.hasNext()) {
-			mathvm::AstVar * astVar = varIterator.next();
-			os << typeToName(astVar->type()) << " " << astVar->name() << ";" << std::endl;
 		}
 
 		for (uint32_t i = 0; i < node->nodes(); i++) {
