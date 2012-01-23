@@ -74,7 +74,7 @@ MATHVM_OBJ = \
         $(OBJ)/scanner$(OBJ_SUFF) \
         $(OBJ)/utils$(OBJ_SUFF) \
 
-default: $(OUT) all
+default: dirs all
 
 tar:
 	rm -f $(MATHVMTGZ)
@@ -82,7 +82,7 @@ tar:
 
 
 $(OBJ)/%$(OBJ_SUFF): $(VM_ROOT)/vm/%.cpp \
-	$(OUT) \
+	dirs \
 	$(VM_ROOT)/include/ast.h $(VM_ROOT)/include/mathvm.h \
         $(VM_ROOT)/include/visitors.h \
         $(VM_ROOT)/vm/scanner.h $(VM_ROOT)/vm/parser.h \
@@ -90,20 +90,23 @@ $(OBJ)/%$(OBJ_SUFF): $(VM_ROOT)/vm/%.cpp \
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
 $(OBJ)/%$(OBJ_SUFF): $(ROOT)/%.cpp \
-	$(OUT) \
+	dirs \
 	$(VM_ROOT)/include/ast.h $(VM_ROOT)/include/mathvm.h \
 	$(VM_ROOT)/include/visitors.h \
 	$(VM_ROOT)/vm/scanner.h $(VM_ROOT)/vm/parser.h \
 	$(VM_ROOT)/common.mk $(USER_DEPS)
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
-$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/AsmJit/%.cpp
+$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/AsmJit/%.cpp dirs
 	$(CXX) -c $(DEFS) $(CFLAGS) $(ASMJIT_CFLAGS) $(INCLUDE) $(ASMJIT_INCLUDE) $< -o $@
 
-$(OUT):
+dirs:
 	mkdir -p $(OUT)
 	mkdir -p $(OBJ)
 	mkdir -p $(BIN)
 
 clean:
 	rm -rf $(OUT)
+
+.PHONY : clean dirs all tar default
+
