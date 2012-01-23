@@ -1,0 +1,189 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\libs\;..\..\..\..\vm\;..\..\..\..\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <StackReserveSize>4294967296</StackReserveSize>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\..\..\libs\;..\..\..\..\vm\;..\..\..\..\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <StackReserveSize>4294967296</StackReserveSize>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <StackReserveSize>4294967296</StackReserveSize>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\libs\asmjit\Assembler.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\AssemblerX86X64.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\CodeGenerator.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\Compiler.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\CompilerX86X64.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\CpuInfo.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\Defs.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\DefsX86X64.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\Logger.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\MemoryManager.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\Operand.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\OperandX86X64.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\Platform.cpp" />
+    <ClCompile Include="..\..\..\..\libs\asmjit\Util.cpp" />
+    <ClCompile Include="..\..\..\..\vm\ast.cpp" />
+    <ClCompile Include="..\..\..\..\vm\interpreter.cpp" />
+    <ClCompile Include="..\..\..\..\vm\jit.cpp" />
+    <ClCompile Include="..\..\..\..\vm\mathvm.cpp" />
+    <ClCompile Include="..\..\..\..\vm\parser.cpp" />
+    <ClCompile Include="..\..\..\..\vm\scanner.cpp" />
+    <ClCompile Include="..\..\..\..\vm\translator.cpp" />
+    <ClCompile Include="..\..\..\..\vm\utils.cpp" />
+    <ClCompile Include="AstToAsm.cpp" />
+    <ClCompile Include="Exceptions.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="VarsSearcherVisitor.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\libs\asmjit\ApiBegin.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\ApiEnd.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\AsmJit.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Assembler.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\AssemblerX86X64.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Build.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\CodeGenerator.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Compiler.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\CompilerX86X64.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Config.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\CpuInfo.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Defs.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\DefsX86X64.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Logger.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\MemoryManager.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Operand.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\OperandX86X64.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Platform.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Util.h" />
+    <ClInclude Include="..\..\..\..\libs\asmjit\Util_p.h" />
+    <ClInclude Include="..\..\..\..\vm\jit.h" />
+    <ClInclude Include="..\..\..\..\vm\parser.h" />
+    <ClInclude Include="..\..\..\..\vm\scanner.h" />
+    <ClInclude Include="AstToAsm.h" />
+    <ClInclude Include="Exceptions.h" />
+    <ClInclude Include="VarsSearcherVisitor.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
