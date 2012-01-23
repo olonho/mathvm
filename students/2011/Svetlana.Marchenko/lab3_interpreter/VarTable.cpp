@@ -3,7 +3,7 @@
 
 
 uint16_t VarTable::tryFindIdByName(const string& varName) {
-	int i = 0;
+	uint16_t i = 0;
 	while ( i < _vars.size()) {
 		if (!_vars[i].compare(varName)) return i+_startIndex;
 		++i;

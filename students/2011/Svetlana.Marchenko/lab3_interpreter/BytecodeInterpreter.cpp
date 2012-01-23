@@ -382,7 +382,7 @@ Status BytecodeInterpreter::processInsn(Instruction insn) {
 		{
 			int64_t val1 = getTOSInt();
 			int64_t val2 = getTOSInt();
-			(cmp(val1, val2)) ? jump(getOffset()) : _insnPtr +=2;
+			if (cmp(val1, val2))  jump(getOffset()); else _insnPtr +=2;
 			break;
 		}
 			
@@ -390,14 +390,14 @@ Status BytecodeInterpreter::processInsn(Instruction insn) {
 		{
 			int64_t val1 = getTOSInt();
 			int64_t val2 = getTOSInt();
-			(!cmp(val1, val2)) ? jump(getOffset()) : _insnPtr +=2;
+			if(!cmp(val1, val2)) jump(getOffset()); else _insnPtr +=2;
 			break;
 		}
 	case BC_IFICMPG: //"Compare two topmost integers and jump if upper > lower, next two bytes - signed offset of jump destination."
 		{
 			int64_t val1 = getTOSInt();
 			int64_t val2 = getTOSInt();
-			(cmp(val1, val2) == 1) ? jump(getOffset()) : _insnPtr +=2;
+			if(cmp(val1, val2) == 1) jump(getOffset()); else _insnPtr +=2;
 			break;
 		}
 		
@@ -405,7 +405,7 @@ Status BytecodeInterpreter::processInsn(Instruction insn) {
 		{
 			int64_t val1 = getTOSInt();
 			int64_t val2 = getTOSInt();
-			(cmp(val1, val2) != -1) ? jump(getOffset()) : _insnPtr +=2;
+			if(cmp(val1, val2) != -1) jump(getOffset()); else _insnPtr +=2;
 			break;
 		}
 		
@@ -413,14 +413,14 @@ Status BytecodeInterpreter::processInsn(Instruction insn) {
 		{
 			int64_t val1 = getTOSInt();
 			int64_t val2 = getTOSInt();
-			(cmp(val1, val2) == -1) ? jump(getOffset()) : _insnPtr +=2;
+			if(cmp(val1, val2) == -1) jump(getOffset()); else _insnPtr +=2;
 			break;
 		}
 	case BC_IFICMPLE: //"Compare two topmost integers and jump if upper <= lower, next two bytes - signed offset of jump destination."
 		{
 			int64_t val1 = getTOSInt();
 			int64_t val2 = getTOSInt();
-			(cmp(val1, val2) != 1) ? jump(getOffset()) : _insnPtr +=2;
+			if(cmp(val1, val2) != 1) jump(getOffset()); else _insnPtr +=2;
 			break;
 		}
 	case BC_DUMP: //"Dump value on TOS, without removing it."
