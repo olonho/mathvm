@@ -24,13 +24,7 @@ CompiledFunc AstToAsm::compile(mathvm::AstFunction *root) {
 	GPVar frameAddr(_c.newGP());
 	_c.mov(frameAddr, imm((sysint_t)&_framePtr));
 	_c.mov(*_frame, qword_ptr(frameAddr, 0));
-	//_locals = new GPVar(_c.newGP());
-	//_tos = new GPVar(_c.newGP());
-	//_c.mov(*_tos, imm((sysint_t)_stack));
-	//_c.mov(*_tos, imm((sysint_t)_stack));
-	//_c.mov(*_locals, imm((sysint_t)_stack));
 	root->node()->body()->visit(this);
-	//_c.ret();
 	_c.endFunction();
 	CompiledFunc func = (CompiledFunc)_c.make();
 	return func;
@@ -46,19 +40,15 @@ void AstToAsm::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 				AsmJit::Label lAndEnd(_c.newLabel());
 				AsmJit::Label lAndTrue(_c.newLabel());
 				GPVar *result = new GPVar(_c.newGP());
-				//_bytecode->add(BC_ILOAD0);
 				node->left()->visit(this);
 				checkCurrentType(mathvm::VT_INT);
-				//_bytecode->addBranch(BC_IFICMPE, lAndFalse);
 				_c.cmp(static_cast<GPVar &>(*_lastVar), imm(0));
 				_c.je(lAndFalse);
 				node->right()->visit(this);
 				checkCurrentType(mathvm::VT_INT);
-				//_bytecode->addBranch(BC_JA, lAndEnd);
 				_c.cmp(static_cast<GPVar &>(*_lastVar), imm(0));
 				_c.jne(lAndTrue);
 				_c.bind(lAndFalse);
-				//_bytecode->add(BC_ILOAD0);
 				_c.mov(*result, imm(0));
 				_c.jmp(lAndEnd);
 				_c.bind(lAndTrue);
@@ -72,15 +62,12 @@ void AstToAsm::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 				AsmJit::Label lOrEnd(_c.newLabel());
 				AsmJit::Label lOrFalse(_c.newLabel());
 				GPVar *result = new GPVar(_c.newGP());
-				//_bytecode->add(BC_ILOAD1);
 				node->left()->visit(this);
 				checkCurrentType(mathvm::VT_INT);
-				//_bytecode->addBranch(BC_IFICMPE, lOrTrue);
 				_c.cmp(static_cast<GPVar &>(*_lastVar), imm(0));
 				_c.jne(lOrTrue);
 				node->right()->visit(this);
 				checkCurrentType(mathvm::VT_INT);
-				//_bytecode->addBranch(BC_JA, lOrEnd);
 				_c.cmp(static_cast<GPVar &>(*_lastVar), imm(0));
 				_c.je(lOrFalse);
 				_c.bind(lOrTrue);
@@ -140,19 +127,7 @@ void AstToAsm::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 			} break;
 		default: throwException("Invalid binary operation");
 	}
-	if (_lastType == VT_DOUBLE) {
-		//switch (opKind) {
-		//	case tEQ : _c.cmpsd((XMMVar &)*left, (XMMVar &)right, imm(0)); _c.movq(
-		//	case tNEQ : _c.cmpsd((XMMVar &)*left, (XMMVar &)right, imm(4)); checkIfInsn(C_NOT_EQUAL); break;
-		//	case tGT : _c.cmpsd((XMMVar &)*left, (XMMVar &)right, imm(6)); checkIfInsn(C_NOT_EQUAL);
-		//	case tLT : _c.cmpsd((XMMVar &)*left, (XMMVar &)right, imm(1)); checkIfInsn(C_NOT_EQUAL);
-		//	case tGE : _c.cmpsd((XMMVar &)*left, (XMMVar &)right, imm(5)); checkIfInsn(C_NOT_EQUAL);
-		//	case tLE : _c.cmpsd((XMMVar &)*left, (XMMVar &)right, imm(2)); checkIfInsn(C_NOT_EQUAL);
-		//		_bytecode->addInsn(BC_DCMP);
-		//		_lastType = mathvm::VT_INT; break;
-		//	default: ;
-		//}
-
+	if (_lastType == VT_DOUBLE) {		
 		// CMPSD man - http://www.jaist.ac.jp/iscenter-new/mpc/altix/altixdata/opt/intel/vtune/doc/users_guide/mergedProjects/analyzer_ec/mergedProjects/reference_olh/mergedProjects/instructions/instruct32_hh/vc40.htm
 		int predicate = -1;
 		switch (opKind) {
@@ -215,22 +190,6 @@ void AstToAsm::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 
 void AstToAsm::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 {
-	/*node->operand()->visit(this);
-	switch(node->kind()) {
-		case tSUB :
-			switch(_lastType) {
-				case mathvm::VT_INT : _bytecode->addInsn(BC_INEG); break;
-				case VT_DOUBLE : _bytecode->addInsn(BC_DNEG); break;
-				default:throwException(string("Type mismatch: expected double or int, but ") + typeToString(_lastType) + " got");
-			} break;
-		case tNOT : 	
-			checkCurrentType(VT_INT);
-			_bytecode->add(BC_ILOAD0);
-			checkIfInsn(BC_IFICMPE);
-			break;
-		default : 
-			throwException("Invalid unary operation");
-	}*/
 	node->operand()->visit(this);
 	switch(node->kind()) {
 		case tSUB :
@@ -245,16 +204,14 @@ void AstToAsm::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 				default: throwException(string("Type mismatch: expected double or int, but ") + typeToString(_lastType) + " got");
 			} break;
 		case tNOT : {	
-			checkCurrentType(mathvm::VT_INT);
-			//_bytecode->add(BC_ILOAD0);
-			//checkIfInsn(BC_IFICMPE);
-			AsmJit::Label ifZero(_c.newLabel());
-			AsmJit::Label end(_c.newLabel());
-			GPVar zero(_c.newGP());
-			_c.mov(zero, imm(0));
-			_c.cmp(zero, (GPVar &)*_lastVar);			
-			checkIfInsn(C_EQUAL);
-			break;
+				checkCurrentType(mathvm::VT_INT);
+				AsmJit::Label ifZero(_c.newLabel());
+				AsmJit::Label end(_c.newLabel());
+				GPVar zero(_c.newGP());
+				_c.mov(zero, imm(0));
+				_c.cmp(zero, (GPVar &)*_lastVar);			
+				checkIfInsn(C_EQUAL);
+				break;
 			}
 		default : 
 			throwException("Invalid unary operation");
@@ -263,10 +220,6 @@ void AstToAsm::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 
 void AstToAsm::visitStringLiteralNode( mathvm::StringLiteralNode* node )
 {
-	//_bytecode->addInsn(BC_SLOAD);
-	//uint16_t strConstantId = _code->makeStringConstant(node->literal());
-	//string str = _code->constantById(strConstantId);
-	//_bytecode->addUInt16(strConstantId);
 	char *str = new char[node->literal().size() + 1];
 	strncpy(str, node->literal().c_str(), node->literal().size());
 	str[node->literal().size()] = '\0';
@@ -277,8 +230,6 @@ void AstToAsm::visitStringLiteralNode( mathvm::StringLiteralNode* node )
 
  void AstToAsm::visitDoubleLiteralNode( mathvm::DoubleLiteralNode* node )
 {
-	/*_bytecode->addInsn(BC_DLOAD);
-	_bytecode->addDouble(node->literal());*/
 	double val = node->literal();
 	GPVar temp(_c.newGP());
 	_c.mov(temp, imm(*(int64_t *)&val));
@@ -290,8 +241,6 @@ void AstToAsm::visitStringLiteralNode( mathvm::StringLiteralNode* node )
 
 void AstToAsm::visitIntLiteralNode( mathvm::IntLiteralNode* node )
 {
-	/*_bytecode->addInsn(BC_ILOAD);
-	_bytecode->addInt64(node->literal());*/
 	_lastVar = new GPVar(_c.newGP());
 	_c.mov(static_cast<GPVar &>(*_lastVar), imm(node->literal()));	
 	_lastType =mathvm::VT_INT;
@@ -299,15 +248,6 @@ void AstToAsm::visitIntLiteralNode( mathvm::IntLiteralNode* node )
 
 void AstToAsm::visitLoadNode( mathvm::LoadNode* node )
 {
-	//switch (node->var()->type()) {
-	//	case mathvm::VT_INT : _bytecode->addInsn(BC_LOADIVAR); break;
-	//	case VT_DOUBLE : _bytecode->addInsn(BC_LOADDVAR); break;
-	//	case VT_STRING : _bytecode->addInsn(BC_LOADSVAR); break;
-	//	default: throwException("Unknown type of variable " + node->var()->name());
-	//}
-	//insertVarId(node->var()->name());
-	//_lastType = node->var()->type();
-
 	switch (node->var()->type()) {
 		case VT_STRING : 	
 		case mathvm::VT_INT : {
@@ -324,7 +264,6 @@ void AstToAsm::visitLoadNode( mathvm::LoadNode* node )
 			}
 		default: throwException("Unknown type of variable " + node->var()->name());
 	}
-	//insertVarId(node->var()->name());
 	_lastType = node->var()->type();
 }
 
@@ -352,7 +291,6 @@ void AstToAsm::visitStoreNode( mathvm::StoreNode* node )
 			}
 		}
 	}
-	//uint16_t varOffset = getVarOffset(node->var()->name());
 	TokenKind binaryOp = tUNDEF;
 	switch (node->op()) {
 		case tASSIGN : break;
@@ -367,15 +305,6 @@ void AstToAsm::visitStoreNode( mathvm::StoreNode* node )
 		binaryOpNode.visit(this);
 	}
 
-	//switch (node->var()->type()) {
-	//	case mathvm::VT_INT : _bytecode->addInsn(BC_STOREIVAR); break;
-	//	case VT_DOUBLE : _bytecode->addInsn(BC_STOREDVAR); break;
-	//	case VT_STRING : _bytecode->addInsn(BC_STORESVAR); break;
-	//	default : throwException("Invalid variable type");
-	//}
-	//insertVarId(node->var()->name());
-	//_lastType = VT_INVALID;
-	//node->value()->visit(this);
 	switch (node->var()->type()) {
 		case VT_STRING :
 		case mathvm::VT_INT : {
@@ -386,10 +315,8 @@ void AstToAsm::visitStoreNode( mathvm::StoreNode* node )
 			_c.movq(qword_ptr(*_frame, getVarOffset(node->var()->name()) * sizeof (int64_t)), (XMMVar &)*_lastVar);
 			break;
 		}
-		//case VT_STRING : _bytecode->addInsn(BC_STORESVAR); break;
 		default : throwException("Invalid variable type");
 	}
-	//insertVarId(node->var()->name());
 	_lastType = VT_INVALID;
 }
 
@@ -401,24 +328,15 @@ void AstToAsm::visitForNode( mathvm::ForNode* node )
 	}
 	inBinaryNode->left()->visit(this);
 	checkCurrentType(mathvm::VT_INT);
-	//_bytecode->addInsn(BC_STOREIVAR);
 	uint16_t varOffset = getVarOffset(node->var()->name());
 	_c.mov(qword_ptr(*_frame, varOffset * sizeof (uint64_t)), (GPVar &)*_lastVar);
-	//insertVarId(node->var()->name());
 	AsmJit::Label lStart(_c.newLabel()), lEnd(_c.newLabel());
 	_c.bind(lStart);
 	inBinaryNode->right()->visit(this);
 	_c.cmp(qword_ptr(*_frame, varOffset * sizeof (uint64_t)), static_cast<GPVar &>(*_lastVar));
 	_c.jg(lEnd);
-	//_bytecode->addInsn(BC_LOADIVAR);
-	//insertVarId(node->var()->name());
-	//_bytecode->addBranch(BC_IFICMPG, lEnd);
 	node->body()->visit(this);
-	//IntLiteralNode unit(0, 1);
-	//StoreNode incrNode(0, node->var(), &unit, tINCRSET);
-	//incrNode.visit(this);
 	_c.add(qword_ptr(*_frame, varOffset * sizeof (uint64_t)), imm(1));
-	//_bytecode->addBranch(BC_JA, lStart);
 	_c.jmp(lStart);
 	_c.bind(lEnd);
 }
@@ -431,13 +349,10 @@ void AstToAsm::visitWhileNode( mathvm::WhileNode* node )
 	if (_lastType != mathvm::VT_INT) {
 		throwException("\"While\" condition must have int type");
 	}
-	//_bytecode->addInsn(BC_ILOAD0);
-	//_bytecode->addBranch(BC_IFICMPE, lEnd);
 	_c.cmp(static_cast<GPVar &>(*_lastVar), imm(0));
 	_c.je(lEnd);
 	node->loopBlock()->visit(this);
 	_c.jmp(lCond);
-	//_bytecode->addBranch(BC_JA, lCond);
 	_c.bind(lEnd);
 }
 
@@ -448,13 +363,10 @@ void AstToAsm::visitIfNode( mathvm::IfNode* node )
 		throwException("\"If\" condition must have int type");
 	}
 	AsmJit::Label lEnd(_c.newLabel()), lElse(_c.newLabel());
-	//_bytecode->addInsn(BC_ILOAD0);
 	_c.cmp(static_cast<GPVar &>(*_lastVar), imm(0)); 
 	_c.je(lElse);
-	//_bytecode->addBranch(BC_IFICMPE, lElse);
 	node->thenBlock()->visit(this);		
 	if (node->elseBlock() != NULL) {
-		//_bytecode->addBranch(BC_JA, lEnd);
 		_c.jmp(lEnd);
 		_c.bind(lElse);
 		node->elseBlock()->visit(this);
@@ -467,21 +379,12 @@ void AstToAsm::visitIfNode( mathvm::IfNode* node )
 
 void AstToAsm::visitBlockNode( mathvm::BlockNode* node )
 {
-	//node->visitChildren(this);
 	Scope::FunctionIterator fnIt1(node->scope());
 	while (fnIt1.hasNext()) {
-		/*if (_currentFreeFuncId == FUNC_LIMIT) {
-			throwException("Functions limit was reached");
-		}*/
 		AstFunction *func = fnIt1.next();
-		//FreeVarsFunction *fvf = new FreeVarsFunction(func);
-		//_code->addFunction(fvf);
-
 		VarsSearcherVisitor *vsv = new VarsSearcherVisitor;
-		func->node()->visit(vsv);
-		
+		func->node()->visit(vsv);	
 		int64_t funcId = getFuncId(func->name());
-		//setFuncRetType(funcId, func->returnType());
 		setFuncNode(funcId, func);
 		setFuncVarsVisitor(funcId, vsv);
 		AstToAsm codeGenerator(func->parametersNumber());
@@ -494,8 +397,6 @@ void AstToAsm::visitBlockNode( mathvm::BlockNode* node )
 			codeGenerator.pushVar(func->parameterName(i), func->parameterType(i));
 		}
 		
-		//codeGenerator._bytecode = fvf->bytecode();	
-		//func->node()->body()->visit(&codeGenerator);	
 		CompiledFunc compiledFunc = codeGenerator.compile(func);
 		linkFunc(funcId, compiledFunc);
 	}
@@ -507,10 +408,7 @@ void AstToAsm::visitBlockNode( mathvm::BlockNode* node )
 	}
 	for (int i = 0; i < (int)node->nodes(); ++i) {
 		AstNode *currNode = node->nodeAt(i);
-		currNode->visit(this);
-		/*if (currNode->isCallNode()) {
-			_bytecode->addInsn(BC_POP);
-		}*/
+		currNode->visit(this);		
 	}	
 	Scope::VarIterator it2(node->scope());
 	while (it2.hasNext()) {
@@ -524,13 +422,6 @@ void AstToAsm::visitPrintNode( mathvm::PrintNode* node )
 	uint32_t count = node->operands();
 	for (uint32_t i = 0; i < count; ++i) {
 		node->operandAt(i)->visit(this);
-		/*switch(_lastType) {
-			case mathvm::VT_INT : _bytecode->addInsn(BC_IPRINT);  break;
-			case VT_DOUBLE : _bytecode->addInsn(BC_DPRINT);  break;
-			case VT_STRING : _bytecode->addInsn(BC_SPRINT);  break;
-			default: ;
-		}*/
-
 		switch(_lastType) {
 			case mathvm::VT_INT : {
 					ECall *ctx = _c.call((void *)printInt);
@@ -553,23 +444,6 @@ void AstToAsm::visitPrintNode( mathvm::PrintNode* node )
 			default: ;
 		}
 	}
-}
-
-void AstToAsm::insertData( const void *data, size_t size )
-{
-	//const uint8_t *pData = (const uint8_t *)data;
-	//while (size--) {
-	//	_bytecode->add(*pData++);
-	//}
-}
-
-void AstToAsm::insertVarId( const std::string &name )
-{
-	//vector<VarInt> &v = _vars[name];
-	//if (v.empty()) {
-	//	throwException("Undefined variable " + name);
-	//}
-	//_bytecode->addUInt16(v.back());	
 }
 
 uint16_t AstToAsm::getVarId(const std::string &name) 
@@ -695,8 +569,6 @@ void AstToAsm::visitCallNode( mathvm::CallNode* node )
 			default : throwException("Unknown type of parameter");
 		}
 	}
-	//_c.mov(oldFrame, *_frame);
-	//_c.add(*_frame, imm((1 + _paramsCount + _localsCount) * sizeof (int64_t)));
 	_c.mov(*_frame, newFrame);
 
 	GPVar frameAddr(_c.newGP(1U, "frameAddr"));
@@ -758,8 +630,6 @@ void AstToAsm::visitReturnNode( mathvm::ReturnNode* node )
 {
 	if (node->returnExpr()) {
 		node->returnExpr()->visit(this);
-		//_bytecode->addInsn(BC_STOREIVAR);
-		//_bytecode->addUInt16(0);
 		if (_rootFunc->returnType() != _lastType) {
 			convertLastVarTo(_rootFunc->returnType());
 		}
@@ -770,7 +640,6 @@ void AstToAsm::visitReturnNode( mathvm::ReturnNode* node )
 			default : throwException("Invalid type in return node");
 		}
 	}
-	//_bytecode->addInsn(BC_RETURN);
 	_c.ret();
 }
 
@@ -826,4 +695,3 @@ void AstToAsm::convertLastVarTo(mathvm::VarType type)
 		throwException("Incompatible types in conversion");
 	}
 }
-	
