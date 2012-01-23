@@ -2,8 +2,8 @@
 #include "ast.h"
 #include "mathvm.h"
 #include "VarsSearcherVisitor.h"
-#include "libs/asmjit/Compiler.h"
-#include "libs/asmjit/Logger.h"
+#include "AsmJit/Compiler.h"
+#include "AsmJit/Logger.h"
 #include <vector>
 
 typedef void (*CompiledFunc)();
@@ -77,7 +77,6 @@ private:
 	
 
 	static void throwException(const std::string &what);
-	
 
 	static void callProxy(uint64_t funcId) {
 		_functions[funcId]();
@@ -93,7 +92,7 @@ private:
 			throwException("Function limit exceeded");
 		}
 		_funcInfos[_funcCount].name = name;
-		_funcCount++;				
+		_funcCount++;
 		return _funcCount - 1;
 	}
 
@@ -126,7 +125,11 @@ private:
 	}
 
 	static void printInt(int64_t val) {
+#ifdef _WIN32			
 		printf("%lld", val);
+#else
+		printf("%ld", val);
+#endif
 	}
 
 	static void printDouble(double val) {
