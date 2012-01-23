@@ -444,7 +444,7 @@ void TranslateVisitor::visitFunctionNode( FunctionNode* node) {
 void TranslateVisitor::addParametersToScope(ScopeWrapper* scope, FunctionNode* node) {
 	AstFunction* astFunc = extractAstFunction(node);
 	scope->setParametersNumber(astFunc->parametersNumber()); 
-	for (int i = 0; i < astFunc->parametersNumber(); ++i) {
+	for (uint16_t i = 0; i < astFunc->parametersNumber(); ++i) {
 		scope->addVar(astFunc->parameterName(i));	
 	}
 }
@@ -455,7 +455,7 @@ void TranslateVisitor::visit(  BlockNode * rootNode )
 }
 
 void TranslateVisitor::visitCallNode(CallNode* node) {
-	for (int i =0; i < node->parametersNumber(); ++i) {
+	for (uint16_t i =0; i < node->parametersNumber(); ++i) {
 		node->parameterAt(i)->visit(this);
 	}
 	_byteCode->addInsn(BC_CALL);
