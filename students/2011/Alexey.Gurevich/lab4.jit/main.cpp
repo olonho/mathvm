@@ -1,5 +1,6 @@
 #include "mathvm.h"
 #include "ast.h"
+//#include "../vm/jit.h"
 #include "bytecoder.h"
 #include "my_translator.h"
 #include "parser.h"
@@ -16,29 +17,20 @@ int main(int argc, char** argv)
 	}
 
 	char* program = mathvm::loadFile(argv[1]);
-	Code* code = new MyCode();
+	Code* code = new MyMachCodeImpl();
 
-	Translator* translator = Translator::create("my_translator");
+	Translator* translator = Translator::create("my_jit");
 	Status* status = translator->translate(program, &code);
 	if (status == NULL) {
-		std::cerr << "== disassembled: ==" << std::endl;
-		code->disassemble(std::cerr);
-		std::cerr << "== end ==\n" << std::endl;
-
 		vector<mathvm::Var*> vars;
 		Status* executeStatus = code->execute(vars);
-		if (executeStatus != NULL) {
-			std::cerr << "Error during execution! " << status->getError() << std::endl;
+		if (executeStatus != NULL && !executeStatus->isOk()) {
+			std::cerr << "Error during execution: " << status->getError() << std::endl;
 			delete executeStatus;
 		}
 	}
 	else if (status->isError()) {
-		uint32_t position = status->getPosition();
-		uint32_t line = 0, offset = 0;
-		positionToLineOffset(program, position, line, offset);
-		std::cerr << "Cannot translate expression at "
-			  << line << "," << offset << ". "
-			  << "Error: " << status->getError() << std::endl;
+		std::cerr << "Error during translation and MachCode generation: " << status->getError() << std::endl;
 	}
 
 	delete status;
