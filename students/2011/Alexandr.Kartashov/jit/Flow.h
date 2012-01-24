@@ -369,9 +369,10 @@ namespace mathvm {
             default:
               ABORT("Not supported");
             }
-          }
 
-          attach(fn);
+            attach(fn);
+          }
+          
           return;
 
         case tSUB:
