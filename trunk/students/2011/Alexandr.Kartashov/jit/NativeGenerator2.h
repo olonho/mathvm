@@ -76,7 +76,7 @@ namespace mathvm {
         code->push_r(RDI);
         code->mov_rr(RSI, RDI);
         code->mov_rr(RDI, RBP);
-        code->sub_rm_imm(RDI, (_localsBase + nargs)*VAR_SIZE);
+        code->sub_rm_imm(RDI, (_localsBase + nargs)*VAR_SIZE - 8);
         code->mov_r_imm(RCX, nargs);
         code->add(REPNE);
         code->add(x86_rex(0, 0, 1));
@@ -106,7 +106,7 @@ namespace mathvm {
       if (isTop && !noArgs) {
         code->pop_r(RDI);
         code->mov_rr(RSI, RBP);
-        code->sub_rm_imm(RSI, (_localsBase + nargs)*VAR_SIZE);
+        code->sub_rm_imm(RSI, (_localsBase + nargs)*VAR_SIZE - 8);
 
         code->mov_r_imm(RCX, nargs);
         code->add(REPNE);
