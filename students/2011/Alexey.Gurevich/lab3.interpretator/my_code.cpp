@@ -240,67 +240,73 @@ Status* MyCode::executeBytecode(Bytecode* bytecode) {
 				insnIndex += 1;
 				break;
 			}
-			case BC_LOADDVAR : {
-				uint16_t varId = bytecode->getUInt16(insnIndex + 1);
-				if (varMap_.count(varId) == 0) {
+			case BC_LOADCTXDVAR : {
+				uint16_t ctxId = bytecode->getUInt16(insnIndex + 1);
+				uint16_t varId = bytecode->getUInt16(insnIndex + 3);
+				if (varsStorage_[ctxId][varId] == 0) {
 					return new Status("Variable not found", insnIndex);
 				}
-				double value = varMap_[varId]->getDoubleValue();
+				double value = varsStorage_[ctxId][varId]->getDoubleValue();
 				pushDouble(value);
-				insnIndex += 3;
+				insnIndex += 5;
 				break;
 			}
-			case BC_LOADIVAR : {
-				uint16_t varId = bytecode->getUInt16(insnIndex + 1);
-				if (varMap_.count(varId) == 0) {
+			case BC_LOADCTXIVAR : {
+				uint16_t ctxId = bytecode->getUInt16(insnIndex + 1);
+				uint16_t varId = bytecode->getUInt16(insnIndex + 3);
+				if (varsStorage_[ctxId][varId] == 0) {
 					return new Status("Variable not found", insnIndex);
 				}
-				int value = varMap_[varId]->getIntValue();
+				int64_t value = varsStorage_[ctxId][varId]->getIntValue();
 				pushInt(value);
-				insnIndex += 3;
+				insnIndex += 5;
 				break;
 			}
-			case BC_LOADSVAR : {
-				uint16_t varId = bytecode->getUInt16(insnIndex + 1);
-				if (varMap_.count(varId) == 0) {
+			case BC_LOADCTXSVAR : {
+				uint16_t ctxId = bytecode->getUInt16(insnIndex + 1);
+				uint16_t varId = bytecode->getUInt16(insnIndex + 3);
+				if (varsStorage_[ctxId][varId] == 0) {
 					return new Status("Variable not found", insnIndex);
 				}
-				const char* value = varMap_[varId]->getStringValue();
+				const char* value = varsStorage_[ctxId][varId]->getStringValue();
 				pushString(value);
-				insnIndex += 3;
+				insnIndex += 5;
 				break;
 			}
-			case BC_STOREDVAR : {
+			case BC_STORECTXDVAR : {
 				double value = popDouble();
-				uint16_t varId = bytecode->getUInt16(insnIndex + 1);
-				if (varMap_.count(varId) == 0) {
+				uint16_t ctxId = bytecode->getUInt16(insnIndex + 1);
+				uint16_t varId = bytecode->getUInt16(insnIndex + 3);
+				if (varsStorage_[ctxId][varId] == 0) {
 					Var* newVar = new Var(VT_DOUBLE, "");
-					varMap_[varId] = newVar;
+					varsStorage_[ctxId][varId] = newVar;
 				}
-				varMap_[varId]->setDoubleValue(value);
-				insnIndex += 3;
+				varsStorage_[ctxId][varId]->setDoubleValue(value);
+				insnIndex += 5;
 				break;
 			}
-			case BC_STOREIVAR : {
-				int value = popInt();
-				uint16_t varId = bytecode->getUInt16(insnIndex + 1);
-				if (varMap_.count(varId) == 0) {
+			case BC_STORECTXIVAR : {
+				int64_t value = popInt();
+				uint16_t ctxId = bytecode->getUInt16(insnIndex + 1);
+				uint16_t varId = bytecode->getUInt16(insnIndex + 3);
+				if (varsStorage_[ctxId][varId] == 0) {
 					Var* newVar = new Var(VT_INT, "");
-					varMap_[varId] = newVar;
+					varsStorage_[ctxId][varId] = newVar;
 				}
-				varMap_[varId]->setIntValue(value);
-				insnIndex += 3;
+				varsStorage_[ctxId][varId]->setIntValue(value);
+				insnIndex += 5;
 				break;
 			}
-			case BC_STORESVAR : {
+			case BC_STORECTXSVAR : {
 				const char* value = popString();
-				uint16_t varId = bytecode->getUInt16(insnIndex + 1);
-				if (varMap_.count(varId) == 0) {
+				uint16_t ctxId = bytecode->getUInt16(insnIndex + 1);
+				uint16_t varId = bytecode->getUInt16(insnIndex + 3);
+				if (varsStorage_[ctxId][varId] == 0) {
 					Var* newVar = new Var(VT_STRING, "");
-					varMap_[varId] = newVar;
+					varsStorage_[ctxId][varId] = newVar;
 				}
-				varMap_[varId]->setStringValue(value);
-				insnIndex += 3;
+				varsStorage_[ctxId][varId]->setStringValue(value);
+				insnIndex += 5;
 				break;
 			}
 			case BC_DCMP : {
@@ -409,7 +415,18 @@ Status* MyCode::executeBytecode(Bytecode* bytecode) {
 				if (bytecodeFunc == 0) {
 					return new Status("Function not found", insnIndex);
 				}
+
+				func_vars_t prev_block = varsStorage_[funcId];
+				varsStorage_[funcId] = new var_ptr_t[funcVarsCount_[funcId]];
+				memset(varsStorage_[funcId], 0, funcVarsCount_[funcId] * sizeof(var_ptr_t));
+
 				Status* status = executeBytecode(bytecodeFunc->bytecode());
+
+				for (uint16_t i = 0; i != funcVarsCount_[funcId]; ++i)
+					delete varsStorage_[funcId][i];
+				delete [] varsStorage_[funcId];
+				varsStorage_[funcId] = prev_block;
+
 				if (status != NULL) {
 					return status;
 				}
@@ -437,9 +454,24 @@ Status* MyCode::executeBytecode(Bytecode* bytecode) {
 }
 
 Status* MyCode::execute(vector<Var*>& vars) {
+	// preparing variables storage
+	uint16_t funcNumber = funcVarsCount_.size();
+	varsStorage_ = new func_vars_t[funcNumber];
+	memset(varsStorage_, 0, funcNumber * sizeof(func_vars_t));
+	varsStorage_[0] = new var_ptr_t[funcVarsCount_[0]];
+	memset(varsStorage_[0], 0, funcVarsCount_[0] * sizeof(var_ptr_t));
+
 	BytecodeFunction* pseudoFunction = (BytecodeFunction*)functionByName(AstFunction::top_name);
 	Bytecode* bytecode = pseudoFunction->bytecode();
-	return executeBytecode(bytecode);
+
+	Status* executionStatus = executeBytecode(bytecode);
+
+	for (uint16_t i = 0; i != funcVarsCount_[0]; ++i)
+		delete varsStorage_[0][i];
+	delete [] varsStorage_[0];
+	delete [] varsStorage_;
+
+	return executionStatus;
 }
 
 

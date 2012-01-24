@@ -1,20 +1,74 @@
 #include "bytecoder.h"
-#include <iostream>
-#include <iomanip>
-#include <dlfcn.h>
 
 using namespace mathvm;
-using std::cout;
-using std::endl;
-using std::string;
+
+// auxiliary class
+Bytecoder::VarMap::VarMap(func_vars_map_t* funcVarsCount) {
+	scopes_.push_back(scope_t());
+	contexts_.push_back(make_pair(0, 0));
+	funcVarsCount_ = funcVarsCount;
+}
+
+Bytecoder::VarMap::~VarMap() {
+	id_t scopeCtx = contexts_.back().first;
+	id_t ctxLastVarId = contexts_.back().second;
+	// storing number of variables in this context
+	(*funcVarsCount_)[scopeCtx] = ctxLastVarId;
+
+	scopes_.pop_back();
+	contexts_.pop_back();
+}
+
+void Bytecoder::VarMap::pushScope(id_t ctx_id) {
+	id_t scopeCtx = contexts_.back().first;
+	id_t ctxLastVarId = contexts_.back().second;
+
+	if (ctx_id == scopeCtx)
+		contexts_.push_back(make_pair(ctx_id, ctxLastVarId));
+	else
+		contexts_.push_back(make_pair(ctx_id, 0));
+
+	scopes_.push_back(scope_t());
+}
+
+void Bytecoder::VarMap::popScope() {
+	assert(!scopes_.empty());
+	scopes_.pop_back();
+
+	id_t scopeCtx = contexts_.back().first;
+	id_t ctxLastVarId = contexts_.back().second;
+	// storing number of variables in this context
+	(*funcVarsCount_)[scopeCtx] = ctxLastVarId;
+
+	contexts_.pop_back();
+	if (!contexts_.empty()) {
+		if (contexts_.back().first == scopeCtx)
+			contexts_.back().second = ctxLastVarId;
+	}
+}
+
+void Bytecoder::VarMap::addDataToScope(std::string const& varName) {
+	id_t scopeCtx = contexts_.back().first;
+	id_t& ctxLastVarId = contexts_.back().second;
+
+	scopes_.back()[varName] = make_pair(scopeCtx, ctxLastVarId++);
+}
+
+pair<uint16_t, uint16_t> Bytecoder::VarMap::getData(std::string const& dataName) {
+	for (all_scopes_t::reverse_iterator scope_it = scopes_.rbegin(); scope_it != scopes_.rend(); ++scope_it) {
+		scope_t& curScope = *scope_it;
+		if (curScope.count(dataName) != 0)
+			return curScope[dataName];
+	}
+	assert(false);
+	return make_pair(-1, -1);
+}
 
 // auxiliary functions
 void Bytecoder::placeVar(std::string const& name) {
-	bytecode_->addInt16(varMap_.getData(name));
-}
-
-void Bytecoder::placeFunc(std::string const& name) {
-	bytecode_->addInt16(funcMap_.getData(name));
+	pair<uint16_t, uint16_t> varDescriptor = varMap_.getData(name);
+	bytecode_->addUInt16(varDescriptor.first);
+	bytecode_->addUInt16(varDescriptor.second);
 }
 
 // for handling results after BC_DCMP and BC_ICMP
@@ -120,6 +174,7 @@ void Bytecoder::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 				case tSUB : bytecode_->addInsn(BC_DSUB); break;
 				case tMUL : bytecode_->addInsn(BC_DMUL); break;
 				case tDIV : bytecode_->addInsn(BC_DDIV); break;
+				case tMOD : bytecode_->addInsn(BC_IMOD); break;
 				case tEQ  :
 				case tNEQ :
 				case tGT  :
@@ -212,13 +267,13 @@ void Bytecoder::visitLoadNode( mathvm::LoadNode* node )
 {
 	switch (node->var()->type()) {
 		case VT_INT :
-			bytecode_->addInsn(BC_LOADIVAR);
+			bytecode_->addInsn(BC_LOADCTXIVAR);
 			break;
 		case VT_DOUBLE :
-			bytecode_->addInsn(BC_LOADDVAR);
+			bytecode_->addInsn(BC_LOADCTXDVAR);
 			break;
 		case VT_STRING :
-			bytecode_->addInsn(BC_LOADSVAR);
+			bytecode_->addInsn(BC_LOADCTXSVAR);
 			break;
 		default:
 			assert(false);
@@ -236,7 +291,7 @@ void Bytecoder::visitStoreNode( mathvm::StoreNode* node )
 
 	if (node->op() == tINCRSET || node->op() == tDECRSET) {
 		if (node->var()->type() == VT_INT) {
-			bytecode_->addInsn(BC_LOADIVAR);
+			bytecode_->addInsn(BC_LOADCTXIVAR);
 			placeVar(node->var()->name());
 			if (node->op() == tINCRSET)
 				bytecode_->addInsn(BC_IADD);
@@ -244,7 +299,7 @@ void Bytecoder::visitStoreNode( mathvm::StoreNode* node )
 				bytecode_->addInsn(BC_ISUB);
 		}
 		else if (node->var()->type() == VT_DOUBLE) {
-			bytecode_->addInsn(BC_LOADDVAR);
+			bytecode_->addInsn(BC_LOADCTXDVAR);
 			placeVar(node->var()->name());
 			if (node->op() == tINCRSET)
 				bytecode_->addInsn(BC_DADD);
@@ -259,13 +314,13 @@ void Bytecoder::visitStoreNode( mathvm::StoreNode* node )
 
 	switch (node->var()->type()) {
 		case VT_INT :
-			bytecode_->addInsn(BC_STOREIVAR);
+			bytecode_->addInsn(BC_STORECTXIVAR);
 			break;
 		case VT_DOUBLE :
-			bytecode_->addInsn(BC_STOREDVAR);
+			bytecode_->addInsn(BC_STORECTXDVAR);
 			break;
 		case VT_STRING :
-			bytecode_->addInsn(BC_STORESVAR);
+			bytecode_->addInsn(BC_STORECTXSVAR);
 			break;
 		default :
 			assert(false);
@@ -281,24 +336,24 @@ void Bytecoder::visitForNode( mathvm::ForNode* node )
 	assert(inExpr != NULL);
 	// init
 	inExpr->left()->visit(this);
-	bytecode_->addInsn(BC_STOREIVAR);
+	bytecode_->addInsn(BC_STORECTXIVAR);
 	placeVar(node->var()->name());
 
 	Label lCheckCondition(bytecode_), lEnd(bytecode_);
 	// exit condition
 	bytecode_->bind(lCheckCondition);
 	inExpr->right()->visit(this);
-	bytecode_->addInsn(BC_LOADIVAR);
+	bytecode_->addInsn(BC_LOADCTXIVAR);
 	placeVar(node->var()->name());
 	bytecode_->addBranch(BC_IFICMPG, lEnd);
 	// body
 	node->body()->visit(this);
 	// increment
 	bytecode_->addInsn(BC_ILOAD1);
-	bytecode_->addInsn(BC_LOADIVAR);
+	bytecode_->addInsn(BC_LOADCTXIVAR);
 	placeVar(node->var()->name());
 	bytecode_->addInsn(BC_IADD);
-	bytecode_->addInsn(BC_STOREIVAR);
+	bytecode_->addInsn(BC_STORECTXIVAR);
 	placeVar(node->var()->name());
 	// back to condition
 	bytecode_->addBranch(BC_JA, lCheckCondition);
@@ -345,8 +400,7 @@ void Bytecoder::visitIfNode( mathvm::IfNode* node )
 
 void Bytecoder::visitBlockNode( mathvm::BlockNode* node )
 {
-	varMap_.pushScope();
-	funcMap_.pushScope();
+	varMap_.pushScope(ctxId_);
 
 	Scope::VarIterator varIt(node->scope());
 	while(varIt.hasNext()) {
@@ -354,27 +408,36 @@ void Bytecoder::visitBlockNode( mathvm::BlockNode* node )
 		varMap_.addDataToScope(var->name());
 	}
 
+	Scope::FunctionIterator funcPreIt(node->scope());
+	while (funcPreIt.hasNext()) {
+		AstFunction* astFunc = funcPreIt.next();
+		BytecodeFunction* bytecodeFunc = new BytecodeFunction(astFunc);
+		code_->addFunction(bytecodeFunc);
+	}
+
 	Scope::FunctionIterator funcIt(node->scope());
 	while (funcIt.hasNext()) {
 		AstFunction* astFunc = funcIt.next();
-		BytecodeFunction* bytecodeFunc = new BytecodeFunction(astFunc);
-		funcMap_.addDataToScope(astFunc->name(), code_->addFunction(bytecodeFunc));
+		BytecodeFunction* bytecodeFunc = (BytecodeFunction*)code_->functionByName(astFunc->name());
+		uint16_t newCtxId = bytecodeFunc->id();
 
-		Bytecode* main_bytecode_   = bytecode_;
-		VarType   main_topType_    = topType_;
-		VarType   main_returnType_ = returnType_;
+		Bytecode* main_bytecode_	= bytecode_;
+		VarType   main_topType_		= topType_;
+		VarType   main_returnType_	= returnType_;
+		uint16_t  main_ctxId_		= ctxId_;
+
 		bytecode_ = bytecodeFunc->bytecode();
-		varMap_.pushScope();
-		funcMap_.pushScope();
+		ctxId_ = newCtxId;
+		varMap_.pushScope(newCtxId);
 		returnType_ = astFunc->returnType();
 
 		// parameters are on TOS in reverse order
 		for (uint32_t i = astFunc->parametersNumber(); i > 0; --i) {
 			varMap_.addDataToScope(astFunc->parameterName(i - 1));
 			switch (astFunc->parameterType(i - 1)) {
-				case VT_INT    : bytecode_->addInsn(BC_STOREIVAR); break;
-				case VT_DOUBLE : bytecode_->addInsn(BC_STOREDVAR); break;
-				case VT_STRING : bytecode_->addInsn(BC_STORESVAR); break;
+				case VT_INT    : bytecode_->addInsn(BC_STORECTXIVAR); break;
+				case VT_DOUBLE : bytecode_->addInsn(BC_STORECTXDVAR); break;
+				case VT_STRING : bytecode_->addInsn(BC_STORECTXSVAR); break;
 				default :
 					// wrong type of parameter
 					assert(false);
@@ -385,16 +448,15 @@ void Bytecoder::visitBlockNode( mathvm::BlockNode* node )
 		astFunc->node()->visit(this);
 
 		varMap_.popScope();
-		funcMap_.popScope();
 		bytecode_   = main_bytecode_;
 		topType_    = main_topType_;
 		returnType_ = main_returnType_;
+		ctxId_		= main_ctxId_;
 	}
 
 	node->visitChildren(this);
 
 	varMap_.popScope();
-	funcMap_.popScope();
 }
 
 void Bytecoder::visitFunctionNode( mathvm::FunctionNode* node )
@@ -439,14 +501,19 @@ void Bytecoder::visitPrintNode( mathvm::PrintNode* node )
 
 void Bytecoder::visitCallNode( mathvm::CallNode* node )
 {
-	BytecodeFunction* bytecodeFunc = (BytecodeFunction*)code_->functionById(funcMap_.getData(node->name()));
+	BytecodeFunction* bytecodeFunc = (BytecodeFunction*)code_->functionByName(node->name());
 	assert(bytecodeFunc != 0);
 
 	// storing parameters on TOS
-	node->visitChildren(this); // load parameters
+	for (uint32_t i = 0; i < node->parametersNumber(); i++) {
+		node->parameterAt(i)->visit(this);
+		if (topType_ != bytecodeFunc->signature()[i + 1].first) {
+			convertTypes(topType_, bytecodeFunc->signature()[i + 1].first);
+		}
+	}
 
 	bytecode_->addInsn(BC_CALL);
-	placeFunc(node->name());
+	bytecode_->addUInt16(bytecodeFunc->id());
 	// return type
 	topType_ = bytecodeFunc->signature()[0].first;
 }
