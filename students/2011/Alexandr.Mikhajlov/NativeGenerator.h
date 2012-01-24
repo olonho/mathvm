@@ -29,7 +29,7 @@ struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
   virtual void visitBlockNode(mathvm::BlockNode* node);
   virtual void visitFunctionNode(mathvm::FunctionNode* node);
   virtual void visitPrintNode(mathvm::PrintNode* node);
-  virtual void visitReturnNode(mathvm::ReturnNode* node){}
+  virtual void visitReturnNode(mathvm::ReturnNode* node);
   virtual void visitCallNode(mathvm::CallNode* node);
   void Compile( mathvm::AstFunction * rootNode);
 	void SetVariable( mathvm::VarType expectedType, VarId &id );
@@ -54,7 +54,8 @@ private:
 	void TryDoIntegerLogic( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right );
 	void IncrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
 	void DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
-	AsmJit::GPVar myLocalsPtr;// Obsolete
+	AsmJit::GPVar myLocalsPtr;
+	AsmJit::Label myReturnLabel;
 	int64_t* myLocalsPointer;
 	int64_t* myLocalsPointerOrigin;
 
