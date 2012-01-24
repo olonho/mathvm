@@ -7472,7 +7472,7 @@ XMMVar CompilerCore::argXMM(uint32_t index) ASMJIT_NOTHROW
   if (f)
   {
     const FunctionPrototype& prototype = f->getPrototype();
-    if (prototype.getArgumentsCount() < index)
+    if (index < prototype.getArgumentsCount())
     {
       VarData* vdata = getFunction()->_argumentVariables[index];
 
