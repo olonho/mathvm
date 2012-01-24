@@ -21,6 +21,10 @@ int main(int argc, char** argv)
 	Translator* translator = Translator::create("my_translator");
 	Status* status = translator->translate(program, &code);
 	if (status == NULL) {
+		//std::cerr << "== disassembled: ==" << std::endl;
+		//code->disassemble(std::cerr);
+		//std::cerr << "== end ==\n" << std::endl;
+
 		vector<mathvm::Var*> vars;
 		Status* executeStatus = code->execute(vars);
 		if (executeStatus != NULL) {

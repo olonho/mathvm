@@ -1,12 +1,16 @@
 #pragma once
 
 #include "ast.h"
+#include <string.h>
 #include <vector>
 #include <map>
 
 namespace mathvm {
 
 class MyCode : public Code {
+
+	typedef Var*		var_ptr_t;
+	typedef var_ptr_t*	func_vars_t;
 
 	union StackValue {
 		double  	doubleValue;
@@ -29,16 +33,17 @@ class MyCode : public Code {
 
 public:
 	MyCode() {}
-	~MyCode() {
-		for (map<uint16_t, Var*>::iterator it=varMap_.begin() ; it != varMap_.end(); ++it) {
-			delete it->second;
-		}
-	}
+	~MyCode() {}
 	Status* execute(vector<Var*>& vars);
 
+	map<uint16_t, uint16_t>* getFuncVarsCount() {
+		return &funcVarsCount_;
+	}
+
 private:
+	map<uint16_t, uint16_t> funcVarsCount_;
 	vector<StackValue>  stack_;
-	map<uint16_t, Var*> varMap_;
+	func_vars_t* varsStorage_;
 };
 
 }
