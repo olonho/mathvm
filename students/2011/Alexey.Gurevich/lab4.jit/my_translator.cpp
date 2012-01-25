@@ -13,30 +13,14 @@ FileLogger logger(stderr);
 namespace mathvm {
 
 Translator* Translator::create(const string& impl) {
-	if (impl == "my_translator") {
-		return new MyTranslator();
-	} else if (impl == "my_jit") {
+	if (impl == "my_jit") {
 		return new MyJitTranslator();
 	}
 	assert(false);
 	return 0;
 }
 
-Status* MyTranslator::translate(const string& program, Code* *code) {
-	Parser* parser = new Parser();
-	Status* status = parser->parseProgram(program);
-	if (status == NULL) {
-		BytecodeFunction* pseudo_function = new BytecodeFunction(parser->top());
-		(*code)->addFunction(pseudo_function);
-		Bytecoder* visitor = new Bytecoder(*code);
-		parser->top()->node()->visit(visitor);
-		pseudo_function->bytecode()->add(BC_STOP);
-		delete visitor;
-	}
-	delete parser;
-	return status;
-}
-
+///// start of auxiliary functions //////
 void printInt(sysint_t value) {
 	std::cout << value;
 }
@@ -94,7 +78,10 @@ sysint_t dcmp(double upper, double lower) {
 	}
 	return result;
 }
+///// end of auxiliary functions //////
 
+
+///// start of useful functions for simplification of pop, push, etc /////
 void pushDouble(double value, Compiler* *compiler) {
 	sysint_t nvalue = *((sysint_t*) &value);
 	// unfortunately, simple  "compiler->push(imm(nvalue));" doesn't work
@@ -121,11 +108,15 @@ XMMVar popXMMVar(Compiler* *compiler) {
 	return doubleVar;
 }
 
-void checkJumps(Compiler* *compiler, map<uint32_t, AsmJit::Label*> *labelMap, uint32_t insnIndex) {
-	if (labelMap->count(insnIndex) != 0) {
-		AsmJit::Label* label = (*labelMap)[insnIndex];
-		(*compiler)->bind(*label);
-	}
+Mem getVarPtr (Compiler* *compiler, uint16_t ctxId, uint16_t varId, MyJitTranslator::func_vars_t* varsStorage) {
+	GPVar ctxPtr((*compiler)->newGP());
+	GPVar ctxAddr((*compiler)->newGP());
+	(*compiler)->mov(ctxAddr, imm( (sysint_t) &(varsStorage[ctxId])));
+	(*compiler)->mov(ctxPtr, qword_ptr(ctxAddr));
+	(*compiler)->unuse(ctxAddr);
+	Mem varPtr = qword_ptr(ctxPtr, varId * sizeof(sysint_t));
+	(*compiler)->unuse(ctxPtr);
+	return varPtr;
 }
 
 void handleIFICMP(Compiler* *compiler, map<uint32_t, AsmJit::Label*>& labelMap,
@@ -158,7 +149,9 @@ void handleIFICMP(Compiler* *compiler, map<uint32_t, AsmJit::Label*>& labelMap,
 	(*compiler)->unuse(upper);
 	(*compiler)->unuse(lower);
 }
+///// end of useful functions for simplification of pop, push, etc /////
 
+///// start of functions for handling JUMPs /////
 void storeLabels(Compiler* *compiler, map<uint32_t, AsmJit::Label*> *labelMap, Bytecode* bytecode) {
 	uint32_t insnIndex = 0;
 	Instruction curInstruction;
@@ -265,6 +258,15 @@ void freeLabelMap(map<uint32_t, AsmJit::Label*> *labelMap) {
 	}
 }
 
+void checkJumps(Compiler* *compiler, map<uint32_t, AsmJit::Label*> *labelMap, uint32_t insnIndex) {
+	if (labelMap->count(insnIndex) != 0) {
+		AsmJit::Label* label = (*labelMap)[insnIndex];
+		(*compiler)->bind(*label);
+	}
+}
+///// end of functions for handling JUMPs /////
+
+// useful function builder
 FunctionBuilderX fillFunctionBuilderX(BytecodeFunction* bytecodeFunction) {
 	FunctionBuilderX functionBuilderX;
 	// setting types of arguments
@@ -287,22 +289,8 @@ FunctionBuilderX fillFunctionBuilderX(BytecodeFunction* bytecodeFunction) {
 	return functionBuilderX;
 }
 
-int test() {
-	printf("test\n");
-	return 1;
-}
 
-Mem getVarPtr (Compiler* *compiler, uint16_t ctxId, uint16_t varId, MyJitTranslator::func_vars_t* varsStorage) {
-	GPVar ctxPtr((*compiler)->newGP());
-	GPVar ctxAddr((*compiler)->newGP());
-	(*compiler)->mov(ctxAddr, imm( (sysint_t) &(varsStorage[ctxId])));
-	(*compiler)->mov(ctxPtr, qword_ptr(ctxAddr));
-	(*compiler)->unuse(ctxAddr);
-	Mem varPtr = qword_ptr(ctxPtr, varId * sizeof(sysint_t));
-	(*compiler)->unuse(ctxPtr);
-	return varPtr;
-}
-
+//// MAIN FUNCTION to translate BYTECODE into MACHCODE /////
 Status* MyJitTranslator::generateFunction(Code* code, BytecodeFunction* bytecodeFunction, void* *function) {
 
 	Bytecode* bytecode = bytecodeFunction->bytecode();
@@ -1055,7 +1043,9 @@ Status* MyJitTranslator::generateFunction(Code* code, BytecodeFunction* bytecode
 	freeLabelMap(&labelMap);
 	return NULL;
 }
+//// END OF MAIN FUNCTION to translate BYTECODE into MACHCODE /////
 
+// functions for prepare MAIN translation //
 Status* MyJitTranslator::generate(Code* code, MyMachCodeImpl* *machCode) {
 	// preparing variables storage
 	funcVarsCount_ = *((MyCode*)code)->getFuncVarsCount();
@@ -1126,5 +1116,6 @@ Status* MyJitTranslator::translate(const string& program, Code* *result) {
     *result = code;
     return NULL;
 }
+// end of functions for prepare MAIN translation //
 
 }
