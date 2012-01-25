@@ -7,6 +7,7 @@
 #include <stack>
 #include <vector>
 #include <iostream>
+#include <dlfcn.h>
 
 using namespace mathvm;
 
@@ -61,7 +62,8 @@ public:
 	Bytecoder(Code* code)
         : code_(code),
           bytecode_(((BytecodeFunction *)(code->functionByName(AstFunction::top_name)))->bytecode()),
-          topType_(VT_INVALID), returnType_(VT_VOID), ctxId_(0), varMap_(((MyCode*)code_)->getFuncVarsCount()) {
+          topType_(VT_INVALID), returnType_(VT_VOID), ctxId_(0),
+          varMap_(((MyCode*)code_)->getFuncVarsCount()), nativeLibsHandler_(NULL) {
     }
 
     ~Bytecoder() {}
@@ -73,4 +75,6 @@ private:
 	VarType		returnType_;
 	uint16_t	ctxId_;
 	VarMap		varMap_;
+	void* 		nativeLibsHandler_;
+
 };

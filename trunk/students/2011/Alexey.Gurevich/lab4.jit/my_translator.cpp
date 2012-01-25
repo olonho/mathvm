@@ -29,9 +29,8 @@ void printDouble(double value) {
 	std::cout << value;
 }
 
-void printString(sysint_t strPtr) {
-	const string* value = (string*) strPtr;
-	std::cout << value->c_str();
+void printString(char* str) {
+	std::cout << str;
 }
 
 sysint_t idiv(sysint_t upper, sysint_t lower) {
@@ -50,9 +49,11 @@ sysint_t d2i(double value) {
 	return (sysint_t) value;
 }
 
-sysint_t s2i(sysint_t strPtr) {
-	const string* value = (string*) strPtr;
-	return (sysint_t)atoi(value->c_str());
+// some specific
+sysint_t s2i(char* str) {
+	if (strcmp(str, "") == 0)
+		return 0;
+	return 1;
 }
 
 sysint_t icmp(sysint_t upper, sysint_t lower) {
@@ -289,6 +290,30 @@ FunctionBuilderX fillFunctionBuilderX(BytecodeFunction* bytecodeFunction) {
 	return functionBuilderX;
 }
 
+// for native functions
+FunctionBuilderX fillFunctionBuilderX(const Signature* signature) {
+	FunctionBuilderX functionBuilderX;
+	// setting types of arguments
+	for (uint16_t i = 1; i != signature->size(); ++i) {
+		if ((*signature)[i].first == VT_DOUBLE)
+			functionBuilderX.addArgument<double>();
+		else
+			functionBuilderX.addArgument<sysint_t>();
+	}
+	// setting type of return value
+	if ((*signature)[0].first == VT_VOID) {
+		functionBuilderX.setReturnValue<void>();
+	}
+	else if ((*signature)[0].first == VT_DOUBLE) {
+		functionBuilderX.setReturnValue<double>();
+	}
+	else {
+		functionBuilderX.setReturnValue<sysint_t>();
+	}
+	return functionBuilderX;
+}
+///
+
 
 //// MAIN FUNCTION to translate BYTECODE into MACHCODE /////
 Status* MyJitTranslator::generateFunction(Code* code, BytecodeFunction* bytecodeFunction, void* *function) {
@@ -349,8 +374,8 @@ Status* MyJitTranslator::generateFunction(Code* code, BytecodeFunction* bytecode
 			}
 			case BC_SLOAD : {
 				uint16_t strConstantId = bytecode->getUInt16(insnIndex + 1);
-				const string& value = code->constantById(strConstantId);
-				sysint_t strPtr = (sysint_t) &value;
+				const char* value = code->constantById(strConstantId).c_str();
+				sysint_t strPtr = (sysint_t) value;
 				
 				GPVar intVar(compiler->newGP());
 				compiler->mov(intVar, imm(strPtr));
@@ -376,8 +401,8 @@ Status* MyJitTranslator::generateFunction(Code* code, BytecodeFunction* bytecode
 				break;
 			}
 			case BC_SLOAD0 : {
-				const string* value = new string("");
-				sysint_t strPtr = (sysint_t) &value;
+				const char* value = "";
+				sysint_t strPtr = (sysint_t) value;
 				compiler->push(imm(strPtr));
 				
 				typeStack.push(VT_STRING);
@@ -602,7 +627,7 @@ Status* MyJitTranslator::generateFunction(Code* code, BytecodeFunction* bytecode
 				compiler->pop(strPtr);
 
 				ECall* ecall = compiler->call((sysint_t)printString);
-				ecall->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, sysint_t>());
+				ecall->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, char*>());
 				ecall->setArgument(0, strPtr);
 				compiler->unuse(strPtr);
 
@@ -655,7 +680,7 @@ Status* MyJitTranslator::generateFunction(Code* code, BytecodeFunction* bytecode
 				
 				// there is no standard s2i
 				ECall* ecall = compiler->call((sysint_t)s2i);
-				ecall->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<sysint_t, sysint_t>());
+				ecall->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<sysint_t, char*>());
 				ecall->setArgument(0, strPtr);
 				ecall->setReturn(intVar);
 				
@@ -1001,7 +1026,70 @@ Status* MyJitTranslator::generateFunction(Code* code, BytecodeFunction* bytecode
 				break;
 			}
 			case BC_CALLNATIVE : {
-				return new Status("Native functions not supported yet", insnIndex);
+				uint16_t nativeFuncId = bytecode->getUInt16(insnIndex + 1);
+				const Signature* nativeSignature;
+				const void* nativeCode;
+				nativeCode = code->nativeById(nativeFuncId, &nativeSignature);
+
+				if (nativeCode == NULL) {
+					freeLabelMap(&labelMap);
+					return new Status("Native function not found", insnIndex);
+				}
+
+				// loading arguments from stack (reverse order)
+				BaseVar** args = new BaseVar*[nativeSignature->size() - 1];
+				for (uint16_t i = nativeSignature->size() - 1; i != 0; --i) {
+					if ((*nativeSignature)[i].first == VT_DOUBLE) {
+						args[i - 1] = new XMMVar(popXMMVar(&compiler));
+					}
+					else {
+						GPVar intVar(compiler->newGP());
+						compiler->pop(intVar);
+						args[i - 1] = new GPVar(intVar);
+					}
+					typeStack.pop();
+				}
+
+				compiler->comment("calling native function");
+				ECall* ecall = compiler->call(const_cast<void*>(nativeCode));
+
+				FunctionBuilderX functionBuilderX = fillFunctionBuilderX(nativeSignature);
+				ecall->setPrototype(CALL_CONV_DEFAULT, functionBuilderX);
+
+				// setting arguments to function (normal order)
+				for (uint16_t i = 0; i != nativeSignature->size() - 1; ++i) {
+					if ((*nativeSignature)[i + 1].first == VT_DOUBLE) {
+						ecall->setArgument(i, *((XMMVar*)args[i]));
+						compiler->unuse(*((XMMVar*)args[i]));
+						delete args[i];
+					}
+					else {
+						ecall->setArgument(i, *((GPVar*)args[i]));
+						compiler->unuse(*((GPVar*)args[i]));
+						delete args[i];
+					}
+				}
+				delete [] args;
+
+				// setting return value
+				if ((*nativeSignature)[0].first == VT_DOUBLE) {
+					XMMVar doubleVar(compiler->newXMM());
+					ecall->setReturn(doubleVar);
+					pushXMMVar(doubleVar, &compiler);
+					typeStack.push(VT_DOUBLE);
+				}
+				else if ((*nativeSignature)[0].first != VT_VOID) {
+					GPVar intVar(compiler->newGP());
+					ecall->setReturn(intVar);
+					compiler->push(intVar);
+					compiler->unuse(intVar);
+					typeStack.push(VT_INT);
+				}
+
+				compiler->comment("returning from native function");
+
+				insnIndex += 3;
+				break;
 			}
 			case BC_RETURN : {
 				if (bytecodeFunction->returnType() != VT_VOID ) {
@@ -1083,6 +1171,9 @@ Status* MyJitTranslator::translateMachCode(const string& program, MyMachCodeImpl
 		Bytecoder* visitor = new Bytecoder(code);
 		parser->top()->node()->visit(visitor);
 		pseudo_function->bytecode()->add(BC_STOP);
+		//std::cerr << "===dissassembled" << std::endl;
+		//code->disassemble(std::cerr);
+		//std::cerr << "===end of dissassembled" << std::endl;
 		delete visitor;
 
 		// Generating MachCodeImpl
