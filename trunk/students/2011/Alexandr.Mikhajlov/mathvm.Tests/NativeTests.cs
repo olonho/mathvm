@@ -10,4 +10,13 @@ namespace mathvm.Tests
 			return testPath + " native silent";
 		}
 	}
+
+	[TestFixture]
+	public class NativeAdditionalTests : AdditionalTests
+	{
+		public override string PrepareArgs(string testPath)
+		{
+			return testPath + " native silent";
+		}
+	}
 }

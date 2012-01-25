@@ -12,7 +12,7 @@ using namespace AsmJit;
 using namespace mathvm;
 using namespace std;
 
-const int DEFAULT_STACK_SIZE = 1024;
+const int DEFAULT_STACK_SIZE = 500*1024;
 
 extern bool silentMode;
 
@@ -72,18 +72,22 @@ void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 	myCompiler = new Compiler;
   if (!silentMode)myCompiler->setLogger(&logger);
 
-	rootNode->node()->visit(this);
+	myFunctionPtrs = new int64_t[myFirstPassVisitor.GetFunctionsNumber()];
+
 
 	myLocalsPointer = new int64_t[DEFAULT_STACK_SIZE];
-	myLocalsPointerOrigin = myLocalsPointer;
 	memset(myLocalsPointer, 0, DEFAULT_STACK_SIZE * sizeof(int64_t));
 	myLocalsPointer[0] = -1;
 	myLocalsPointer[1] = sizeof(int64_t) * 2;
-	myLocalsPointer = &myLocalsPointer[2]; // It should point directly to vars block. Access size and id with negative offse
+	myLocalsPointer = &myLocalsPointer[2]; // It should point directly to vars block. Access size and id with negative offset
+	myTopLocals = myLocalsPointer+2;
+
+	rootNode->node()->visit(this);
 
 
 
-	function_cast<void (*)()>(myFunctions[0])();
+
+	function_cast<void (*)()>((int64_t*)myFunctionPtrs[0])();
 
 	//myCompiler = new Compiler;
 	//if (!silentMode)myCompiler->setLogger(&logger);
@@ -186,7 +190,7 @@ void NativeGenerator::visitFunctionNode( mathvm::FunctionNode* node )
 	myCompiler->ret();
 	myCompiler->endFunction();
 
-	myFunctions[id] = myCompiler->make();
+	myFunctionPtrs[id] = (int64_t)myCompiler->make();
 
 	myCompiler = old;
 	myLocalsPtr = oldPtr;
@@ -201,6 +205,9 @@ void NativeGenerator::visitCallNode( mathvm::CallNode* node )
 
 	GPVar sz (myCompiler->newGP());
 	GPVar nextLocals(myCompiler->newGP());
+	GPVar functionAddr(myCompiler->newGP());
+
+	myCompiler->mov(functionAddr, imm((sysint_t)myFunctionPtrs));
 	myCompiler->mov(sz, qword_ptr(myLocalsPtr, -sizeof(int64_t)));
 	myCompiler->mov(nextLocals, myLocalsPtr);
 	myCompiler->add(nextLocals, sz);
@@ -213,7 +220,7 @@ void NativeGenerator::visitCallNode( mathvm::CallNode* node )
 		else myCompiler->mov(qword_ptr(nextLocals, i * sizeof(int64_t)), *myResultVar.Integer);
 	}
 
-	ECall* ctx = myCompiler->call(myFunctions[id]);
+	ECall* ctx = myCompiler->call(qword_ptr(functionAddr, id * sizeof(int64_t)));
 
 	ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
 
@@ -313,7 +320,6 @@ void NativeGenerator::visitDoubleLiteralNode(mathvm::DoubleLiteralNode* node)
 	
 	myCompiler->mov(v, imm(nvalue));
 	myCompiler->movq(*myResultVar.Double, v);
-	myCompiler->unuse(v);
 }
 
 void NativeGenerator::visitBinaryOpNode(mathvm::BinaryOpNode* node)
@@ -369,24 +375,43 @@ void NativeGenerator::visitStoreNode( mathvm::StoreNode* node )
 	VarId id = GetVariableId(node, node->var()->name(), &isClosure);
 	VarType expectedType = node->var()->type();
 
-	if (isClosure == false) {
-		if (node->op() == tASSIGN) SetVariable(expectedType, id);
-		else if (node->op() == tINCRSET) IncrSetVariable(myLocalsPtr, expectedType, id.id);
-		else if (node->op() == tDECRSET) DecrSetVariable(myLocalsPtr, expectedType, id.id);
+	AsmJit::GPVar locals;
+
+	if (isClosure == false) locals = myLocalsPtr;
+	else if (id.ownerFunction == 0) {
+		locals = myCompiler->newGP();
+		myCompiler->mov(locals, imm((sysint_t)myTopLocals));
 	}
+	else {
+	}
+
+	if (node->op() == tASSIGN) SetVariable(locals, expectedType, id.id);
+	else if (node->op() == tINCRSET) IncrSetVariable(locals, expectedType, id.id);
+	else if (node->op() == tDECRSET) DecrSetVariable(locals, expectedType, id.id);
 }
 
 void NativeGenerator::visitLoadNode( mathvm::LoadNode* node )
 {
 	bool isClosure = false;
 	VarId id = GetVariableId(node, node->var()->name(), &isClosure);
+
+	AsmJit::GPVar locals;
+
+	if (isClosure == false) locals = myLocalsPtr;
+	else if (id.ownerFunction == 0) {
+		locals = myCompiler->newGP();
+		myCompiler->mov(locals, imm((sysint_t)myTopLocals));
+	}
+	else {
+	}
+
 	switch(node->var()->type()) {
 	case mathvm::VT_INT:
 	case mathvm::VT_STRING:
-		myCompiler->mov(*myResultVar.Integer, dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)));
+		myCompiler->mov(*myResultVar.Integer, dword_ptr(locals, id.id * sizeof(uint64_t)));
 		break;
 	case mathvm::VT_DOUBLE:
-		myCompiler->movq(*myResultVar.Double, dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)));
+		myCompiler->movq(*myResultVar.Double, dword_ptr(locals, id.id * sizeof(uint64_t)));
 		break;
 	default: return;
 	}
@@ -586,15 +611,15 @@ void NativeGenerator::visitWhileNode( mathvm::WhileNode* node )
 	myCompiler->bind(lEnd);
 }
 
-void NativeGenerator::SetVariable( mathvm::VarType expectedType, VarId &id )
+void NativeGenerator::SetVariable( AsmJit::GPVar locals, mathvm::VarType expectedType, uint16_t id )
 {
 	switch (expectedType) {
 	case mathvm::VT_INT:
 	case mathvm::VT_STRING:
-		myCompiler->mov(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Integer);
+		myCompiler->mov(dword_ptr(locals, id * sizeof(uint64_t)), *myResultVar.Integer);
 		break;
 	case mathvm::VT_DOUBLE:
-		myCompiler->movq(dword_ptr(myLocalsPtr, id.id * sizeof(uint64_t)), *myResultVar.Double);
+		myCompiler->movq(dword_ptr(locals, id * sizeof(uint64_t)), *myResultVar.Double);
 		break;
 	default: return;
 	}
