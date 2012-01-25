@@ -9,6 +9,7 @@ Please, note: author of this code thanks Alexey Gurevich for his useful advises 
 #include "parser.h"
 
 #include "translator.hpp"
+#include "exec.hpp"
 
 
 int main(int argc, char ** argv) 
@@ -17,9 +18,18 @@ int main(int argc, char ** argv)
 		std::cerr << "Usage: <input file> [output file]" << std::endl;
 		return 1;
 	}
+	std::ofstream os;
 
 	char* program = mathvm::loadFile(argv[1]);
-	Code* code = new CodeExecutor();
+
+	Code * code;
+	if (argc == 3) {		
+		os.open(argv[2]);
+		code = new CodeExecutor(os);
+	} else {
+		code = new CodeExecutor(std::cout);
+	}		
+
 	Status * status;
 
 	Translator * translator = Translator::create("prj");
@@ -31,19 +41,13 @@ int main(int argc, char ** argv)
 		return 2;
 	}	
 
-	if (status == NULL) {
-		if (argc == 3) {		
-			std::ofstream os;
-			os.open(argv[2]);
-
-			code->disassemble(os);
-
-			os.close();
+	if (status == 0) {
+		vector<mathvm::Var*> vars;
+		Status * executeStatus = code->execute(vars);
+		if (executeStatus != 0) {
+			std::cerr << "Program finished with errors: " << status->getError() << std::endl;
 		}
-		else {
-			code->disassemble(std::cout);
-		}
-		
+		delete executeStatus;
 	}
 	else if (status->isError()) {
 		uint32_t position = status->getPosition();

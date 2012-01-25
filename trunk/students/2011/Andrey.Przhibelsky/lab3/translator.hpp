@@ -1,7 +1,10 @@
 #ifndef _TRANSLATOR_HPP_
 #define _TRANSLATOR_HPP_
 
+#include <vector>
 #include <map>
+
+#include "exec.hpp"
 
 #include "ast.h"
 
@@ -80,6 +83,12 @@ public:
 	AstToBytecode(Code * c): code(c), bytecode(((BytecodeFunction *) (code->functionByName(AstFunction::top_name)))->bytecode()),
 				typeOfTOS(VT_INVALID), returnType(VT_VOID), scopeStack(), contextStack(), contextVarIds() ,contextId(0) {
 	}
+
+	
+	std::map <uint16_t, uint16_t> getContextVarIds() {
+		return contextVarIds;
+	}
+	
 
 
 	virtual void visitBinaryOpNode(mathvm::BinaryOpNode * node) {
@@ -793,6 +802,7 @@ public:
 
 class BytecodeTranslator : public Translator {
 
+
 public:
 	Status * translate(const string& program, Code* *code) {
 		Parser * parser = new Parser();
@@ -806,6 +816,8 @@ public:
 			parser->top()->node()->visit(toBytecode);
 			mainFunction->bytecode()->add(BC_STOP);
 
+			((CodeExecutor *)(*code))->setContextVarIds(toBytecode->getContextVarIds());
+
 			delete toBytecode;
 		}
 
@@ -813,15 +825,6 @@ public:
 		return status;
 	}
 
-};
-
-
-class CodeExecutor: public Code {
-
-public:
-	Status * execute(vector <Var *> & vars) {
-		return 0;
-	}
 };
 
 
