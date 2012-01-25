@@ -1,6 +1,5 @@
 #include "mathvm.h"
 #include "ast.h"
-//#include "../vm/jit.h"
 #include "bytecoder.h"
 #include "my_translator.h"
 #include "parser.h"
@@ -9,6 +8,8 @@
 
 using namespace mathvm;
 
+
+// for VERBOSE mode edit config.h
 int main(int argc, char** argv) 
 {
 	if (argc < 2) {

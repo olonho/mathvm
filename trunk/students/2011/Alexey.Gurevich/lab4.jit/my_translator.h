@@ -10,13 +10,6 @@
 
 namespace mathvm {
 
-class MyTranslator : public Translator {
-public:
-	MyTranslator() {}
-	~MyTranslator() {}
-	Status* translate(const string& program, Code* *code);
-};
-
 class MyJitTranslator : public MachCodeTranslatorImpl {
 
 	Status* translateMachCode(const string& program, MyMachCodeImpl* *code);
