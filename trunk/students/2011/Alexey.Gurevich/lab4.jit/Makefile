@@ -2,9 +2,8 @@ ROOT   = .
 VM_ROOT = ../../../..
 USER_DEFS = -g3
 USER_OBJ = $(OBJ)/main$(OBJ_SUFF) $(OBJ)/my_translator$(OBJ_SUFF) $(OBJ)/bytecoder$(OBJ_SUFF) $(OBJ)/my_code$(OBJ_SUFF)
-
-include common.mk   # updated version of $(VM_ROOT)/common.mk 
-#include $(VM_ROOT)/common.mk
+ 
+include $(VM_ROOT)/common.mk
 
 LAB4 = $(BIN)/lab4
 
