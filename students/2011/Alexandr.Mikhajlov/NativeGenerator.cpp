@@ -3,10 +3,10 @@
 #include <string>
 #include <sstream>
 
-#include "asmjit/Build.h"
+#include "AsmJit/Build.h"
 
-#include "asmjit/Compiler.h"
-#include "asmjit/MemoryManager.h"
+#include "AsmJit/Compiler.h"
+#include "AsmJit/MemoryManager.h"
 
 using namespace AsmJit;
 using namespace mathvm;
@@ -237,7 +237,6 @@ void NativeGenerator::visitCallNode( mathvm::CallNode* node )
 void NativeGenerator::visitReturnNode( mathvm::ReturnNode* node )
 {
 	if (node->returnExpr()) {
-		AsmVarPtr old = myResultVar;
 		VarType type = GetNodeType(node);
 		myResultVar = CreateAsmVar(type);
 		node->returnExpr()->visit(this);
