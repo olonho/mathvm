@@ -1,4 +1,5 @@
 #include "bytecoder.h"
+#include <dlfcn.h>
 
 using namespace mathvm;
 
@@ -196,6 +197,7 @@ void Bytecoder::visitBinaryOpNode( mathvm::BinaryOpNode* node )
 				case tSUB : bytecode_->addInsn(BC_ISUB); break;
 				case tMUL : bytecode_->addInsn(BC_IMUL); break;
 				case tDIV : bytecode_->addInsn(BC_IDIV); break;
+				case tMOD : bytecode_->addInsn(BC_IMOD); break;
 				case tEQ  :
 				case tNEQ :
 				case tGT  :
@@ -227,9 +229,17 @@ void Bytecoder::visitUnaryOpNode( mathvm::UnaryOpNode* node )
 		}
 	}
 	else { // tNOT
+		if (topType_ == VT_STRING) {
+			bytecode_->add(BC_S2I);
+			topType_ = VT_INT;
+		}
 		assert(topType_ == VT_INT);
 
 		// we should change 0 to 1 and "not 0" to 0
+		if (topType_ == VT_STRING) {
+			bytecode_->add(BC_S2I);
+			topType_ = VT_INT;
+		}
 		bytecode_->add(BC_ILOAD0);
 		Label lTrue(bytecode_), lEnd(bytecode_);
 		bytecode_->addBranch(BC_IFICMPE, lTrue);
@@ -366,6 +376,10 @@ void Bytecoder::visitWhileNode( mathvm::WhileNode* node )
 	// exit condition
 	bytecode_->bind(lCheckCondition);
 	node->whileExpr()->visit(this);
+	if (topType_ == VT_STRING) {
+		bytecode_->add(BC_S2I);
+		topType_ = VT_INT;
+	}
 	assert(topType_ == VT_INT);
 	bytecode_->addInsn(BC_ILOAD0);
 	bytecode_->addBranch(BC_IFICMPE, lEnd);
@@ -381,6 +395,10 @@ void Bytecoder::visitIfNode( mathvm::IfNode* node )
 	Label lElse(bytecode_), lEnd(bytecode_);
 	// condition
 	node->ifExpr()->visit(this);
+	if (topType_ == VT_STRING) {
+		bytecode_->add(BC_S2I);
+		topType_ = VT_INT;
+	}
 	assert(topType_ == VT_INT);
 	bytecode_->addInsn(BC_ILOAD0);
 	bytecode_->addBranch(BC_IFICMPE, lElse);
@@ -445,7 +463,28 @@ void Bytecoder::visitBlockNode( mathvm::BlockNode* node )
 			}
 			placeVar(astFunc->parameterName(i - 1));
 		}
-		astFunc->node()->visit(this);
+		// Native functions support:
+		if (astFunc->node()->body()->nodes() != 0 && astFunc->node()->body()->nodeAt(0)->isNativeCallNode()) {
+			// loading params back:
+			for (uint32_t i = 0; i != astFunc->parametersNumber(); ++i) {
+				switch (astFunc->parameterType(i)) {
+					case VT_INT    : bytecode_->addInsn(BC_LOADCTXIVAR); break;
+					case VT_DOUBLE : bytecode_->addInsn(BC_LOADCTXDVAR); break;
+					case VT_STRING : bytecode_->addInsn(BC_LOADCTXSVAR); break;
+					default :
+						// wrong type of parameter
+						assert(false);
+						break;
+				}
+				placeVar(astFunc->parameterName(i));
+			}
+
+			astFunc->node()->body()->nodeAt(0)->visit(this);
+			bytecode_->addInsn(BC_RETURN);
+		}
+		else {
+			astFunc->node()->visit(this);
+		}
 
 		varMap_.popScope();
 		bytecode_   = main_bytecode_;
@@ -466,9 +505,20 @@ void Bytecoder::visitFunctionNode( mathvm::FunctionNode* node )
 
 void Bytecoder::visitNativeCallNode( mathvm::NativeCallNode* node )
 {
+	if (nativeLibsHandler_ == NULL) {
+		nativeLibsHandler_ = dlopen(NULL, RTLD_LAZY | RTLD_GLOBAL);
+		assert(nativeLibsHandler_ != NULL);
+	}
+
+	void* code = dlsym(nativeLibsHandler_, node->nativeName().c_str());
+	assert(code != NULL);
+
 	bytecode_->addInsn(BC_CALLNATIVE);
-	uint16_t nativeFunctionId = code_->makeNativeFunction(node->nativeName(), node->nativeSignature(), 0);
+	uint16_t nativeFunctionId = code_->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
 	bytecode_->addUInt16(nativeFunctionId);
+
+	// return type
+	topType_ = node->nativeSignature()[0].first;
 }
 
 void Bytecoder::visitReturnNode( mathvm::ReturnNode* node )
