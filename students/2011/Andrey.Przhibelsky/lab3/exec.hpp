@@ -42,7 +42,7 @@ union StackValueType {
 
 class CodeExecutor: public Code {
 
-typedef std::map <uint16_t, std::vector<Var *> >  VarsInContextsT;
+typedef std::map <uint16_t, std::vector<Var *> * >  VarsInContextsT;
 
 private:
 	std::vector <StackValueType> stack;
@@ -252,7 +252,7 @@ private:
 				if (context == varInContexts.end()) {
 					return new Status("Ivalid context", index);
 				}
-				Var * var = context->second.at(varId);
+				Var * var = context->second->at(varId);
 
 				if (var == 0) {
 					return new Status("Invalid variable", index);
@@ -269,7 +269,7 @@ private:
 				if (context == varInContexts.end()) {
 					return new Status("Ivalid context", index);
 				}
-				Var * var = context->second.at(varId);
+				Var * var = context->second->at(varId);
 
 				if (var == 0) {
 					return new Status("Invalid variable", index);
@@ -286,7 +286,7 @@ private:
 				if (context == varInContexts.end()) {
 					return new Status("Ivalid context", index);
 				}
-				Var * var = context->second.at(varId);
+				Var * var = context->second->at(varId);
 
 				if (var == 0) {
 					return new Status("Invalid variable", index);
@@ -303,7 +303,7 @@ private:
 				if (context == varInContexts.end()) {
 					return new Status("Ivalid context", index);
 				}
-				Var * & var = context->second.at(varId);
+				Var * & var = context->second->at(varId);
 
 				if (var == 0) {
 					var = new Var(VT_DOUBLE, "");
@@ -321,7 +321,7 @@ private:
 				if (context == varInContexts.end()) {
 					return new Status("Ivalid context", index);
 				}
-				Var * & var = context->second.at(varId);
+				Var * & var = context->second->at(varId);
 
 				if (var == 0) {
 					var = new Var(VT_INT, "");
@@ -339,7 +339,7 @@ private:
 				if (context == varInContexts.end()) {
 					return new Status("Ivalid context", index);
 				}
-				Var * & var = context->second.at(varId);
+				Var * & var = context->second->at(varId);
 
 				if (var == 0) {
 					var = new Var(VT_STRING, "");
@@ -482,15 +482,15 @@ private:
 				if (context == varInContexts.end()) {
 					return new Status("Ivalid context in call", index);
 				}
-				std::vector<Var *> currentContext = context->second;
+				std::vector<Var *> * currentContext = context->second;
 				varInContexts.erase(context);
 
-				varInContexts.insert(std::make_pair( functionId, std::vector<Var *>(contextVarIds[functionId]) ));
+				varInContexts.insert(std::make_pair( functionId, new std::vector<Var *>(contextVarIds[functionId]) ));
 
 				Status * status = executeBytecode(bytecodeFuncion->bytecode());
 
-
 				context = varInContexts.find(functionId);
+				delete context->second;
 				varInContexts.erase(context);
 				varInContexts.insert(std::make_pair( functionId, currentContext ));
 
@@ -525,7 +525,7 @@ public:
 
 	Status * execute(vector <Var *> & vars) {
 		for (std::map <uint16_t, uint16_t>::iterator functionIter = contextVarIds.begin(); functionIter != contextVarIds.end(); ++functionIter) {
-			varInContexts.insert(std::make_pair( functionIter->first, std::vector<Var *>(functionIter->second) ));		
+			varInContexts.insert(std::make_pair( functionIter->first, new std::vector<Var *>(functionIter->second) ));		
 		}
 
 		BytecodeFunction * mainFunction = (BytecodeFunction *) functionByName(AstFunction::top_name);
