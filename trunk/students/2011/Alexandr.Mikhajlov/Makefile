@@ -18,7 +18,7 @@ INCLUDE_DEPS = ByteCodeGenerator.h FirstPassVisitor.h GeneratorCommon.h \
 	  MyInterpreter.h NativeGenerator.h \
 
 $(BIN)/main: dirs $(INCLUDE_DEPS) $(OBJ_DEPS)
-	$(CXX) $(USER_FLAGS) -o $@ $(LIBS) $(OBJ_DEPS)
+	$(CXX) $(USER_FLAGS) -o $@ $(LIBS) $(OBJ_DEPS) -lSDL
 	
 dirs:
 	mkdir -p ./build/debug
