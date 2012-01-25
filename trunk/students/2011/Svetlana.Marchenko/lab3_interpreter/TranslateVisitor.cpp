@@ -206,13 +206,13 @@ void TranslateVisitor::visitUnaryOpNode( UnaryOpNode* node) {
 			//if (isInt) {
 				thenLabel = Label(_byteCode);
 				endLabel = Label(_byteCode);
-				node->visitChildren(this);
+				//node->visitChildren(this);
 				_byteCode->addInsn(BC_ILOAD0);
 				_byteCode->addBranch(BC_IFICMPE, thenLabel);
-				_byteCode->addInsn(BC_ILOAD1);
+				_byteCode->addInsn(BC_ILOAD0);
 				_byteCode->addBranch(BC_JA, endLabel);
 				_byteCode->bind(thenLabel);
-				_byteCode->addInsn(BC_ILOAD0);
+				_byteCode->addInsn(BC_ILOAD1);
 				_byteCode->bind(endLabel);					
 			//} else {
 				//throw TranslationException("Operand type is invalid: could not apply logic not to not int variable");
