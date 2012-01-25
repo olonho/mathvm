@@ -3,7 +3,10 @@ mkdir -p tests
 
 for file in $(ls ../../../../tests/*.mvm)
 do 
-	build/debug/lab2 $file 
+	filename=$(basename $file)
+	build/debug/lab3 $file tests/${filename%.*}.expect
+
+	cmp ../../../../tests/${filename%.*}.expect tests/${filename%.*}.expect
 done
 
 rm -rf tests

@@ -61,5 +61,9 @@ int main(int argc, char ** argv)
 	delete code;
 	delete [] program;
 
+	if (os.is_open()) {
+		os.close();
+	}
+
 	return 0;
 }
