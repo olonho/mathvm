@@ -10,7 +10,7 @@
 
 namespace mathvm {
 
-class MyJitTranslator : public MachCodeTranslatorImpl {
+class MyJitTranslator : public Translator {
 
 	Status* translateMachCode(const string& program, MyMachCodeImpl* *code);
 	Status* generateFunction(Code* code, BytecodeFunction* bytecode, void* *function);
