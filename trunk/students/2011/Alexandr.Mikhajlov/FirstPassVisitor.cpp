@@ -31,6 +31,18 @@ VarType DeduceBinaryOpType(VarType leftType, VarType rightType, mathvm::BinaryOp
     throw TranslationException(node, "Invalid operation exception");
   if (leftType == rightType) return leftType;
   if (node->kind() == tAND || node->kind() == tOR) return VT_INT;
+	switch (node->kind()) {
+	case tAND:
+	case tOR:
+	case tEQ:
+	case tNEQ:
+	case tLE:
+	case tLT:
+	case tGT:
+	case tGE:
+		return VT_INT;
+	default: return VT_DOUBLE;
+	}
   return VT_DOUBLE;
 }
 

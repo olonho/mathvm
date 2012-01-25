@@ -10,10 +10,15 @@
 #include "MyInterpreter.h"
 
 	
-union AsmVarPtr{
-	AsmJit::GPVar *Integer;
-	AsmJit::XMMVar *Double;
+struct AsmVarPtr {
+	union{
+		AsmJit::GPVar *Integer;
+		AsmJit::XMMVar *Double;
+	};
+
+	mathvm::VarType Type;
 };
+
 
 struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
 	virtual void visitUnaryOpNode(mathvm::UnaryOpNode* node);
@@ -54,7 +59,8 @@ private:
 	void TryDoIntegerLogic( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right );
 	void IncrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
 	void DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
-	
+	void TryDoDoubleLogic( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right );
+
 	
 	AsmJit::GPVar myLocalsPtr;
 	AsmJit::Label myReturnLabel;

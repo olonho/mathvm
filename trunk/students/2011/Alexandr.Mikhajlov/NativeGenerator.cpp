@@ -67,6 +67,7 @@ int64_t idiv(int64_t a, int64_t b) {
 void NativeGenerator::Compile( mathvm::AstFunction * rootNode)
 {
 	myFirstPassVisitor.visit(rootNode);
+
 	myResultVar.Integer = NULL;
 
 	myCompiler = new Compiler;
@@ -292,6 +293,7 @@ AsmVarPtr NativeGenerator::CreateAsmVar( mathvm::VarType type )
 	default:
 		p.Integer = new GPVar(myCompiler->newGP());
 	}
+	p.Type = type;
 	return p;
 }
 
@@ -328,10 +330,8 @@ void NativeGenerator::visitBinaryOpNode(mathvm::BinaryOpNode* node)
 
 	VarType expectedType = GetNodeType(node);
 	
-	myResultVar = CreateAsmVar(expectedType);
 	AsmVarPtr left = VisitWithTypeControl(node->left(), expectedType);
 	
-	myResultVar = CreateAsmVar(expectedType);
 	AsmVarPtr right = VisitWithTypeControl(node->right(), expectedType);
 
 	myResultVar = old;
@@ -342,6 +342,11 @@ void NativeGenerator::visitBinaryOpNode(mathvm::BinaryOpNode* node)
 		TryDoIntegerLogic(node, left, right);
 		return;
 	}
+	if (expectedType == mathvm::VT_DOUBLE) {
+		TryDoDoubleLogic(node, left, right);
+		return;
+	}
+	throw TranslationException("Unsupported operand type");
 }
 
 VarId NativeGenerator::GetVariableId( mathvm::AstNode* currentNode, std::string const& varName, bool* isClosure_out /*= NULL*/ )
@@ -367,13 +372,12 @@ VarId NativeGenerator::GetVariableId( mathvm::AstNode* currentNode, std::string 
 
 void NativeGenerator::visitStoreNode( mathvm::StoreNode* node )
 {
-	//AsmVarPtr old = myResultVar;
-	myResultVar = CreateAsmVar(node->var()->type());
-	
-	node->value()->visit(this);
+	VarType expectedType = node->var()->type();
+
+	myResultVar = VisitWithTypeControl(node->value(), expectedType);
+
 	bool isClosure = false;
 	VarId id = GetVariableId(node, node->var()->name(), &isClosure);
-	VarType expectedType = node->var()->type();
 
 	AsmJit::GPVar locals;
 
@@ -384,6 +388,7 @@ void NativeGenerator::visitStoreNode( mathvm::StoreNode* node )
 	}
 	else {
 	}
+
 
 	if (node->op() == tASSIGN) SetVariable(locals, expectedType, id.id);
 	else if (node->op() == tINCRSET) IncrSetVariable(locals, expectedType, id.id);
@@ -417,28 +422,25 @@ void NativeGenerator::visitLoadNode( mathvm::LoadNode* node )
 	}
 }
 
-
-
-
 AsmVarPtr NativeGenerator::VisitWithTypeControl( mathvm::AstNode * node, mathvm::VarType expectedType )
 {
 	mathvm::VarType type = GetNodeType(node);
 	if (expectedType == VT_STRING || type == VT_STRING) return AsmVarPtr();//throw new std::exception("Binary operations for strings not supported");
 	
+	myResultVar = CreateAsmVar(type);
+
 	node->visit(this);
 
 	if (expectedType != type) {
-		AsmVarPtr nw = AsmVarPtr();
+		AsmVarPtr nw = CreateAsmVar(expectedType);
 
 		if (expectedType == VT_DOUBLE) {
-			nw.Double = new XMMVar(myCompiler->newXMM());
-
-			myCompiler->cvtsi2sd(*nw.Double, *myResultVar.Integer );
+			myCompiler->cvtsi2sd(*nw.Double, *myResultVar.Integer);
 			return nw;
 		}
 		if (expectedType == mathvm::VT_INT) {
-			nw.Integer = new GPVar(myCompiler->newGP());
 			myCompiler->cvtsd2si(*nw.Integer, *myResultVar.Double);
+			return nw;
 		}
 	}
 	return myResultVar;
@@ -595,6 +597,37 @@ void NativeGenerator::TryDoIntegerLogic( mathvm::BinaryOpNode* node, AsmVarPtr l
 	myCompiler->bind(lEnd);
 }
 
+void NativeGenerator::TryDoDoubleLogic( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right )
+{
+	myCompiler->ucomisd(*left.Double, *right.Double);
+	AsmJit::Label lTrue = myCompiler->newLabel();
+	AsmJit::Label lEnd = myCompiler->newLabel();
+
+	switch (node->kind()) 
+	{
+	case tEQ:
+	case tAND:
+		myCompiler->je(lTrue); break;
+	case tNEQ:
+		myCompiler->jne(lTrue); break;
+	case tGT:
+		myCompiler->jg(lTrue); break;
+	case tGE:
+		myCompiler->je(lTrue); break;
+	case tLT:
+		myCompiler->jl(lTrue); break;
+	case tLE:
+		myCompiler->jle(lTrue); break;
+	default: throw TranslationException("Invalid operation type");
+	}
+
+	myCompiler->mov(*myResultVar.Integer, imm(0));
+	myCompiler->jmp(lEnd);
+	myCompiler->bind(lTrue);
+	myCompiler->mov(*myResultVar.Integer, imm(1));
+	myCompiler->bind(lEnd);
+}
+
 void NativeGenerator::visitWhileNode( mathvm::WhileNode* node )
 {
 	AsmJit::Label lEnd = myCompiler->newLabel();
@@ -695,6 +728,8 @@ void NativeGenerator::visitForNode( mathvm::ForNode* node )
 
 	myResultVar = old;
 }
+
+
 
 
 

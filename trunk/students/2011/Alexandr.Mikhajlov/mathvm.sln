@@ -47,6 +47,7 @@ Global
 		{FDD8A376-35DD-4118-909C-F1D7E04B40B0}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{FDD8A376-35DD-4118-909C-F1D7E04B40B0}.Release|Win32.ActiveCfg = Release|Any CPU
 		{FDD8A376-35DD-4118-909C-F1D7E04B40B0}.Release|x64.ActiveCfg = Release|Any CPU
+		{FDD8A376-35DD-4118-909C-F1D7E04B40B0}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
