@@ -3,7 +3,7 @@
 #include "parser.h"
 #include "visitors.h"
 
-#include <asmjit/AsmJit.h>
+#include <AsmJit/AsmJit.h>
 
 using namespace AsmJit;
 using namespace std;
