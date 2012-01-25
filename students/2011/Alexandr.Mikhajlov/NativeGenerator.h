@@ -32,8 +32,8 @@ struct NativeGenerator : ICodeGenerator, mathvm::AstVisitor {
   virtual void visitReturnNode(mathvm::ReturnNode* node);
   virtual void visitCallNode(mathvm::CallNode* node);
   void Compile( mathvm::AstFunction * rootNode);
-	void SetVariable( mathvm::VarType expectedType, VarId &id );
-  
+	void SetVariable(AsmJit::GPVar locals, mathvm::VarType expectedType, uint16_t id );
+
 	virtual mathvm::Code* GetCode()
 	{
 		return NULL;
@@ -54,13 +54,15 @@ private:
 	void TryDoIntegerLogic( mathvm::BinaryOpNode* node, AsmVarPtr left, AsmVarPtr right );
 	void IncrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
 	void DecrSetVariable( AsmJit::GPVar myLocalsPtr, mathvm::VarType type, int16_t varId );
+	
+	
 	AsmJit::GPVar myLocalsPtr;
 	AsmJit::Label myReturnLabel;
+	int64_t* myTopLocals;
+	
 	int64_t* myLocalsPointer;
-	int64_t* myLocalsPointerOrigin;
+		int64_t* myFunctionPtrs;
 
-	AsmJit::GPVar myStackFramePointer;
 
-	std::map<uint16_t, void *> myFunctions;
 
 };

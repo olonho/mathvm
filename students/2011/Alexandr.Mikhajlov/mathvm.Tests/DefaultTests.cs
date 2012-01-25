@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace mathvm.Tests
 {
 	[TestFixture]
-	internal class DefaultTests : BaseTest
+	public class DefaultTests : BaseTest
 	{
 		[Test]
 		public void DivTest()

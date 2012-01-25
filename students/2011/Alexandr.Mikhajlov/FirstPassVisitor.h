@@ -39,6 +39,8 @@ struct FirstPassVisitor : mathvm::AstVisitor {
 
   //mathvm::FunctionNode* myCurrentFunction;
 
+	size_t GetFunctionsNumber() const {return myFunctionDeclarations.size();}
+
 private:
   bool myCurrentFunctionBlockNodeVisited;
 
