@@ -307,10 +307,6 @@ private:
 
 				if (var == 0) {
 					var = new Var(VT_DOUBLE, "");
-
-					if (context->second.at(varId) == 0) {
-						os << "\nSHIT\n";
-					}
 				}
 
 				var->setDoubleValue((double) stack.back());
@@ -329,10 +325,6 @@ private:
 
 				if (var == 0) {
 					var = new Var(VT_INT, "");
-
-					if (context->second.at(varId) == 0) {
-						os << "\nSHIT\n";
-					}
 				}
 
 				var->setIntValue((int64_t) stack.back());
@@ -351,10 +343,6 @@ private:
 
 				if (var == 0) {
 					var = new Var(VT_STRING, "");
-
-					if (context->second.at(varId) == 0) {
-						os << "\nSHIT\n";
-					}
 				}
 
 				var->setStringValue((const char *) stack.back());
@@ -496,10 +484,11 @@ private:
 				}
 				std::vector<Var *> currentContext = context->second;
 				varInContexts.erase(context);
-				
+
 				varInContexts.insert(std::make_pair( functionId, std::vector<Var *>(contextVarIds[functionId]) ));
 
 				Status * status = executeBytecode(bytecodeFuncion->bytecode());
+
 
 				context = varInContexts.find(functionId);
 				varInContexts.erase(context);

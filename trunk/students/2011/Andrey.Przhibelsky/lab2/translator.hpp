@@ -79,6 +79,8 @@ private:
 public:
 	AstToBytecode(Code * c): code(c), bytecode(((BytecodeFunction *) (code->functionByName(AstFunction::top_name)))->bytecode()),
 				typeOfTOS(VT_INVALID), returnType(VT_VOID), scopeStack(), contextStack(), contextVarIds() ,contextId(0) {
+
+		contextVarIds.insert(std::make_pair(0,0));
 	}
 
 
@@ -581,6 +583,7 @@ public:
 			returnType = astFunction->returnType();
 			bytecode = bytecodeFunction->bytecode();
 			contextId = functionId;
+			contextVarIds.insert(std::make_pair(functionId,0));
 
 			scopeStack.push_back(std::map <std::string, uint16_t>());
 			contextStack.push_back(contextId);
@@ -609,15 +612,10 @@ public:
 			}
 			astFunction->node()->visit(this);
 
-			//contextId = currentContextId;
 			typeOfTOS = currentTypeOfTOs;
 			returnType = currentReturnType;
 			bytecode = currentBytecode;
 		
-			returnType = astFunction->returnType();
-			bytecode = bytecodeFunction->bytecode();
-			contextId = functionId;
-
 			scopeStack.pop_back();
 			contextStack.pop_back();
 			contextId = contextStack.back();
