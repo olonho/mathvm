@@ -127,6 +127,15 @@ public:
       }
     }
 
+    FlowVar* fvar2(const AstVar* v) {
+      Vars::iterator it = _vars.find(v);
+      if (it != _vars.end()) {
+        return it->second;
+      } else {
+        return NULL;
+      }
+    }
+
     Vars& vars() {
       return _vars;
     }
