@@ -425,20 +425,20 @@ namespace mathvm {
         case tASSIGN:
           fn->type = FlowNode::COPY;
           fn->u.op.u.copy.from = info(node->value())->fn->u.op.result;
-          fn->u.op.u.copy.to = info(node->var())->fv;
+          fn->u.op.u.copy.to = _curf->fvar(node->var());
           fn->u.op.result = NULL;
           break;
 
         case tINCRSET:
           fn->type = FlowNode::ADD;
-          fn->u.op.u.bin.op1 = info(node->var())->fv;
+          fn->u.op.u.bin.op1 = _curf->fvar(node->var());
           fn->u.op.u.bin.op2 = info(node->value())->fn->u.op.result;          
           fn->u.op.result = NULL;
           break;
 
         case tDECRSET:
           fn->type = FlowNode::SUB;
-          fn->u.op.u.bin.op1 = info(node->var())->fv;
+          fn->u.op.u.bin.op1 = _curf->fvar(node->var());
           fn->u.op.u.bin.op2 = info(node->value())->fn->u.op.result;          
           fn->u.op.result = NULL;
           break;
