@@ -13,4 +13,4 @@ $(LAB1): $(OUT) $(MATHVM_OBJ) $(OBJ)/main$(OBJ_SUFF)
 	$(CXX) -g3 -o $@ $(MATHVM_OBJ) $(OBJ)/main$(OBJ_SUFF) 
 
 test: $(LAB1)
-	./test_all.sh
+	./test.sh
