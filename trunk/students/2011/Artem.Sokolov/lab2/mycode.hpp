@@ -64,14 +64,14 @@ class MyCode: public mathvm::Code {
 	StackFrameUnit *get_frame(uint16_t context_id) {
 		StackFrameUnit *frame = current_frame;
 		assert(context_id <= current_context_id);
-		for (int i = current_context_id - context_id; i > 0; ++i);
+		for (int i = current_context_id - context_id; i > 0; ++i)
 			frame = frame[-1].previous;
 		return frame;
 	}
 
 	mathvm::Status *execute_bytecode(mathvm::Bytecode *bytecode) {
 		mathvm::Instruction instruction;
-		uint32_t index;
+		uint32_t index = 0;
 
 		while (true) {
 		    instruction = bytecode->getInsn(index++);
@@ -178,7 +178,8 @@ class MyCode: public mathvm::Code {
 				uint16_t id = bytecode->getInt16(index);
 				index += 2;
 				StackFrameUnit *frame = get_frame(context_id);
-				push_int(frame[id].v.i);
+				int lol = frame[id].v.i;
+				push_int(lol);
 			}   break;
 
 		    case mathvm::BC_IADD:
@@ -236,6 +237,7 @@ class MyCode: public mathvm::Code {
 				frame_top->previous = current_frame;
 				frame_top += 1;
 				current_frame = frame_top;
+				++current_context_id;
 
 		    	mathvm::BytecodeFunction *function = (mathvm::BytecodeFunction *) functionById(function_id);
 				execute_bytecode(function->bytecode());
@@ -243,6 +245,8 @@ class MyCode: public mathvm::Code {
 			case mathvm::BC_RETURN: {
 				frame_top = current_frame - 1;
 				current_frame = current_frame[-1].previous;
+				--current_context_id;
+				return NULL;
 			}	break;
 
 		    case mathvm::BC_JA:
