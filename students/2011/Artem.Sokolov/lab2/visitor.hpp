@@ -16,8 +16,8 @@ struct MyScope {
 	std::map<std::string, uint16_t> variable_map;
 	std::vector<mathvm::AstVar *> variables;
 
-	std::map<std::string, uint16_t> function_map;
-	std::vector<mathvm::BytecodeFunction *> functions;
+//	std::map<std::string, uint16_t> function_map;
+//	std::vector<mathvm::BytecodeFunction *> functions;
 };
 
 class Visitor: public mathvm::AstVisitor {
@@ -36,15 +36,15 @@ class Visitor: public mathvm::AstVisitor {
 		return id;
 	}
 
-	uint16_t add_function(mathvm::BytecodeFunction* function) {
-		uint16_t id = scopes.back().functions.size();
-		scopes.back().functions.push_back(function);
-		scopes.back().function_map[function->name()] = id;
-
-		code->addFunction(function);
-
-		return id;
-	}
+//	uint16_t add_function(mathvm::BytecodeFunction* function) {
+//		uint16_t id = scopes.back().functions.size();
+//		scopes.back().functions.push_back(function);
+//		scopes.back().function_map[function->name()] = id;
+//
+//		code->addFunction(function);
+//
+//		return id;
+//	}
 
 	void add_var_id_to_bytecode(const mathvm::AstVar *variable) {
 		for (short scope = scopes.size() - 1; scope >= 0; --scope) {
@@ -479,7 +479,8 @@ public:
 		while (function_iterator.hasNext()) {
 			mathvm::AstFunction *ast_function = function_iterator.next();
 			mathvm::BytecodeFunction* bytecode_function = new mathvm::BytecodeFunction(ast_function);
-			add_function(bytecode_function);
+//			add_function(bytecode_function);
+			code->addFunction(bytecode_function);
 
 			mathvm::Bytecode *outer_bytecode = bytecode;
 			mathvm::VarType outer_return_type = return_type;

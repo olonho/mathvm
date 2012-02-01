@@ -7,7 +7,7 @@
 #include "translate.hpp"
 
 
-int main(int argc, char ** argv) 
+int main(int argc, char **argv)
 {
 	if (argc < 2) {
 		std::cerr << "Usage: <input file> [output file]" << std::endl;
@@ -23,17 +23,17 @@ int main(int argc, char ** argv)
 
 	mathvm::Code *code = new MyCode();
 
-	mathvm::Translator* translator = mathvm::Translator::create();
+	mathvm::Translator *translator = mathvm::Translator::create();
 
-	mathvm::Status* status = translator->translate(test, &code);
+	mathvm::Status *status = translator->translate(test, &code);
 
 	if (status == NULL) {
 		std::cerr << "== bytecode: ==" << std::endl;
 		code->disassemble(std::cerr);
 		std::cerr << "== end ==\n" << std::endl;
 
-		std::vector<mathvm::Var*> vars;
-		mathvm::Status* executeStatus = code->execute(vars);
+		std::vector<mathvm::Var *> vars;
+		mathvm::Status *executeStatus = code->execute(vars);
 		if (executeStatus != NULL) {
 			std::cerr << "Error during execution! " << status->getError() << std::endl;
 			delete executeStatus;
