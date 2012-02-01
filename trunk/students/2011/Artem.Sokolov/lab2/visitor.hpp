@@ -29,6 +29,8 @@ class Visitor: public mathvm::AstVisitor {
 
 	std::vector<MyScope> scopes;
 
+	bool at_top;
+
 	uint16_t add_variable(mathvm::AstVar *variable) {
 		uint16_t id = scopes.back().variables.size();
 		scopes.back().variables.push_back(variable);
@@ -112,7 +114,8 @@ public:
 		code(code)
 		, bytecode(((mathvm::BytecodeFunction *)(code->functionByName(mathvm::AstFunction::top_name)))->bytecode())
 		, top_type(mathvm::VT_INVALID)
-		, return_type(mathvm::VT_VOID) {}
+		, return_type(mathvm::VT_VOID)
+		, at_top(true) {}
 
 	virtual void visitBinaryOpNode(mathvm::BinaryOpNode* node) {
 		mathvm::VarType right_type;
@@ -467,7 +470,10 @@ public:
 	}
 
 	virtual void visitBlockNode(mathvm::BlockNode* node) {
-		scopes.push_back(MyScope());
+		if (at_top) {
+			scopes.push_back(MyScope());
+			at_top = false;
+		}
 
 		mathvm::Scope::VarIterator variable_iterator(node->scope());
 		while (variable_iterator.hasNext()) {
@@ -519,7 +525,7 @@ public:
 
 		node->visitChildren(this);
 
-		scopes.pop_back();
+		//scopes.pop_back();
 	}
 
 	virtual void visitFunctionNode(mathvm::FunctionNode* node) {
