@@ -64,7 +64,7 @@ class MyCode: public mathvm::Code {
 		    switch (instruction) {
 		    case mathvm::BC_ILOAD:
 		     	push_int(bytecode->getInt64(index));
-		     	instruction += 8;
+		     	index += 8;
 		     	break;
 		    case mathvm::BC_ILOAD0:
 		    	push_int((int64_t)0);
@@ -77,7 +77,7 @@ class MyCode: public mathvm::Code {
 		    	break;
 		    case mathvm::BC_DLOAD:
 		    	push_double(bytecode->getDouble(index));
-				instruction += 8;
+		    	index += 8;
 				break;
 		    case mathvm::BC_DLOAD0:
 		    	push_double((double)0);
@@ -90,7 +90,7 @@ class MyCode: public mathvm::Code {
 		    	break;
 		    case mathvm::BC_SLOAD:
 		    	push_string(bytecode->getInt16(index));
-		    	instruction += 2;
+		    	index += 2;
 		    	break;
 		    case mathvm::BC_IADD:
 				push_int(pop_int() + pop_int());
@@ -104,26 +104,18 @@ class MyCode: public mathvm::Code {
 		    case mathvm::BC_DMUL:
 				push_int(pop_double() * pop_double());
 				break;
-		    case mathvm::BC_ISUB: {
-		        int64_t right = pop_int();
-		        int64_t left = pop_int();
-		        push_int(left - right);
-		    } 	break;
-		    case mathvm::BC_DSUB: {
-		        double right = pop_double();
-		        double left = pop_double();
-		        push_double(left - right);
-		    }   break;
-		    case mathvm::BC_IDIV: {
-		        int64_t right = pop_int();
-		        int64_t left = pop_int();
-		        push_int(left / right);
-		    }   break;
-		    case mathvm::BC_DDIV: {
-		        double right = pop_double();
-		        double left = pop_double();
-		        push_double(left / right);
-		    }   break;
+		    case mathvm::BC_ISUB:
+		        push_int(pop_int() - pop_int());
+		        break;
+		    case mathvm::BC_DSUB:
+		        push_double(pop_double() - pop_double());
+		        break;
+		    case mathvm::BC_IDIV:
+		        push_int(pop_int() / pop_int());
+		        break;
+		    case mathvm::BC_DDIV:
+		        push_double(pop_double() / pop_double());
+		        break;
 		    case mathvm::BC_INEG:
 				push_int(-pop_int());
 				break;
@@ -148,12 +140,38 @@ class MyCode: public mathvm::Code {
 		    case mathvm::BC_JA:
 				index += bytecode->getInt16(index);
 				break;
-
+		    case mathvm::BC_IFICMPNE:
+				if (pop_int() != pop_int())
+					index += bytecode->getInt16(index);
+				break;
+		    case mathvm::BC_IFICMPE:
+		    	if (pop_int() == pop_int())
+					index += bytecode->getInt16(index);
+				break;
+		    case mathvm::BC_IFICMPG:
+		    	if (pop_int() > pop_int())
+		    		index += bytecode->getInt16(index);
+		    	break;
+		    case mathvm::BC_IFICMPGE:
+		    	if (pop_int() >= pop_int())
+					index += bytecode->getInt16(index);
+				break;
+		    case mathvm::BC_IFICMPL:
+		    	if (pop_int() < pop_int())
+					index += bytecode->getInt16(index);
+				break;
+		    case mathvm::BC_IFICMPLE:
+		    	if (pop_int() <= pop_int())
+					index += bytecode->getInt16(index);
+				break;
+		    case mathvm::BC_STOP:
+		    	return NULL;
 		    default:
 				assert(false);
 				break;
 		    }
 		}
+
 		return NULL;
 	}
 public:
@@ -168,7 +186,8 @@ public:
 	}
 
 	~MyCode() {
-		delete call_stack;
+		free(call_stack);
+		free(stack);
 	}
 
 	mathvm::Status *execute(std::vector<mathvm::Var*> &vars) {
