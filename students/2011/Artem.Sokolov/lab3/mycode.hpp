@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include "mathvm.h"
+#include <ostream>
 
 union Variable {
 	double d;
@@ -13,6 +14,7 @@ union Variable {
 union StackFrameUnit {
 	Variable v;
 	StackFrameUnit *previous;
+	uint16_t context_id;
 };
 
 class MyCode: public mathvm::Code {
@@ -22,9 +24,10 @@ class MyCode: public mathvm::Code {
 	Variable *stack;
 	Variable *top;
 
-	uint16_t current_context_id;
-
 	StackFrameUnit *frame_top;
+	StackFrameUnit *frame;
+
+	std::ostream &output_stream;
 
 	void push_int(int64_t value) {
 		top->i = value;
@@ -63,10 +66,21 @@ class MyCode: public mathvm::Code {
 
 	StackFrameUnit *get_frame(uint16_t context_id) {
 		StackFrameUnit *frame = current_frame;
-		assert(context_id <= current_context_id);
-		for (int i = current_context_id - context_id; i > 0; ++i)
+		assert(context_id <= frame[-2].context_id);
+		while (frame[-2].context_id != context_id)
 			frame = frame[-1].previous;
 		return frame;
+	}
+
+	void set_frame(uint16_t context_id, uint16_t id) {
+		if (current_frame[-2].context_id == context_id) {
+			frame_top += id + 1;
+			frame = current_frame;
+		} else if (context_id == 0) {
+			frame = call_stack + 2;
+		} else {
+			frame = get_frame(context_id);
+		}
 	}
 
 	mathvm::Status *execute_bytecode(mathvm::Bytecode *bytecode) {
@@ -114,13 +128,7 @@ class MyCode: public mathvm::Code {
 		    	uint16_t id = bytecode->getInt16(index);
 		    	index += 2;
 
-		    	StackFrameUnit *frame;
-		    	if (current_context_id == context_id) {
-		    		frame_top += id + 1;
-		    		frame = current_frame;
-		    	} else {
-		    		frame = get_frame(context_id);
-		    	}
+		    	set_frame(context_id, id);
 
 		    	frame[id].v.i = pop_int();
 		    }   break;
@@ -130,13 +138,7 @@ class MyCode: public mathvm::Code {
 				uint16_t id = bytecode->getInt16(index);
 				index += 2;
 
-		    	StackFrameUnit *frame;
-		    	if (current_context_id == context_id) {
-		    		frame_top += id + 1;
-		    		frame = current_frame;
-		    	} else {
-		    		frame = get_frame(context_id);
-		    	}
+				set_frame(context_id, id);
 
 				frame[id].v.d = pop_double();
 		    }   break;
@@ -146,13 +148,7 @@ class MyCode: public mathvm::Code {
 				uint16_t id = bytecode->getInt16(index);
 				index += 2;
 
-		    	StackFrameUnit *frame;
-		    	if (current_context_id == context_id) {
-		    		frame_top += id + 1;
-		    		frame = current_frame;
-		    	} else {
-		    		frame = get_frame(context_id);
-		    	}
+				set_frame(context_id, id);
 
 				frame[id].v.s = pop_string();
 			}   break;
@@ -221,31 +217,30 @@ class MyCode: public mathvm::Code {
 				break;
 
 		    case mathvm::BC_IPRINT:
-				std::cout << pop_int();
+				output_stream << pop_int();
 				break;
 		    case mathvm::BC_DPRINT:
-		    	std::cout << pop_double();
+		    	output_stream << pop_double();
 				break;
 		    case mathvm::BC_SPRINT:
-		    	std::cout << pop_string();
+		    	output_stream << pop_string();
 				break;
 
 		    case mathvm::BC_CALL: {
 		    	uint16_t function_id = bytecode->getInt16(index);
 				index += 2;
 
-				frame_top->previous = current_frame;
-				frame_top += 1;
+				frame_top->context_id = function_id;
+				frame_top[1].previous = current_frame;
+				frame_top += 2;
 				current_frame = frame_top;
-				++current_context_id;
 
 		    	mathvm::BytecodeFunction *function = (mathvm::BytecodeFunction *) functionById(function_id);
 				execute_bytecode(function->bytecode());
 		    }	break;
 			case mathvm::BC_RETURN: {
-				frame_top = current_frame - 1;
+				frame_top = current_frame - 2;
 				current_frame = current_frame[-1].previous;
-				--current_context_id;
 				return NULL;
 			}	break;
 
@@ -306,15 +301,13 @@ class MyCode: public mathvm::Code {
 		return NULL;
 	}
 public:
-	MyCode() {
+	MyCode(std::ostream &output_stream): output_stream(output_stream) {
 		call_stack = (StackFrameUnit *)std::malloc(sizeof(StackFrameUnit) * 8192);
-		current_frame = call_stack + 1;
+		current_frame = call_stack + 2;
 		frame_top = current_frame;
 
 		stack = (Variable *)std::malloc(sizeof(Variable) * 1024);
 		top = stack;
-
-		current_context_id = 0;
 	}
 
 	~MyCode() {
@@ -325,6 +318,7 @@ public:
 	mathvm::Status *execute(std::vector<mathvm::Var*> &vars) {
 		mathvm::BytecodeFunction *top = (mathvm::BytecodeFunction *) functionById(0);
 		current_frame[-1].previous = NULL;
+		current_frame[-2].context_id = 0;;
 		return execute_bytecode(top->bytecode());
 	}
 };

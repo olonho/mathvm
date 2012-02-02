@@ -21,16 +21,24 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	mathvm::Code *code = new MyCode();
+	mathvm::Code *code;
+	std::ofstream output_stream;
+
+	if (argc == 3) {
+		output_stream.open(argv[2]);
+		code = new MyCode(output_stream);
+	} else {
+		code = new MyCode(std::cout);
+	}
 
 	mathvm::Translator *translator = mathvm::Translator::create();
 
 	mathvm::Status *status = translator->translate(test, &code);
 
 	if (status == NULL) {
-		std::cerr << "== bytecode: ==" << std::endl;
-		code->disassemble(std::cerr);
-		std::cerr << "== end ==\n" << std::endl;
+//		std::cerr << "== bytecode: ==" << std::endl;
+//		code->disassemble(std::cerr);
+//		std::cerr << "== end ==\n" << std::endl;
 
 		std::vector<mathvm::Var *> vars;
 		mathvm::Status *executeStatus = code->execute(vars);
@@ -44,6 +52,9 @@ int main(int argc, char **argv)
 		mathvm::positionToLineOffset(test, position, line, offset);
 		std::cerr << "Error " << status->getError() << " at line " << line << ", offset " << offset << "." << std::endl;
 	}
+
+	if (argc == 3)
+		output_stream.close();
 
 	delete status;
 	delete translator;

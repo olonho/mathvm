@@ -13,6 +13,7 @@ public:
 };
 
 struct MyScope {
+	uint16_t context_id;
 	std::map<std::string, uint16_t> variable_map;
 	std::vector<mathvm::AstVar *> variables;
 
@@ -54,7 +55,7 @@ class Visitor: public mathvm::AstVisitor {
 			if (it == scopes[scope].variable_map.end()) {
 				continue;
 			} else {
-				bytecode->addUInt16(scope);
+				bytecode->addUInt16(scopes[scope].context_id);
 				bytecode->addUInt16((*it).second);
 				return;
 			}
@@ -69,7 +70,7 @@ class Visitor: public mathvm::AstVisitor {
 			if (it == scopes[scope].variable_map.end()) {
 				continue;
 			} else {
-				bytecode->addUInt16(scope);
+				bytecode->addUInt16(scopes[scope].context_id);
 				bytecode->addUInt16((*it).second);
 				return;
 			}
@@ -108,6 +109,12 @@ class Visitor: public mathvm::AstVisitor {
 			top_type = type;
 		}
 	}
+
+	void push_scope(uint16_t context_id) {
+		scopes.push_back(MyScope());
+		scopes.back().context_id = context_id;
+	}
+
 
 public:
 	Visitor(mathvm::Code* code):
@@ -471,7 +478,7 @@ public:
 
 	virtual void visitBlockNode(mathvm::BlockNode* node) {
 		if (at_top) {
-			scopes.push_back(MyScope());
+			push_scope(0);
 			at_top = false;
 		}
 
@@ -500,7 +507,7 @@ public:
 			return_type = ast_function->returnType();
 			bytecode = bytecode_function->bytecode();
 
-			scopes.push_back(MyScope());
+			push_scope(bytecode_function->id());
 
 			for (uint16_t i = 0; i < ast_function->parametersNumber(); ++i) {
 				mathvm::AstVar *ast_variable = new mathvm::AstVar(ast_function->parameterName(i), ast_function->parameterType(i), ast_function->scope());
