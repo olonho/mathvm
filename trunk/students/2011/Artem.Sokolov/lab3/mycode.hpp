@@ -74,7 +74,8 @@ class MyCode: public mathvm::Code {
 
 	void set_frame(uint16_t context_id, uint16_t id) {
 		if (current_frame[-2].context_id == context_id) {
-			frame_top += id + 1;
+			if (frame_top < frame_top + id + 1)
+				frame_top += id + 1;
 			frame = current_frame;
 		} else if (context_id == 0) {
 			frame = call_stack + 2;
@@ -157,7 +158,7 @@ class MyCode: public mathvm::Code {
 				index += 2;
 				uint16_t id = bytecode->getInt16(index);
 				index += 2;
-				StackFrameUnit *frame = get_frame(context_id);
+				frame = get_frame(context_id);
 				push_string(frame[id].v.s);
 			}   break;
 		    case mathvm::BC_LOADCTXDVAR: {
@@ -165,7 +166,7 @@ class MyCode: public mathvm::Code {
 				index += 2;
 				uint16_t id = bytecode->getInt16(index);
 				index += 2;
-				StackFrameUnit *frame = get_frame(context_id);
+				frame = get_frame(context_id);
 				push_double(frame[id].v.d);
 			}   break;
 		    case mathvm::BC_LOADCTXIVAR: {
@@ -173,7 +174,7 @@ class MyCode: public mathvm::Code {
 				index += 2;
 				uint16_t id = bytecode->getInt16(index);
 				index += 2;
-				StackFrameUnit *frame = get_frame(context_id);
+				frame = get_frame(context_id);
 				int lol = frame[id].v.i;
 				push_int(lol);
 			}   break;
