@@ -485,8 +485,15 @@ public:
 		while (function_iterator.hasNext()) {
 			mathvm::AstFunction *ast_function = function_iterator.next();
 			mathvm::BytecodeFunction* bytecode_function = new mathvm::BytecodeFunction(ast_function);
-//			add_function(bytecode_function);
 			code->addFunction(bytecode_function);
+		}
+
+		function_iterator = mathvm::Scope::FunctionIterator(node->scope());
+
+		while (function_iterator.hasNext()) {
+			mathvm::AstFunction *ast_function = function_iterator.next();
+			mathvm::BytecodeFunction* bytecode_function = (mathvm::BytecodeFunction *)code->functionByName(ast_function->name());
+//			add_function(bytecode_function);
 
 			mathvm::Bytecode *outer_bytecode = bytecode;
 			mathvm::VarType outer_return_type = return_type;
@@ -498,7 +505,7 @@ public:
 			for (uint16_t i = 0; i < ast_function->parametersNumber(); ++i) {
 				mathvm::AstVar *ast_variable = new mathvm::AstVar(ast_function->parameterName(i), ast_function->parameterType(i), ast_function->scope());
 				add_variable(ast_variable);
-				switch (ast_function->parameterType(i - 1)) {
+				switch (ast_function->parameterType(i)) {
 					case mathvm::VT_INT:
 						bytecode->addInsn(mathvm::BC_STORECTXIVAR);
 						break;
