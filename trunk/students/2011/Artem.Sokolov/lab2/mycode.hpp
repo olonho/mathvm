@@ -186,13 +186,13 @@ class MyCode: public mathvm::Code {
 				push_int(pop_int() + pop_int());
 				break;
 		    case mathvm::BC_DADD:
-				push_int(pop_double() + pop_double());
+				push_double(pop_double() + pop_double());
 				break;
 		    case mathvm::BC_IMUL:
 				push_int(pop_int() * pop_int());
 				break;
 		    case mathvm::BC_DMUL:
-				push_int(pop_double() * pop_double());
+		    	push_double(pop_double() * pop_double());
 				break;
 		    case mathvm::BC_ISUB:
 		        push_int(pop_int() - pop_int());
@@ -210,7 +210,7 @@ class MyCode: public mathvm::Code {
 				push_int(-pop_int());
 				break;
 		    case mathvm::BC_DNEG:
-				push_int(-pop_double());
+				push_double(-pop_double());
 				break;
 
 		    case mathvm::BC_I2D:
@@ -252,30 +252,48 @@ class MyCode: public mathvm::Code {
 		    case mathvm::BC_JA:
 				index += bytecode->getInt16(index);
 				break;
-		    case mathvm::BC_IFICMPNE:
+		    case mathvm::BC_IFICMPNE: {
+		    	uint16_t offset = bytecode->getInt16(index);
 				if (pop_int() != pop_int())
-					index += bytecode->getInt16(index);
-				break;
-		    case mathvm::BC_IFICMPE:
-		    	if (pop_int() == pop_int())
-					index += bytecode->getInt16(index);
-				break;
-		    case mathvm::BC_IFICMPG:
-		    	if (pop_int() > pop_int())
-		    		index += bytecode->getInt16(index);
-		    	break;
-		    case mathvm::BC_IFICMPGE:
-		    	if (pop_int() >= pop_int())
-					index += bytecode->getInt16(index);
-				break;
-		    case mathvm::BC_IFICMPL:
-		    	if (pop_int() < pop_int())
-					index += bytecode->getInt16(index);
-				break;
-		    case mathvm::BC_IFICMPLE:
-		    	if (pop_int() <= pop_int())
-					index += bytecode->getInt16(index);
-				break;
+					index += offset;
+				else
+					index += 2;
+		    }	break;
+		    case mathvm::BC_IFICMPE: {
+		    	uint16_t offset = bytecode->getInt16(index);
+				if (pop_int() == pop_int())
+					index += offset;
+				else
+					index += 2;
+		    }	break;
+		    case mathvm::BC_IFICMPG: {
+		    	uint16_t offset = bytecode->getInt16(index);
+				if (pop_int() > pop_int())
+					index += offset;
+				else
+					index += 2;
+		    }	break;
+		    case mathvm::BC_IFICMPGE: {
+		    	uint16_t offset = bytecode->getInt16(index);
+				if (pop_int() >= pop_int())
+					index += offset;
+				else
+					index += 2;
+		    }	break;
+		    case mathvm::BC_IFICMPL: {
+		    	uint16_t offset = bytecode->getInt16(index);
+				if (pop_int() < pop_int())
+					index += offset;
+				else
+					index += 2;
+		    }	break;
+		    case mathvm::BC_IFICMPLE: {
+		    	uint16_t offset = bytecode->getInt16(index);
+				if (pop_int() <= pop_int())
+					index += offset;
+				else
+					index += 2;
+		    }	break;
 		    case mathvm::BC_STOP:
 		    	return NULL;
 		    	break;
