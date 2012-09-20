@@ -85,11 +85,11 @@ void PrettyPrinter::visitBlockNode(BlockNode *node)
 
 void PrettyPrinter::visitFunctionNode(FunctionNode *node)
 {
-	m_out << "function " << typeStr(node->returnType())
+	m_out << "function " << typeToName(node->returnType())
 	      << " " << node->name() << "(";
 	for (uint32_t i = 0; i != node->parametersNumber(); ++i)
 	{
-		m_out << typeStr(node->parameterType(i)) << " "
+		m_out << typeToName(node->parameterType(i)) << " "
 		      << node->parameterName(i);
 		if (i != node->parametersNumber() - 1) m_out << ", ";
 	}
@@ -159,24 +159,12 @@ void PrettyPrinter::printScope(Scope *scope)
 	while (ivar.hasNext())
 	{
 		AstVar *var = ivar.next();
-		m_out << indentation << typeStr(var->type()) << " "
+		m_out << indentation << typeToName(var->type()) << " "
 		      << var->name() << ";" << std::endl;
 	}
 	
 	Scope::FunctionIterator ifun(scope);
 	while (ifun.hasNext()) ifun.next()->node()->visit(this);
-}
-
-std::string PrettyPrinter::typeStr(VarType type) const
-{
-	switch (type)
-	{
-	case VT_VOID: return "void";
-	case VT_DOUBLE: return "double";
-	case VT_INT: return "int";
-	case VT_STRING: return "string";
-	default: return "unknown";
-	}
 }
 
 std::string PrettyPrinter::escape(std::string const & str) const
