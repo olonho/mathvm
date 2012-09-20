@@ -1,6 +1,6 @@
 #include "pretty.h"
 
-void PrettyPrinter::visitTopLevelBlock(AstFunction* top)
+void PrettyPrinter::visitTopLevelBlock(AstFunction const * const top)
 {
 	printBlock(top->node()->body());
 }
@@ -9,14 +9,14 @@ void PrettyPrinter::visitBinaryOpNode(BinaryOpNode *node)
 {
 	m_out << "(";
 	node->left()->visit(this);
-	m_out << tokenStr(node->kind());
+	m_out << " " << tokenOp(node->kind()) << " ";
 	node->right()->visit(this);
 	m_out << ")";
 }
 
 void PrettyPrinter::visitUnaryOpNode(UnaryOpNode *node)
 {
-	m_out << tokenStr(node->kind());
+	m_out << tokenOp(node->kind());
 	node->operand()->visit(this);
 }
 
@@ -42,7 +42,7 @@ void PrettyPrinter::visitLoadNode(LoadNode *node)
 
 void PrettyPrinter::visitStoreNode(StoreNode *node)
 {
-	m_out << node->var()->name() << " " << tokenStr(node->op()) << " ";
+	m_out << node->var()->name() << " " << tokenOp(node->op()) << " ";
 	node->value()->visit(this);
 }
 
@@ -68,7 +68,7 @@ void PrettyPrinter::visitIfNode(IfNode *node)
 	node->ifExpr()->visit(this);
 	m_out << ")" << std::endl;
 	node->thenBlock()->visit(this);
-	if (node->elseBlock()->nodes())
+	if (node->elseBlock() && node->elseBlock()->nodes())
 	{
 		m_out << "else" << std::endl;
 		node->elseBlock()->visit(this);
@@ -77,11 +77,10 @@ void PrettyPrinter::visitIfNode(IfNode *node)
 
 void PrettyPrinter::visitBlockNode(BlockNode *node)
 {
-	if (node->nodes() > 1) m_out << "{" << std::endl;
-	m_indent += 4;
+	std::string indentation(m_indent, ' ');
+	m_out << indentation << "{" << std::endl; m_indent += 4;
 	printBlock(node);
-	m_indent -= 4;
-	if (node->nodes() > 1) m_out << "}" << std::endl;
+	m_out << indentation << "}"; m_indent -= 4;
 }
 
 void PrettyPrinter::visitFunctionNode(FunctionNode *node)
@@ -94,14 +93,22 @@ void PrettyPrinter::visitFunctionNode(FunctionNode *node)
 		      << node->parameterName(i);
 		if (i != node->parametersNumber() - 1) m_out << ", ";
 	}
-	m_out << ")" << std::endl;
-	node->body()->visit(this);
+	m_out << ") ";
+	if (node->body()->nodes() && node->body()->nodeAt(0)->isNativeCallNode())
+		node->body()->nodeAt(0)->visit(this);
+	else
+		node->body()->visit(this);
+	m_out << std::endl;
 }
 
 void PrettyPrinter::visitReturnNode(ReturnNode *node)
 {
-	m_out << "return ";
-	node->returnExpr()->visit(this);
+	m_out << "return";
+	if (node->returnExpr())
+	{
+		m_out << " ";
+		node->returnExpr()->visit(this);
+	}
 }
 
 void PrettyPrinter::visitCallNode(CallNode *node)
@@ -117,7 +124,7 @@ void PrettyPrinter::visitCallNode(CallNode *node)
 
 void PrettyPrinter::visitNativeCallNode(NativeCallNode *node)
 {
-	m_out << "native " << node->nativeName();
+	m_out << "native '" << node->nativeName() << "';";
 }
 
 void PrettyPrinter::visitPrintNode(PrintNode *node)
@@ -131,7 +138,36 @@ void PrettyPrinter::visitPrintNode(PrintNode *node)
 	m_out << ")";
 }
 
-std::string PrettyPrinter::typeStr(VarType type)
+void PrettyPrinter::printBlock(BlockNode *node)
+{
+	printScope(node->scope());
+	std::string indentation(m_indent, ' ');
+	for (uint32_t i = 0; i != node->nodes(); ++i)
+	{
+		m_out << indentation;
+		node->nodeAt(i)->visit(this);
+		m_out << ";" << std::endl;
+	}
+}
+
+void PrettyPrinter::printScope(Scope *scope)
+{
+	std::string indentation(m_indent, ' ');
+	//why constructor doesn't get const pointer?
+	Scope::VarIterator ivar(scope);
+	//Java-style iterators in C++?
+	while (ivar.hasNext())
+	{
+		AstVar *var = ivar.next();
+		m_out << indentation << typeStr(var->type()) << " "
+		      << var->name() << ";" << std::endl;
+	}
+	
+	Scope::FunctionIterator ifun(scope);
+	while (ifun.hasNext()) ifun.next()->node()->visit(this);
+}
+
+std::string PrettyPrinter::typeStr(VarType type) const
 {
 	switch (type)
 	{
@@ -143,18 +179,7 @@ std::string PrettyPrinter::typeStr(VarType type)
 	}
 }
 
-void PrettyPrinter::printBlock(BlockNode *node)
-{
-	std::string indentation(m_indent, ' ');
-	for (uint32_t i = 0; i != node->nodes(); ++i)
-	{
-		m_out << indentation;
-		node->nodeAt(i)->visit(this);
-		m_out << ";" << std::endl;
-	}
-}
-
-std::string PrettyPrinter::escape(std::string const & str)
+std::string PrettyPrinter::escape(std::string const & str) const
 {
 	std::string result;
 	for (auto i = std::begin(str); i != std::end(str); ++i)
