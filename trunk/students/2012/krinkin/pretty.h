@@ -12,7 +12,8 @@ using namespace mathvm;
 class PrettyPrinter : public AstVisitor
 {
 public:
-	virtual void visitTopLevelBlock(AstFunction* top);
+	void visitTopLevelBlock(AstFunction const * const top);
+
 	virtual void visitBinaryOpNode(BinaryOpNode *node);
 	virtual void visitUnaryOpNode(UnaryOpNode *node);
 	virtual void visitStringLiteralNode(StringLiteralNode *node);
@@ -36,10 +37,12 @@ public:
 private:
 	size_t m_indent;
 	std::ostream &m_out;
-	
-	std::string typeStr(VarType type);
+
 	void printBlock(BlockNode *node);
-	std::string escape(std::string const & str);
+	void printScope(Scope *scope);
+
+	std::string typeStr(VarType type) const;
+	std::string escape(std::string const & str) const;
 };
 
 #endif /* __PRETTY_PRINTER_H__ */
