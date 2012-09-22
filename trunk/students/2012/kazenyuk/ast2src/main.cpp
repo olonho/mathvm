@@ -5,6 +5,8 @@
 #include "mathvm.h"
 #include "parser.h"
 
+#include "utils.hpp"
+
 //#define _DEBUG_COMMENTS 1
 
 namespace mathvm {
@@ -35,7 +37,7 @@ class Ast2SrcConverter : public AstVisitor {
         out << ")";
     }
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
-        out << node->literal();
+        out << "\'" << escape_all(node->literal()) << "\'";
     }
     virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
         out << node->literal();
@@ -49,7 +51,6 @@ class Ast2SrcConverter : public AstVisitor {
     virtual void visitStoreNode(StoreNode* node) {
         out << node->var()->name() << " = ";
         node->value()->visit(this);
-        out << ";\n";
     }
     virtual void visitForNode(ForNode* node) {
         out << "for ( " << node->var()
@@ -69,19 +70,25 @@ class Ast2SrcConverter : public AstVisitor {
     virtual void visitIfNode(IfNode* node) {
         out << "if (";
         node->ifExpr()->visit(this);
-        out << ") {\n";
+        out << ") ";
         node->thenBlock()->visit(this);
-        out << "}";
         if (node->elseBlock()) {
-            out << " else {\n";
+            out << "else ";
             node->elseBlock()->visit(this);
-            out << "}";
         }
-        out << "\n";
     }
     virtual void visitBlockNode(BlockNode* node) {
+        out << "{\n";
         reconstructScope(node->scope());
-        node->visitChildren(this);
+
+        for (uint32_t i = 0; i < node->nodes(); i++) {
+            node->nodeAt(i)->visit(this);
+            if (!node->nodeAt(i)->isBlockNode()
+                && !node->nodeAt(i)->isIfNode()) {
+                out << ";\n";
+            }
+        }
+        out << "}\n";
     }
     virtual void visitFunctionNode(FunctionNode* node) {
         out << "function "
@@ -99,11 +106,11 @@ class Ast2SrcConverter : public AstVisitor {
             out << mathvm::typeToName(node->parameterType(last_parameter)) << " "
                 << node->parameterName(last_parameter);
         }
-        out << ") {\n";
+        out << ") ";
 
         node->body()->visit(this);
 
-        out << "}\n";
+        // out << "\n";
     }
     virtual void visitReturnNode(ReturnNode* node) {
         out << "return";
@@ -111,7 +118,6 @@ class Ast2SrcConverter : public AstVisitor {
             out << " ";
             node->returnExpr()->visit(this);
         }
-        out << ";\n";
     }
     virtual void visitCallNode(CallNode* node) {
         out << node->name() << "(";
@@ -162,7 +168,8 @@ class Ast2SrcConverter : public AstVisitor {
             node->operandAt(last_parameter)->visit(this);
         }
 
-        out << ");\n";
+        // out << ");\n";
+        out << ")";
     }
 
     void reconstructScope(Scope* scope) {
