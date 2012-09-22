@@ -41,16 +41,17 @@ ifneq (,$(findstring Darwin,$(OS)))
  endif
  DEFS += -D_DARWIN_C_SOURCE
 endif
- 
+
 ifneq (,$(findstring Linux,$(OS)))
  LIBS += -rdynamic
 endif
- 
+
 ifneq ($(WITH_SDL),)
   DEFS += -DMATHVM_WITH_SDL
   LIBS += -lSDL
 endif
- 
+
+ifneq ($(NO_JIT),1)
 ASMJIT_OBJ = \
         $(OBJ)/AssemblerX86X64$(OBJ_SUFF) \
         $(OBJ)/CodeGenerator$(OBJ_SUFF) \
@@ -64,6 +65,9 @@ ASMJIT_OBJ = \
         $(OBJ)/OperandX86X64$(OBJ_SUFF) \
         $(OBJ)/Platform$(OBJ_SUFF) \
         $(OBJ)/Util$(OBJ_SUFF)
+else
+ASMJIT_OBJ = 
+endif
 
 MATHVM_OBJ = \
         $(ASMJIT_OBJ) \
