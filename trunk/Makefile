@@ -1,7 +1,14 @@
 ROOT   = .
 VM_ROOT = .
+
+ifneq ($(NO_JIT), 1)
+JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
+else
+JIT_OBJ =
+endif
+
 USER_OBJ = \
-   $(OBJ)/jit$(OBJ_SUFF) \
+   $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translator$(OBJ_SUFF)
 

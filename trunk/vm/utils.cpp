@@ -31,6 +31,7 @@ char* loadFile(const char* file) {
     int rv = read(fd, result, size);
     assert(rv == size);
     result[size] = '\0';
+    close(fd);
 
     return (char*)result;
 }
