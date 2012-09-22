@@ -33,11 +33,13 @@ int main(int argc, char** argv) {
                   << status->getError()
                   << " at (" << line << ":" << offset << ")"
                   << std::endl;
+        delete[] text_buffer;
         return 3;
     }
 
     mathvm_ext::Ast2SrcConverter converter(std::cout);
     converter(parser.top());
 
+    delete[] text_buffer;
     return 0;
 }
