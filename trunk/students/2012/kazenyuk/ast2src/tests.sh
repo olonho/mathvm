@@ -8,22 +8,27 @@ mkdir -p $TEST_OUT
 for i in $(find $TESTS_ROOT -type f -iname "*.mvm"); do
 	BASEFILENAME=$(basename $i)
 
-	# echo "=============================================="
-	# echo "FIRST PASS ==================================="
-	# echo "=============================================="
+	echo "= Test $i "
+
 	$TEST_BIN $i > $TEST_OUT/$BASEFILENAME".out"
 	RESULT=$?
+
+	echo -n "First pass "
 	if [ $RESULT -ne "0" ]; then
-		echo "Test "$i" first pass failed"
+		echo "NOK"
+	else
+		echo "OK"
 	fi
 
 	$TEST_BIN $TEST_OUT/$BASEFILENAME".out" > $TEST_OUT/$BASEFILENAME".out2"
 	RESULT2=$?
+
+	echo -n "Second pass "
 	if [ $RESULT2 -ne "0" ]; then
-		echo "Test "$i" second pass failed"
+		echo "NOK"
+	else
+		echo "OK"
 	fi
 
 	echo
-	echo
-
 done

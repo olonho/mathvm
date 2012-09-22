@@ -221,7 +221,8 @@ int main(int argc, char** argv) {
         uint32_t line = 0;
         uint32_t offset = 0;
         mathvm::positionToLineOffset(code, status->getPosition(), line, offset);
-        std::cerr << status->getError()
+        std::cerr << "Parser error: "
+                  << status->getError()
                   << " at (" << line << ":" << offset << ")"
                   << std::endl;
         return 2;
