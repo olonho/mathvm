@@ -1,5 +1,6 @@
 #include <iostream>
 #include <ostream>
+#include <ios>
 
 #include "mathvm.h"
 #include "parser.h"
@@ -19,19 +20,30 @@ void reconstruct_scope(mathvm::Scope* scope, std::ostream& out) {
     // }
 }
 
-void reconstruct_function(mathvm::AstFunction* function) {
-
-}
-
-class ProgramReconstructionAstVisitor : public AstVisitor {
+class Ast2SrcConverter : public AstVisitor {
   public:
-    ProgramReconstructionAstVisitor() : out(std::cout) {
+    Ast2SrcConverter() : out(std::cout) {
+        out.setf(std::ios::showpoint);
     }
-    virtual ~ProgramReconstructionAstVisitor() {
+    virtual ~Ast2SrcConverter() {
     }
 
-    virtual void visitBinaryOpNode(BinaryOpNode* node) { node->visitChildren(this); }
-    virtual void visitUnaryOpNode(UnaryOpNode* node) { node->visitChildren(this); }
+    void convert(AstNode* ast) {
+        ast->visit(this);
+    }
+
+    virtual void visitBinaryOpNode(BinaryOpNode* node) {
+        out << "(";
+        node->left()->visit(this);
+        out << " " << tokenOp(node->kind()) << " ";
+        node->right()->visit(this);
+        out << ")";
+    }
+    virtual void visitUnaryOpNode(UnaryOpNode* node) {
+        out << " " << tokenOp(node->kind()) << "(";
+        node->operand()->visit(this);
+        out << ")";
+    }
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
         out << node->literal();
     }
@@ -42,7 +54,7 @@ class ProgramReconstructionAstVisitor : public AstVisitor {
         out << node->literal();
     }
     virtual void visitLoadNode(LoadNode* node) {
-        out << node->var();
+        out << node->var()->name();
     }
     virtual void visitStoreNode(StoreNode* node) {
         out << node->var()->name() << " = ";
@@ -103,10 +115,65 @@ class ProgramReconstructionAstVisitor : public AstVisitor {
 
         out << "}\n";
     }
-    virtual void visitReturnNode(ReturnNode* node) { node->visitChildren(this); }
-    virtual void visitCallNode(CallNode* node) { node->visitChildren(this); }
-    virtual void visitNativeCallNode(NativeCallNode* node) { node->visitChildren(this); }
-    virtual void visitPrintNode(PrintNode* node) { node->visitChildren(this); }
+    virtual void visitReturnNode(ReturnNode* node) {
+        out << "return";
+        if (node->returnExpr()) {
+            out << " ";
+            node->returnExpr()->visit(this);
+        }
+        out << ";";
+    }
+    virtual void visitCallNode(CallNode* node) {
+        out << node->name() << "(";
+
+        uint32_t parameters_number = node->parametersNumber();
+        if (parameters_number > 0) {
+            uint32_t last_parameter = parameters_number - 1;
+            for (uint32_t i = 0; i < last_parameter; ++i) {
+                node->parameterAt(i)->visit(this);
+                out << ", ";
+            }
+            node->parameterAt(last_parameter)->visit(this);
+        }
+
+        out << ")";
+    }
+    virtual void visitNativeCallNode(NativeCallNode* node) {
+        std::string name = node->nativeName();
+        Signature signature = node->nativeSignature();
+        VarType return_type = signature[0].first;
+        out << "function "
+            << mathvm::typeToName(return_type) << " "
+            << name << "(";
+
+        uint32_t parameters_number = signature.size() - 1;
+        if (parameters_number > 0) {
+            uint32_t last_parameter = parameters_number - 1;
+            for (uint32_t i = 1; i < last_parameter; ++i) {
+                out << mathvm::typeToName(signature[i].first) << " "
+                    << signature[i].second << ", ";
+            }
+            out << mathvm::typeToName(signature[last_parameter].first) << " "
+                                << signature[last_parameter].second << ", ";
+        }
+
+        out << ") native " << "\'" << name << "\';";
+    }
+    virtual void visitPrintNode(PrintNode* node) {
+        out << "print(";
+
+        uint32_t parameters_number = node->operands();
+        if (parameters_number > 0) {
+            uint32_t last_parameter = parameters_number - 1;
+            for (uint32_t i = 0; i < last_parameter; ++i) {
+                node->operandAt(i)->visit(this);
+                out << ", ";
+            }
+            node->operandAt(last_parameter)->visit(this);
+        }
+
+        out << ");\n";
+    }
   private:
     std::ostream& out;
 };
@@ -134,8 +201,8 @@ int main(int argc, char** argv) {
 
     mathvm::AstFunction* function = parser.top();
     mathvm::AstNode* functions_ast = function->node();
-    mathvm::ProgramReconstructionAstVisitor reconstructor;
-    functions_ast->visit(&reconstructor);
+    mathvm::Ast2SrcConverter reconstructor;
+    reconstructor.convert(functions_ast);
 
     return 0;
 }
