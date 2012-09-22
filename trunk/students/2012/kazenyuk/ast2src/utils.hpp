@@ -57,4 +57,4 @@ std::string escape_all(const std::string &str) {
 	return tmp;
 }
 
-#endif // AST2SRC_UTILS_HPP_
+#endif	// AST2SRC_UTILS_HPP_
