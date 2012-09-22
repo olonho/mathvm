@@ -5,20 +5,9 @@
 #include "mathvm.h"
 #include "parser.h"
 
-namespace mathvm {
+//#define _DEBUG_COMMENTS 1
 
-void reconstruct_scope(mathvm::Scope* scope, std::ostream& out) {
-    mathvm::Scope::VarIterator var_iterator(scope);
-    while (var_iterator.hasNext()) {
-        AstVar* var = var_iterator.next();
-        out << mathvm::typeToName(var->type()) << " "
-            << var->name() << ";\n";
-    }
-    // mathvm::Scope::FunctionIterator function_iterator(scope);
-    // while (function_iterator.hasNext()) {
-    //     mathvm::AstFunction* function = function_iterator.next();
-    // }
-}
+namespace mathvm {
 
 class Ast2SrcConverter : public AstVisitor {
   public:
@@ -32,6 +21,7 @@ class Ast2SrcConverter : public AstVisitor {
         ast->visit(this);
     }
 
+  private:
     virtual void visitBinaryOpNode(BinaryOpNode* node) {
         out << "(";
         node->left()->visit(this);
@@ -90,7 +80,7 @@ class Ast2SrcConverter : public AstVisitor {
         out << "\n";
     }
     virtual void visitBlockNode(BlockNode* node) {
-        reconstruct_scope(node->scope(), out);
+        reconstructScope(node->scope());
         node->visitChildren(this);
     }
     virtual void visitFunctionNode(FunctionNode* node) {
@@ -121,7 +111,7 @@ class Ast2SrcConverter : public AstVisitor {
             out << " ";
             node->returnExpr()->visit(this);
         }
-        out << ";";
+        out << ";\n";
     }
     virtual void visitCallNode(CallNode* node) {
         out << node->name() << "(";
@@ -154,7 +144,7 @@ class Ast2SrcConverter : public AstVisitor {
                     << signature[i].second << ", ";
             }
             out << mathvm::typeToName(signature[last_parameter].first) << " "
-                                << signature[last_parameter].second << ", ";
+                << signature[last_parameter].second << ", ";
         }
 
         out << ") native " << "\'" << name << "\';";
@@ -174,6 +164,35 @@ class Ast2SrcConverter : public AstVisitor {
 
         out << ");\n";
     }
+
+    void reconstructScope(Scope* scope) {
+#if defined(_DEBUG_COMMENTS)
+        out << "// parent scope: " << scope->parent() << std::endl;
+    
+        out << "// scope variables: \n";
+#endif 
+        Scope::VarIterator var_iterator(scope);
+        while (var_iterator.hasNext()) {
+            AstVar* var = var_iterator.next();
+            out << mathvm::typeToName(var->type()) << " "
+                << var->name() << ";\n";
+        }
+#if defined(_DEBUG_COMMENTS)
+        out << "// end of scope variables.\n";
+
+        out << "// scope functions: \n";
+#endif
+        Ast2SrcConverter reconstructor;
+        Scope::FunctionIterator function_iterator(scope);
+        while (function_iterator.hasNext()) {
+            AstFunction* function = function_iterator.next();
+            reconstructor.convert(function->node());
+        }
+#if defined(_DEBUG_COMMENTS)
+        out << "// end of scope functions.\n";
+#endif
+    }
+
   private:
     std::ostream& out;
 };
@@ -195,13 +214,22 @@ int main(int argc, char** argv) {
         uint32_t line = 0;
         uint32_t offset = 0;
         mathvm::positionToLineOffset(code, status->getPosition(), line, offset);
-        std::cerr << status->getError() << " at (" << line << ":" << offset << ")";
+        std::cerr << status->getError()
+                  << " at (" << line << ":" << offset << ")"
+                  << std::endl;
         return 2;
     }
 
     mathvm::AstFunction* function = parser.top();
     mathvm::AstNode* functions_ast = function->node();
+
+    // std::cout << function->scope() << " "
+    //           << function->owner()
+    //           << std::endl;
+
+    //mathvm::reconstruct_scope(function->scope(), std::cout);
     mathvm::Ast2SrcConverter reconstructor;
+    // reconstructor.convert(function->owner(), functions_ast);
     reconstructor.convert(functions_ast);
 
     return 0;
