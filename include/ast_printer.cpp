@@ -10,12 +10,12 @@ namespace mathvm {
 
 string typeToString(VarType type) {
     switch (type) {
-    case VT_INVALID: return "INVALID";
-    case VT_VOID:    return "void";
-    case VT_DOUBLE:  return "double";
-    case VT_INT:     return "int";
-    case VT_STRING:  return "string";
-    default:         return "UNKNOWN_TYPE";
+        case VT_INVALID: return "INVALID";
+        case VT_VOID:    return "void";
+        case VT_DOUBLE:  return "double";
+        case VT_INT:     return "int";
+        case VT_STRING:  return "string";
+        default:         return "UNKNOWN_TYPE";
     }
 }
 
@@ -28,6 +28,17 @@ string kindToString(TokenKind kind) {
 #undef OPERATION_PRINT
 
     return "UNKNOWN_OPERATION";
+}
+
+string escape(char c) {
+    switch (c) {
+        case '\n': return "\\n";
+        case '\t': return "\\t";
+        case '\b': return "\\b";
+        case '\r': return "\\r";
+        case '\\': return "\\\\";
+        default:   return string(1, c);
+    }
 }
 
 AstPrinter::~AstPrinter() {
@@ -47,7 +58,12 @@ void AstPrinter::visitUnaryOpNode(UnaryOpNode* node) {
 }
 
 void AstPrinter::visitStringLiteralNode(StringLiteralNode* node) {
-    _ostrm << '\'' << node->literal() << '\'';
+    _ostrm << '\'';
+    const string& str = node->literal();
+    for (uint32_t i = 0; i < str.size(); ++i) {
+        _ostrm << escape(str[i]);
+    }
+    _ostrm << '\'';
 }
 
 void AstPrinter::visitDoubleLiteralNode(DoubleLiteralNode* node) {
