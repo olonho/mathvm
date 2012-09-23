@@ -14,43 +14,43 @@
 using namespace mathvm;
 
 int main(int argc, char** argv) {
-	if (argc == 1) {
-		cout << "enter path to source code as parameter" << endl;
-	}
+    if (argc == 1) {
+        cout << "enter path to source code as parameter" << endl;
+    }
 
-	ifstream ifs (argv[1]);
-	if (!ifs) {
-		cout << "can not open file: " << argv[1] << endl;
-		return 1;
-	}
+    ifstream ifs (argv[1]);
+    if (!ifs) {
+        cout << "can not open file: " << argv[1] << endl;
+        return 1;
+    }
 
-	string code(
-			(istreambuf_iterator<char>(ifs)),
-			istreambuf_iterator<char>()
-	);
+    string code(
+            (istreambuf_iterator<char>(ifs)),
+            istreambuf_iterator<char>()
+    );
 
-	Parser parser;
-	Status* status = parser.parseProgram(code);
+    Parser parser;
+    Status* status = parser.parseProgram(code);
 
-	if (status) {
-		if (status->isError()) {
-			cout << status->getError() << endl;
-			delete status;
-			return 1;
-		}
-	}
+    if (status) {
+        if (status->isError()) {
+            cout << status->getError() << endl;
+            delete status;
+            return 1;
+        }
+    }
 
-	AstFunction* top = parser.top();
-	AstPrinter printer(cout);
+    AstFunction* top = parser.top();
+    AstPrinter printer(cout);
 
-	top->node()->body()->visit(&printer);
+    top->node()->body()->visit(&printer);
 
-//	cout << "function name: " << func->node()->body()->name() << endl;
+//    cout << "function name: " << func->node()->body()->name() << endl;
 
 
-	delete status;
+    delete status;
 
-	return 0;
+    return 0;
 }
 
 
