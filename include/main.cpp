@@ -14,13 +14,12 @@
 using namespace mathvm;
 
 int main(int argc, char** argv) {
-//    if (argc == 1) {
-//        cout << "enter path to source code as parameter" << endl;
-//    }
+    if (argc == 1) {
+        cout << "enter path to source code as parameter" << endl;
+        return 1;
+    }
 
-    string path = "/home/alex/study/term3/vm/mathvm/students/2012/opeykin/ast_printer/code_sample.mvm";
-    ifstream ifs (path.c_str());
-//    ifstream ifs (argv[1]);
+    ifstream ifs (argv[1]);
     if (!ifs) {
         cout << "can not open file: " << argv[1] << endl;
         return 1;
@@ -46,9 +45,6 @@ int main(int argc, char** argv) {
     AstPrinter printer(cout);
 
     top->node()->body()->visit(&printer);
-
-//    cout << "function name: " << func->node()->body()->name() << endl;
-
 
     delete status;
 

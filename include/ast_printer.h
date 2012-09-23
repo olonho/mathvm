@@ -15,21 +15,21 @@ namespace mathvm {
 
 class AstPrinter : public AstVisitor {
 public:
-	AstPrinter(ostream& ostrm) : _ostrm(ostrm) {
-	}
+    AstPrinter(ostream& ostrm) : _ostrm(ostrm) {
+    }
 
-	~AstPrinter();
+    ~AstPrinter();
 
 #define VISITOR_FUNCTION_DECL(type, name) \
-	virtual void visit##type(type* node);
+    virtual void visit##type(type* node);
 
-	FOR_NODES(VISITOR_FUNCTION_DECL)
+    FOR_NODES(VISITOR_FUNCTION_DECL)
 #undef VISITOR_FUNCTION_DECL
 
 private:
-	void printSubNodes(BlockNode* node);
-	void printFuncDecl(Scope* scope);
-	void printVarDecl(Scope* scope);
+    void printSubNodes(BlockNode* node);
+    void printFuncDecl(Scope* scope);
+    void printVarDecl(Scope* scope);
 
 private:
     ostream& _ostrm;
