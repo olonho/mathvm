@@ -109,8 +109,10 @@ void AstPrinter::visitIfNode(IfNode* node) {
     node->ifExpr()->visit(this);
     _ostrm << ") ";
     node->thenBlock()->visit(this);
-    _ostrm << " else ";
-    node->elseBlock()->visit(this);
+    if (node->elseBlock()) {
+        _ostrm << " else ";
+        node->elseBlock()->visit(this);
+    }
 }
 
 void AstPrinter::visitBlockNode(BlockNode* node) {
