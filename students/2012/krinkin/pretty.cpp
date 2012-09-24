@@ -7,11 +7,13 @@ void PrettyPrinter::visitTopLevelBlock(AstFunction const * const top)
 
 void PrettyPrinter::visitBinaryOpNode(BinaryOpNode *node)
 {
-	m_out << "(";
+	if (getPrecedence(node) > getPrecedence(node->left())) m_out << "(";
 	node->left()->visit(this);
+	if (getPrecedence(node) > getPrecedence(node->left())) m_out << ")";
 	m_out << " " << tokenOp(node->kind()) << " ";
+	if (getPrecedence(node) > getPrecedence(node->right())) m_out << "(";
 	node->right()->visit(this);
-	m_out << ")";
+	if (getPrecedence(node) > getPrecedence(node->right())) m_out << ")";
 }
 
 void PrettyPrinter::visitUnaryOpNode(UnaryOpNode *node)
@@ -146,7 +148,9 @@ void PrettyPrinter::printBlock(BlockNode *node)
 	{
 		m_out << indentation;
 		node->nodeAt(i)->visit(this);
-		m_out << ";" << std::endl;
+		if (!node->nodeAt(i)->isIfNode() && !node->nodeAt(i)->isForNode() &&
+			!node->nodeAt(i)->isWhileNode()) m_out << ";";
+		m_out << std::endl;
 	}
 }
 
@@ -182,4 +186,12 @@ std::string PrettyPrinter::escape(std::string const & str) const
 		}
 	}
 	return result;
+}
+
+int PrettyPrinter::getPrecedence(AstNode *node) const
+{
+	BinaryOpNode const * const bin = dynamic_cast<BinaryOpNode const * const>(node);
+	if (bin) return tokenPrecedence(bin->kind());
+	// return something greater then max priority, to prevent parensis usage
+	return 20;
 }

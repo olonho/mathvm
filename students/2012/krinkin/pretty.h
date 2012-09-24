@@ -43,6 +43,8 @@ private:
 
 	std::string typeStr(VarType type) const;
 	std::string escape(std::string const & str) const;
+	
+	int getPrecedence(AstNode *node) const;
 };
 
 #endif /* __PRETTY_PRINTER_H__ */
