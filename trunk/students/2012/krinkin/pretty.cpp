@@ -50,8 +50,9 @@ void PrettyPrinter::visitStoreNode(StoreNode *node)
 
 void PrettyPrinter::visitForNode(ForNode *node)
 {
-	m_out << "for (" << node->var()->name() << " in " << node->inExpr()
-	      << " )" << std::endl;
+	m_out << "for (" << node->var()->name() << " in ";
+	node->inExpr()->visit(this);
+	m_out << " )" << std::endl;
 	node->body()->visit(this);		      
 }
 
