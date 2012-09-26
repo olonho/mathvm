@@ -5,6 +5,9 @@ USER_OBJ    = \
         $(OBJ)/main$(OBJ_SUFF) \
         $(OBJ)/pretty$(OBJ_SUFF)
 
+# i don't need AsmJit
+NO_JIT      = 1
+
 include $(VM_ROOT)/common.mk
 
 ASTPRINTER = $(BIN)/astprinter
