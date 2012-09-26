@@ -1,5 +1,4 @@
 #include <iostream>
-#include <memory>
 
 #include "mathvm.h"
 #include "parser.h"
@@ -16,11 +15,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	
-	/*
-	 * Function mathvm::loadFile opens file, but doesn't close it,
-	 *                                                    use it carefully!
-	 */
-	std::unique_ptr<char[]> expr(loadFile(argv[1]));
+	char *expr = loadFile(argv[1]);
 	if (!expr)
 	{
 		std::cerr << "Cannot read file " << argv[1] << std::endl;
@@ -32,13 +27,15 @@ int main(int argc, char **argv)
 	 * parseProgram return 0 if it success, but it is weird until
 	 *                            mathvm::Status contains isError and isOk
 	 */
-	std::unique_ptr<Status> status(parser.parseProgram(expr.get()));
+	Status *status = parser.parseProgram(expr);
+	delete [] expr;
 	if (status && status->isError())
 	{
 		std::cerr << "Error(" << status->getPosition() << "): "
 		          << status->getError() << std::endl;
 		return 3;
 	}
+	delete status;
 
 	PrettyPrinter printer(std::cout);
 	printer.visitTopLevelBlock(parser.top());
