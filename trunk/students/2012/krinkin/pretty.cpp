@@ -175,7 +175,7 @@ void PrettyPrinter::printScope(Scope *scope)
 std::string PrettyPrinter::escape(std::string const & str) const
 {
 	std::string result;
-	for (auto i = std::begin(str); i != std::end(str); ++i)
+	for (std::string::const_iterator i = str.begin(); i != str.end(); ++i)
 	{
 		switch (*i)
 		{
