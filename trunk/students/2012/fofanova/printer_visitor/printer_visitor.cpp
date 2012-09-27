@@ -28,9 +28,7 @@ void PrintVisitor::visitBlockNode(BlockNode *node) {
     }
     Scope::FunctionIterator func(node->scope());
     while(func.hasNext()) func.next()->node()->visit(this);
-    for (uint32_t i = 0; i < node->nodes(); i++) {
-        node->nodeAt(i)->visit(this);
-    }
+    node->visitChildren(this);
 }
 
 void PrintVisitor::visitForNode(ForNode *node) {
@@ -92,7 +90,7 @@ void PrintVisitor::visitStoreNode(StoreNode *node) {
 
 void PrintVisitor::visitStringLiteralNode(StringLiteralNode *node) {
     cout << "'";
-    for (size_t i = 0; i < node->literal().length(); ++i)
+    for (uint32_t i = 0; i < node->literal().length(); ++i)
     {	
 	if (node->literal()[i] == '\\') cout << "\\\\";
 	else if (node->literal()[i] == '\n') cout << "\\n";
@@ -144,7 +142,7 @@ void PrintVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 
 void PrintVisitor::visitReturnNode(ReturnNode *node) {
     cout << "return ";
-    node->returnExpr()->visit(this);
+    if(node->returnExpr() != 0) node->returnExpr()->visit(this);
     cout << ";" << endl;
 }
 
