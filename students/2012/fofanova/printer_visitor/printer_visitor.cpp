@@ -7,6 +7,7 @@
 using namespace std;
 using namespace mathvm;
 
+char lastSym = '\n';
 void printVar(const AstVar *var) {
     cout << typeToName(var->type()) << " " << var->name();
 }
@@ -28,7 +29,19 @@ void PrintVisitor::visitBlockNode(BlockNode *node) {
     }
     Scope::FunctionIterator func(node->scope());
     while(func.hasNext()) func.next()->node()->visit(this);
-    node->visitChildren(this);
+    for (uint32_t i = 0; i < node->nodes(); ++i)
+    {
+    	node->nodeAt(i)->visit(this);
+	if (lastSym != '}') 
+	{
+		cout << ";" << endl;
+		lastSym = ';';
+	}
+	else
+	{
+		lastSym = '\n';
+	}
+    }
 }
 
 void PrintVisitor::visitForNode(ForNode *node) {
@@ -48,7 +61,8 @@ void PrintVisitor::visitPrintNode(PrintNode *node) {
         AstNode *pNode = node->operandAt(i);
         pNode->visit(this);
     }
-    cout << ");" << endl;
+    cout << ")";
+    lastSym = ')';
 }
 
 void PrintVisitor::visitLoadNode(LoadNode *node) {
@@ -67,6 +81,7 @@ void PrintVisitor::visitIfNode(IfNode *node) {
         cout << "}";
     }
     cout << endl;
+    lastSym = '}';
 }
 
 void PrintVisitor::visitCallNode(CallNode *node) {
@@ -75,7 +90,8 @@ void PrintVisitor::visitCallNode(CallNode *node) {
         if (i > 0) cout << ", ";
         node->parameterAt(i)->visit(this);
     }
-    cout << ");" << endl;
+    cout << ")";
+    lastSym = ')';
 }
 
 void PrintVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
@@ -85,7 +101,6 @@ void PrintVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
 void PrintVisitor::visitStoreNode(StoreNode *node) {
     cout << node->var()->name() << " " << getOpString(node->op()) << " "; 
     node->value()->visit(this);
-    cout << ";" << endl;
 }
 
 void PrintVisitor::visitStringLiteralNode(StringLiteralNode *node) {
@@ -107,6 +122,7 @@ void PrintVisitor::visitWhileNode(WhileNode *node) {
     cout << ") {" << endl;
     node->loopBlock()->visit(this);
     cout << "}" << endl;
+    lastSym = '}';
 }
 
 void PrintVisitor::visitIntLiteralNode(IntLiteralNode *node) {
@@ -119,14 +135,22 @@ void PrintVisitor::visitFunctionNode(FunctionNode *node) {
 	node->body()->visit(this);
 	return;
     }
-    cout << typeToName(node->returnType()) << " " << node->name() << "(";
+    cout << "function " << typeToName(node->returnType()) << " " << node->name() << "(";
     for (uint32_t j = 0; j < node->parametersNumber(); j++) {
         if (j > 0) cout << ", ";
         cout << typeToName(node->parameterType(j)) << " " << node->parameterName(j);
     }
-    cout << ") {" << endl;
-    node->body()->visit(this);
-    cout << "}" << endl;
+    cout << ") ";
+    if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode())
+    {
+	node->body()->nodeAt(0)->visit(this);
+    }
+    else
+    {
+   	cout << "{" << endl;
+    	node->body()->visit(this);
+    	cout << "}" << endl;
+    }
 }
 
 void PrintVisitor::visitBinaryOpNode(BinaryOpNode *node) {
@@ -143,7 +167,6 @@ void PrintVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 void PrintVisitor::visitReturnNode(ReturnNode *node) {
     cout << "return ";
     if(node->returnExpr() != 0) node->returnExpr()->visit(this);
-    cout << ";" << endl;
 }
 
 void PrintVisitor::visitNativeCallNode(NativeCallNode *node) {
