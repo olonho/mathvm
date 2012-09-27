@@ -429,6 +429,11 @@ AstNode* Parser::parseDeclaration(VarType type) {
     if (!_currentScope->declareVariable(var, type)) {
       error("Variable %s already declared", var.c_str());
     }
+
+    if (lookaheadToken(1) == tASSIGN) {
+        return parseAssignment();
+    }
+
     ensureToken(tIDENT);
     ensureToken(tSEMICOLON);
     return 0;
