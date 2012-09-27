@@ -1,4 +1,5 @@
 #include "AstPrinter.h"
+#include "parser.h"
 #include <iostream>
 
 using namespace mathvm;
@@ -8,7 +9,7 @@ int main(int argc, char** argv) {
     string impl = "";
     const char* script = 0;
     if (argc < 2) {
-        cerr << "Provide source code file as firts parameter." << endl;
+        cerr << "Provide source code file as first parameter." << endl;
         return 1;
     } else {
         script = argv[1]; 
