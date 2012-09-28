@@ -18,14 +18,33 @@ void Ast2SrcVisitor::visitUnaryOpNode(UnaryOpNode* node) {
     _out << ")";
 }
 
+std::string escape(const std::string& str) {
+    std::string t;
+    for (std::string::const_iterator it = str.begin(); it != str.end(); ++it) {
+        switch (*it) {
+        case '\n':
+            t += "\\n";
+        case '\r':
+            t +=  "\\r";
+        case '\\':
+            t +=  "\\\\";
+        case '\t':
+            t +=  "\\t";
+        default:
+            t += *it;
+        }
+    }
+    return t;
+}
+
 void Ast2SrcVisitor::visitStringLiteralNode(StringLiteralNode* node) {
-    out << "\'" << node->literal() << "\'";
+    _out << "\'" << escape(node->literal()) << "\'";
 }
 void Ast2SrcVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
-    out << node->literal();
+    _out << node->literal();
 }
 void Ast2SrcVisitor::visitIntLiteralNode(IntLiteralNode* node) {
-    out << node->literal();
+    _out << node->literal();
 }
 
 void Ast2SrcVisitor::visitLoadNode(LoadNode* node) {
