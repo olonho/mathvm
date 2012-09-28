@@ -51,19 +51,7 @@ void Ast2SrcVisitor::visitLoadNode(LoadNode* node) {
     _out << node->var()->name();
 }
 void Ast2SrcVisitor::visitStoreNode(StoreNode* node) {
-    _out << node->var()->name();
-    switch (node->op()) {
-        case tASSIGN :
-            _out << " = ";
-            break;
-        case tINCRSET :
-            _out << " += ";
-            break;
-        case tDECRSET :
-            _out << " -= ";
-            break;
-        default: assert("Wrong operation" == 0);
-    }
+    _out << node->var()->name() << " " << tokenOp(node->op()) << " ";
     node->visitChildren(this);
 }
 
@@ -90,8 +78,8 @@ void Ast2SrcVisitor::visitBlockNode(BlockNode* node) {
 
 void Ast2SrcVisitor::visitForNode(ForNode* node) {
     _out << "for (" 
-         << mathvm::typeToName(node->var()->type()) << " " << node->var()->name();
-    _out << " in ";
+         << node->var()->name()
+         << " in ";
     node->inExpr()->visit(this);
     _out << ") ";
     node->body()->visit(this);
@@ -110,6 +98,7 @@ void Ast2SrcVisitor::visitIfNode(IfNode* node) {
     _out << ") ";
     node->thenBlock()->visit(this);
     if (node->elseBlock()) {
+        _out << "else ";
         node->elseBlock()->visit(this);
     }
 }
