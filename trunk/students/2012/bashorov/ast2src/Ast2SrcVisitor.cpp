@@ -24,12 +24,16 @@ std::string escape(const std::string& str) {
         switch (*it) {
         case '\n':
             t += "\\n";
+            break;
         case '\r':
             t +=  "\\r";
+            break;
         case '\\':
             t +=  "\\\\";
+            break;
         case '\t':
             t +=  "\\t";
+            break;
         default:
             t += *it;
         }
@@ -53,6 +57,7 @@ void Ast2SrcVisitor::visitLoadNode(LoadNode* node) {
 void Ast2SrcVisitor::visitStoreNode(StoreNode* node) {
     _out << node->var()->name() << " " << tokenOp(node->op()) << " ";
     node->visitChildren(this);
+    _out << ";" << std::endl;
 }
 
 void Ast2SrcVisitor::initScope(Scope* scope) {
@@ -102,17 +107,19 @@ void Ast2SrcVisitor::visitIfNode(IfNode* node) {
         node->elseBlock()->visit(this);
     }
 }
-void Ast2SrcVisitor::outSignatureParams(const Signature& signature) {
+void Ast2SrcVisitor::outSignatureParams(const Signature& signature, bool printType) {
     Signature::const_iterator it = signature.begin() + 1;
     const Signature::const_iterator endIt = signature.end();
 
     if (it != endIt) {
         while (true) {
-            _out << mathvm::typeToName(it->first) << " " << it->second;
+            if (printType)
+                _out << mathvm::typeToName(it->first) << " ";
+            _out << it->second;
             ++it;
             if (it == endIt)
                 break;
-            _out << ",";
+            _out << ", ";
         }
     }
 }
@@ -122,7 +129,7 @@ void Ast2SrcVisitor::visitFunctionNode(FunctionNode* node) {
          << mathvm::typeToName(node->returnType()) << " "
          << node->name() << "(";
     
-    outSignatureParams(node->signature());
+    outSignatureParams(node->signature(), true);
 
     _out << ")" << std::endl;
 
@@ -148,7 +155,7 @@ void Ast2SrcVisitor::visitCallNode(CallNode* node) {
 
 void Ast2SrcVisitor::visitNativeCallNode(NativeCallNode* node) {
     _out << node->nativeName() << "(";
-    outSignatureParams(node->nativeSignature());
+    outSignatureParams(node->nativeSignature(), false);
     _out << ")" << std::endl;
 }
 

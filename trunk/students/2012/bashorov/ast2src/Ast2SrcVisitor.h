@@ -34,7 +34,7 @@ private:
     virtual void visitPrintNode(PrintNode* node);
 
     void initScope(Scope* scope);
-    void outSignatureParams(const Signature& signature);
+    void outSignatureParams(const Signature& signature, bool printType);
 
     std::ostream& _out;
 };

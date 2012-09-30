@@ -7,10 +7,10 @@
 #include "Ast2SrcVisitor.h"
 
 enum EReturnCode {
-    OK,
-    WRONG_ARG_COUNT,
-    CANNOT_READ_SOURCE,
-    PARCER_ERROR,
+    OK = 0,
+    WRONG_ARG_COUNT = 1,
+    CANNOT_READ_SOURCE = 2,
+    PARCER_ERROR = 3,
     EReturnCode_COUNT
 };
 
@@ -54,7 +54,6 @@ int main(int argc, char const *argv[]) {
         node->visitChildren(&ast2src);
     else
         return -1;
-
-	std::cout << "!";
+    
     return OK;
 }
