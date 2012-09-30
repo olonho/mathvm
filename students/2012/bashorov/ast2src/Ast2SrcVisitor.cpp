@@ -1,9 +1,14 @@
 #include "Ast2SrcVisitor.h"
+#include <functional>
 
 namespace mathvm
 {
 
-Ast2SrcVisitor::Ast2SrcVisitor(std::ostream& out) : _out(out) {}
+Ast2SrcVisitor::Ast2SrcVisitor(std::ostream& out, uint32_t indentSize)
+: _out(out)
+, _indent(0)
+, _indentSize(indentSize)
+{}
 
 void Ast2SrcVisitor::visitBinaryOpNode(BinaryOpNode* node) {
     _out << "(";
@@ -13,9 +18,8 @@ void Ast2SrcVisitor::visitBinaryOpNode(BinaryOpNode* node) {
     _out << ")";
 }
 void Ast2SrcVisitor::visitUnaryOpNode(UnaryOpNode* node) {
-    _out << " " << tokenOp(node->kind()) << "(";
+    _out << tokenOp(node->kind());
     node->operand()->visit(this);
-    _out << ")";
 }
 
 std::string escape(const std::string& str) {
@@ -57,28 +61,47 @@ void Ast2SrcVisitor::visitLoadNode(LoadNode* node) {
 void Ast2SrcVisitor::visitStoreNode(StoreNode* node) {
     _out << node->var()->name() << " " << tokenOp(node->op()) << " ";
     node->visitChildren(this);
-    _out << ";" << std::endl;
 }
 
 void Ast2SrcVisitor::initScope(Scope* scope) {
+    std::string indent(_indent, ' ');
+
     Scope::VarIterator varIt(scope);
     while (varIt.hasNext()) {
         AstVar* var = varIt.next();
-        _out << mathvm::typeToName(var->type()) << " "<< var->name() << ";" << std::endl;
+        _out << indent << mathvm::typeToName(var->type()) << " "<< var->name() << ";" << std::endl;
     }
 
     Scope::FunctionIterator funcIt(scope);
     while (funcIt.hasNext()) {
-        AstFunction* func = funcIt.next();
-        func->node()->visit(this);
+        funcIt.next()->node()->visit(this);
+        _out << std::endl;
+    }
+}
+
+void Ast2SrcVisitor::printBlock(BlockNode* node) {
+    initScope(node->scope());
+
+    std::string indent(_indent, ' ');
+    for (uint32_t i = 0; i != node->nodes(); ++i)
+    {
+        _out << indent;
+        node->nodeAt(i)->visit(this);
+        if (!node->nodeAt(i)->isIfNode() &&
+            !node->nodeAt(i)->isForNode() &&
+            !node->nodeAt(i)->isWhileNode() && 
+            !node->nodeAt(i)->isBlockNode())
+            _out << ";";
+        _out << std::endl;
     }
 }
 
 void Ast2SrcVisitor::visitBlockNode(BlockNode* node) {
     _out << "{" << std::endl;
-    initScope(node->scope());
-    node->visitChildren(this);
-    _out << "}" << std::endl;
+    _indent += _indentSize;
+    printBlock(node);
+    _indent -= _indentSize;
+    _out << std::string(_indent, ' ') << "}";// << std::endl;
 }
 
 void Ast2SrcVisitor::visitForNode(ForNode* node) {
@@ -103,73 +126,63 @@ void Ast2SrcVisitor::visitIfNode(IfNode* node) {
     _out << ") ";
     node->thenBlock()->visit(this);
     if (node->elseBlock()) {
-        _out << "else ";
+        _out << " else ";
         node->elseBlock()->visit(this);
     }
 }
-void Ast2SrcVisitor::outSignatureParams(const Signature& signature, bool printType) {
-    Signature::const_iterator it = signature.begin() + 1;
-    const Signature::const_iterator endIt = signature.end();
 
-    if (it != endIt) {
-        while (true) {
-            if (printType)
-                _out << mathvm::typeToName(it->first) << " ";
-            _out << it->second;
-            ++it;
-            if (it == endIt)
-                break;
-            _out << ", ";
-        }
-    }
+void printSignatureElement(std::ostream* out, SignatureElement el) {
+    (*out) << mathvm::typeToName(el.first) << " " << el.second;
 }
 
 void Ast2SrcVisitor::visitFunctionNode(FunctionNode* node) {
     _out << "function "
-         << mathvm::typeToName(node->returnType()) << " "
-         << node->name() << "(";
-    
-    outSignatureParams(node->signature(), true);
+         << mathvm::typeToName(node->returnType()) << " ";
 
-    _out << ")" << std::endl;
+    const Signature& signature = node->signature();
+    printSignature(node->name(), signature.size(),
+        std::bind1st(std::mem_fun<const SignatureElement&, Signature, size_t>(&Signature::operator[]), &signature),
+        std::bind1st(std::ptr_fun<std::ostream*, SignatureElement, void>(&printSignatureElement), &_out),
+        1);
 
-    node->visitChildren(this);
+    if (node->body()->nodes() && node->body()->nodeAt(0)->isNativeCallNode())
+        node->body()->nodeAt(0)->visit(this);
+    else
+        node->visitChildren(this);
 }
 void Ast2SrcVisitor::visitReturnNode(ReturnNode* node) {
     _out << "return ";
     node->visitChildren(this);
-    _out << ";" << std::endl;
 }
 
-void Ast2SrcVisitor::visitCallNode(CallNode* node) {
-    _out << node->name() << "(";
-    if (node->parametersNumber() > 0) {
-        node->parameterAt(0)->visit(this);
+void Ast2SrcVisitor::visitNativeCallNode(NativeCallNode* node) {
+    _out << "native '" << node->nativeName() << "';";
+}
+
+template <typename TF1, typename TF2>
+void Ast2SrcVisitor::printSignature(const std::string& name, uint32_t size, TF1 at, TF2 action, uint32_t begin) const {
+    uint32_t i = begin;
+    _out << name << "(";
+    if (i < size) {
+        action(at(i++));
     }
-    for (uint32_t i = 1; i < node->parametersNumber(); i++) {
+    while (i < size) {
         _out << ", ";
-        node->parameterAt(i)->visit(this);
+        action(at(i++));
     }
     _out << ")";
 }
 
-void Ast2SrcVisitor::visitNativeCallNode(NativeCallNode* node) {
-    _out << node->nativeName() << "(";
-    outSignatureParams(node->nativeSignature(), false);
-    _out << ")" << std::endl;
+void Ast2SrcVisitor::visitCallNode(CallNode* node) {
+    printSignature(node->name(), node->parametersNumber(),
+        std::bind1st(std::mem_fun(&CallNode::parameterAt), node),
+        std::bind2nd(std::mem_fun(&AstNode::visit), this));
 }
 
 void Ast2SrcVisitor::visitPrintNode(PrintNode* node) {
-    _out << "print(";
-    uint32_t size = node->operands();
-    for (uint32_t i = 0; i < size - 1; ++i) {
-        node->operandAt(i)->visit(this);
-        _out << ",";
-    }
-    if (size > 0)
-        node->operandAt(size - 1)->visit(this);
-
-    _out << ");" << std::endl;
+    printSignature("print", node->operands(),
+        std::bind1st(std::mem_fun(&PrintNode::operandAt), node),
+        std::bind2nd(std::mem_fun(&AstNode::visit), this));
 }
     
 }
