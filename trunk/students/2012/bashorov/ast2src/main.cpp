@@ -11,6 +11,7 @@ enum EReturnCode {
     WRONG_ARG_COUNT = 1,
     CANNOT_READ_SOURCE = 2,
     PARCER_ERROR = 3,
+    TOP_FUN_NOT_FOUND = 4,
     EReturnCode_COUNT
 };
 
@@ -40,7 +41,7 @@ int main(int argc, char const *argv[]) {
         uint32_t offset = -1;
         mathvm::positionToLineOffset(source, status->getPosition(), line, offset);
 
-        std::cerr << sourceFile << ":" << line << ":" << offset << ":"
+        std::cerr << sourceFile << ":" << line << ":" << offset << ": "
                   << "Parser error:" << status->getError()
                   << std::endl;
 
@@ -50,10 +51,13 @@ int main(int argc, char const *argv[]) {
     mathvm::Ast2SrcVisitor ast2src;
 
     mathvm::FunctionNode* node = parser.top()->node();
-    if (node->name() == mathvm::AstFunction::top_name)
-        node->visitChildren(&ast2src);
-    else
-        return -1;
-    
+
+    if (node->isFunctionNode() && node->name() == mathvm::AstFunction::top_name) {
+        ast2src.printBlock(node->body());
+    } else {
+        std::cerr << "Top level function not found!" << std::endl;
+        return TOP_FUN_NOT_FOUND;
+    }
+
     return OK;
 }

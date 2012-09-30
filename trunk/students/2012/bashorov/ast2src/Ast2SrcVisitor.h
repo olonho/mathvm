@@ -9,9 +9,8 @@ namespace mathvm {
 
 class Ast2SrcVisitor : public AstVisitor {
 public:
-    Ast2SrcVisitor(std::ostream& out = std::cout);
+    explicit Ast2SrcVisitor(std::ostream& out = std::cout, uint32_t indentSize = 2);
 
-private:
     virtual void visitBinaryOpNode(BinaryOpNode* node);
     virtual void visitUnaryOpNode(UnaryOpNode* node);
 
@@ -33,10 +32,16 @@ private:
     virtual void visitNativeCallNode(NativeCallNode* node);
     virtual void visitPrintNode(PrintNode* node);
 
+    void printBlock(BlockNode* node);
+    
+private:
     void initScope(Scope* scope);
-    void outSignatureParams(const Signature& signature, bool printType);
+    template <typename TF1, typename TF2>
+    void printSignature(const std::string& name, uint32_t size, TF1 at, TF2 action, uint32_t begin = 0) const;
 
     std::ostream& _out;
+    uint32_t _indent;
+    const uint32_t _indentSize;
 };
 
 }
