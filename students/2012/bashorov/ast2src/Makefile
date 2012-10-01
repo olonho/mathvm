@@ -13,7 +13,3 @@ all: $(AST2SRC)
 
 $(AST2SRC): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)
-
-$(OBJ)/main$(OBJ_SUFF): $(OBJ)/Ast2SrcVisitor$(OBJ_SUFF)
-
-$(OBJ)/Ast2SrcVisitor$(OBJ_SUFF): Ast2SrcVisitor.h Ast2SrcVisitor.cpp
