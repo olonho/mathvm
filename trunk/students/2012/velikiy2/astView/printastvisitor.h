@@ -5,13 +5,14 @@
 #include "ast.h"
 #include "visitors.h"
 
-
 using namespace mathvm;
 
 class PrintAstVisitor : public AstVisitor {
 
 public:
     PrintAstVisitor();
+    
+    void visitTopFunction(const AstFunction*);
     
 private:
     
@@ -35,6 +36,8 @@ private:
     virtual void visitPrintNode(PrintNode* node);
     
     void printIndent();
+    
+    void printBlockInner(BlockNode* node);
     
 };
 

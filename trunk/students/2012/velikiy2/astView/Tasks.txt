@@ -1,11 +1,17 @@
 *** TODO ***
+* unary op
 * if
 * for
 * while
 * string literals witout escape
-* show defined functions
-* show defined vars
+* indent in blocks with if
+* tests
+* user input and check
 
 *** DONE ***
+* return
+* function params
+* show defined functions
+* show defined vars
 * binary operations
 
