@@ -4,43 +4,39 @@ function int add(int x, int y) {
     return x + y;
 }
 
-function void doit() {
-    print('Hi\n');
-}
-
-function double mul5(int max, double x1, double x2, double x3, double x4, double x5) {
-    double r;
-
-    r = 1.0;
-
-    if (max > 1) {
-        r = r * x1;
-    }
-
-    if (max > 2) {
-        r = r * x2;
-    }
-
-    if (max > 3) {
-        r = r * x3;
-    }
-
-    if (max > 4) {
-        r = r * x4;
-    }
-
-    if (max > 5) {
-        r = r * x5;
-    }
-
-    return r;
-}
-
 function int fact(int n) {
+    int x;
+    int y;
+    int j;
+    int k;
+    
     if (n < 3) {
         return n;
     }
     return n*fact(n-1);
+
+    x = 3;
+    
+    while (x < 19) {
+	print(x,'\n');
+	x += 1;
+    }
+    
+    y = 4;
+    
+    while (x > 0 && (x + 1) > y) {
+	print(x,'\n');
+	x -= 1;
+    }
+    
+    print ('Begin.\n');
+    for (i in -3 .. 4)  {
+	j += i; print(i, ' ');
+	for (k in -4..5) {
+	    j += k;
+	}
+    }
+
 }
 
 

@@ -17,6 +17,8 @@ public:
 private:
     
     int myCurrentIndent;
+    bool myBlockNoIndentBefore;
+    bool myNoSemiAfter;
     
     virtual void visitBinaryOpNode(BinaryOpNode* node);
     virtual void visitUnaryOpNode(UnaryOpNode* node);

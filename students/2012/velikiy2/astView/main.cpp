@@ -28,8 +28,7 @@ int main(int argc, char** argv) {
              << "error " 
              << status->getError().c_str() << endl;
         delete[] expr;
-        return 2;
-        
+        return 2;    
     }
     
     showFormatedCode(parser.top());
