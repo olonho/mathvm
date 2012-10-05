@@ -1,0 +1,11 @@
+*** TODO ***
+* if
+* for
+* while
+* string literals witout escape
+* show defined functions
+* show defined vars
+
+*** DONE ***
+* binary operations
+
