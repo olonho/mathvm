@@ -1,14 +1,15 @@
 *** TODO ***
-* unary op
-* if
-* for
-* while
 * string literals witout escape
-* indent in blocks with if
 * tests
 * user input and check
 
 *** DONE ***
+* unary op
+* for
+* += and -= operators
+* while
+* indent in blocks with if
+* if
 * return
 * function params
 * show defined functions

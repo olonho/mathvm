@@ -5,7 +5,8 @@
 using namespace std;
 
 
-PrintAstVisitor::PrintAstVisitor() : myCurrentIndent(0) {}
+PrintAstVisitor::PrintAstVisitor() : 
+    myCurrentIndent(0), myBlockNoIndentBefore(false), myNoSemiAfter(false) {}
 
 void PrintAstVisitor::visitTopFunction(const AstFunction* rootFunction) {
     
@@ -21,7 +22,8 @@ void PrintAstVisitor::visitBinaryOpNode(BinaryOpNode* node) {
     node->right()->visit(this);
 }
 void PrintAstVisitor::visitUnaryOpNode(UnaryOpNode* node) {
-    cout << "hello op";
+    cout << tokenOp(node->kind());
+    node->operand()->visit(this);
 }
 void PrintAstVisitor::visitStringLiteralNode(StringLiteralNode* node) {
     cout << "\'str\'";
@@ -36,32 +38,52 @@ void PrintAstVisitor::visitLoadNode(LoadNode* node) {
     cout << node->var()->name();
 }
 void PrintAstVisitor::visitStoreNode(StoreNode* node) {
-    cout << node->var()->name() << " = ";
+    cout << node->var()->name();
+    cout << " " << tokenOp(node->op()) << " ";
     node->value()->visit(this);
 }
 void PrintAstVisitor::visitForNode(ForNode* node) {
-    cout << "hello for";
+    cout << "for (";
+    cout << node->var()->name() << " in ";
+    node->inExpr()->visit(this);
+    
+    cout << ") ";
+    myBlockNoIndentBefore = true;
+    node->body()->visit(this);
+    myBlockNoIndentBefore = false;
+    myNoSemiAfter = true;
 }
 void PrintAstVisitor::visitWhileNode(WhileNode* node) {
-    cout << "hello while";
+    cout << "while (";
+    node->whileExpr()->visit(this);
+    cout << ") ";
+    myBlockNoIndentBefore = true;
+    node->loopBlock()->visit(this);
+    myBlockNoIndentBefore = false;
+    myNoSemiAfter = true;
 }
 void PrintAstVisitor::visitIfNode(IfNode* node) {
     cout << "if (";
     node->ifExpr()->visit(this);
-    cout << ")";
+    cout << ") ";
+    myBlockNoIndentBefore = true;
     node->thenBlock()->visit(this);
+    myBlockNoIndentBefore = false;
+    myNoSemiAfter = true;
     if(node->elseBlock() == 0) return;
-    
+    myNoSemiAfter = false;
     cout << "else";
     node->elseBlock()->visit(this);
-    
+    myNoSemiAfter = true;
 }
 void PrintAstVisitor::visitBlockNode(BlockNode* node) {
-    printIndent();
+    if(!myBlockNoIndentBefore)
+        printIndent();
     cout << "{" << endl;
     myCurrentIndent++;
     printBlockInner(node);
     myCurrentIndent--;
+    printIndent();
     cout << "}" << endl;
 }
 void PrintAstVisitor::visitFunctionNode(FunctionNode* node) {
@@ -101,7 +123,7 @@ void PrintAstVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 void PrintAstVisitor::visitPrintNode(PrintNode* node) {
     cout << "print(";
-    if(node->operands() > 0){
+    if(node->operands() > 0) {
         for(uint32_t i = 0; i < node->operands() - 1; i++) {
             node->operandAt(i)->visit(this);
             cout << ", ";
@@ -130,7 +152,10 @@ void PrintAstVisitor::printBlockInner(BlockNode* node) {
     for(uint32_t i = 0; i < node->nodes(); i++) {
         printIndent();
         node->nodeAt(i)->visit(this);
-        cout << ";" << endl;
+        if(myNoSemiAfter)
+            myNoSemiAfter = false;
+        else
+            cout << ";" << endl;
     }
 }
 
