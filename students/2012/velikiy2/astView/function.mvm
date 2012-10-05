@@ -1,3 +1,5 @@
+double i;
+
 function int add(int x, int y) {
     return x + y;
 }
@@ -40,6 +42,7 @@ function int fact(int n) {
     }
     return n*fact(n-1);
 }
+
 
 print(add(2, 3), '\n');
 doit();

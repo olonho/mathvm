@@ -40,16 +40,11 @@ int main(int argc, char** argv) {
     
 }
 
-void showFormatedCode(const mathvm::AstFunction* rootFunction){
+void showFormatedCode(const AstFunction* rootFunction){
     
     PrintAstVisitor printVisitor;
     
-    BlockNode* node = rootFunction->node()->body();
-    
-    for(uint32_t i = 0; i < node->nodes(); i++) {
-        node->nodeAt(i)->visit(&printVisitor);
-        cout << ";" << endl;
-    }
+    printVisitor.visitTopFunction(rootFunction);
 
 }
 
