@@ -26,7 +26,8 @@ void PrintAstVisitor::visitUnaryOpNode(UnaryOpNode* node) {
     node->operand()->visit(this);
 }
 void PrintAstVisitor::visitStringLiteralNode(StringLiteralNode* node) {
-    cout << "\'str\'";
+    cout << "\'" << getEscaped(node->literal()) <<  "\'";
+    
 }
 void PrintAstVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
     cout << node->literal();
@@ -72,7 +73,9 @@ void PrintAstVisitor::visitIfNode(IfNode* node) {
     myNoSemiAfter = true;
     if(node->elseBlock() == 0) return;
     myNoSemiAfter = false;
-    cout << "else";
+    printIndent();
+    cout << "else ";
+    myBlockNoIndentBefore = true;
     node->elseBlock()->visit(this);
     myNoSemiAfter = true;
 }
@@ -100,6 +103,7 @@ void PrintAstVisitor::visitFunctionNode(FunctionNode* node) {
         }
     }
     cout << ") ";
+    myBlockNoIndentBefore = true;
     node->body()->visit(this);
 }
 void PrintAstVisitor::visitReturnNode(ReturnNode* node) {
@@ -135,13 +139,6 @@ void PrintAstVisitor::visitPrintNode(PrintNode* node) {
 
 void PrintAstVisitor::printBlockInner(BlockNode* node) {
     
-    Scope::FunctionIterator funIt(node->scope());
-    while(funIt.hasNext()) {
-        AstFunction* fun = funIt.next();
-        fun->node()->visit(this);
-        cout << endl;
-    }
-    
     Scope::VarIterator varIt(node->scope());
     while(varIt.hasNext()) {
         printIndent();
@@ -149,6 +146,13 @@ void PrintAstVisitor::printBlockInner(BlockNode* node) {
         cout << typeToName(var->type()) << " " << var->name() << ";" << endl;
     }
     
+    Scope::FunctionIterator funIt(node->scope());
+    while(funIt.hasNext()) {
+        AstFunction* fun = funIt.next();
+        fun->node()->visit(this);
+        cout << endl;
+    }
+
     for(uint32_t i = 0; i < node->nodes(); i++) {
         printIndent();
         node->nodeAt(i)->visit(this);
@@ -157,6 +161,33 @@ void PrintAstVisitor::printBlockInner(BlockNode* node) {
         else
             cout << ";" << endl;
     }
+}
+
+string PrintAstVisitor::getEscaped(const string &str) {
+    size_t i = 0;
+    string res(str);
+    while((i = res.find('\a')) != string::npos){
+        res.replace(i, 1, "\\a");
+    }
+    while((i = res.find('\b')) != string::npos){
+        res.replace(i, 1, "\\b");
+    }
+    while((i = res.find('\f')) != string::npos){
+        res.replace(i, 1, "\\f");
+    }
+    while((i = res.find('\n')) != string::npos){
+        res.replace(i, 1, "\\n");
+    }
+    while((i = res.find('\r')) != string::npos){
+        res.replace(i, 1, "\\r");
+    }
+    while((i = res.find('\t')) != string::npos){
+        res.replace(i, 1, "\\t");
+    }
+    while((i = res.find('\v')) != string::npos){
+        res.replace(i, 1, "\\n");
+    }
+    return res;
 }
 
 void PrintAstVisitor::printIndent() {
