@@ -41,6 +41,8 @@ private:
     
     void printBlockInner(BlockNode* node);
     
+    std::string getEscaped(const std::string& str);
+    
 };
 
 #endif // PRINTASTVISITOR_H

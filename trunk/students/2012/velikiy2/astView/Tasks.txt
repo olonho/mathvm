@@ -1,9 +1,9 @@
 *** TODO ***
-* string literals witout escape
-* tests
-* user input and check
 
 *** DONE ***
+* tests
+* user input and check
+* string literals witout escape
 * unary op
 * for
 * += and -= operators
@@ -15,4 +15,8 @@
 * show defined functions
 * show defined vars
 * binary operations
+
+*** WONT DO ***
+
+
 

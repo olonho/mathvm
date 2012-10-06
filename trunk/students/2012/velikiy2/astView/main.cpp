@@ -8,8 +8,13 @@ using namespace mathvm;
 using namespace std;
 
 int main(int argc, char** argv) {
-
-    const char* programSourceFile = "function.mvm";
+    
+    if(argc < 2) {
+        cout << "Need *.mvm file" << endl;
+        return 3;
+    }
+    
+    const char* programSourceFile = argv[1];
     const char* expr = loadFile(programSourceFile);
     
     if (expr == 0) {
