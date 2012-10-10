@@ -58,10 +58,10 @@ void TypeChecker::visitBinaryOpNode(BinaryOpNode *node)
 	case tMUL:
 		if ((left_type == VT_STRING) && (right_type == VT_INT))
 			this_type = VT_STRING;
-		else if (!number(left_type) && !number(right_type))
+		else if (!number(left_type) || !number(right_type))
 			declare_error(forbidden_type, node);
 		else
-			this_type = common(left_type, right_type);
+			this_type = common_type;
 		break;
 	case tMOD:
 		if ((left_type != VT_INT) || (right_type != VT_INT))
