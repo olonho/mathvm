@@ -1,5 +1,5 @@
 ROOT        = .
-VM_ROOT     = ../../..
+VM_ROOT     = ../../../..
 USER_CFLAGS = 
 USER_OBJ    = \
         $(OBJ)/main$(OBJ_SUFF) \
