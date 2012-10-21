@@ -1,5 +1,4 @@
-#include "parser.h"
-#include "typechecker.h"
+#include "codegen.h"
 
 using namespace mathvm;
 
@@ -18,29 +17,21 @@ int main(int argc, char **argv)
 		std::cerr << "Cannot open file " << argv[1] << std::endl;
 		return 2;
 	}
-	Parser parser;
-	/*
-	 * parseProgram return 0 if it success, but it is weird until
-	 *                            mathvm::Status contains isError and isOk
-	 */
-	std::auto_ptr<Status> parse_status(parser.parseProgram(expr));
+	
+	Code *code;
+	CodeGenerator generator;
+
+	std::auto_ptr<Status> status(generator.translate(expr, &code));
+	if (status.get())
+	{
+		std::cerr << "Error(" << status->getPosition() << "): "
+		          << status->getError() << std::endl;
+	}
+	
+	code->disassemble();
+	
+	delete code;
 	delete [] expr;
-	if (parse_status.get())
-	{
-		std::cerr << "Error(" << parse_status->getPosition() << "): "
-		          << parse_status->getError() << std::endl;
-		return 3;
-	}
-
-	TypeChecker checker;
-
-	std::auto_ptr<Status> check_status(checker.check(parser.top()));
-	if (check_status.get())
-	{
-		std::cerr << "Error(" << check_status->getPosition() << "): "
-		          << check_status->getError() << std::endl;
-		return 4;
-	}
 
 	return 0;
 }

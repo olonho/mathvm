@@ -5,11 +5,10 @@
 #include "ast.h"
 
 #include <memory>
-#include <stack>
-#include <map>
 
 using namespace mathvm;
 
+VarType common(VarType t1, VarType t2);
 VarType get_type(CustomDataHolder const * const node);
 void set_type(CustomDataHolder * const node, VarType type);
 
@@ -48,7 +47,6 @@ private:
 	bool lvalue(AstNode const * const node) const;
 	bool convertable(VarType dst, VarType src) const;
 	bool number(VarType type) const;
-	VarType common(VarType t1, VarType t2) const;
 	
 	VarType check_scope(Scope *scope);
 };
