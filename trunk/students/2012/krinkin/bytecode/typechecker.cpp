@@ -4,7 +4,7 @@ std::auto_ptr<Status> TypeChecker::check(AstFunction *top)
 {
 	m_status.reset();
 	m_top_function = top->node();
-	m_top_scope = 0;
+	m_top_scope = top->owner();
 	top->node()->visit(this);
 	return m_status;
 }
@@ -45,7 +45,7 @@ void TypeChecker::visitBinaryOpNode(BinaryOpNode *node)
 		if (!number(left_type) || !number(right_type))
 			declare_error(forbidden_type, node);
 		else
-			this_type = left_type;
+			this_type = VT_INT;
 		break;
 	case tEQ: case tNEQ:
 	case tGT: case tGE:
@@ -235,7 +235,10 @@ void TypeChecker::visitFunctionNode(FunctionNode *node)
 	FunctionNode *old_top = m_top_function;
 	m_top_function = node;
 	
-	node->body()->visit(this);
+	if (node->body()->nodes() && node->body()->nodeAt(0)->isNativeCallNode())
+		set_type(node->body(), node->returnType());
+	else
+		node->body()->visit(this);
 	if (get_type(node->body()) != VT_INVALID) set_type(node, node->returnType());
 	else set_type(node, VT_INVALID);
 	
@@ -340,13 +343,6 @@ bool TypeChecker::number(VarType type) const
 	return (type == VT_INT) || (type == VT_DOUBLE);
 }
 
-VarType TypeChecker::common(VarType t1, VarType t2) const
-{
-	if ((t1 == VT_STRING) || (t2 == VT_STRING)) return VT_STRING;
-	if ((t1 == VT_DOUBLE) || (t2 == VT_DOUBLE)) return VT_DOUBLE;
-	return VT_INT;
-}
-
 VarType TypeChecker::check_scope(Scope *scope)
 {
 	VarType result_type = VT_VOID;
@@ -359,6 +355,13 @@ VarType TypeChecker::check_scope(Scope *scope)
 		if (get_type(fun) == VT_INVALID) result_type = VT_INVALID;
 	}
 	return result_type;
+}
+
+VarType common(VarType t1, VarType t2)
+{
+	if ((t1 == VT_STRING) || (t2 == VT_STRING)) return VT_STRING;
+	if ((t1 == VT_DOUBLE) || (t2 == VT_DOUBLE)) return VT_DOUBLE;
+	return VT_INT;
 }
 
 VarType get_type(CustomDataHolder const * const node)
