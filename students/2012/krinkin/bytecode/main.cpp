@@ -1,5 +1,7 @@
 #include "codegen.h"
 
+#include <vector>
+
 using namespace mathvm;
 
 int main(int argc, char **argv)
@@ -29,6 +31,10 @@ int main(int argc, char **argv)
 	}
 	
 	code->disassemble();
+	
+	std::cout << "execution ..." << std::endl;
+	std::vector<Var*> vars;
+	code->execute(vars);
 	
 	delete code;
 	delete [] expr;

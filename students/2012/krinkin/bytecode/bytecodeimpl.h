@@ -3,6 +3,8 @@
 
 #include "mathvm.h"
 
+#include "interpreterimpl.h"
+
 using namespace mathvm;
 
 class BytecodeImpl : public Code
@@ -10,6 +12,8 @@ class BytecodeImpl : public Code
 public:
 	virtual Status* execute(vector<Var*>& vars)
 	{
+		InterpreterImpl runner(this);
+		runner.run();
 		return 0;
 	}
 };

@@ -128,6 +128,15 @@ void AstTranslator::visitLoadNode(LoadNode *node)
 void AstTranslator::visitStoreNode(StoreNode *node)
 {
 	node->value()->visit(this);
+	convert_to(get_type(node->value()), node->var()->type());
+	if (node->op() != tASSIGN)
+	{
+		load_var(node->var());
+		if (node->op() == tDECRSET)
+			do_binary_operation(tSUB, node->var()->type(), node->var()->type());
+		else
+			do_binary_operation(tADD, node->var()->type(), node->var()->type());
+	}
 	save_var(node->var(), get_type(node->value()));
 }
 
@@ -141,7 +150,7 @@ void AstTranslator::visitForNode(ForNode *node)
 	uint32_t loop_jump_bci = bytecode()->current();
 	dup(get_type(bin));
 	save_var(node->var(), get_type(bin));
-	bytecode()->addInsn(BC_IFICMPGE);
+	bytecode()->addInsn(BC_IFICMPG);
 	uint32_t end_jump_bci = bytecode()->current();
 	bytecode()->addInt16(0);
 	node->body()->visit(this);
@@ -167,14 +176,15 @@ void AstTranslator::visitForNode(ForNode *node)
 }
 
 void AstTranslator::visitWhileNode(WhileNode *node)
-{	
-	load_const((int64_t)0);
+{
 	uint32_t expr_label = bytecode()->current();
+	load_const((int64_t)0);
 	node->whileExpr()->visit(this);
 	convert_to_logic(get_type(node->whileExpr()));
 	bytecode()->addInsn(BC_IFICMPE);
 	uint32_t end_loop_jump = bytecode()->current();
 	bytecode()->addInt16(0);
+	bytecode()->addInsn(BC_POP);
 	bytecode()->addInsn(BC_POP);
 	node->loopBlock()->visit(this);
 	bytecode()->addInsn(BC_JA);
@@ -182,6 +192,7 @@ void AstTranslator::visitWhileNode(WhileNode *node)
 	bytecode()->addInt16(offset);
 	offset = bytecode()->current() - end_loop_jump;
 	bytecode()->setInt16(end_loop_jump, offset);
+	bytecode()->addInsn(BC_POP);
 	bytecode()->addInsn(BC_POP);
 }
 
@@ -194,25 +205,19 @@ void AstTranslator::visitIfNode(IfNode *node)
 	bytecode()->addInsn(BC_IFICMPE);
 	uint32_t false_jump_bci = bytecode()->current();
 	bytecode()->addInt16(0);
+	bytecode()->addInsn(BC_POP);
+	bytecode()->addInsn(BC_POP);
 	node->thenBlock()->visit(this);
-	if (node->elseBlock() && node->elseBlock()->nodes())
-	{
-		bytecode()->addInsn(BC_JA);
-		uint32_t continue_jump_bci = bytecode()->current();
-		bytecode()->addInt16(0);
-		offset = bytecode()->current() - false_jump_bci;
-		bytecode()->setInt16(false_jump_bci, offset);
-		node->elseBlock()->visit(this);
-		offset = bytecode()->current() - continue_jump_bci;
-		bytecode()->setInt16(continue_jump_bci, offset);
-	}
-	else
-	{
-		offset = bytecode()->current() - false_jump_bci;
-		bytecode()->setInt16(false_jump_bci, offset);
-	}
+	bytecode()->addInsn(BC_JA);
+	uint32_t continue_jump_bci = bytecode()->current();
+	bytecode()->addInt16(0);
+	offset = bytecode()->current() - false_jump_bci;
+	bytecode()->setInt16(false_jump_bci, offset);
 	bytecode()->addInsn(BC_POP);
 	bytecode()->addInsn(BC_POP);
+	if (node->elseBlock() && node->elseBlock()->nodes()) node->elseBlock()->visit(this);
+	offset = bytecode()->current() - continue_jump_bci;
+	bytecode()->setInt16(continue_jump_bci, offset);
 }
 
 void AstTranslator::visitBlockNode(BlockNode *node)
@@ -328,12 +333,7 @@ void AstTranslator::convert_to_logic(VarType source_type)
 {
 	assert( (source_type == VT_INT) || (source_type == VT_DOUBLE) );
 	
-	if (source_type == VT_INT)
-	{
-		bytecode()->addInsn(BC_ILOAD0);
-		bytecode()->addInsn(BC_ICMP);
-	}
-	else
+	if (source_type == VT_DOUBLE)
 	{
 		bytecode()->addInsn(BC_DLOAD0);
 		bytecode()->addInsn(BC_DCMP);
@@ -594,23 +594,23 @@ void AstTranslator::do_binary_operation(TokenKind kind, VarType upper_type, VarT
 		switch (kind)
 		{
 		case tMUL:
-			if (upper_type == VT_STRING) bytecode()->addInsn(BC_IMUL);
+			if (upper_type == VT_INT) bytecode()->addInsn(BC_IMUL);
 			else bytecode()->addInsn(BC_DMUL);
 			break;
 		case tDIV:
-			if (upper_type == VT_STRING) bytecode()->addInsn(BC_IDIV);
+			if (upper_type == VT_INT) bytecode()->addInsn(BC_IDIV);
 			else bytecode()->addInsn(BC_DDIV);
 			break;
 		case tADD:
-			if (upper_type == VT_STRING) bytecode()->addInsn(BC_IADD);
+			if (upper_type == VT_INT) bytecode()->addInsn(BC_IADD);
 			else bytecode()->addInsn(BC_DADD);
 			break;
 		case tSUB:
-			if (upper_type == VT_STRING) bytecode()->addInsn(BC_ISUB);
+			if (upper_type == VT_INT) bytecode()->addInsn(BC_ISUB);
 			else bytecode()->addInsn(BC_DSUB);
 			break;
 		case tMOD:
-			if (upper_type == VT_STRING) bytecode()->addInsn(BC_IMOD);
+			if (upper_type == VT_INT) bytecode()->addInsn(BC_IMOD);
 			else assert(0);
 			break;
 		default: assert(0);
