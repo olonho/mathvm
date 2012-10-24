@@ -1,7 +1,9 @@
 ROOT   = .
 VM_ROOT = ../../../..
 
-USER_OBJ = $(OBJ)/main$(OBJ_SUFF)
+USER_OBJ = $(OBJ)/main$(OBJ_SUFF) \
+	$(OBJ)/ExecutableCode$(OBJ_SUFF) \
+	$(OBJ)/CodeBuilderVisitor$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
