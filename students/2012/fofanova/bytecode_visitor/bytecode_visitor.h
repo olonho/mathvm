@@ -1,15 +1,23 @@
-#ifndef ____PrintVisitor__
-#define ____PrintVisitor__
+#ifndef ____ByteCodeVisitor__
+#define ____ByteCodeVisitor__
 
 #include "visitors.h"
 #include "ast.h"
 
+#include <string>
+#include <map>
+
 using namespace mathvm;
 
-class PrintVisitor : public AstVisitor {
+class ByteCodeVisitor : public AstVisitor {
+		Code* code;
+		Bytecode* bytecode;
+		VarType TOStype; 
+		std::map<std::string, uint16_t> vars;
+		uint16_t last_id;
 public:
-    PrintVisitor() {}
-    virtual ~PrintVisitor() {}
+    ByteCodeVisitor(Code* c): code(c), last_id(0) {}
+    virtual ~ByteCodeVisitor() {}
     
     virtual void visitBinaryOpNode(BinaryOpNode *node);
     virtual void visitUnaryOpNode(UnaryOpNode *node);
