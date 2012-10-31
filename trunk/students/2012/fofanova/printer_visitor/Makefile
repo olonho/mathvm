@@ -4,6 +4,8 @@ VM_ROOT = ../../../..
 USER_OBJ = $(OBJ)/main$(OBJ_SUFF) \
            $(OBJ)/printer_visitor$(OBJ_SUFF)
 
+NO_JIT      = 1
+
 include $(VM_ROOT)/common.mk
 
 PRINTER_VISITOR = $(BIN)/printer_visitor
