@@ -68,6 +68,31 @@ void CodeBuilderVisitor::visitLoadNode(LoadNode* node) {
 }
 
 void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
+	// TODO: add -= += etc. support
+	assert(node->op() == tASSIGN);
+
+	Bytecode* bytecode = _bytecodes.top();
+	// TODO: add type conversion
+
+	switch (node->var()->type()) {
+		case VT_DOUBLE:
+			bytecode->addInsn(BC_STOREDVAR);
+			break;
+		case VT_INT:
+			bytecode->addInsn(BC_STOREIVAR);
+			break;
+		case VT_STRING:
+			bytecode->addInsn(BC_STORESVAR);
+			break;
+		case VT_INVALID:
+		case VT_VOID:
+		default:
+			assert(false);
+			break;
+	}
+
+//	bytecode->addi
+//	_code->
 }
 
 void CodeBuilderVisitor::visitForNode(ForNode* node) {
@@ -81,10 +106,18 @@ void CodeBuilderVisitor::visitIfNode(IfNode* node) {
 
 void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 	Scope* scope = node->scope();
-	Scope::FunctionIterator it(scope);
-	while (it.hasNext()) {
-		processFunction(it.next());
+
+	Scope::VarIterator var_it(scope);
+	while (var_it.hasNext()) {
+
+	};
+
+
+	Scope::FunctionIterator func_it(scope);
+	while (func_it.hasNext()) {
+		processFunction(func_it.next());
 	}
+
 	node->visitChildren(this);
 }
 
