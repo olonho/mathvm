@@ -10,12 +10,16 @@
 
 #include "ast.h"
 #include <stack>
+#include <map>
 
 namespace mathvm {
 
 class CodeBuilderVisitor: public mathvm::AstVisitor {
+	typedef std::map<string, uint16_t> VarScopeMap;
+
 	Code* _code;
 	std::stack<Bytecode*> _bytecodes;
+	std::vector<VarScopeMap> _variables;
 public:
 	CodeBuilderVisitor(Code* code);
 	virtual ~CodeBuilderVisitor();

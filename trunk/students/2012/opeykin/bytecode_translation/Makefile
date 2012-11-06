@@ -9,6 +9,7 @@ include $(VM_ROOT)/common.mk
 
 BYTECODE_TRANSLATION = $(BIN)/bytecode_translation
 
+build:
 all: $(BYTECODE_TRANSLATION)
 
 $(BYTECODE_TRANSLATION): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
