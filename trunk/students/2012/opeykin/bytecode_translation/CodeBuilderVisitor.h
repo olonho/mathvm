@@ -19,7 +19,7 @@ class CodeBuilderVisitor: public mathvm::AstVisitor {
 
 	Code* _code;
 	std::stack<Bytecode*> _bytecodes;
-	std::vector<VarScopeMap> _variables;
+	std::stack<VarScopeMap> _variables;
 public:
 	CodeBuilderVisitor(Code* code);
 	virtual ~CodeBuilderVisitor();
@@ -31,6 +31,22 @@ public:
 
     FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
+
+private:
+	Bytecode* curBytecode() {
+		return _bytecodes.top();
+	}
+
+	VarScopeMap& curVarMap() {
+		return _variables.top();
+	}
+
+	uint16_t getId(const AstVar* var) {
+		return curVarMap()[var->name()];
+	}
+
+	void loadVar(const AstVar* var);
+
 };
 
 } /* namespace mathvm */

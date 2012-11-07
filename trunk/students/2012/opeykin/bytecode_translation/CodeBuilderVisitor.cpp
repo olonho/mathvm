@@ -20,8 +20,13 @@ CodeBuilderVisitor::~CodeBuilderVisitor() {
 void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 	BytecodeFunction* bytecode_function = new BytecodeFunction(ast_function);
 	_code->addFunction(bytecode_function);
+
 	_bytecodes.push(bytecode_function->bytecode());
+	_variables.push(VarScopeMap());
+
 	ast_function->node()->visit(this);
+
+	_variables.pop();
 	_bytecodes.pop();
 }
 
@@ -65,16 +70,19 @@ void CodeBuilderVisitor::visitIntLiteralNode(IntLiteralNode* node) {
 }
 
 void CodeBuilderVisitor::visitLoadNode(LoadNode* node) {
+	loadVar(node->var());
 }
 
 void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
+	node->value()->visit(this);
+
 	// TODO: add -= += etc. support
 	assert(node->op() == tASSIGN);
 
-	Bytecode* bytecode = _bytecodes.top();
+	Bytecode* bytecode = curBytecode();
 	// TODO: add type conversion
-
-	switch (node->var()->type()) {
+	const AstVar* var = node->var();
+	switch (var->type()) {
 		case VT_DOUBLE:
 			bytecode->addInsn(BC_STOREDVAR);
 			break;
@@ -90,6 +98,9 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 			assert(false);
 			break;
 	}
+
+	uint16_t id = curVarMap()[var->name()];
+	bytecode->addUInt16(id);
 
 //	bytecode->addi
 //	_code->
@@ -109,7 +120,12 @@ void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 
 	Scope::VarIterator var_it(scope);
 	while (var_it.hasNext()) {
-
+		AstVar* var = var_it.next();
+		VarScopeMap& vars = curVarMap();
+		// TODO: process name duplicate compile error
+		assert(vars.find(var->name()) == vars.end());
+		uint16_t id = vars.size();
+		vars[var->name()] = id;
 	};
 
 
@@ -136,6 +152,12 @@ void CodeBuilderVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 
 void CodeBuilderVisitor::visitPrintNode(PrintNode* node) {
+}
+
+void CodeBuilderVisitor::loadVar(const AstVar* var) {
+	assert(var->type() == VT_INT);
+	curBytecode()->addInsn(BC_LOADIVAR);
+	curBytecode()->addUInt16(getId(var));
 }
 
 } /* namespace mathvm */
