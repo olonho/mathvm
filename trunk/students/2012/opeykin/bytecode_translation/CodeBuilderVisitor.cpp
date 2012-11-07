@@ -33,25 +33,41 @@ void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	node->left()->visit(this);
 	node->right()->visit(this);
-	Bytecode* bytecode = _bytecodes.top();
-	//TODO: assumed that integers on stack
-	switch (node->kind()) {
-	case tADD:
-		bytecode->addInsn(BC_IADD);
-		break;
-	case tSUB:
-		bytecode->addInsn(BC_ISUB);
-		break;
-	case tMUL:
-		bytecode->addInsn(BC_IMUL);
-		break;
-	case tDIV:
-		bytecode->addInsn(BC_IDIV);
-		break;
-	default:
+
+	VarType common_type = VT_INT;
+
+	typedef pair<TokenKind, VarType> Key;
+	map<Key, Instruction> operations;
+
+	operations[Key(tADD, VT_INT)] = BC_IADD;
+	operations[Key(tSUB, VT_INT)] = BC_ISUB;
+	operations[Key(tMUL, VT_INT)] = BC_IMUL;
+	operations[Key(tDIV, VT_INT)] = BC_IDIV;
+
+	operations[Key(tADD, VT_DOUBLE)] = BC_DADD;
+	operations[Key(tSUB, VT_DOUBLE)] = BC_DSUB;
+	operations[Key(tMUL, VT_DOUBLE)] = BC_DMUL;
+	operations[Key(tDIV, VT_DOUBLE)] = BC_DDIV;
+
+	map<Key, Instruction>::iterator it =
+			operations.find(Key(node->kind(), common_type));
+
+	if (it != operations.end()) {
+		curBytecode()->addInsn(it->second);
+	} else {
 		assert(false);
-		break;
+//		curBytecode()->addInsn(BC_INVALID);
 	}
+
+//	Bytecode* bytecode = curBytecode();
+//	//TODO: assumed that integers on stack
+//	switch (node->kind()) {
+//		case tADD:	bytecode->addInsn(BC_IADD); break;
+//		case tSUB:	bytecode->addInsn(BC_ISUB);	break;
+//		case tMUL:	bytecode->addInsn(BC_IMUL);	break;
+//		case tDIV:	bytecode->addInsn(BC_IDIV);	break;
+//		default:	assert(false);	break;
+//	}
 }
 
 void CodeBuilderVisitor::visitUnaryOpNode(UnaryOpNode* node) {
@@ -61,16 +77,31 @@ void CodeBuilderVisitor::visitStringLiteralNode(StringLiteralNode* node) {
 }
 
 void CodeBuilderVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
+	Bytecode* bytecode = curBytecode();
+	bytecode->addInsn(BC_DLOAD);
+	bytecode->addDouble(node->literal());
 }
 
 void CodeBuilderVisitor::visitIntLiteralNode(IntLiteralNode* node) {
-	Bytecode* bytecode = _bytecodes.top();
+	Bytecode* bytecode = curBytecode();
 	bytecode->addInsn(BC_ILOAD);
 	bytecode->addInt64(node->literal());
 }
 
 void CodeBuilderVisitor::visitLoadNode(LoadNode* node) {
-	loadVar(node->var());
+	const AstVar* var = node->var();
+	Bytecode* bytecode = curBytecode();
+
+	switch (var->type()) {
+		case VT_DOUBLE:		bytecode->addInsn(BC_LOADDVAR); break;
+		case VT_INT:		bytecode->addInsn(BC_LOADIVAR); break;
+		case VT_STRING:		bytecode->addInsn(BC_LOADSVAR); break;
+		case VT_INVALID:
+		case VT_VOID:
+		default:			assert(false); break;
+	}
+
+	curBytecode()->addUInt16(getId(var));
 }
 
 void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
@@ -83,27 +114,16 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 	// TODO: add type conversion
 	const AstVar* var = node->var();
 	switch (var->type()) {
-		case VT_DOUBLE:
-			bytecode->addInsn(BC_STOREDVAR);
-			break;
-		case VT_INT:
-			bytecode->addInsn(BC_STOREIVAR);
-			break;
-		case VT_STRING:
-			bytecode->addInsn(BC_STORESVAR);
-			break;
+		case VT_DOUBLE:		bytecode->addInsn(BC_STOREDVAR); break;
+		case VT_INT:		bytecode->addInsn(BC_STOREIVAR); break;
+		case VT_STRING:		bytecode->addInsn(BC_STORESVAR); break;
 		case VT_INVALID:
 		case VT_VOID:
-		default:
-			assert(false);
-			break;
+		default:			assert(false); break;
 	}
 
 	uint16_t id = curVarMap()[var->name()];
 	bytecode->addUInt16(id);
-
-//	bytecode->addi
-//	_code->
 }
 
 void CodeBuilderVisitor::visitForNode(ForNode* node) {
@@ -113,6 +133,26 @@ void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
 }
 
 void CodeBuilderVisitor::visitIfNode(IfNode* node) {
+	node->ifExpr()->visit(this);
+	Bytecode* bytecode = curBytecode();
+	bytecode->addInsn(BC_ILOAD0);
+	bytecode->addInsn(BC_IFICMPE);
+	uint32_t cond_fail_pos = bytecode->current();
+	bytecode->addInt16(0);
+
+	node->thenBlock()->visit(this);
+	if (node->elseBlock()) {
+		bytecode->addInsn(BC_JA);
+		uint32_t end_pos = bytecode->current();
+		bytecode->addInt16(0);
+
+		bytecode->setInt16(cond_fail_pos, bytecode->current() - cond_fail_pos);
+		node->elseBlock()->visit(this);
+
+		bytecode->setInt16(end_pos, bytecode->current() - end_pos);
+	} else {
+		bytecode->setInt16(cond_fail_pos, bytecode->current() - cond_fail_pos);
+	}
 }
 
 void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
@@ -139,7 +179,6 @@ void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 
 void CodeBuilderVisitor::visitFunctionNode(FunctionNode* node) {
 	node->body()->visit(this);
-//	BytecodeFunction* bf = new BytecodeFunction(node);
 }
 
 void CodeBuilderVisitor::visitReturnNode(ReturnNode* node) {
@@ -152,12 +191,6 @@ void CodeBuilderVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 
 void CodeBuilderVisitor::visitPrintNode(PrintNode* node) {
-}
-
-void CodeBuilderVisitor::loadVar(const AstVar* var) {
-	assert(var->type() == VT_INT);
-	curBytecode()->addInsn(BC_LOADIVAR);
-	curBytecode()->addUInt16(getId(var));
 }
 
 } /* namespace mathvm */

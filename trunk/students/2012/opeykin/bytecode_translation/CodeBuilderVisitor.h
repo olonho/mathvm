@@ -44,9 +44,6 @@ private:
 	uint16_t getId(const AstVar* var) {
 		return curVarMap()[var->name()];
 	}
-
-	void loadVar(const AstVar* var);
-
 };
 
 } /* namespace mathvm */
