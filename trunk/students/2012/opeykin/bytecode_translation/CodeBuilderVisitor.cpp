@@ -130,6 +130,17 @@ void CodeBuilderVisitor::visitForNode(ForNode* node) {
 }
 
 void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
+	Bytecode* bytecode = curBytecode();
+	bytecode->addInsn(BC_JA);
+	uint32_t initial_jump = bytecode->current();
+	bytecode->addInt16(0);
+	uint32_t body_begin = bytecode->current();
+	node->loopBlock()->visit(this);
+	bytecode->setInt16(initial_jump, bytecode->current() - initial_jump);
+	node->whileExpr()->visit(this);
+	bytecode->addInsn(BC_ILOAD0);
+	bytecode->addInsn(BC_IFICMPNE);
+	bytecode->addInt16(body_begin - bytecode->current());
 }
 
 void CodeBuilderVisitor::visitIfNode(IfNode* node) {
@@ -145,10 +156,8 @@ void CodeBuilderVisitor::visitIfNode(IfNode* node) {
 		bytecode->addInsn(BC_JA);
 		uint32_t end_pos = bytecode->current();
 		bytecode->addInt16(0);
-
 		bytecode->setInt16(cond_fail_pos, bytecode->current() - cond_fail_pos);
 		node->elseBlock()->visit(this);
-
 		bytecode->setInt16(end_pos, bytecode->current() - end_pos);
 	} else {
 		bytecode->setInt16(cond_fail_pos, bytecode->current() - cond_fail_pos);
