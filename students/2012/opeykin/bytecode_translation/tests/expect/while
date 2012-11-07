@@ -1,0 +1,7 @@
+function [0] void <top>()
+0: JA 12
+3: ILOAD 2
+12: ILOAD 1
+21: ILOAD0
+22: IFICMPNE 3
+25: ILOAD 3
