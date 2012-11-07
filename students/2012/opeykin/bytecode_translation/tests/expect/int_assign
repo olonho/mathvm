@@ -1,0 +1,7 @@
+function [0] void <top>()
+0: ILOAD 0
+9: STOREIVAR @0
+12: ILOAD 1
+21: STOREIVAR @0
+24: ILOAD 2
+33: STOREIVAR @0
