@@ -16,12 +16,18 @@
 using namespace mathvm;
 
 int main(int argc, char** argv) {
+
+#ifndef STANDART_INPUT_DEBUG
     if (argc == 1) {
         cout << "enter path to source code as parameter" << endl;
         return 1;
     }
 
     ifstream ifs (argv[1]);
+#else
+    ifstream ifs ("/home/alex/study/term3/vm/mathvm/students/2012/opeykin/bytecode_translation/code_sample.mvm");
+#endif
+
     if (!ifs) {
         cout << "can not open file: " << argv[1] << endl;
         return 1;
@@ -31,6 +37,7 @@ int main(int argc, char** argv) {
             (istreambuf_iterator<char>(ifs)),
             istreambuf_iterator<char>()
     );
+
 
     Parser parser;
     Status* status = parser.parseProgram(source);

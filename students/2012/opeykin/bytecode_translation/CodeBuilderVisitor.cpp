@@ -12,6 +12,7 @@ namespace mathvm {
 
 CodeBuilderVisitor::CodeBuilderVisitor(Code* code)
 		: _code(code) {
+	_varScopes.push(0);
 }
 
 CodeBuilderVisitor::~CodeBuilderVisitor() {
@@ -21,13 +22,9 @@ void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 	BytecodeFunction* bytecode_function = new BytecodeFunction(ast_function);
 	_code->addFunction(bytecode_function);
 
-	_bytecodes.push(bytecode_function->bytecode());
-	_variables.push(VarScopeMap());
-
+	_functions.push(bytecode_function);
 	ast_function->node()->visit(this);
-
-	_variables.pop();
-	_bytecodes.pop();
+	_functions.pop();
 }
 
 void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
@@ -92,16 +89,29 @@ void CodeBuilderVisitor::visitLoadNode(LoadNode* node) {
 	const AstVar* var = node->var();
 	Bytecode* bytecode = curBytecode();
 
-	switch (var->type()) {
-		case VT_DOUBLE:		bytecode->addInsn(BC_LOADDVAR); break;
-		case VT_INT:		bytecode->addInsn(BC_LOADIVAR); break;
-		case VT_STRING:		bytecode->addInsn(BC_LOADSVAR); break;
-		case VT_INVALID:
-		case VT_VOID:
-		default:			assert(false); break;
+	VarInfo varInfo = getVarInfo(var);
+
+	if (varInfo.context == _functions.top()->id()) {
+		switch (var->type()) {
+			case VT_DOUBLE:		bytecode->addInsn(BC_LOADDVAR); break;
+			case VT_INT:		bytecode->addInsn(BC_LOADIVAR); break;
+			case VT_STRING:		bytecode->addInsn(BC_LOADSVAR); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+	} else {
+		switch (var->type()) {
+			case VT_DOUBLE:		bytecode->addInsn(BC_LOADCTXDVAR); break;
+			case VT_INT:		bytecode->addInsn(BC_LOADCTXIVAR); break;
+			case VT_STRING:		bytecode->addInsn(BC_LOADCTXSVAR); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
 	}
 
-	curBytecode()->addUInt16(getId(var));
+	curBytecode()->addUInt16(varInfo.id);
 }
 
 void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
@@ -113,17 +123,29 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 	Bytecode* bytecode = curBytecode();
 	// TODO: add type conversion
 	const AstVar* var = node->var();
-	switch (var->type()) {
-		case VT_DOUBLE:		bytecode->addInsn(BC_STOREDVAR); break;
-		case VT_INT:		bytecode->addInsn(BC_STOREIVAR); break;
-		case VT_STRING:		bytecode->addInsn(BC_STORESVAR); break;
-		case VT_INVALID:
-		case VT_VOID:
-		default:			assert(false); break;
+	VarInfo varInfo = getVarInfo(var);
+
+	if (varInfo.context == _functions.top()->id()) {
+		switch (var->type()) {
+			case VT_DOUBLE:		bytecode->addInsn(BC_STOREDVAR); break;
+			case VT_INT:		bytecode->addInsn(BC_STOREIVAR); break;
+			case VT_STRING:		bytecode->addInsn(BC_STORESVAR); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+	} else {
+		switch (var->type()) {
+			case VT_DOUBLE:		bytecode->addInsn(BC_LOADCTXDVAR); break;
+			case VT_INT:		bytecode->addInsn(BC_LOADCTXIVAR); break;
+			case VT_STRING:		bytecode->addInsn(BC_LOADCTXSVAR); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
 	}
 
-	uint16_t id = curVarMap()[var->name()];
-	bytecode->addUInt16(id);
+	bytecode->addUInt16(varInfo.id);
 }
 
 void CodeBuilderVisitor::visitForNode(ForNode* node) {
@@ -139,6 +161,7 @@ void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
 	uint32_t body_begin = bytecode->current();
 	node->loopBlock()->visit(this);
 	bytecode->setInt16(initial_jump, bytecode->current() - initial_jump);
+
 
 	node->whileExpr()->visit(this);
 
@@ -171,16 +194,13 @@ void CodeBuilderVisitor::visitIfNode(IfNode* node) {
 void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 	Scope* scope = node->scope();
 
+	const uint16_t context = _functions.top()->id();
+	VarScopeMap* parentScope = _varScopes.top();
+	_varScopes.push(new VarScopeMap(context, parentScope));
 	Scope::VarIterator var_it(scope);
 	while (var_it.hasNext()) {
-		AstVar* var = var_it.next();
-		VarScopeMap& vars = curVarMap();
-		// TODO: process name duplicate compile error
-		assert(vars.find(var->name()) == vars.end());
-		uint16_t id = vars.size();
-		vars[var->name()] = id;
+		_varScopes.top()->add(var_it.next());
 	};
-
 
 	Scope::FunctionIterator func_it(scope);
 	while (func_it.hasNext()) {
@@ -188,6 +208,8 @@ void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 	}
 
 	node->visitChildren(this);
+	delete _varScopes.top();
+	_varScopes.pop();
 }
 
 void CodeBuilderVisitor::visitFunctionNode(FunctionNode* node) {
