@@ -1,0 +1,13 @@
+function void foo() {
+    int i;
+    function int bar() {
+        i = 5;
+        int i;
+        i = 1
+        return i;
+    }
+}
+
+
+foo();
+

@@ -27,10 +27,10 @@ public:
 
 	VarScopeMap(uint16_t context, VarScopeMap* parent)
 			: _context(context), _parent(parent) {
-		if (_parent != 0) {
-			_nextId = parent->nextId();
-		} else {
+		if (_parent == 0 || _parent->context() != _context) {
 			_nextId = 0;
+		} else {
+			_nextId = parent->nextId();
 		}
 	}
 
@@ -55,6 +55,10 @@ public:
 		return _nextId;
 	}
 
+	uint16_t context() const {
+		return _context;
+	}
+
 private:
 	uint16_t _context;
 	std::map<Key, uint16_t> _map;
@@ -67,6 +71,7 @@ class CodeBuilderVisitor: public mathvm::AstVisitor {
 	Code* _code;
 	std::stack<BytecodeFunction*> _functions;
 	std::stack<VarScopeMap*> _varScopes;
+
 public:
 	CodeBuilderVisitor(Code* code);
 	virtual ~CodeBuilderVisitor();
@@ -91,6 +96,8 @@ private:
 	VarInfo getVarInfo(const AstVar* var) {
 		return _varScopes.top()->get(var);
 	}
+
+	void pushToStack(const AstVar* var);
 };
 
 } /* namespace mathvm */

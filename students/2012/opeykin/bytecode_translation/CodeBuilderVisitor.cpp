@@ -86,32 +86,7 @@ void CodeBuilderVisitor::visitIntLiteralNode(IntLiteralNode* node) {
 }
 
 void CodeBuilderVisitor::visitLoadNode(LoadNode* node) {
-	const AstVar* var = node->var();
-	Bytecode* bytecode = curBytecode();
-
-	VarInfo varInfo = getVarInfo(var);
-
-	if (varInfo.context == _functions.top()->id()) {
-		switch (var->type()) {
-			case VT_DOUBLE:		bytecode->addInsn(BC_LOADDVAR); break;
-			case VT_INT:		bytecode->addInsn(BC_LOADIVAR); break;
-			case VT_STRING:		bytecode->addInsn(BC_LOADSVAR); break;
-			case VT_INVALID:
-			case VT_VOID:
-			default:			assert(false); break;
-		}
-	} else {
-		switch (var->type()) {
-			case VT_DOUBLE:		bytecode->addInsn(BC_LOADCTXDVAR); break;
-			case VT_INT:		bytecode->addInsn(BC_LOADCTXIVAR); break;
-			case VT_STRING:		bytecode->addInsn(BC_LOADCTXSVAR); break;
-			case VT_INVALID:
-			case VT_VOID:
-			default:			assert(false); break;
-		}
-	}
-
-	curBytecode()->addUInt16(varInfo.id);
+	pushToStack(node->var());
 }
 
 void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
@@ -136,13 +111,14 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 		}
 	} else {
 		switch (var->type()) {
-			case VT_DOUBLE:		bytecode->addInsn(BC_LOADCTXDVAR); break;
-			case VT_INT:		bytecode->addInsn(BC_LOADCTXIVAR); break;
-			case VT_STRING:		bytecode->addInsn(BC_LOADCTXSVAR); break;
+			case VT_DOUBLE:		bytecode->addInsn(BC_STORECTXDVAR); break;
+			case VT_INT:		bytecode->addInsn(BC_STORECTXIVAR); break;
+			case VT_STRING:		bytecode->addInsn(BC_STORECTXSVAR); break;
 			case VT_INVALID:
 			case VT_VOID:
 			default:			assert(false); break;
 		}
+		curBytecode()->addInt16(varInfo.context);
 	}
 
 	bytecode->addUInt16(varInfo.id);
@@ -214,18 +190,65 @@ void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 
 void CodeBuilderVisitor::visitFunctionNode(FunctionNode* node) {
 	node->body()->visit(this);
+//	curBytecode()->addInsn(BC_INVALID);
+//	processFunction(node);
+
 }
 
 void CodeBuilderVisitor::visitReturnNode(ReturnNode* node) {
+	node->visitChildren(this);
+	curBytecode()->addInsn(BC_RETURN);
 }
 
 void CodeBuilderVisitor::visitCallNode(CallNode* node) {
+	TranslatedFunction* function = _code->functionByName(node->name());
+
+	for (size_t i = 1; i <= node->parametersNumber(); ++i) {
+		size_t index = node->parametersNumber() - i;
+		node->parameterAt(index)->visit(this);
+	}
+
+	Bytecode* bytecode = curBytecode();
+	bytecode->addInsn(BC_CALL);
+	bytecode->addUInt16(function->id());
 }
 
 void CodeBuilderVisitor::visitNativeCallNode(NativeCallNode* node) {
+//	curBytecode()->addInsn(BC_CALLNATIVE);
+//	curBytecode()->addUInt16(node->)
 }
 
 void CodeBuilderVisitor::visitPrintNode(PrintNode* node) {
+
+}
+
+void CodeBuilderVisitor::pushToStack(const AstVar* var) {
+	Bytecode* bytecode = curBytecode();
+
+	VarInfo varInfo = getVarInfo(var);
+
+	if (varInfo.context == _functions.top()->id()) {
+		switch (var->type()) {
+			case VT_DOUBLE:		bytecode->addInsn(BC_LOADDVAR); break;
+			case VT_INT:		bytecode->addInsn(BC_LOADIVAR); break;
+			case VT_STRING:		bytecode->addInsn(BC_LOADSVAR); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+	} else {
+		switch (var->type()) {
+			case VT_DOUBLE:		bytecode->addInsn(BC_LOADCTXDVAR); break;
+			case VT_INT:		bytecode->addInsn(BC_LOADCTXIVAR); break;
+			case VT_STRING:		bytecode->addInsn(BC_LOADCTXSVAR); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+		curBytecode()->addInt16(varInfo.context);
+	}
+
+	curBytecode()->addUInt16(varInfo.id);
 }
 
 } /* namespace mathvm */
