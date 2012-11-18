@@ -1,0 +1,14 @@
+function void foo() {
+	int b;
+	b = 7;
+}
+
+function void bar() {
+	int c;
+	c = 5;	
+}
+
+int a;
+a = 3;
+
+foo();
