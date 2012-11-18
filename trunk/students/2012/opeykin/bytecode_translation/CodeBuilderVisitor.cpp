@@ -19,11 +19,16 @@ CodeBuilderVisitor::~CodeBuilderVisitor() {
 }
 
 void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
-	BytecodeFunction* bytecode_function = new BytecodeFunction(ast_function);
-	_code->addFunction(bytecode_function);
+	BytecodeFunction* function = new BytecodeFunction(ast_function);
+	_code->addFunction(function);
 
-	_functions.push(bytecode_function);
+	_functions.push(function);
+	_varScopes.push(new VarScopeMap(function->id(), _varScopes.top()));
+
 	ast_function->node()->visit(this);
+
+	delete _varScopes.top();
+	_varScopes.pop();
 	_functions.pop();
 }
 
@@ -170,11 +175,13 @@ void CodeBuilderVisitor::visitIfNode(IfNode* node) {
 void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 	Scope* scope = node->scope();
 
-	const uint16_t context = _functions.top()->id();
-	VarScopeMap* parentScope = _varScopes.top();
-	_varScopes.push(new VarScopeMap(context, parentScope));
+//	const uint16_t context = _functions.top()->id();
+//	VarScopeMap* parentScope = _varScopes.top();
+//	_varScopes.push(new VarScopeMap(context, parentScope));
+	BytecodeFunction* function = _functions.top();
 	Scope::VarIterator var_it(scope);
 	while (var_it.hasNext()) {
+		function->setLocalsNumber(function->localsNumber() + 1);
 		_varScopes.top()->add(var_it.next());
 	};
 
@@ -184,8 +191,8 @@ void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 	}
 
 	node->visitChildren(this);
-	delete _varScopes.top();
-	_varScopes.pop();
+//	delete _varScopes.top();
+//	_varScopes.pop();
 }
 
 void CodeBuilderVisitor::visitFunctionNode(FunctionNode* node) {
