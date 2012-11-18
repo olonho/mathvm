@@ -19,6 +19,8 @@ ExecutableCode::~ExecutableCode() {
 }
 
 Status* ExecutableCode::execute(vector<Var*>& vars) {
+	_context = 0;
+
 	return new Status;
 }
 
