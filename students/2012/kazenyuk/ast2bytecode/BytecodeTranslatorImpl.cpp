@@ -6,16 +6,10 @@
 #include "ast.h"
 #include "parser.h"
 
+#include "InterpreterCodeImpl.h"
 #include "BytecodeEmittingAstVisitor.h"
 
 namespace mathvm {
-
-class InterpreterCodeImpl : public Code {
-  public:
-    virtual Status* execute(std::vector<mathvm::Var*>&) {
-      return new Status("InterpreterCodeImpl: Unimplemented");
-    }
-};
 
 Status* BytecodeTranslatorImpl::translateBytecode(const std::string& program, InterpreterCodeImpl* *code) {
     return new Status("BytecodeTranslatorImpl: Unimplemented");

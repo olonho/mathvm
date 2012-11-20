@@ -71,7 +71,7 @@ private:
     void Cmp(Bytecode* out, Instruction cmpInsn, VarType leftType, VarType rightType) {
         out->addInsn(cmpInsn);
         const uint16_t jump_offset_size = sizeof(uint16_t);
-        out->addUInt16(jump_offset_size + InsnSize[BC_ILOAD0] + InsnSize[BC_JA]);
+        out->addInt16(jump_offset_size + InsnSize[BC_ILOAD0] + InsnSize[BC_JA]);
         // :
         out->addInsn(BC_ILOAD0);    // push "0"
         out->addInsn(BC_JA);
