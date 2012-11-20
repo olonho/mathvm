@@ -46,13 +46,13 @@ static size_t bclen(Instruction insn) {
 
 void BytecodeImpl::executeFunction(BytecodeFunction* f) {
 	Bytecode* code = f->bytecode();
-	std::stack<value> stack;
+
 	std::vector<uint64_t> storedInts(4);
 	std::map<uint16_t, uint64_t> storedIntsCustom;
+	std::stack<value> stack;
 
 	for(uint32_t index = 0; index < code->length();) {
 		Instruction insn = code->getInsn(index);
-		//std::cout << "read: " << insn << std::endl;
 		value v1;
 		value v2;
 		value v;
@@ -225,8 +225,8 @@ void BytecodeImpl::executeFunction(BytecodeFunction* f) {
 				std::cout << "Stopping machine" << std::endl;
 				break;
 			case BC_JA:
-				index += code->getUInt16(index + 1) + 1;
-				std::cerr << "BC_JA " << index << std::endl;
+				index += code->getInt16(index + 1) + 1;
+				std::cerr << "BC_JA for " << code->getUInt16(index + 1) + 1 << " to " << index << std::endl;
 				continue;
 				break;
 			case BC_IFICMPNE:
@@ -300,6 +300,9 @@ void BytecodeImpl::executeFunction(BytecodeFunction* f) {
 					std::cerr << "\tjumping to " << index << std::endl;
 					continue;
 				}
+				break;
+			case BC_CALL:
+
 				break;
 			default:
 				std::cout << "Unknown instruction " << insn << std::endl;

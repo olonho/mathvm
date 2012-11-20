@@ -43,8 +43,8 @@ void BytecodeVisitor::compare() {
 }
 
 void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
-	node->left()->visit(this);
 	node->right()->visit(this);
+	node->left()->visit(this);
 
 	switch(node->kind()) {
 		case tADD:
@@ -108,8 +108,9 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 		case tOR:
 			bc()->addInsn(BC_IADD);
 			bc()->addInsn(BC_ILOAD);
-			bc()->addInt64(2);
-			bc()->addInsn(BC_IMOD);
+			bc()->addInt64(0);
+			bc()->addInsn(BC_IFICMPL);
+			compare();
 			break;
 
 		case tAND:
