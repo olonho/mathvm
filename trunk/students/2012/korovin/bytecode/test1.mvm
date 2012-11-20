@@ -1,14 +1,35 @@
-function void foo() {
-	int b;
-	b = 7;
-}
+//function void foo() {
+//	int b;
+//	b = 7;
+//}
 
-function void bar() {
-	int c;
-	c = 5;	
-}
+//function void bar() {
+//	int c;
+//	c = 5;	
+//}
 
 int a;
-a = 3;
-
-foo();
+a = 10 > 5;
+print(a);
+a = 4 > 5;
+print(a);
+a = 1 < 5;
+print(a);
+a = 6 < 5;
+print(a);
+a = 6 >= 5;
+print(a);
+a = 3 >= 5;
+print(a);
+a = 3 <= 5;
+print(a);
+a = 6 <= 5;
+print(a);
+a = 6 == 5;
+print(a);
+a = 5 == 5;
+print(a);
+a = 5 != 5;
+print(a);
+a = 6 != 5;
+print(a);
