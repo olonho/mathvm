@@ -134,41 +134,35 @@ void CodeBuilderVisitor::visitForNode(ForNode* node) {
 
 void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
 	Bytecode* bytecode = curBytecode();
+	Label condition_label(bytecode);
+	Label block_label(bytecode);
 
-	bytecode->addInsn(BC_JA);
-	uint32_t initial_jump = bytecode->current();
-	bytecode->addInt16(0);
-
-	uint32_t body_begin = bytecode->current();
+	bytecode->addBranch(BC_JA, condition_label);
+	block_label.bind(bytecode->current());
 	node->loopBlock()->visit(this);
-	bytecode->setInt16(initial_jump, bytecode->current() - initial_jump);
 
-
+	condition_label.bind(bytecode->current());
 	node->whileExpr()->visit(this);
 
 	bytecode->addInsn(BC_ILOAD0);
-	bytecode->addInsn(BC_IFICMPNE);
-	bytecode->addInt16(body_begin - bytecode->current());
+	bytecode->addBranch(BC_IFICMPNE, block_label);
 }
 
 void CodeBuilderVisitor::visitIfNode(IfNode* node) {
-	node->ifExpr()->visit(this);
 	Bytecode* bytecode = curBytecode();
+	Label not_true_label(bytecode);
+	node->ifExpr()->visit(this);
 	bytecode->addInsn(BC_ILOAD0);
-	bytecode->addInsn(BC_IFICMPE);
-	uint32_t cond_fail_pos = bytecode->current();
-	bytecode->addInt16(0);
-
+	bytecode->addBranch(BC_IFICMPE, not_true_label);
 	node->thenBlock()->visit(this);
 	if (node->elseBlock()) {
-		bytecode->addInsn(BC_JA);
-		uint32_t end_pos = bytecode->current();
-		bytecode->addInt16(0);
-		bytecode->setInt16(cond_fail_pos, bytecode->current() - cond_fail_pos);
+		Label after_else_labe(bytecode);
+		bytecode->addBranch(BC_JA, after_else_labe);
+		not_true_label.bind(bytecode->current());
 		node->elseBlock()->visit(this);
-		bytecode->setInt16(end_pos, bytecode->current() - end_pos);
+		after_else_labe.bind(bytecode->current());
 	} else {
-		bytecode->setInt16(cond_fail_pos, bytecode->current() - cond_fail_pos);
+		not_true_label.bind(bytecode->current());
 	}
 }
 
