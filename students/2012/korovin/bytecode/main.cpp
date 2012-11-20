@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "BytecodeBuilder.h"
+#include "BytecodeImpl.h"
 #include <iostream>
 
 using namespace mathvm;
@@ -22,8 +23,8 @@ int main(int argc, char** argv) {
     }
 
     BytecodeBuilder builder;
-    Code* code = 0;
-    Status* buildStatus = builder.translate(string(expr), &code);
+    BytecodeImpl* code = 0;
+    Status* buildStatus = builder.translate(string(expr), (Code**) &code);
 
     if(buildStatus != 0 && buildStatus->isError()) {
         cerr << "Error in building source." << endl;
@@ -32,7 +33,10 @@ int main(int argc, char** argv) {
     }
 
     code->disassemble();
-    // cout << "Looks good" << endl;
+    cout << "Looks good. Executing..." << endl;
+    std::vector<Var*> vars;
+    code->execute(vars);
+
 
     delete [] expr;
     return 0;

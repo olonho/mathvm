@@ -28,7 +28,6 @@ void BytecodeVisitor::compare() {
 	bc()->addInsn(BC_JA);
 	placeHolder2 = bc()->current();
 	bc()->addInt16(PLACE_HOLDER);
-	// set PLACE_HOLDER 1 to current
 	bc()->setInt16(placeHolder1, bc()->current() - placeHolder1);
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_POP);
@@ -36,12 +35,10 @@ void BytecodeVisitor::compare() {
 	bc()->addInsn(BC_JA);
 	placeHolder3 = bc()->current();
 	bc()->addInt16(PLACE_HOLDER);
-	// set PLACE_HOLDER 2 to current
 	bc()->setInt16(placeHolder2, bc()->current() - placeHolder2);
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_ILOAD0);
-	// set PLACE_HOLDER 3 to current
 	bc()->setInt16(placeHolder3, bc()->current() - placeHolder3);
 }
 
@@ -125,6 +122,7 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 }
 
 void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode* node) {
+	node->operand()->visit(this);
 	switch(node->kind()) {
 	case tNOT:
 		bc()->addInsn(BC_ILOAD0);
@@ -137,16 +135,12 @@ void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode* node) {
 	default:
 		break;
 	}
-
-	node->operand()->visit(this);
 }
 
 void BytecodeVisitor::visitStringLiteralNode(StringLiteralNode* node) {
 }
 
 void BytecodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
-	bc()->addInsn(BC_DLOAD);
-	bc()->addDouble(node->literal());
 }
 
 void BytecodeVisitor::visitIntLiteralNode(IntLiteralNode* node) {
@@ -161,7 +155,7 @@ void BytecodeVisitor::visitLoadNode(LoadNode* node) {
 
 void BytecodeVisitor::visitStoreNode(StoreNode* node) {
 	node->visitChildren(this);
-	bc()->addInsn(BC_STOREDVAR);
+	bc()->addInsn(BC_STOREIVAR);
 	bc()->addUInt16(vars_[node->var()]);
 }
 
@@ -169,26 +163,25 @@ void BytecodeVisitor::visitForNode(ForNode* node) {
 }
 
 void BytecodeVisitor::visitWhileNode(WhileNode* node) {
-	uint32_t placeHolder0;
 	uint32_t placeHolder1;
 	uint32_t placeHolder2;
-
-	placeHolder0 = bc()->current();
+	uint32_t placeHolder3;
+	placeHolder1 = bc()->current();
 	node->whileExpr()->visit(this);
 	bc()->addInsn(BC_ILOAD0);
 	bc()->addInsn(BC_IFICMPE);
-	placeHolder1 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->addInsn(BC_JA);
 	placeHolder2 = bc()->current();
 	bc()->addInt16(PLACE_HOLDER);
-	bc()->setInt16(placeHolder1, bc()->current() - placeHolder1);
+	bc()->addInsn(BC_JA);
+	placeHolder3 = bc()->current();
+	bc()->addInt16(PLACE_HOLDER);
+	bc()->setInt16(placeHolder2, bc()->current() - placeHolder2);
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_POP);
 	node->loopBlock()->visit(this);
 	bc()->addInsn(BC_JA);
-	bc()->addInt16(placeHolder0 - bc()->current());
-	bc()->setInt16(placeHolder2, bc()->current() - placeHolder2);
+	bc()->addInt16(placeHolder1 - bc()->current());
+	bc()->setInt16(placeHolder3, bc()->current() - placeHolder3);
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_POP);
 }
@@ -196,7 +189,7 @@ void BytecodeVisitor::visitWhileNode(WhileNode* node) {
 void BytecodeVisitor::visitIfNode(IfNode* node) {
 	node->ifExpr()->visit(this);
 	bc()->addInsn(BC_ILOAD0);
-	bc()->addInsn(BC_IFICMPE);
+	bc()->addInsn(BC_IFICMPNE);
 	uint32_t placeHolder1;
 	uint32_t placeHolder2;
 	uint32_t placeHolder3;
@@ -232,7 +225,9 @@ void BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
 }
 
 void BytecodeVisitor::visitReturnNode(ReturnNode* node) {
-	node->returnExpr()->visit(this);
+	if (node->returnExpr() != 0) {
+		node->returnExpr()->visit(this);
+	}
 	bc()->addInsn(BC_RETURN);
 }
 
