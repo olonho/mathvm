@@ -10,8 +10,8 @@
 
 #include "parser.h"
 #include "mathvm.h"
-#include "ExecutableCode.h"
 #include "CodeBuilderVisitor.h"
+#include "interpreter_code_impl.h"
 
 using namespace mathvm;
 
@@ -50,15 +50,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    Code* code = new ExecutableCode;
+    Code* code = new InterpreterCodeImpl;
     CodeBuilderVisitor visitor(code);
     visitor.processFunction(parser.top());
     code->disassemble();
-//    BytecodeFunction bf(top);
-//    bf.disassemble(cout);
-//    AstPrinter printer(cout);
-//
-//    top->node()->body()->visit(&printer);
 
     delete status;
 
