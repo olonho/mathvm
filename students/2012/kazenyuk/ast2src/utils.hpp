@@ -2,6 +2,7 @@
 #define AST2SRC_UTILS_HPP_
 
 #include <iterator>
+#include <string>
 
 template <class Iterator, class OutIterator>
 void escape_all(Iterator begin, Iterator end, OutIterator out) {
@@ -46,11 +47,10 @@ void escape_all(Iterator begin, Iterator end, OutIterator out) {
 			default:
 				*out++ = *it;
 		}
-
 	}
 }
 
-std::string escape_all(const std::string &str) {
+inline std::string escape_all(const std::string &str) {
 	std::string tmp;
 	tmp.reserve(str.size() + str.size()/2);
 	escape_all(str.begin(), str.end(), std::back_inserter(tmp));
