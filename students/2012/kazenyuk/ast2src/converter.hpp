@@ -23,7 +23,13 @@ class Ast2SrcConverter : public AstVisitor {
     }
 
     std::ostream &operator()(AstFunction* main_func) {
+        // we're doing
         main_func->node()->body()->visit(this);
+        // and not
+        // main_func->node()->visit(this);
+        // because name of the top-level function in AST is not a valid
+        // identifier in the language, so we output only function's body
+        // (the global scope). Calls Visitor::visitBlockNode
         return out;
     }
 
