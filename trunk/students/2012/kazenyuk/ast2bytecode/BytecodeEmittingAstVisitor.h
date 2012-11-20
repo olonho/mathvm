@@ -71,7 +71,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
         switch (node->kind()) {
             case tADD: {    // "+"
-                m_bytecode->addInsn(BC_DADD);
+                m_bytecode->addInsn(BC_IADD);
                 break;
             }
             case tSUB: {    // "-"
