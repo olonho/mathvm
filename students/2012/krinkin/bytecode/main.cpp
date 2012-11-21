@@ -1,6 +1,12 @@
-#include "codegen.h"
+#include "mathvm.h"
+#include "parser.h"
 
+#include "bctranslator.h"
+#include "typer.h"
+
+#include <iostream>
 #include <vector>
+#include <memory>
 
 using namespace mathvm;
 
@@ -21,22 +27,18 @@ int main(int argc, char **argv)
 	}
 	
 	Code *code;
-	CodeGenerator generator;
-
-	std::auto_ptr<Status> status(generator.translate(expr, &code));
+	BCTransaltor translator;
+    std::auto_ptr<Status> status(translator.translate(expr, &code));
 	if (status.get())
 	{
-		std::cerr << "Error(" << status->getPosition() << "): "
-		          << status->getError() << std::endl;
+		std::cerr << "Error(" << status->getPosition() << "): " << status->getError() << std::endl;
+		return 3;
 	}
 	
-	code->disassemble();
-	
-	std::cout << "execution ..." << std::endl;
 	std::vector<Var*> vars;
-	code->execute(vars);
-	
-	delete code;
+    code->execute(vars);
+
+    delete code;
 	delete [] expr;
 
 	return 0;
