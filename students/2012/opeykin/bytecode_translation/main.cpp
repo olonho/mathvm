@@ -17,16 +17,12 @@ using namespace mathvm;
 
 int main(int argc, char** argv) {
 
-#ifndef STANDART_INPUT_DEBUG
     if (argc == 1) {
         cout << "enter path to source code as parameter" << endl;
         return 1;
     }
 
     ifstream ifs (argv[1]);
-#else
-    ifstream ifs ("/home/alex/study/term3/vm/mathvm/students/2012/opeykin/bytecode_translation/code_sample.mvm");
-#endif
 
     if (!ifs) {
         cout << "can not open file: " << argv[1] << endl;
@@ -50,11 +46,24 @@ int main(int argc, char** argv) {
         }
     }
 
-    Code* code = new InterpreterCodeImpl;
+    Code* code = new InterpreterCodeImpl(cout);
     CodeBuilderVisitor visitor(code);
     visitor.processFunction(parser.top());
     code->disassemble();
 
+    vector<Var*> vars;
+    cout << endl << "---------------------" << endl;
+    Status* exec_status = code->execute(vars);
+
+    if (exec_status) {
+		cout << exec_status->getError() << endl;
+		delete exec_status;
+		return 1;
+    } else {
+    	cout << endl;
+    }
+
+    delete exec_status;
     delete status;
 
     return 0;
