@@ -148,7 +148,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
     }
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
         uint16_t string_id = m_code->makeStringConstant(escape_all(node->literal()));
-//        uint16_t string_id = 0;
+//        uint16_t string_id = m_code->makeStringConstant(node->literal());
 
         m_bytecode->addInsn(BC_SLOAD);
         m_bytecode->addUInt16(string_id);
@@ -331,9 +331,18 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_bytecode->addInsn(BC_CALL);  //BC_CALL must push return address on the stack
         m_bytecode->addUInt16(function_id);
 
-        // remove function arguments from the stack
+        const size_t DatatypeSize[] = {0,   // VT_INVALID
+                                       0,   // VT_VOID
+                                       sizeof(double),  // VT_DOUBLE
+                                       sizeof(int64_t), // VT_INT
+                                       sizeof(uint16_t) // VT_STRING
+        };
+
+        // remove function arguments from the stack (byte by byte)
         for (uint32_t i = 0; i < parameters_number; ++i) {
-            m_bytecode->addInsn(BC_POP);
+            for (uint32_t j = 0; j < DatatypeSize[function->parameterType(i)]; ++j) {
+                m_bytecode->addInsn(BC_POP);
+            }
         }
 
         // move function return value from VAR0 to the top of the stack
@@ -376,6 +385,26 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         // emit needed number of print instructions
         for (uint32_t i = 0; i < parameters_number; ++i) {
             m_bytecode->addInsn(BC_IPRINT);
+//            switch (node->operandAt(i)->type) {
+//                case VT_INVALID:
+//                    m_bytecode->addInsn(BC_INVALID);
+//                    break;
+//                case VT_VOID:
+//                    // do nothing
+//                    break;
+//                case VT_DOUBLE:
+//                    m_bytecode->addInsn(BC_DPRINT);
+//                    break;
+//                case VT_INT:
+//                    m_bytecode->addInsn(BC_IPRINT);
+//                    break;
+//                case VT_STRING:
+//                    m_bytecode->addInsn(BC_SPRINT);
+//                    break;
+//                default:
+//                    m_bytecode->addInsn(BC_INVALID);
+//                    break;
+//            }
         }
     }
 
