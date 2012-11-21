@@ -5,7 +5,7 @@
 #include "mathvm.h"
 
 int main(int argc, char** argv) {
-    if (argc < 2 || argc > 2) {
+    if (argc < 2 || argc > 3) {
         std::cout << "Usage: " << argv[0] << " <program source code file>"
                   << std::endl;
         return 1;
@@ -43,5 +43,17 @@ int main(int argc, char** argv) {
     delete translateStatus;
     delete translator;
     delete[] text_buffer;
+
+    if (argc == 3) {
+        std::cout << "\nExecuting" << std::endl;
+        std::vector<mathvm::Var*> vars;
+        mathvm::Status* exec_status = code->execute(vars);
+        if (exec_status && exec_status->isError()) {
+            std::cerr << "Cannot execute expression: error: "
+                      << exec_status->getError()
+                      << " at BCI=" << exec_status->getPosition()
+                      << std::endl;
+        }
+    }
     return 0;
 }
