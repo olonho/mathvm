@@ -5,9 +5,13 @@ using namespace std;
 using namespace mathvm;
 
 void ByteCodeVisitor::visitBlockNode(BlockNode *node) {
+	map<string, int> before;
     Scope::VarIterator var(node->scope());
     while(var.hasNext()) {
 			AstVar* cur_var = var.next();
+			if(vars.count(cur_var->name()) > 0) {
+				before[cur_var->name()] = vars[cur_var->name()];
+			}
 			vars[cur_var->name()] = last_id++;
     }
     Scope::FunctionIterator func(node->scope());
@@ -15,6 +19,7 @@ void ByteCodeVisitor::visitBlockNode(BlockNode *node) {
 		{
 			AstFunction* function= func.next();
       		BytecodeFunction* bytecodeFunction = new BytecodeFunction(function);
+      		cout << "addFunction " << bytecodeFunction->name() << endl; 
       		code->addFunction(bytecodeFunction);
       		uint32_t i = bytecode->length();
 			function->node()->visit(this);
@@ -26,9 +31,12 @@ void ByteCodeVisitor::visitBlockNode(BlockNode *node) {
     {
     	node->nodeAt(i)->visit(this);
     }
-}
 
-void ByteCodeVisitor::visitForNode(ForNode *node) {
+    map<string, int>::iterator iter = before.begin();
+    while(iter != before.end()) {
+    	vars[iter->first] = iter->second;
+    	iter++;
+    }
 }
 
 void ByteCodeVisitor::visitPrintNode(PrintNode *node) {
@@ -135,9 +143,11 @@ void ByteCodeVisitor::visitCallNode(CallNode *node) {
 					}
 				}	
     }
+    cout << "-" << node->name() << endl;
+    cout << "--" << code->functionByName(node->name()) << endl;
     TOStype = code->functionByName(node->name())->returnType();
-		bytecode->addInsn(BC_CALL);
-		bytecode->addUInt16(code->functionByName(node->name())->id());
+	bytecode->addInsn(BC_CALL);
+	bytecode->addUInt16(code->functionByName(node->name())->id());
 }
 
 void ByteCodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
@@ -255,15 +265,45 @@ void ByteCodeVisitor::visitStringLiteralNode(StringLiteralNode *node) {
 }
 
 void ByteCodeVisitor::visitWhileNode(WhileNode *node) {
-		Label while_label(bytecode);
-		Label end(bytecode);
-   		node->whileExpr()->visit(this);
-			bytecode->bind(while_label);
-			bytecode->addInsn(BC_ILOAD1);
-			bytecode->addBranch(BC_IFICMPNE, end);
-   		node->loopBlock()->visit(this);
-			bytecode->addBranch(BC_JA, while_label);
-			bytecode->bind(end);
+	Label while_label(bytecode);
+	Label end(bytecode);
+	bytecode->bind(while_label);
+   	node->whileExpr()->visit(this);
+	bytecode->addInsn(BC_ILOAD1);
+	bytecode->addBranch(BC_IFICMPNE, end);
+   	node->loopBlock()->visit(this);
+	bytecode->addBranch(BC_JA, while_label);
+	bytecode->bind(end);
+}
+
+void ByteCodeVisitor::visitForNode(ForNode *node) {
+	int indexId = vars[node->var()->name()];
+
+	BinaryOpNode *range = (BinaryOpNode *) node->inExpr();
+	range->left()->visit(this);
+	bytecode->addInsn(BC_STOREIVAR);
+	bytecode->addUInt16(indexId);
+
+	Label for_label(bytecode);
+	Label end(bytecode);
+	bytecode->bind(for_label);
+
+   	range->right()->visit(this);
+	bytecode->addInsn(BC_LOADIVAR);
+	bytecode->addUInt16(indexId);
+	bytecode->addBranch(BC_IFICMPG, end);
+   	node->body()->visit(this);
+
+   	//inc
+	bytecode->addInsn(BC_LOADIVAR);
+	bytecode->addUInt16(indexId);
+	bytecode->addInsn(BC_ILOAD1);
+	bytecode->addInsn(BC_IADD);
+	bytecode->addInsn(BC_STOREIVAR);
+	bytecode->addUInt16(indexId);
+
+	bytecode->addBranch(BC_JA, for_label);
+	bytecode->bind(end);
 }
 
 void ByteCodeVisitor::visitIntLiteralNode(IntLiteralNode *node) {
