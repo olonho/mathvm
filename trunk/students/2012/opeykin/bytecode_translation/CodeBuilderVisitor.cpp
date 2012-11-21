@@ -23,7 +23,15 @@ void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 	uint16_t id = _code->addFunction(function);
 
 	_functions.push(function);
-	_varScopes.push(new VarScopeMap(function->id(), _varScopes.top()));
+	VarScopeMap* varScope = new VarScopeMap(function->id(), _varScopes.top());
+	_varScopes.push(varScope);
+
+	Scope::VarIterator arg_it(ast_function->scope());
+	while (arg_it.hasNext()) {
+		AstVar* var = arg_it.next();
+		uint16_t id = varScope->add(var);
+		storeLocalVar(var->type(), id);
+	};
 
 	ast_function->node()->visit(this);
 
@@ -33,6 +41,35 @@ void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 
 	if(id == 0) {
 		function->bytecode()->addInsn(BC_STOP);
+	}
+}
+
+void CodeBuilderVisitor::storeLocalVar(VarType type, uint16_t id) {
+	Bytecode* bytecode = curBytecode();
+
+	Instruction int_codes 		[] = {BC_STOREIVAR0, BC_STOREIVAR1, BC_STOREIVAR2, BC_STOREIVAR3};
+	Instruction double_codes 	[] = {BC_STOREDVAR0, BC_STOREDVAR1, BC_STOREDVAR2, BC_STOREDVAR3};
+	Instruction string_codes 	[] = {BC_STORESVAR0, BC_STORESVAR1, BC_STORESVAR2, BC_STORESVAR3};
+
+	if (id < 4) {
+		switch (type) {
+			case VT_DOUBLE:		bytecode->addInsn(double_codes[id]); break;
+			case VT_INT:		bytecode->addInsn(int_codes[id]); break;
+			case VT_STRING:		bytecode->addInsn(string_codes[id]); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+	} else {
+		switch (type) {
+			case VT_DOUBLE:		bytecode->addInsn(BC_STOREDVAR); break;
+			case VT_INT:		bytecode->addInsn(BC_STOREIVAR); break;
+			case VT_STRING:		bytecode->addInsn(BC_STORESVAR); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+		bytecode->addUInt16(id);
 	}
 }
 
@@ -49,6 +86,12 @@ void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	operations[Key(tSUB, VT_INT)] = BC_ISUB;
 	operations[Key(tMUL, VT_INT)] = BC_IMUL;
 	operations[Key(tDIV, VT_INT)] = BC_IDIV;
+//	operations[Key(tEQ, VT_INT)] = ;
+//	operations[Key(tNEQ, VT_INT)] = ;
+//	operations[Key(tGT, VT_INT)] = ;
+//	operations[Key(tGE, VT_INT)] = ;
+//	operations[Key(tLT, VT_INT)] = ;
+//	operations[Key(tLE, VT_INT)] = ;
 
 	operations[Key(tADD, VT_DOUBLE)] = BC_DADD;
 	operations[Key(tSUB, VT_DOUBLE)] = BC_DSUB;
@@ -100,14 +143,7 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 	VarInfo varInfo = getVarInfo(var);
 
 	if (varInfo.context == _functions.top()->id()) {
-		switch (var->type()) {
-			case VT_DOUBLE:		bytecode->addInsn(BC_STOREDVAR); break;
-			case VT_INT:		bytecode->addInsn(BC_STOREIVAR); break;
-			case VT_STRING:		bytecode->addInsn(BC_STORESVAR); break;
-			case VT_INVALID:
-			case VT_VOID:
-			default:			assert(false); break;
-		}
+		storeLocalVar(var->type(), varInfo.id);
 	} else {
 		switch (var->type()) {
 			case VT_DOUBLE:		bytecode->addInsn(BC_STORECTXDVAR); break;
@@ -118,9 +154,9 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 			default:			assert(false); break;
 		}
 		curBytecode()->addInt16(varInfo.context);
+		bytecode->addUInt16(varInfo.id);
 	}
 
-	bytecode->addUInt16(varInfo.id);
 }
 
 void CodeBuilderVisitor::visitForNode(ForNode* node) {
@@ -204,6 +240,8 @@ void CodeBuilderVisitor::visitReturnNode(ReturnNode* node) {
 
 void CodeBuilderVisitor::visitCallNode(CallNode* node) {
 	TranslatedFunction* function = _code->functionByName(node->name());
+
+	//TODO: throw here is name does not exist
 
 	for (size_t i = 1; i <= node->parametersNumber(); ++i) {
 		size_t index = node->parametersNumber() - i;
