@@ -20,7 +20,7 @@ CodeBuilderVisitor::~CodeBuilderVisitor() {
 
 void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 	BytecodeFunction* function = new BytecodeFunction(ast_function);
-	_code->addFunction(function);
+	uint16_t id = _code->addFunction(function);
 
 	_functions.push(function);
 	_varScopes.push(new VarScopeMap(function->id(), _varScopes.top()));
@@ -30,11 +30,15 @@ void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 	delete _varScopes.top();
 	_varScopes.pop();
 	_functions.pop();
+
+	if(id == 0) {
+		function->bytecode()->addInsn(BC_STOP);
+	}
 }
 
 void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
-	node->left()->visit(this);
 	node->right()->visit(this);
+	node->left()->visit(this);
 
 	VarType common_type = VT_INT;
 
@@ -57,19 +61,9 @@ void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	if (it != operations.end()) {
 		curBytecode()->addInsn(it->second);
 	} else {
+		cout << "UNEXPECTED KIND: " << node->kind() << endl;
 		assert(false);
-//		curBytecode()->addInsn(BC_INVALID);
 	}
-
-//	Bytecode* bytecode = curBytecode();
-//	//TODO: assumed that integers on stack
-//	switch (node->kind()) {
-//		case tADD:	bytecode->addInsn(BC_IADD); break;
-//		case tSUB:	bytecode->addInsn(BC_ISUB);	break;
-//		case tMUL:	bytecode->addInsn(BC_IMUL);	break;
-//		case tDIV:	bytecode->addInsn(BC_IDIV);	break;
-//		default:	assert(false);	break;
-//	}
 }
 
 void CodeBuilderVisitor::visitUnaryOpNode(UnaryOpNode* node) {
@@ -130,6 +124,21 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 }
 
 void CodeBuilderVisitor::visitForNode(ForNode* node) {
+	Bytecode* bytecode = curBytecode();
+	node->inExpr()->visit(this);
+	bytecode->addInsn(BC_INVALID);
+	node->body()->visit(this);
+//
+//	bytecode->addInsn(BC_JA);
+//	uint32_t jump_to_cond = bytecode->current();
+//	bytecode->addInt16(0);
+//	uint32_t body_begin = bytecode->current();
+//		node->loopBlock()->visit(this);
+//		bytecode->setInt16(jump_to_cond, bytecode->current() - jump_to_cond);
+//		node->whileExpr()->visit(this);
+//		bytecode->addInsn(BC_ILOAD0);
+//		bytecode->addInsn(BC_IFICMPNE);
+//		bytecode->addInt16(body_begin - bytecode->current());
 }
 
 void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
@@ -168,10 +177,6 @@ void CodeBuilderVisitor::visitIfNode(IfNode* node) {
 
 void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 	Scope* scope = node->scope();
-
-//	const uint16_t context = _functions.top()->id();
-//	VarScopeMap* parentScope = _varScopes.top();
-//	_varScopes.push(new VarScopeMap(context, parentScope));
 	BytecodeFunction* function = _functions.top();
 	Scope::VarIterator var_it(scope);
 	while (var_it.hasNext()) {
@@ -185,14 +190,10 @@ void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
 	}
 
 	node->visitChildren(this);
-//	delete _varScopes.top();
-//	_varScopes.pop();
 }
 
 void CodeBuilderVisitor::visitFunctionNode(FunctionNode* node) {
 	node->body()->visit(this);
-//	curBytecode()->addInsn(BC_INVALID);
-//	processFunction(node);
 
 }
 
@@ -220,7 +221,8 @@ void CodeBuilderVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 
 void CodeBuilderVisitor::visitPrintNode(PrintNode* node) {
-
+	node->visitChildren(this);
+	curBytecode()->addInsn(BC_IPRINT);
 }
 
 void CodeBuilderVisitor::pushToStack(const AstVar* var) {

@@ -13,25 +13,22 @@
 
 namespace mathvm {
 
+union ContextVar {
+    double _doubleValue;
+    int64_t _intValue;
+    const char* _stringValue;
+};
+
 class Context {
 	Context* _parent;
 	uint16_t _id;
-	vector<Var*> _variables;
+	vector<ContextVar> _variables;
 public:
 	Context(Context* parent, TranslatedFunction* function)
-			: _parent(parent), _id(function->id()) {
-		for (uint32_t i = 0; i < function->localsNumber(); ++i) {
-			VarType type = function->parameterType(i);
-			string name = function->parameterName(i);
-			_variables.push_back(new Var(type, name));
-		}
+			: _parent(parent), _id(function->id()), _variables(function->localsNumber()) {
 	}
 
 	~Context() {
-		while (!_variables.empty()) {
-			delete _variables.back();
-			_variables.pop_back();
-		}
 	}
 
 	Context* getContext(uint16_t id) {
@@ -48,9 +45,9 @@ public:
 		return _parent->getContext(id);
 	}
 
-	Var* getVar(uint16_t index) {
+	ContextVar* getVar(uint16_t index) {
 		assert(_variables.size() > index);
-		return _variables[index];
+		return &_variables[index];
 	}
 
 	uint16_t variables() const {
@@ -60,7 +57,7 @@ public:
 
 class InterpreterCodeImpl: public mathvm::Code {
 public:
-	InterpreterCodeImpl();
+	InterpreterCodeImpl(ostream& out);
 	virtual ~InterpreterCodeImpl();
     BytecodeFunction* bytecodeFunctionById(uint16_t index) const;
     BytecodeFunction* bytecodeFunctionByName(const string& name) const;
@@ -71,7 +68,7 @@ private:
     int readIntFromBytecode();
     double readDoubleFromBytecode();
 
-    int getIntFromTOS();
+    int64_t getIntFromTOS();
     double getDoubleFromTOS();
     void pushIntToTOS(int value);
     void pushDoubleToTOS(double value);
@@ -81,17 +78,18 @@ private:
     void storeIntVar(uint32_t index);
     void storeDoubleVar(uint32_t index);
 
-    void jump();
+    template<class Comparator>
+    void jump(Comparator comparator) {
+    	if (comparator(getIntFromTOS(), getIntFromTOS())) {
+    		_ip += _bp->getInt16(_ip);
+    	} else {
+    		_ip += 2;
+    	}
+    }
 
 private:
 
-    union StackUnit {
-        double _doubleValue;
-        int64_t _intValue;
-        const char* _stringValue;
-    };
-
-    std::stack<StackUnit> _stack;
+    std::stack<ContextVar> _stack;
 	Bytecode* _bp;
 	uint16_t _ip;
 	Context* _context;

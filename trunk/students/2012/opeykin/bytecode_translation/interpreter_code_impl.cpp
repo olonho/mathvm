@@ -9,7 +9,7 @@
 
 namespace mathvm {
 
-InterpreterCodeImpl::InterpreterCodeImpl() : _out(cout) {
+InterpreterCodeImpl::InterpreterCodeImpl(ostream& out) : _out(out) {
 }
 
 InterpreterCodeImpl::~InterpreterCodeImpl() {
@@ -41,8 +41,8 @@ double InterpreterCodeImpl::readDoubleFromBytecode() {
 	return result;
 }
 
-int InterpreterCodeImpl::getIntFromTOS() {
-	int value = this->_stack.top()._intValue;
+int64_t InterpreterCodeImpl::getIntFromTOS() {
+	int64_t value = this->_stack.top()._intValue;
 	_stack.pop();
 	return value;
 }
@@ -54,43 +54,33 @@ double InterpreterCodeImpl::getDoubleFromTOS() {
 }
 
 void InterpreterCodeImpl::pushIntToTOS(int value) {
-	StackUnit unit;
+	ContextVar unit;
 	unit._intValue = value;
 	_stack.push(unit);
 }
 
 void InterpreterCodeImpl::pushDoubleToTOS(double value) {
-	StackUnit unit;
+	ContextVar unit;
 	unit._doubleValue = value;
 	_stack.push(unit);
 }
 
 void InterpreterCodeImpl::loadIntVar(uint32_t index) {
-	StackUnit unit;
-	Var* var = _context->getVar(index);
-	unit._intValue = var->getIntValue();
-	_stack.push(unit);
+	_stack.push(*_context->getVar(index));
 }
 
 void InterpreterCodeImpl::loadDoubleVar(uint32_t index) {
-	StackUnit unit;
-	Var* var = _context->getVar(index);
-	unit._doubleValue = var->getDoubleValue();
-	_stack.push(unit);
+	_stack.push(*_context->getVar(index));
 }
 
 void InterpreterCodeImpl::storeIntVar(uint32_t index) {
-	Var* var = _context->getVar(index);
-	var->setIntValue(getIntFromTOS());
+	ContextVar* var = _context->getVar(index);
+	var->_intValue = getIntFromTOS();
 }
 
 void InterpreterCodeImpl::storeDoubleVar(uint32_t index) {
-	Var* var = _context->getVar(index);
-	var->setDoubleValue(getDoubleFromTOS());
-}
-
-void InterpreterCodeImpl::jump() {
-	_ip += _bp->getInt16(_ip);
+	ContextVar* var = _context->getVar(index);
+	var->_doubleValue = getDoubleFromTOS();
 }
 
 Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
@@ -105,7 +95,7 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 
 	while (true) {
 		Instruction instruction = _bp->getInsn(_ip);
-		_ip += sizeof(instruction);
+		_ip += sizeof(int8_t);
 		switch(instruction) {
 			case BC_INVALID: return new Status("Invalid instruction"); break;
 			case BC_DLOAD: pushDoubleToTOS(readDoubleFromBytecode()); break;
@@ -129,8 +119,8 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_IMOD: pushIntToTOS(getIntFromTOS() % getIntFromTOS()); break;
 			case BC_DNEG: pushDoubleToTOS(-getDoubleFromTOS()); break;
 			case BC_INEG: pushIntToTOS(-getIntFromTOS()); break;
-			case BC_IPRINT: _out << getIntFromTOS(); break;
-			case BC_DPRINT:_out << getDoubleFromTOS(); break;
+			case BC_IPRINT: _out << getIntFromTOS() << endl; break;
+			case BC_DPRINT:_out << getDoubleFromTOS() << endl; break;
 			case BC_SPRINT: break;
 			case BC_I2D: pushDoubleToTOS((double)getIntFromTOS()); break;
 			case BC_D2I: pushIntToTOS((int)getDoubleFromTOS()); break;
@@ -175,13 +165,13 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_STORECTXSVAR: break;
 			case BC_DCMP: break;
 			case BC_ICMP: break;
-			case BC_JA: jump(); break;
-			case BC_IFICMPNE: if (getIntFromTOS() != getIntFromTOS()) jump(); break;
-			case BC_IFICMPE: if (getIntFromTOS() == getIntFromTOS()) jump(); break;
-			case BC_IFICMPG: if (getIntFromTOS() > getIntFromTOS()) jump(); break;
-			case BC_IFICMPGE: if (getIntFromTOS() >= getIntFromTOS()) jump(); break;
-			case BC_IFICMPL: if (getIntFromTOS() < getIntFromTOS()) jump(); break;
-			case BC_IFICMPLE: if (getIntFromTOS() <= getIntFromTOS()) jump(); break;
+			case BC_JA: _ip += _bp->getInt16(_ip); break;
+			case BC_IFICMPNE: jump(not_equal_to<int64_t>()); break;
+			case BC_IFICMPE: jump(equal_to<int64_t>());; break;
+			case BC_IFICMPG: jump(greater<int64_t>()); break;
+			case BC_IFICMPGE: jump(greater_equal<int64_t>()); break;
+			case BC_IFICMPL: jump(less<int64_t>()); break;
+			case BC_IFICMPLE: jump(less_equal<int64_t>()); break;
 			case BC_DUMP: break;
 			case BC_STOP: /*TODO: some cleanup here?*/return 0;
 			case BC_CALL: break;
