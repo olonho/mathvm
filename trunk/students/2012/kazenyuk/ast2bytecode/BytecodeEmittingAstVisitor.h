@@ -67,11 +67,50 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //        node->right()->visit(this);
 //        out << ")";
         node->right()->visit(this);
+        VarType right_type = m_latest_type;
         node->left()->visit(this);
+        VarType left_type = m_latest_type;
+
+        if (right_type != left_type) {
+            std::cerr << "Error: Type mismatch: left is "
+                      << typeToName(left_type)
+                      << " but right is"
+                      << typeToName(right_type)
+                      << std::endl;
+        }
 
         switch (node->kind()) {
             case tADD: {    // "+"
-                m_bytecode->addInsn(BC_IADD);
+                Instruction instr = BC_INVALID;
+                switch (m_latest_type) {
+                    case VT_INVALID:
+                        instr = BC_INVALID;
+                        std::cerr << "Error: Invalid AST var type '"
+                                  << m_latest_type
+                                  << "'"
+                                  << std::endl;
+                        break;
+                    case VT_DOUBLE:
+                        instr = BC_DADD;
+                        break;
+                    case VT_INT:
+                        instr = BC_IADD;
+                        break;
+                    case VT_VOID:
+                        instr = BC_INVALID;
+                        break;
+                    case VT_STRING:
+                        instr = BC_INVALID;
+                        break;
+                    default:
+                        instr = BC_INVALID;
+                        std::cerr << "Error: Unknown AST var type '"
+                                  << m_latest_type
+                                  << "'"
+                                  << std::endl;
+                        break;
+                }
+                m_bytecode->addInsn(instr);
                 break;
             }
             case tSUB: {    // "-"
@@ -147,19 +186,22 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
     }
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
-        uint16_t string_id = m_code->makeStringConstant(escape_all(node->literal()));
-//        uint16_t string_id = m_code->makeStringConstant(node->literal());
+//        uint16_t string_id = m_code->makeStringConstant(escape_all(node->literal()));
+        uint16_t string_id = m_code->makeStringConstant(node->literal());
 
         m_bytecode->addInsn(BC_SLOAD);
         m_bytecode->addUInt16(string_id);
+        m_latest_type = VT_STRING;
     }
     virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
         m_bytecode->addInsn(BC_DLOAD);
         m_bytecode->addTyped(node->literal());
+        m_latest_type = VT_DOUBLE;
     }
     virtual void visitIntLiteralNode(IntLiteralNode* node) {
         m_bytecode->addInsn(BC_ILOAD);
         m_bytecode->addTyped(node->literal());
+        m_latest_type = VT_INT;
     }
     virtual void visitLoadNode(LoadNode* node) {
 //        out << node->var()->name();
@@ -190,6 +232,8 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
                           << std::endl;
                 break;
         }
+        m_latest_type = node->var()->type();
+
         m_bytecode->addInsn(instr);
         uint16_t var_id = 0;    //TODO: get from the scope (by node->var()->name())
         m_bytecode->addUInt16(var_id);
@@ -221,6 +265,8 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
                 instr = BC_INVALID;
                 break;
         }
+        m_latest_type = node->var()->type();
+
         m_bytecode->addInsn(instr);
         uint16_t var_id = 0;    //TODO: get from the scope (by node->var()->name())
         m_bytecode->addUInt16(var_id);
@@ -303,7 +349,37 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //        out << "return";
        if (node->returnExpr()) {
            node->returnExpr()->visit(this);
-           m_bytecode->addInsn(BC_STOREDVAR0);   // move return value to VAR0
+
+           Instruction instr;
+           switch (m_latest_type) {
+               case VT_INVALID:
+                   instr = BC_INVALID;
+                   std::cerr << "Error: Invalid AST var type '"
+                             << m_latest_type
+                             << "'"
+                             << std::endl;
+                   break;
+               case VT_VOID:
+                   instr = BC_INVALID;
+                   break;
+               case VT_DOUBLE:
+                   instr = BC_STOREDVAR0;
+                   break;
+               case VT_INT:
+                   instr = BC_STOREIVAR0;
+                   break;
+               case VT_STRING:
+                   instr = BC_STORESVAR0;
+                   break;
+               default:
+                   instr = BC_INVALID;
+                   std::cerr << "Error: Unknown AST var type '"
+                             << m_latest_type
+                             << "'"
+                             << std::endl;
+                   break;
+           }
+           m_bytecode->addInsn(instr);   // move return value to VAR0
        }
         // return address is on top the stack now
         m_bytecode->addInsn(BC_RETURN);
@@ -370,41 +446,45 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
     virtual void visitNativeCallNode(NativeCallNode* node) {
         //TODO:
         // move function return value from VAR0 on TOS
-        m_bytecode->addInsn(BC_LOADDVAR0);
+//        m_bytecode->addInsn(BC_LOADDVAR0);
     }
     virtual void visitPrintNode(PrintNode* node) {
         // push operands on top the stack in the right-to-left order
         uint32_t parameters_number = node->operands();
+        std::vector<VarType> parameter_types;
+        parameter_types.reserve(parameters_number);
         if (parameters_number > 0) {
             uint32_t last_parameter = parameters_number - 1;
             for (uint32_t i = last_parameter; i > 0; --i) {
                 node->operandAt(i)->visit(this);
+                parameter_types.push_back(m_latest_type);
             }
             node->operandAt(0)->visit(this);
+            parameter_types.push_back(m_latest_type);
         }
         // emit needed number of print instructions
         for (uint32_t i = 0; i < parameters_number; ++i) {
-            m_bytecode->addInsn(BC_IPRINT);
-//            switch (node->operandAt(i)->type) {
-//                case VT_INVALID:
-//                    m_bytecode->addInsn(BC_INVALID);
-//                    break;
-//                case VT_VOID:
-//                    // do nothing
-//                    break;
-//                case VT_DOUBLE:
-//                    m_bytecode->addInsn(BC_DPRINT);
-//                    break;
-//                case VT_INT:
-//                    m_bytecode->addInsn(BC_IPRINT);
-//                    break;
-//                case VT_STRING:
-//                    m_bytecode->addInsn(BC_SPRINT);
-//                    break;
-//                default:
-//                    m_bytecode->addInsn(BC_INVALID);
-//                    break;
-//            }
+//            m_bytecode->addInsn(BC_IPRINT);
+            switch (parameter_types[parameters_number - i - 1]) {
+                case VT_INVALID:
+                    m_bytecode->addInsn(BC_INVALID);
+                    break;
+                case VT_VOID:
+                    // do nothing
+                    break;
+                case VT_DOUBLE:
+                    m_bytecode->addInsn(BC_DPRINT);
+                    break;
+                case VT_INT:
+                    m_bytecode->addInsn(BC_IPRINT);
+                    break;
+                case VT_STRING:
+                    m_bytecode->addInsn(BC_SPRINT);
+                    break;
+                default:
+                    m_bytecode->addInsn(BC_INVALID);
+                    break;
+            }
         }
     }
 
@@ -439,6 +519,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
     Bytecode* m_bytecode;
     Code* m_code;
     Scope* m_scope;
+    VarType m_latest_type;
 
     static const uint8_t InsnSize[];
 

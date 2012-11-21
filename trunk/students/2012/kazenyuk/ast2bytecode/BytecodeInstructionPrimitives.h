@@ -75,7 +75,7 @@ private:
         // :
         out->addInsn(BC_ILOAD0);    // push "0"
         out->addInsn(BC_JA);
-        out->addUInt16(InsnSize[BC_ILOAD1]);
+        out->addUInt16(jump_offset_size + InsnSize[BC_ILOAD1]);
         // :
         out->addInsn(BC_ILOAD1);    // push "1"
 
