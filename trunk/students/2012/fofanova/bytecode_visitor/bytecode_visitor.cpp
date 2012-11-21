@@ -14,9 +14,13 @@ void ByteCodeVisitor::visitBlockNode(BlockNode *node) {
     while(func.hasNext())
 		{
 			AstFunction* function= func.next();
-      BytecodeFunction* bytecodeFunction = new BytecodeFunction(function);
-      code->addFunction(bytecodeFunction);
+      		BytecodeFunction* bytecodeFunction = new BytecodeFunction(function);
+      		code->addFunction(bytecodeFunction);
+      		uint32_t i = bytecode->length();
 			function->node()->visit(this);
+			for(i+=3/*JA*/;i < bytecode->length(); ++i) {
+				bytecodeFunction->bytecode()->add(bytecode->get(i));
+			}
 		}
     for (uint32_t i = 0; i < node->nodes(); ++i)
     {
@@ -88,15 +92,18 @@ void ByteCodeVisitor::visitLoadNode(LoadNode *node) {
 
 void ByteCodeVisitor::visitIfNode(IfNode *node) {
     node->ifExpr()->visit(this);
-		Label else_label(bytecode);
-		Label end(bytecode);
-		bytecode->addInsn(BC_ILOAD1);
-		bytecode->addBranch(BC_IFICMPNE, else_label);
+	Label else_label(bytecode);
+	Label end(bytecode);
+	bytecode->addInsn(BC_ILOAD1);
+	bytecode->addBranch(BC_IFICMPNE, else_label);
     node->thenBlock()->visit(this);
-		bytecode->addBranch(BC_JA,end);
-		bytecode->bind(else_label);
-    node->elseBlock()->visit(this);
-		bytecode->bind(end);
+	bytecode->addBranch(BC_JA,end);
+	bytecode->bind(else_label);
+	if (node->elseBlock())
+	{	
+    	node->elseBlock()->visit(this);
+    }
+	bytecode->bind(end);
 }
 
 void ByteCodeVisitor::visitCallNode(CallNode *node) {
@@ -135,7 +142,7 @@ void ByteCodeVisitor::visitCallNode(CallNode *node) {
 
 void ByteCodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
 	bytecode->addInsn(BC_DLOAD);
-	bytecode->addInt16(node->literal());
+	bytecode->addDouble(node->literal());
 	TOStype = VT_DOUBLE;
 }
 
@@ -261,29 +268,31 @@ void ByteCodeVisitor::visitWhileNode(WhileNode *node) {
 
 void ByteCodeVisitor::visitIntLiteralNode(IntLiteralNode *node) {
 	bytecode->addInsn(BC_ILOAD);
-	bytecode->addInt16(node->literal());
+	bytecode->addInt64(node->literal());
 	TOStype = VT_INT;
 }
 
 void ByteCodeVisitor::visitFunctionNode(FunctionNode *node) {
     if(node->name() == "<top>")
     {
-			node->body()->visit(this);
-			return;
+		node->body()->visit(this);
+		return;
     }
+	Label end(bytecode);
+	bytecode->addBranch(BC_JA, end);
     for (uint32_t j = 0; j < node->parametersNumber(); j++) {
-				vars[node->parameterName(j)] = node->parameterType(j);
+		vars[node->parameterName(j)] = node->parameterType(j);
     }
     if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode())
     {
-				node->body()->nodeAt(0)->visit(this);
+		node->body()->nodeAt(0)->visit(this);
     }
     else
     {
     	node->body()->visit(this);
     }
-		code->addFunction(code->functionByName(node->name()));
-		TOStype = node->returnType();
+	TOStype = node->returnType();
+	bytecode->bind(end);
 }
 
 void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
@@ -526,7 +535,9 @@ void ByteCodeVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 }
 
 void ByteCodeVisitor::visitReturnNode(ReturnNode *node) {
-		node->returnExpr()->visit(this);
+	if(node->returnExpr()) {
+		node->returnExpr()->visit(this);		
+	}
     bytecode->addInsn(BC_RETURN);
 }
 

@@ -16,7 +16,7 @@ class ByteCodeVisitor : public AstVisitor {
 		std::map<std::string, uint16_t> vars;
 		uint16_t last_id;
 public:
-    ByteCodeVisitor(Code* c): code(c), last_id(0) {}
+    ByteCodeVisitor(Code* c, Bytecode* b): code(c), bytecode(b), last_id(0) {}
     virtual ~ByteCodeVisitor() {}
     
     virtual void visitBinaryOpNode(BinaryOpNode *node);
