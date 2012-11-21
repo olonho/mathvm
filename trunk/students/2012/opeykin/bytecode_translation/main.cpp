@@ -51,19 +51,21 @@ int main(int argc, char** argv) {
     visitor.processFunction(parser.top());
     code->disassemble();
 
-    vector<Var*> vars;
-    cout << endl << "---------------------" << endl;
-    Status* exec_status = code->execute(vars);
+    if (argc == 2) {
+		vector<Var*> vars;
+		cout << endl << "---------------------" << endl;
+		Status* exec_status = code->execute(vars);
 
-    if (exec_status) {
-		cout << exec_status->getError() << endl;
+		if (exec_status) {
+			cout << exec_status->getError() << endl;
+			delete exec_status;
+			return 1;
+		} else {
+			cout << endl;
+		}
+
 		delete exec_status;
-		return 1;
-    } else {
-    	cout << endl;
     }
-
-    delete exec_status;
     delete status;
 
     return 0;

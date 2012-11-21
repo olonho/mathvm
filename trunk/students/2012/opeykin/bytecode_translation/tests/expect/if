@@ -10,3 +10,4 @@ function [0] void <top>()
 44: JA 56
 47: ILOAD 3
 56: ILOAD 4
+65: STOP

@@ -12,7 +12,7 @@ rm -rf $OUTPUT_DIR
 mkdir $OUTPUT_DIR
 
 for FNAME in $(ls $INPUT_DIR) ; do
-    $BIN_DIR/bytecode_translation $INPUT_DIR/$FNAME > $OUTPUT_DIR/$FNAME
+    $BIN_DIR/bytecode_translation $INPUT_DIR/$FNAME "test" > $OUTPUT_DIR/$FNAME
 done
 
 diff -qr --exclude=".svn" $OUTPUT_DIR $EXPECT_DIR
