@@ -1,8 +1,10 @@
 #include <iostream>
 #include <string>
+#include <sstream>
 #include "parser.h"
 #include "ast.h"
 #include "bytecode_visitor.h"
+#include "interpreter.h"
 
 using namespace mathvm;
 using namespace std;
@@ -29,11 +31,16 @@ int main(int argc, const char * argv[])
         cout << pStatus->getError();
         return 1;
     }
-		Code* code = new MyCode();
-		BytecodeFunction * main = new BytecodeFunction(parser.top());
-		code->addFunction(main);
-		parser.top()->node()->visit(new ByteCodeVisitor(code));
-		main->bytecode()->add(BC_STOP);
+	Code* code = new MyCode();
+	BytecodeFunction * main2 = new BytecodeFunction(parser.top());
+	code->addFunction(main2);
+	parser.top()->node()->visit(new ByteCodeVisitor(code, main2->bytecode()));
+	main2->bytecode()->add(BC_STOP);
+    interpreter interp(code);
+    std::cout << "-----SOURCE-------\n";
     code->disassemble(std::cout);
+    std::cout << "------------------\n";
+    interp.executeFunction(main2);
+    std::cout << "\n----------------\n";
     return 0;
 } 
