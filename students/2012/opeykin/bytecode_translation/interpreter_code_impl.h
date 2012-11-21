@@ -21,18 +21,36 @@ union ContextVar {
 
 class Context {
 	Context* _parent;
-	uint16_t _id;
+	uint16_t _ip;
+	BytecodeFunction* _function;
 	vector<ContextVar> _variables;
 public:
-	Context(Context* parent, TranslatedFunction* function)
-			: _parent(parent), _id(function->id()), _variables(function->localsNumber()) {
+	Context(Context* parent, BytecodeFunction* function)
+			: _parent(parent), _ip(0), _function(function),
+			  _variables(function->localsNumber() + function->parametersNumber()) {
 	}
 
 	~Context() {
 	}
 
+	uint16_t ip() const {
+		return _ip;
+	}
+
+	void setIp(uint16_t ip) {
+		_ip = ip;
+	}
+
+	Bytecode* bytecode() {
+		return _function->bytecode();
+	}
+
+	Context* parent() {
+		return _parent;
+	}
+
 	Context* getContext(uint16_t id) {
-		if (id == _id) {
+		if (id == _function->id()) {
 			return this;
 		}
 
@@ -64,8 +82,8 @@ public:
     virtual Status* execute(vector<Var*>& vars);
 
 private:
-    uint16_t readUInt16FromBytecode();
-    int readIntFromBytecode();
+    uint16_t nextUInt16();
+    int64_t nextInt();
     double readDoubleFromBytecode();
 
     int64_t getIntFromTOS();
@@ -77,6 +95,7 @@ private:
     void loadDoubleVar(uint32_t index);
     void storeIntVar(uint32_t index);
     void storeDoubleVar(uint32_t index);
+    void callFunction(uint32_t id);
 
     template<class Comparator>
     void jump(Comparator comparator) {
@@ -86,6 +105,8 @@ private:
     		_ip += 2;
     	}
     }
+
+    void returnFromFunction();
 
 private:
 

@@ -23,13 +23,13 @@ BytecodeFunction* InterpreterCodeImpl::bytecodeFunctionByName(const string& name
 	return static_cast<BytecodeFunction*>(functionByName(name));
 }
 
-uint16_t InterpreterCodeImpl::readUInt16FromBytecode() {
+uint16_t InterpreterCodeImpl::nextUInt16() {
 	uint16_t result = _bp->getUInt16(_ip);
 	_ip += sizeof(uint16_t);
 	return result;
 }
 
-int InterpreterCodeImpl::readIntFromBytecode() {
+int64_t InterpreterCodeImpl::nextInt() {
 	int64_t result = _bp->getInt64(_ip);
 	_ip += sizeof(int64_t);
 	return result;
@@ -83,15 +83,30 @@ void InterpreterCodeImpl::storeDoubleVar(uint32_t index) {
 	var->_doubleValue = getDoubleFromTOS();
 }
 
-Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
-	BytecodeFunction* top = bytecodeFunctionById(0);
-	if (top == 0) {
-		return new Status("No function to execute");
+void InterpreterCodeImpl::callFunction(uint32_t id) {
+	if (_context != 0) {
+		_context->setIp(_ip);
 	}
-	_context = new Context(0, top);
-	_bp = top->bytecode();
-	_ip = 0;
 
+	BytecodeFunction* function = bytecodeFunctionById(id);
+	_context = new Context(_context, function);
+	_bp = function->bytecode();
+	_ip = 0;
+//	for (uint16_t i = 0; i < function->parametersNumber(); ++i) {
+//
+//	}
+}
+
+void InterpreterCodeImpl::returnFromFunction() {
+	Context* tmp = _context;
+	_context = _context->parent();
+	delete tmp;
+	_ip = _context->ip();
+	_bp = _context->bytecode();
+}
+
+Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
+	callFunction(0); // top function
 
 	while (true) {
 		Instruction instruction = _bp->getInsn(_ip);
@@ -99,7 +114,7 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 		switch(instruction) {
 			case BC_INVALID: return new Status("Invalid instruction"); break;
 			case BC_DLOAD: pushDoubleToTOS(readDoubleFromBytecode()); break;
-			case BC_ILOAD: pushIntToTOS(readIntFromBytecode()); break;
+			case BC_ILOAD: pushIntToTOS(nextInt()); break;
 			case BC_SLOAD: break;
 			case BC_DLOAD0: pushDoubleToTOS(0.0); break;
 			case BC_ILOAD0: pushIntToTOS(0); break;
@@ -151,11 +166,11 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_STORESVAR1: break;
 			case BC_STORESVAR2: break;
 			case BC_STORESVAR3: break;
-			case BC_LOADDVAR: loadDoubleVar(readUInt16FromBytecode()); break;
-			case BC_LOADIVAR: loadIntVar(readUInt16FromBytecode()); break;
+			case BC_LOADDVAR: loadDoubleVar(nextUInt16()); break;
+			case BC_LOADIVAR: loadIntVar(nextUInt16()); break;
 			case BC_LOADSVAR: break;
-			case BC_STOREDVAR: storeDoubleVar(readUInt16FromBytecode()); break;
-			case BC_STOREIVAR: storeIntVar(readUInt16FromBytecode());break;
+			case BC_STOREDVAR: storeDoubleVar(nextUInt16()); break;
+			case BC_STOREIVAR: storeIntVar(nextUInt16());break;
 			case BC_STORESVAR: break;
 			case BC_LOADCTXDVAR: break;
 			case BC_LOADCTXIVAR: break;
@@ -174,9 +189,9 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_IFICMPLE: jump(less_equal<int64_t>()); break;
 			case BC_DUMP: break;
 			case BC_STOP: /*TODO: some cleanup here?*/return 0;
-			case BC_CALL: break;
+			case BC_CALL: callFunction(nextUInt16()); break;
 			case BC_CALLNATIVE: break;
-			case BC_RETURN: break;
+			case BC_RETURN: returnFromFunction(); break;
 			case BC_BREAK: break;
 			default: return new Status("unknown byte");
 		}

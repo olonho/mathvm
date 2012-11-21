@@ -47,8 +47,9 @@ public:
 		}
 	}
 
-	void add(Key key) {
-		_map.insert(make_pair(key, _nextId++));
+	uint16_t add(Key key) {
+		_map.insert(make_pair(key, _nextId));
+		return _nextId++;
 	}
 
 	uint16_t nextId() const {
@@ -98,6 +99,7 @@ private:
 	}
 
 	void pushToStack(const AstVar* var);
+	void storeLocalVar(VarType type, uint16_t id);
 };
 
 } /* namespace mathvm */
