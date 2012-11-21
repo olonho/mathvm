@@ -3,19 +3,19 @@ VM_ROOT     = ../../../..
 USER_CFLAGS = 
 USER_OBJ    = \
         $(OBJ)/main$(OBJ_SUFF) \
-        $(OBJ)/interpreterimpl$(OBJ_SUFF) \
-        $(OBJ)/typechecker$(OBJ_SUFF) \
-        $(OBJ)/codegen$(OBJ_SUFF) \
-        $(OBJ)/asttranslator$(OBJ_SUFF)
+        $(OBJ)/bcinterpreter$(OBJ_SUFF) \
+        $(OBJ)/typer$(OBJ_SUFF) \
+        $(OBJ)/generator$(OBJ_SUFF) \
+        $(OBJ)/bccode$(OBJ_SUFF)
 
 # i don't need AsmJit
 NO_JIT      = 1
 
 include $(VM_ROOT)/common.mk
 
-ASTCHECKER = $(BIN)/astchecker
+INTERPRETER = $(BIN)/interpreter
 
-all: $(ASTCHECKER)
+all: $(INTERPRETER)
 
-$(ASTCHECKER): $(OUT) $(USER_OBJ) $(MATHVM_OBJ)
+$(INTERPRETER): $(OUT) $(USER_OBJ) $(MATHVM_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ)
