@@ -102,6 +102,8 @@ private:
 	void storeLocalVar(VarType type, uint16_t id);
 	void addInsn(Instruction instruction);
 	void addUInt16(uint16_t value);
+
+	void dummyCond(AstNode* cond, Label& label);
 };
 
 } /* namespace mathvm */
