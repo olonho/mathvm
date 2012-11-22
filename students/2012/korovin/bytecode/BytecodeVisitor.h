@@ -36,13 +36,13 @@ public:
 	BytecodeVisitor(AstFunction* top, Code* code);
 	void visit();
 	virtual ~BytecodeVisitor();
-
-
+    void store(uint16_t functionId, uint16_t id, VarType type);
 
 #define VISITOR_FUNCTION(type, name)            \
     virtual void visit##type(type* node);
 
     FOR_NODES(VISITOR_FUNCTION)
+
 #undef VISITOR_FUNCTION
 };
 
