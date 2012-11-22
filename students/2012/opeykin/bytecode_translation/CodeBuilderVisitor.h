@@ -100,6 +100,7 @@ private:
 
 	void pushToStack(const AstVar* var);
 	void storeLocalVar(VarType type, uint16_t id);
+	void loadLocalVar(VarType type, uint16_t id);
 	void addInsn(Instruction instruction);
 	void addUInt16(uint16_t value);
 
