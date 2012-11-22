@@ -12,6 +12,13 @@ int length(Instruction insn) {
     return 1;
 }
 
+string str(Instruction insn) {
+    #define OPERATOR_STR(b, d, l) if(BC_##b == insn) return #b;
+        FOR_BYTECODES(OPERATOR_STR)
+    #undef OPERATOR_STr
+    return "BC_STOP";
+}
+
 class interpreter
 {
 private:
@@ -63,7 +70,6 @@ void interpreter::executeFunction(BytecodeFunction* function)
 {
     Bytecode* bytecode = function->bytecode();
     uint32_t index = 0;
-    cout << "len " << bytecode->length() << endl;
     while (index < bytecode->length())
     {
         Instruction insn = bytecode->getInsn(index);
@@ -93,7 +99,6 @@ void interpreter::executeFunction(BytecodeFunction* function)
             {
                 int id = bytecode->getInt16(index + 1);
                 BytecodeFunction *fun = (BytecodeFunction *)code->functionById(id);
-                cout << "calling " << fun->name() << " with id " << id << endl;  
                 executeFunction(fun); 
                 break;
             }
@@ -407,20 +412,22 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_I2D:
             {
                 stack.back().second = d;
-                doubles.push_back(ints[stack.back().first]);
+                doubles.push_back((double)ints[stack.back().first]);
                 stack.back().first = doubles.size() - 1;
                 break;
             }
             case BC_D2I:
             {
                 stack.back().second = i;
-                ints.push_back(doubles[stack.back().first]);
+                ints.push_back((int)doubles[stack.back().first]);
                 stack.back().first = ints.size() - 1;
                 break;
             }
             case BC_S2I:
             {
-                stack.back().first = atoi(code->constantById(strs[stack.back().first]).c_str());  
+                int val = atoi(code->constantById(strs[stack.back().first]).c_str());
+                ints.push_back(val);
+                stack.back().first = ints.size() - 1;  
                 stack.back().second = i;
                 break;
             }

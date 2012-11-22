@@ -13,6 +13,7 @@ class ByteCodeVisitor : public AstVisitor {
 		Code* code;
 		Bytecode* bytecode;
 		VarType TOStype; 
+        VarType UOStype;
 		std::map<std::string, uint16_t> vars;
 		uint16_t last_id;
 public:
@@ -35,6 +36,9 @@ public:
     virtual void visitCallNode(CallNode *node);
     virtual void visitNativeCallNode(NativeCallNode *node);
     virtual void visitPrintNode(PrintNode *node);
+    void castTwoOperands(bool onlyInt);
+    void castTOSToInt();
+    void castTOSToDouble();
 };
 
 #endif

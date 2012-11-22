@@ -4,6 +4,100 @@
 using namespace std;
 using namespace mathvm;
 
+void ByteCodeVisitor::castTOSToInt() {
+	if (TOStype == VT_INT)
+	{
+		return;
+	}
+	else if (TOStype == VT_DOUBLE)
+	{
+		bytecode->addInsn(BC_D2I);
+	}
+	else if (TOStype == VT_STRING)
+	{
+		bytecode->addInsn(BC_S2I);
+	}
+	TOStype = VT_INT;
+
+}
+
+void ByteCodeVisitor::castTOSToDouble() {
+	if (TOStype == VT_DOUBLE)
+	{
+		return;
+	}
+	else if (TOStype == VT_INT)
+	{
+		bytecode->addInsn(BC_I2D);
+	}
+	else if (TOStype == VT_STRING)
+	{
+		bytecode->addInsn(BC_S2I);
+		bytecode->addInsn(BC_I2D);
+	}
+	TOStype = VT_DOUBLE;
+
+}
+
+void ByteCodeVisitor::castTwoOperands(bool onlyInt) {
+	if (!TOStype || !UOStype)
+	{
+		std::cout << "Can't process binary operation!";	
+	}
+	if ((UOStype == VT_INT && TOStype == VT_INT) || (!onlyInt && UOStype == VT_DOUBLE && TOStype == VT_DOUBLE))
+	{
+		return;
+	}
+	if (!onlyInt && (TOStype == VT_DOUBLE || UOStype == VT_DOUBLE))
+	{
+		VarType toChange = TOStype;
+		if (TOStype == VT_DOUBLE)
+		{
+			bytecode->addInsn(BC_SWAP);
+			toChange = UOStype;
+		}
+		if (toChange == VT_STRING)
+		{
+			bytecode->addInsn(BC_S2I);
+		} 
+		bytecode->addInsn(BC_I2D);
+		if (TOStype == VT_DOUBLE)
+		{
+			bytecode->addInsn(BC_SWAP);
+		}
+		TOStype = VT_DOUBLE;
+		UOStype = VT_DOUBLE;
+		return;
+	} 
+	else
+	{
+		if (TOStype == VT_STRING)
+		{
+			bytecode->addInsn(BC_S2I);
+		}
+		if (TOStype == VT_DOUBLE)
+		{
+			bytecode->addInsn(BC_D2I);
+		}
+		if (UOStype != VT_INT)
+		{
+			bytecode->addInsn(BC_SWAP);
+			if (UOStype == VT_STRING)
+			{
+				bytecode->addInsn(BC_S2I);
+			}
+			if (UOStype == VT_DOUBLE)
+			{
+				bytecode->addInsn(BC_D2I);
+			}
+			bytecode->addInsn(BC_SWAP);
+		}
+		TOStype = VT_INT;
+		UOStype = VT_INT;
+	}
+
+}
+
 void ByteCodeVisitor::visitBlockNode(BlockNode *node) {
 	map<string, int> before;
     Scope::VarIterator var(node->scope());
@@ -19,7 +113,6 @@ void ByteCodeVisitor::visitBlockNode(BlockNode *node) {
 		{
 			AstFunction* function= func.next();
       		BytecodeFunction* bytecodeFunction = new BytecodeFunction(function);
-      		cout << "addFunction " << bytecodeFunction->name() << endl; 
       		code->addFunction(bytecodeFunction);
       		uint32_t i = bytecode->length();
 			function->node()->visit(this);
@@ -71,6 +164,7 @@ void ByteCodeVisitor::visitLoadNode(LoadNode *node) {
 		{
 			case VT_INT:
 			{
+				UOStype = TOStype;
 				TOStype = VT_INT;
 				bytecode->addInsn(BC_LOADIVAR);
 				bytecode->addUInt16(vars[node->var()->name()]);
@@ -78,6 +172,7 @@ void ByteCodeVisitor::visitLoadNode(LoadNode *node) {
 			}
 			case VT_DOUBLE:
 			{
+				UOStype = TOStype;
 				TOStype = VT_DOUBLE;
 				bytecode->addInsn(BC_LOADDVAR);
 				bytecode->addUInt16(vars[node->var()->name()]);
@@ -85,6 +180,7 @@ void ByteCodeVisitor::visitLoadNode(LoadNode *node) {
 			}
 			case VT_STRING:
 			{
+				UOStype = TOStype;
 				TOStype = VT_STRING;
 				bytecode->addInsn(BC_LOADSVAR);
 				bytecode->addUInt16(vars[node->var()->name()]);
@@ -143,8 +239,7 @@ void ByteCodeVisitor::visitCallNode(CallNode *node) {
 					}
 				}	
     }
-    cout << "-" << node->name() << endl;
-    cout << "--" << code->functionByName(node->name()) << endl;
+    UOStype = TOStype;
     TOStype = code->functionByName(node->name())->returnType();
 	bytecode->addInsn(BC_CALL);
 	bytecode->addUInt16(code->functionByName(node->name())->id());
@@ -153,6 +248,7 @@ void ByteCodeVisitor::visitCallNode(CallNode *node) {
 void ByteCodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
 	bytecode->addInsn(BC_DLOAD);
 	bytecode->addDouble(node->literal());
+    UOStype = TOStype;
 	TOStype = VT_DOUBLE;
 }
 
@@ -166,6 +262,7 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 				{
 					case VT_INT:
 					{
+						castTOSToInt();
 						bytecode->addInsn(BC_LOADIVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
 						bytecode->addInsn(BC_SWAP);
@@ -176,6 +273,7 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 					}
 					case VT_DOUBLE:
 					{
+						castTOSToDouble();
 						bytecode->addInsn(BC_LOADDVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
 						bytecode->addInsn(BC_SWAP);
@@ -197,6 +295,7 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 				{
 					case VT_INT:
 					{
+						castTOSToInt();
 						bytecode->addInsn(BC_LOADIVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
 						bytecode->addInsn(BC_SWAP);
@@ -207,6 +306,7 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 					}
 					case VT_DOUBLE:
 					{
+						castTOSToDouble();
 						bytecode->addInsn(BC_LOADDVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
 						bytecode->addInsn(BC_SWAP);
@@ -228,18 +328,24 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 				{
 					case VT_INT:
 					{
+						castTOSToInt();
 						bytecode->addInsn(BC_STOREIVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
 						break;
 					}
 					case VT_DOUBLE:
 					{
+						castTOSToDouble();
 						bytecode->addInsn(BC_STOREDVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
 						break;
 					}
 					case VT_STRING:
 					{
+						if (TOStype != VT_STRING)
+						{
+							std::cout << "Undefined behaviour! Can't cast to string!" << endl;
+						}
 						bytecode->addInsn(BC_STORESVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
 						break;
@@ -261,6 +367,7 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 void ByteCodeVisitor::visitStringLiteralNode(StringLiteralNode *node) {
 	bytecode->addInsn(BC_SLOAD);
 	bytecode->addInt16(code->makeStringConstant(node->literal()));
+    UOStype = TOStype;
 	TOStype = VT_STRING;
 }
 
@@ -309,6 +416,7 @@ void ByteCodeVisitor::visitForNode(ForNode *node) {
 void ByteCodeVisitor::visitIntLiteralNode(IntLiteralNode *node) {
 	bytecode->addInsn(BC_ILOAD);
 	bytecode->addInt64(node->literal());
+    UOStype = TOStype;
 	TOStype = VT_INT;
 }
 
@@ -331,6 +439,7 @@ void ByteCodeVisitor::visitFunctionNode(FunctionNode *node) {
     {
     	node->body()->visit(this);
     }
+    UOStype = TOStype;
 	TOStype = node->returnType();
 	bytecode->bind(end);
 }
@@ -338,11 +447,11 @@ void ByteCodeVisitor::visitFunctionNode(FunctionNode *node) {
 void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
     node->left()->visit(this);
     node->right()->visit(this);
-		bytecode->add(BC_SWAP);
 		switch(node->kind())
 		{
 			case tAND:
 			{
+				castTwoOperands(1);
 				Label right(bytecode);
 				Label true_end(bytecode);
 				Label end(bytecode);
@@ -362,6 +471,7 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}
 			case tOR:
 			{
+				castTwoOperands(1);
 				Label true_end_pop(bytecode);
 				Label true_end(bytecode);
 				Label end(bytecode);
@@ -380,6 +490,7 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}
 			case tEQ:
 			{
+				castTwoOperands(0);
 				Label true_end(bytecode);
 				Label end(bytecode);
 				bytecode->addBranch(BC_IFICMPE, true_end);
@@ -392,6 +503,8 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}
 			case tNEQ:
 			{
+				castTwoOperands(0);
+				bytecode->add(BC_SWAP);
 				Label true_end(bytecode);
 				Label end(bytecode);
 				bytecode->addBranch(BC_IFICMPNE, true_end);
@@ -404,6 +517,8 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}
 			case tGT:
 			{
+				castTwoOperands(0);
+				bytecode->add(BC_SWAP);
 				Label true_end(bytecode);
 				Label end(bytecode);
 				bytecode->addBranch(BC_IFICMPG, true_end);
@@ -416,6 +531,8 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}
 			case tGE:
 			{
+				castTwoOperands(0);
+				bytecode->add(BC_SWAP);
 				Label true_end(bytecode);
 				Label end(bytecode);
 				bytecode->addBranch(BC_IFICMPGE, true_end);
@@ -428,6 +545,8 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}
 			case tLT:
 			{
+				castTwoOperands(0);
+				bytecode->add(BC_SWAP);
 				Label true_end(bytecode);
 				Label end(bytecode);
 				bytecode->addBranch(BC_IFICMPL, true_end);
@@ -440,6 +559,8 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}
 			case tLE:
 			{
+				castTwoOperands(0);
+				bytecode->add(BC_SWAP);
 				Label true_end(bytecode);
 				Label end(bytecode);
 				bytecode->addBranch(BC_IFICMPLE, true_end);
@@ -453,6 +574,7 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 
 			case tADD:
 			{
+				castTwoOperands(0);
 				if (TOStype == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DADD);
@@ -469,6 +591,8 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}			
 			case tSUB:
 			{
+				castTwoOperands(0);
+				bytecode->add(BC_SWAP);
 				if (TOStype == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DSUB);
@@ -485,6 +609,7 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}
 			case tMUL:
 			{
+				castTwoOperands(0);
 				if (TOStype == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DMUL);
@@ -501,6 +626,8 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}			
 			case tDIV:
 			{
+				castTwoOperands(0);
+				bytecode->add(BC_SWAP);
 				if (TOStype == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DDIV);
@@ -517,6 +644,8 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			}			
 			case tMOD:
 			{
+				castTwoOperands(1);
+				bytecode->add(BC_SWAP);
 				if (TOStype == VT_INT)
 				{
 					bytecode->addInsn(BC_IMOD);
