@@ -14,7 +14,8 @@ include $(VM_ROOT)/common.mk
 TRANSLATOR = $(BIN)/translator
 
 all: $(TRANSLATOR) 
-	./test.sh "$(TRANSLATOR)" ./tests/ ./tests/ coloroff showall
+	# ./test.sh "$(TRANSLATOR)" ./tests/ ./tests/ coloroff showall
+	./test.sh "$(TRANSLATOR)" ./tests/ ./tests/ interpreter coloroff showall
 
 $(TRANSLATOR): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)

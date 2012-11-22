@@ -51,7 +51,10 @@ int main(int argc, char** argv) {
     } else {
         assert(code != 0);
 
-        code->disassemble(cout);
+        // code->disassemble(cout);
+        vector<Var*> t;
+        code->execute(t);
+
 
         delete code;
     }
