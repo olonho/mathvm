@@ -86,7 +86,7 @@ public:
 #undef VISITOR_FUNCTION
 
 private:
-	Bytecode* curBytecode() {
+	Bytecode* bytecode() {
 		return _functions.top()->bytecode();
 	}
 
@@ -100,6 +100,8 @@ private:
 
 	void pushToStack(const AstVar* var);
 	void storeLocalVar(VarType type, uint16_t id);
+	void addInsn(Instruction instruction);
+	void addUInt16(uint16_t value);
 };
 
 } /* namespace mathvm */
