@@ -30,10 +30,6 @@ int main(int argc, char **argv) {
 	BytecodeGen generator;
 	generator.generateCode(&code, source);
 
-	code.disassemble(std::cout);
-
-	cout << endl;
-
 	vector<Var*> v;
 	code.execute(v);
 	return 0;
