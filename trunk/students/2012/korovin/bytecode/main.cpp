@@ -37,7 +37,6 @@ int main(int argc, char** argv) {
     std::vector<Var*> vars;
     code->execute(vars);
 
-
     delete [] expr;
     return 0;
 }
