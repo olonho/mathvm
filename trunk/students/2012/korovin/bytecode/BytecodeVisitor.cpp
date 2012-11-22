@@ -310,6 +310,7 @@ void BytecodeVisitor::visitStoreNode(StoreNode* node) {
 }
 
 void BytecodeVisitor::visitForNode(ForNode* node) {
+    BinaryOpNode* range = node->inExpr()->asBinaryOpNode();
 }
 
 void BytecodeVisitor::visitWhileNode(WhileNode* node) {
@@ -373,14 +374,10 @@ void BytecodeVisitor::visitBlockNode(BlockNode* node) {
 void BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
     varId = 0;
     for(size_t i = 0; i < node->parametersNumber(); ++i) {
-        //AstVar* variable = new AstVar(node->parameterName(i), node->parameterType(i), node->body()->scope());
         AstVar* variable = node->body()->scope()->lookupVariable(node->parameterName(i));
         pair<uint16_t, uint16_t> key = make_pair(functionsStack_.top()->id(), varId++);
         vars_[variable] = key;
-
-        bc()->addInsn(BC_STORECTXIVAR);
-        bc()->addUInt16(functionsStack_.top()->id());
-        bc()->addUInt16(i);
+        store(functionsStack_.top()->id(), i, variable->type());
     }
 	node->body()->visit(this);
 }
@@ -393,12 +390,13 @@ void BytecodeVisitor::visitReturnNode(ReturnNode* node) {
 }
 
 void BytecodeVisitor::visitCallNode(CallNode* node) {
-    uint16_t functionId = functions_[scopesStack_.top()->lookupFunction(node->name(), true)]->id();
+    BytecodeFunction* function = functions_[scopesStack_.top()->lookupFunction(node->name(), true)];
     for(size_t i = 0; i < node->parametersNumber(); ++i) {
-        node->parameterAt(i)->visit(this);        
+        node->parameterAt(node->parametersNumber() - 1 - i)->visit(this);        
     }
     bc()->addInsn(BC_CALL);
-    bc()->addInt16(functionId);
+    bc()->addInt16(function->id());
+    typeOfTOS = function->returnType();
 }
 
 void BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
