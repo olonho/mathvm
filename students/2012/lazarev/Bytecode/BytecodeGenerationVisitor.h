@@ -2,9 +2,11 @@
 #define _MATHVM_AST_PRINTER
 
 #include "ast.h"
+#include "InterpreterCodeImpl.h"
 #include <map>
 #include <stack>
 #include <utility>
+#include <vector>
 
 using namespace mathvm;
 using std::map;
@@ -12,22 +14,61 @@ using std::stack;
 using std::pair;
 using std::make_pair;
 
-class AstToBytecodeTranslator: public AstVisitor {
+typedef enum {
+    UT_LOAD,
+    UT_LOAD0,
+    UT_LOAD1,
+    UT_LOADM1,
+    UT_ADD,
+    UT_SUB,
+    UT_MUL,
+    UT_DIV,
+    UT_MOD,
+    UT_NEG,
+    UT_PRINT,
+    UT_LOADVAR0,
+    UT_LOADVAR1,
+    UT_LOADVAR2,
+    UT_LOADVAR3,
+    UT_STOREVAR0,
+    UT_STOREVAR1,
+    UT_STOREVAR2,
+    UT_STOREVAR3,
+    UT_LOADVAR,
+    UT_STOREVAR,
+    UT_LOADCTXVAR,
+    UT_STORECTXVAR,
+    UT_CMP
+} UntypedInstruction;
+
+class BytecodeGenerationVisitor: public AstVisitor {
 
     map< pair<TokenKind, VarType>, pair<Instruction, VarType> > binaryOpToBytecodeInsn;
     stack<VarType> types;
-    map< VarType, map<TokenKind, Instruction> > arithmetic;
+    map< VarType, map<TokenKind, Instruction> > insnByToken;
+    map< VarType, map<UntypedInstruction, Instruction> > insnByUntypedInsn;
     map< TokenKind, Instruction > comparison;
+    std::vector<AstVar*> vars;
+
+    InterpreterCodeImpl *code;
 
     Bytecode* getBytecode();
+    uint16_t getVarId(const string& name);
+    Scope* currentScope();
+    void addVar(AstVar *var);
+    void removeVar();
 
     void removeConditionCheckingParams();
     void compareInts(Instruction insn);
     void compareDoubles(Instruction insn);
 
+    void fillInstructionsForInt();
+    void fillInstructionsForDouble();
+    void fillInstructionsForString();
+
 public:
-    AstToBytecodeTranslator();
-    virtual ~AstToBytecodeTranslator() {}
+    BytecodeGenerationVisitor(InterpreterCodeImpl *code);
+    virtual ~BytecodeGenerationVisitor() {}
     
     
     virtual void visitBinaryOpNode(BinaryOpNode* node);
