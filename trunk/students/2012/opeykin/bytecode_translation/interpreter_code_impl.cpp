@@ -53,6 +53,12 @@ double InterpreterCodeImpl::getDoubleFromTOS() {
 	return value;
 }
 
+uint16_t InterpreterCodeImpl::getStringIdFromTOS() {
+	uint16_t id = _stack.top()._stringId;
+	_stack.pop();
+	return id;
+}
+
 void InterpreterCodeImpl::pushIntToTOS(int value) {
 	ContextVar unit;
 	unit._intValue = value;
@@ -65,13 +71,13 @@ void InterpreterCodeImpl::pushDoubleToTOS(double value) {
 	_stack.push(unit);
 }
 
-void InterpreterCodeImpl::loadIntVar(uint32_t index) {
+void InterpreterCodeImpl::loadVar(uint32_t index) {
 	_stack.push(*_context->getVar(index));
 }
 
-void InterpreterCodeImpl::loadDoubleVar(uint32_t index) {
-	_stack.push(*_context->getVar(index));
-}
+//void InterpreterCodeImpl::loadVar(uint32_t index) {
+//	_stack.push(*_context->getVar(index));
+//}
 
 void InterpreterCodeImpl::storeIntVar(uint32_t index) {
 	ContextVar* var = _context->getVar(index);
@@ -83,6 +89,11 @@ void InterpreterCodeImpl::storeDoubleVar(uint32_t index) {
 	var->_doubleValue = getDoubleFromTOS();
 }
 
+void InterpreterCodeImpl::storeStringVar(uint32_t index) {
+	ContextVar* var = _context->getVar(index);
+	var->_stringId = getStringIdFromTOS();
+}
+
 void InterpreterCodeImpl::callFunction(uint32_t id) {
 	if (_context != 0) {
 		_context->setIp(_ip);
@@ -92,9 +103,6 @@ void InterpreterCodeImpl::callFunction(uint32_t id) {
 	_context = new Context(_context, function);
 	_bp = function->bytecode();
 	_ip = 0;
-//	for (uint16_t i = 0; i < function->parametersNumber(); ++i) {
-//
-//	}
 }
 
 void InterpreterCodeImpl::returnFromFunction() {
@@ -142,14 +150,14 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_S2I: break;
 			case BC_SWAP: break;
 			case BC_POP: _stack.pop(); break;
-			case BC_LOADDVAR0: loadDoubleVar(0); break;
-			case BC_LOADDVAR1: loadDoubleVar(1); break;
-			case BC_LOADDVAR2: loadDoubleVar(2); break;
-			case BC_LOADDVAR3: loadDoubleVar(3); break;
-			case BC_LOADIVAR0: loadIntVar(0); break;
-			case BC_LOADIVAR1: loadIntVar(1); break;
-			case BC_LOADIVAR2: loadIntVar(2); break;
-			case BC_LOADIVAR3: loadIntVar(3); break;
+			case BC_LOADDVAR0: loadVar(0); break;
+			case BC_LOADDVAR1: loadVar(1); break;
+			case BC_LOADDVAR2: loadVar(2); break;
+			case BC_LOADDVAR3: loadVar(3); break;
+			case BC_LOADIVAR0: loadVar(0); break;
+			case BC_LOADIVAR1: loadVar(1); break;
+			case BC_LOADIVAR2: loadVar(2); break;
+			case BC_LOADIVAR3: loadVar(3); break;
 			case BC_LOADSVAR0: break;
 			case BC_LOADSVAR1: break;
 			case BC_LOADSVAR2: break;
@@ -166,9 +174,9 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_STORESVAR1: break;
 			case BC_STORESVAR2: break;
 			case BC_STORESVAR3: break;
-			case BC_LOADDVAR: loadDoubleVar(nextUInt16()); break;
-			case BC_LOADIVAR: loadIntVar(nextUInt16()); break;
-			case BC_LOADSVAR: break;
+			case BC_LOADDVAR: loadVar(nextUInt16()); break;
+			case BC_LOADIVAR: loadVar(nextUInt16()); break;
+			case BC_LOADSVAR: loadVar(nextUInt16()); break;
 			case BC_STOREDVAR: storeDoubleVar(nextUInt16()); break;
 			case BC_STOREIVAR: storeIntVar(nextUInt16());break;
 			case BC_STORESVAR: break;

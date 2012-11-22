@@ -16,7 +16,7 @@ namespace mathvm {
 union ContextVar {
     double _doubleValue;
     int64_t _intValue;
-    const char* _stringValue;
+    uint16_t _stringId;
 };
 
 class Context {
@@ -88,12 +88,15 @@ private:
 
     int64_t getIntFromTOS();
     double getDoubleFromTOS();
+    uint16_t getStringIdFromTOS();
     void pushIntToTOS(int value);
     void pushDoubleToTOS(double value);
 
-    void loadIntVar(uint32_t index);
-    void loadDoubleVar(uint32_t index);
+//    void loadIntVar(uint32_t index);
+//    void loadDoubleVar(uint32_t index);
+    void loadVar(uint32_t index);
     void storeIntVar(uint32_t index);
+    void storeStringVar(uint32_t index);
     void storeDoubleVar(uint32_t index);
     void callFunction(uint32_t id);
 
