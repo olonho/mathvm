@@ -191,10 +191,35 @@ void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
 	node->loopBlock()->visit(this);
 
 	condition_label.bind(bytecode()->current());
-	node->whileExpr()->visit(this);
 
-	addInsn(BC_ILOAD0);
-	bytecode()->addBranch(BC_IFICMPNE, block_label);
+	AstNode* whileExp = node->whileExpr();
+	if (whileExp->isLoadNode()) {
+		LoadNode* loadNode = static_cast<LoadNode*>(whileExp);
+		assert(loadNode->var()->type() == VT_INT);
+		addInsn(BC_ILOAD0);
+		pushToStack(loadNode->var());
+		bytecode()->addBranch(BC_IFICMPNE, block_label);
+	} else if (whileExp->isIntLiteralNode()) {
+		int64_t value = ((IntLiteralNode*)whileExp)->literal();
+		if (value != 0) {
+			bytecode()->addBranch(BC_JA, block_label);
+		}
+	} else if (whileExp->isBinaryOpNode()) {
+		BinaryOpNode* binaryOpNode = static_cast<BinaryOpNode*>(whileExp);
+		binaryOpNode->left()->visit(this);
+		binaryOpNode->right()->visit(this);
+		switch(binaryOpNode->kind()) {
+			case tEQ: bytecode()->addBranch(BC_IFICMPE, block_label); break;
+			case tNEQ: bytecode()->addBranch(BC_IFICMPNE, block_label); break;
+			case tGT: bytecode()->addBranch(BC_IFICMPG, block_label); break;
+			case tGE: bytecode()->addBranch(BC_IFICMPGE, block_label); break;
+			case tLT: bytecode()->addBranch(BC_IFICMPL, block_label); break;
+			case tLE: bytecode()->addBranch(BC_IFICMPLE, block_label); break;
+			default: assert(false); break;
+		}
+	} else {
+		assert(false);
+	}
 }
 
 void CodeBuilderVisitor::visitIfNode(IfNode* node) {
