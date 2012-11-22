@@ -35,39 +35,45 @@ int64_t InterpreterCodeImpl::nextInt() {
 	return result;
 }
 
-double InterpreterCodeImpl::readDoubleFromBytecode() {
+double InterpreterCodeImpl::nextDouble() {
 	double result = _bp->getDouble(_ip);
 	_ip += sizeof(double);
 	return result;
 }
 
-int64_t InterpreterCodeImpl::getIntFromTOS() {
+int64_t InterpreterCodeImpl::popInt() {
 	int64_t value = this->_stack.top()._intValue;
 	_stack.pop();
 	return value;
 }
 
-double InterpreterCodeImpl::getDoubleFromTOS() {
+double InterpreterCodeImpl::popDouble() {
 	double value = _stack.top()._doubleValue;
 	_stack.pop();
 	return value;
 }
 
-uint16_t InterpreterCodeImpl::getStringIdFromTOS() {
+uint16_t InterpreterCodeImpl::popStringId() {
 	uint16_t id = _stack.top()._stringId;
 	_stack.pop();
 	return id;
 }
 
-void InterpreterCodeImpl::pushIntToTOS(int value) {
+void InterpreterCodeImpl::pushInt(int value) {
 	ContextVar unit;
 	unit._intValue = value;
 	_stack.push(unit);
 }
 
-void InterpreterCodeImpl::pushDoubleToTOS(double value) {
+void InterpreterCodeImpl::pushDouble(double value) {
 	ContextVar unit;
 	unit._doubleValue = value;
+	_stack.push(unit);
+}
+
+void InterpreterCodeImpl::pushString(uint16_t id) {
+	ContextVar unit;
+	unit._stringId = id;
 	_stack.push(unit);
 }
 
@@ -81,17 +87,17 @@ void InterpreterCodeImpl::loadVar(uint32_t index) {
 
 void InterpreterCodeImpl::storeIntVar(uint32_t index) {
 	ContextVar* var = _context->getVar(index);
-	var->_intValue = getIntFromTOS();
+	var->_intValue = popInt();
 }
 
 void InterpreterCodeImpl::storeDoubleVar(uint32_t index) {
 	ContextVar* var = _context->getVar(index);
-	var->_doubleValue = getDoubleFromTOS();
+	var->_doubleValue = popDouble();
 }
 
 void InterpreterCodeImpl::storeStringVar(uint32_t index) {
 	ContextVar* var = _context->getVar(index);
-	var->_stringId = getStringIdFromTOS();
+	var->_stringId = popStringId();
 }
 
 void InterpreterCodeImpl::callFunction(uint32_t id) {
@@ -121,32 +127,32 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 		_ip += sizeof(int8_t);
 		switch(instruction) {
 			case BC_INVALID: return new Status("Invalid instruction"); break;
-			case BC_DLOAD: pushDoubleToTOS(readDoubleFromBytecode()); break;
-			case BC_ILOAD: pushIntToTOS(nextInt()); break;
-			case BC_SLOAD: break;
-			case BC_DLOAD0: pushDoubleToTOS(0.0); break;
-			case BC_ILOAD0: pushIntToTOS(0); break;
+			case BC_DLOAD: pushDouble(nextDouble()); break;
+			case BC_ILOAD: pushInt(nextInt()); break;
+			case BC_SLOAD: pushString(nextUInt16()); break;
+			case BC_DLOAD0: pushDouble(0.0); break;
+			case BC_ILOAD0: pushInt(0); break;
 			case BC_SLOAD0: break;
-			case BC_DLOAD1: pushDoubleToTOS(1.0); break;
-			case BC_ILOAD1: pushIntToTOS(1); break;
-			case BC_DLOADM1: pushDoubleToTOS(-1.0); break;
-			case BC_ILOADM1: pushIntToTOS(-1); break;
-			case BC_DADD: pushDoubleToTOS(getDoubleFromTOS() + getDoubleFromTOS()); break;
-			case BC_IADD: pushIntToTOS(getIntFromTOS() + getIntFromTOS()); break;
-			case BC_DSUB: pushDoubleToTOS(getDoubleFromTOS() - getDoubleFromTOS()); break;
-			case BC_ISUB: pushIntToTOS(getIntFromTOS() - getIntFromTOS()); break;
-			case BC_DMUL: pushDoubleToTOS(getDoubleFromTOS() * getDoubleFromTOS()); break;
-			case BC_IMUL: pushIntToTOS(getIntFromTOS() * getIntFromTOS()); break;
-			case BC_DDIV: pushDoubleToTOS(getDoubleFromTOS() / getDoubleFromTOS()); break;
-			case BC_IDIV: pushIntToTOS(getIntFromTOS() / getIntFromTOS()); break;
-			case BC_IMOD: pushIntToTOS(getIntFromTOS() % getIntFromTOS()); break;
-			case BC_DNEG: pushDoubleToTOS(-getDoubleFromTOS()); break;
-			case BC_INEG: pushIntToTOS(-getIntFromTOS()); break;
-			case BC_IPRINT: _out << getIntFromTOS() << endl; break;
-			case BC_DPRINT:_out << getDoubleFromTOS() << endl; break;
-			case BC_SPRINT: break;
-			case BC_I2D: pushDoubleToTOS((double)getIntFromTOS()); break;
-			case BC_D2I: pushIntToTOS((int)getDoubleFromTOS()); break;
+			case BC_DLOAD1: pushDouble(1.0); break;
+			case BC_ILOAD1: pushInt(1); break;
+			case BC_DLOADM1: pushDouble(-1.0); break;
+			case BC_ILOADM1: pushInt(-1); break;
+			case BC_DADD: pushDouble(popDouble() + popDouble()); break;
+			case BC_IADD: pushInt(popInt() + popInt()); break;
+			case BC_DSUB: pushDouble(popDouble() - popDouble()); break;
+			case BC_ISUB: pushInt(popInt() - popInt()); break;
+			case BC_DMUL: pushDouble(popDouble() * popDouble()); break;
+			case BC_IMUL: pushInt(popInt() * popInt()); break;
+			case BC_DDIV: pushDouble(popDouble() / popDouble()); break;
+			case BC_IDIV: pushInt(popInt() / popInt()); break;
+			case BC_IMOD: pushInt(popInt() % popInt()); break;
+			case BC_DNEG: pushDouble(-popDouble()); break;
+			case BC_INEG: pushInt(-popInt()); break;
+			case BC_IPRINT: _out << popInt() << endl; break;
+			case BC_DPRINT: _out << popDouble() << endl; break;
+			case BC_SPRINT: _out << constantById(popStringId()); break;
+			case BC_I2D: pushDouble((double)popInt()); break;
+			case BC_D2I: pushInt((int)popDouble()); break;
 			case BC_S2I: break;
 			case BC_SWAP: break;
 			case BC_POP: _stack.pop(); break;
@@ -158,10 +164,10 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_LOADIVAR1: loadVar(1); break;
 			case BC_LOADIVAR2: loadVar(2); break;
 			case BC_LOADIVAR3: loadVar(3); break;
-			case BC_LOADSVAR0: break;
-			case BC_LOADSVAR1: break;
-			case BC_LOADSVAR2: break;
-			case BC_LOADSVAR3: break;
+			case BC_LOADSVAR0: loadVar(0); break;
+			case BC_LOADSVAR1: loadVar(1); break;
+			case BC_LOADSVAR2: loadVar(2); break;
+			case BC_LOADSVAR3: loadVar(3); break;
 			case BC_STOREDVAR0: storeDoubleVar(0); break;
 			case BC_STOREDVAR1: storeDoubleVar(1); break;
 			case BC_STOREDVAR2: storeDoubleVar(2); break;
@@ -170,16 +176,16 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_STOREIVAR1: storeIntVar(1); break;
 			case BC_STOREIVAR2: storeIntVar(2); break;
 			case BC_STOREIVAR3: storeIntVar(3); break;
-			case BC_STORESVAR0: break;
-			case BC_STORESVAR1: break;
-			case BC_STORESVAR2: break;
-			case BC_STORESVAR3: break;
+			case BC_STORESVAR0: storeStringVar(0); break;
+			case BC_STORESVAR1: storeStringVar(1); break;
+			case BC_STORESVAR2: storeStringVar(2); break;
+			case BC_STORESVAR3: storeStringVar(3); break;
 			case BC_LOADDVAR: loadVar(nextUInt16()); break;
 			case BC_LOADIVAR: loadVar(nextUInt16()); break;
 			case BC_LOADSVAR: loadVar(nextUInt16()); break;
 			case BC_STOREDVAR: storeDoubleVar(nextUInt16()); break;
 			case BC_STOREIVAR: storeIntVar(nextUInt16());break;
-			case BC_STORESVAR: break;
+			case BC_STORESVAR: storeStringVar(nextUInt16()); break;
 			case BC_LOADCTXDVAR: break;
 			case BC_LOADCTXIVAR: break;
 			case BC_LOADCTXSVAR: break;
