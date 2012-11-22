@@ -101,6 +101,33 @@ void CodeBuilderVisitor::storeLocalVar(VarType type, uint16_t id) {
 	}
 }
 
+void CodeBuilderVisitor::loadLocalVar(VarType type, uint16_t id) {
+	Instruction int_codes 		[] = {BC_LOADIVAR0, BC_LOADIVAR1, BC_LOADIVAR2, BC_LOADIVAR3};
+	Instruction double_codes 	[] = {BC_LOADDVAR0, BC_LOADDVAR1, BC_LOADDVAR2, BC_LOADDVAR3};
+	Instruction string_codes 	[] = {BC_LOADSVAR0, BC_LOADSVAR1, BC_LOADSVAR2, BC_LOADSVAR3};
+
+	if (id < 4) {
+		switch (type) {
+			case VT_DOUBLE:		addInsn(double_codes[id]); break;
+			case VT_INT:		addInsn(int_codes[id]); break;
+			case VT_STRING:		addInsn(string_codes[id]); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+	} else {
+		switch (type) {
+			case VT_DOUBLE:		addInsn(BC_LOADDVAR); break;
+			case VT_INT:		addInsn(BC_LOADIVAR); break;
+			case VT_STRING:		addInsn(BC_LOADSVAR); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+		addUInt16(id);
+	}
+}
+
 void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	node->right()->visit(this);
 	node->left()->visit(this);
@@ -295,14 +322,7 @@ void CodeBuilderVisitor::pushToStack(const AstVar* var) {
 	VarInfo varInfo = getVarInfo(var);
 
 	if (varInfo.context == _functions.top()->id()) {
-		switch (var->type()) {
-			case VT_DOUBLE:		addInsn(BC_LOADDVAR); break;
-			case VT_INT:		addInsn(BC_LOADIVAR); break;
-			case VT_STRING:		addInsn(BC_LOADSVAR); break;
-			case VT_INVALID:
-			case VT_VOID:
-			default:			assert(false); break;
-		}
+		loadLocalVar(var->type(), varInfo.id);
 	} else {
 		switch (var->type()) {
 			case VT_DOUBLE:		addInsn(BC_LOADCTXDVAR); break;
@@ -313,9 +333,8 @@ void CodeBuilderVisitor::pushToStack(const AstVar* var) {
 			default:			assert(false); break;
 		}
 		bytecode()->addInt16(varInfo.context);
+		addUInt16(varInfo.id);
 	}
-
-	addUInt16(varInfo.id);
 }
 
 } /* namespace mathvm */
