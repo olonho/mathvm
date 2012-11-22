@@ -23,7 +23,7 @@ class BytecodeVisitor : public AstVisitor {
 	stack<BytecodeFunction*> functionsStack_;
 	stack<Scope*> scopesStack_;
 	map<AstFunction*, BytecodeFunction*> functions_;
-	map<const AstVar*, pair<uint16_t, uint16_t>> vars_;
+	map<const AstVar*, pair<uint16_t, uint16_t> > vars_;
 
 	void functionDeclarations( Scope* scope );
 	void variableDeclarations( Scope* scope );

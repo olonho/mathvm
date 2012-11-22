@@ -119,10 +119,10 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			compare();
 			break;
 		case tEQ:
-			bc()->addInsn(BC_IFICMPNE);
+			bc()->addInsn(BC_IFICMPE);
 			break;
 		case tNEQ:
-			bc()->addInsn(BC_IFICMPE);
+			bc()->addInsn(BC_IFICMPNE);
 			break;
 		case tGT:
 			bc()->addInsn(BC_IFICMPG);
@@ -310,7 +310,7 @@ void BytecodeVisitor::visitStoreNode(StoreNode* node) {
 }
 
 void BytecodeVisitor::visitForNode(ForNode* node) {
-    BinaryOpNode* range = node->inExpr()->asBinaryOpNode();
+    //BinaryOpNode* range = node->inExpr()->asBinaryOpNode();
 }
 
 void BytecodeVisitor::visitWhileNode(WhileNode* node) {
