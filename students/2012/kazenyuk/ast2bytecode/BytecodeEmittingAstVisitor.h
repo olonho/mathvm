@@ -6,6 +6,7 @@
 
 #include "../ast2src/utils.hpp"
 #include "BytecodeInstructionPrimitives.h"
+#include <map>
 
 namespace mathvm_ext {
 
@@ -15,6 +16,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
   public:
     BytecodeEmittingAstVisitor(Code* output)
       : m_bytecode(0), m_code(output), m_scope(0) {
+        m_var_storage.push_back("");
     }
     virtual ~BytecodeEmittingAstVisitor() {
     }
@@ -235,7 +237,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_latest_type = node->var()->type();
 
         m_bytecode->addInsn(instr);
-        uint16_t var_id = 0;    //TODO: get from the scope (by node->var()->name())
+        uint16_t var_id = getVarStorage(node->var()->name());    //TODO: get from the scope (by node->var()->name())
         m_bytecode->addUInt16(var_id);
 
     }
@@ -268,7 +270,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_latest_type = node->var()->type();
 
         m_bytecode->addInsn(instr);
-        uint16_t var_id = 0;    //TODO: get from the scope (by node->var()->name())
+        uint16_t var_id = getVarStorage(node->var()->name());    //TODO: get from the scope (by node->var()->name())
         m_bytecode->addUInt16(var_id);
     }
     virtual void visitForNode(ForNode* node) {
@@ -311,9 +313,35 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             node->nodeAt(i)->visit(this);
         }
 
+        convertScope2(node->scope());
+
         m_scope = old_scope;
 //        out << "}\n";
     }
+
+    std::vector<std::string> m_var_storage;
+
+    void addVarStorage(const std::string &name) {
+        m_var_storage.push_back(name);
+    }
+
+    uint16_t getVarStorage(const std::string &name) {
+        for (size_t i = m_var_storage.size() - 1; i >= 0; i--) {
+            if (m_var_storage[i] == name) {
+                return i;
+            }
+        }
+    }
+
+//    void removeVarStorage(std::string &name) {
+//        for (size_t i = m_var_storage.size() - 1; i >= 0; i--) {
+//            if (m_var_storage[i] == name) {
+//                m_var_storage
+//                return;
+//            }
+//        }
+//    }
+
     virtual void visitFunctionNode(FunctionNode* node) {
 //        out << "function "
 //            << mathvm::typeToName(node->returnType()) << " "
@@ -327,21 +355,64 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         Bytecode* old_bytecode = m_bytecode;
         m_bytecode = function->bytecode();
 
+        // TODO: create RuntimeScope
+        // RuntimeScope(node->body()->scope())
+        // TODO: add function's parameters to RuntimeScope
+
 //
        // function's parameters
-       // uint32_t parameters_number = node->parametersNumber();
+        uint32_t parameters_number = node->parametersNumber();
 //        if (parameters_number > 0) {
 //            uint32_t last_parameter = parameters_number - 1;
 //            for (uint32_t i = 0; i < last_parameter; ++i) {
-//                out << mathvm::typeToName(node->parameterType(i)) << " "
-//                    << node->parameterName(i) << ", ";
+//                addVarStorage(node->parameterName(i));
 //            }
-//            out << mathvm::typeToName(node->parameterType(last_parameter)) << " "
-//                << node->parameterName(last_parameter);
+//            addVarStorage(node->parameterName(last_parameter));
 //        }
-//        out << ") ";
-//
+
+        if (parameters_number > 0) {
+            uint32_t last_parameter = parameters_number - 1;
+            for (uint32_t i = last_parameter; i > 0; --i) {
+                addVarStorage(node->parameterName(i));
+            }
+            addVarStorage(node->parameterName(0));
+        }
+
+//        for (uint32_t i = 0; i < parameters_number; ++i) {
+//            switch (node->parameterType(i)) {
+//                case VT_INVALID:
+//                    m_bytecode->addInsn(BC_INVALID);
+//                    break;
+//                case VT_VOID:
+//                    // do nothing
+//                    break;
+//                case VT_DOUBLE:
+//                    m_bytecode->addInsn(BC_STOREDVAR);
+//                    m_bytecode->addUInt16(getVarStorage(node->parameterName(i)));
+//                    break;
+//                case VT_INT:
+//                    m_bytecode->addInsn(BC_STOREIVAR);
+//                    m_bytecode->addUInt16(getVarStorage(node->parameterName(i)));
+//                    break;
+//                case VT_STRING:
+//                    m_bytecode->addInsn(BC_STORESVAR);
+//                    m_bytecode->addUInt16(getVarStorage(node->parameterName(i)));
+//                    break;
+//                default:
+//                    m_bytecode->addInsn(BC_INVALID);
+//                    break;
+//            }
+//        }
+
         node->body()->visit(this);
+
+        if (parameters_number > 0) {
+            uint32_t last_parameter = parameters_number - 1;
+            for (uint32_t i = 0; i < last_parameter; ++i) {
+                m_var_storage.pop_back();
+            }
+            m_var_storage.pop_back();
+        }
 
         m_bytecode = old_bytecode;
     }
@@ -389,10 +460,58 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         uint32_t parameters_number = node->parametersNumber();
         if (parameters_number > 0) {
             uint32_t last_parameter = parameters_number - 1;
+
+            uint16_t var_id = m_var_storage.size();
             for (uint32_t i = last_parameter; i > 0; --i) {
                 node->parameterAt(i)->visit(this);
+                Instruction instr = BC_INVALID;
+                switch (m_latest_type) {
+                    case VT_INVALID:
+                        instr = BC_INVALID;
+                        break;
+                    case VT_VOID:
+                        instr = BC_INVALID;
+                        break;
+                    case VT_DOUBLE:
+                        instr = BC_STOREDVAR;
+                        break;
+                    case VT_INT:
+                        instr = BC_STOREIVAR;
+                        break;
+                    case VT_STRING:
+                        instr = BC_STORESVAR;
+                        break;
+                    default:
+                        instr = BC_INVALID;
+                        break;
+                }
+                m_bytecode->addInsn(instr);
+                m_bytecode->addUInt16(var_id++);
             }
             node->parameterAt(0)->visit(this);
+            Instruction instr = BC_INVALID;
+            switch (m_latest_type) {
+                    case VT_INVALID:
+                        instr = BC_INVALID;
+                        break;
+                    case VT_VOID:
+                        instr = BC_INVALID;
+                        break;
+                    case VT_DOUBLE:
+                        instr = BC_STOREDVAR;
+                        break;
+                    case VT_INT:
+                        instr = BC_STOREIVAR;
+                        break;
+                    case VT_STRING:
+                        instr = BC_STORESVAR;
+                        break;
+                    default:
+                        instr = BC_INVALID;
+                        break;
+                }
+            m_bytecode->addInsn(instr);
+                m_bytecode->addUInt16(var_id++);
         }
 
         // resolve function by name
@@ -488,6 +607,9 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
     }
 
+    std::map<AstVar*,uint16_t> m_var_map;
+    uint16_t m_max_var_number;
+
     void convertScope(Scope* scope) {
 //#if defined(_DEBUG_COMMENTS)
 //        out << "// parent scope: " << scope->parent() << std::endl;
@@ -496,9 +618,11 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //#endif
          Scope::VarIterator var_iterator(scope);
          while (var_iterator.hasNext()) {
-             // AstVar* var = var_iterator.next();
-             // out << mathvm::typeToName(var->type()) << " "
-             //     << var->name() << ";\n";
+            AstVar* var = var_iterator.next();
+//            std::cout << mathvm::typeToName(var->type()) << " "
+//              << var->name() << ";\n";
+//            m_var_map.insert(std::make_pair(var, ++m_max_var_number));
+            addVarStorage(std::string(var->name()));
          }
 //#if defined(_DEBUG_COMMENTS)
 //        out << "// end of scope variables.\n";
@@ -513,6 +637,19 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //#if defined(_DEBUG_COMMENTS)
 //        out << "// end of scope functions.\n";
 //#endif
+    }
+
+    void convertScope2(Scope* scope) {
+         Scope::VarIterator var_iterator(scope);
+         while (var_iterator.hasNext()) {
+            AstVar* var = var_iterator.next();
+            var = var;  // suppress debugger's warning
+//            std::cout << mathvm::typeToName(var->type()) << " "
+//              << var->name() << ";\n";
+
+            m_var_storage.pop_back();
+//            m_var_map.erase(var);
+         }
     }
 
   private:

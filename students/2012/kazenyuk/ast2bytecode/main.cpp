@@ -4,6 +4,8 @@
 
 #include "mathvm.h"
 
+//#define ENABLE_TRACING 1
+
 int main(int argc, char** argv) {
     if (argc < 2 || argc > 3) {
         std::cout << "Usage: " << argv[0] << " <program source code file>"
@@ -38,14 +40,22 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    code->disassemble(std::cout, 0);
+#ifndef ENABLE_TRACING
+    if (argc == 2) {
+#endif
+        code->disassemble(std::cout, 0);
+#ifndef ENABLE_TRACING
+    }
+#endif
 
     delete translateStatus;
     delete translator;
     delete[] text_buffer;
 
     if (argc == 3) {
+#ifdef ENABLE_TRACING
         std::cout << "\nExecuting" << std::endl;
+#endif
         std::vector<mathvm::Var*> vars;
         mathvm::Status* exec_status = code->execute(vars);
         if (exec_status && exec_status->isError()) {

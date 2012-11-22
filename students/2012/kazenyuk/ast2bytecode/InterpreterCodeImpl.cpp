@@ -5,6 +5,8 @@
 
 #include "InterpreterCodeImpl.h"
 
+//#define ENABLE_TRACING 1
+
 namespace mathvm {
 
 inline const char* bcName(Instruction insn, size_t& length) {
@@ -220,11 +222,14 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
         size_t length;
         Instruction insn = bytecode->getInsn(bci);
         const char* name = bcName(insn, length);
+#ifdef ENABLE_TRACING
         std::clog << bci << ": " << name << std::endl;
+#endif
         switch (insn) {
             case BC_INVALID:
                 return new Status(name, bci);
                 break;
+
             case BC_DLOAD:
                 stack.pushTyped(bytecode->getDouble(bci + 1));
                 break;
@@ -234,6 +239,7 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
             case BC_SLOAD:
                 stack.pushTyped(bytecode->getUInt16(bci + 1));
                 break;
+
             case BC_DLOAD0:
                 stack.pushTyped(double(0));
                 break;
@@ -249,12 +255,14 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
             case BC_ILOAD1:
                 stack.pushTyped(int64_t(1));
                 break;
+
             case BC_DADD:
                 stack.pushDouble(stack.popDouble() + stack.popDouble());
                 break;
             case BC_IADD:
                 stack.pushInt64(stack.popInt64() + stack.popInt64());
                 break;
+
             case BC_IPRINT:
                 std::cout << stack.popInt64();
                 break;
@@ -268,6 +276,19 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                 stack.pop();
                 break;
 
+            case BC_LOADDVAR0:
+                stack.pushDouble(var_map[0].getDouble());
+                break;
+            case BC_LOADDVAR1:
+                stack.pushDouble(var_map[1].getDouble());
+                break;
+            case BC_LOADDVAR2:
+                stack.pushDouble(var_map[2].getDouble());
+                break;
+            case BC_LOADDVAR3:
+                stack.pushDouble(var_map[3].getDouble());
+                break;
+
             case BC_LOADIVAR0:
                 stack.pushInt64(var_map[0].getInt64());
                 break;
@@ -279,6 +300,19 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                 break;
             case BC_LOADIVAR3:
                 stack.pushInt64(var_map[3].getInt64());
+                break;
+
+            case BC_LOADSVAR0:
+                stack.pushUInt16(var_map[0].getUInt16());
+                break;
+            case BC_LOADSVAR1:
+                stack.pushUInt16(var_map[1].getUInt16());
+                break;
+            case BC_LOADSVAR2:
+                stack.pushUInt16(var_map[2].getUInt16());
+                break;
+            case BC_LOADSVAR3:
+                stack.pushUInt16(var_map[3].getUInt16());
                 break;
 
             case BC_STOREDVAR0:
@@ -358,20 +392,20 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                 }
                 break;
             case BC_JA:
-            //                  out << name << " " << getInt16(bci + 1) + bci + 1;
+//                  out << name << " " << getInt16(bci + 1) + bci + 1;
                 bci += bytecode->getInt16(bci + 1) + 1;
                 continue;
                 break;
-            case BC_CALL:{
+            case BC_CALL://{
                 stack.pushTyped(bci + length);
                 stack.pushTyped(function->id());
 
-                std::clog << "saving return address: " << function->id() << ":" << bci + length << std::endl;
-                uint16_t f = stack.popUInt16();
-                size_t b = stack.popTyped<size_t>();
-                std::clog << "checking return address: " << f << ":" << b << std::endl;
-                stack.pushTyped(bci + length);
-                stack.pushTyped(function->id());
+//                std::clog << "saving return address: " << function->id() << ":" << bci + length << std::endl;
+//                uint16_t f = stack.popUInt16();
+//                size_t b = stack.popTyped<size_t>();
+//                std::clog << "checking return address: " << f << ":" << b << std::endl;
+//                stack.pushTyped(bci + length);
+//                stack.pushTyped(function->id());
 
                 function = (BytecodeFunction*) functionById(bytecode->getUInt16(bci + 1));
                 if (!function) {
@@ -380,21 +414,21 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                 bytecode = function->bytecode();
                 bci = 0;
                 continue;
-                break;}
+                break;//}
             case BC_CALLNATIVE:
                 //                  out << name << " *" << getUInt16(bci + 1);
                 return new Status("Native functions are currently not supported\n", bci);
                 break;
             case BC_RETURN: {
                 uint16_t new_function_id = stack.popUInt16();
-                std::clog << "new func id=" << new_function_id << std::endl;
+//                std::clog << "new func id=" << new_function_id << std::endl;
                 function = (BytecodeFunction*) functionById(new_function_id);
                 if (!function) {
                   return new Status("Unresolved function ID\n", bci);
                 }
                 bytecode = function->bytecode();
                 size_t new_bci = stack.popTyped<size_t>();
-                std::clog << "new bci=" << new_bci << std::endl;
+//                std::clog << "new bci=" << new_bci << std::endl;
                 bci = new_bci;
                 continue;
                 break;
@@ -409,7 +443,9 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
         //          out << endl;
         bci += length;
     }
+#ifdef ENABLE_TRACING
     std::cout << "Result = " << var_map[0].getInt64() << std::endl;
+#endif
     return 0;
 }
 
