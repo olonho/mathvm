@@ -6,8 +6,9 @@ GLOBAL_TESTS_EXPECT=expect_gl/
 TEST_BIN=$1
 MINE_TESTS_ROOT=$2
 MINE_TESTS_EXPECT=$3
-COLOR=$4
-SHOWALL=$5
+SUFF=$4
+COLOR=$5
+SHOWALL=$6
 
 TEST_OUT=testout
 
@@ -84,8 +85,8 @@ function test {
 
 	for i in $(find $TESTS_ROOT -type f -iname "*.mvm"); do
 		BASEFILENAME=$(basename $i ".mvm")
-		OUT=$TEST_OUT/$BASEFILENAME".bytecode.out"
-		EXPECT=$TEST_EXPECT$BASEFILENAME".bytecode.expect"
+		OUT="$TEST_OUT/$BASEFILENAME.out"
+		EXPECT="$TEST_EXPECT$BASEFILENAME.$SUFF.expect"
 
 		# if [ -f $EXPECT ] ; then
 			run $i $OUT $EXPECT
