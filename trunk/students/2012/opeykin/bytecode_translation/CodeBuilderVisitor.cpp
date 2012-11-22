@@ -6,6 +6,7 @@
  */
 
 #include "CodeBuilderVisitor.h"
+#include "type_inference_visitor.h"
 #include "mathvm.h"
 
 namespace mathvm {
@@ -16,6 +17,13 @@ CodeBuilderVisitor::CodeBuilderVisitor(Code* code)
 }
 
 CodeBuilderVisitor::~CodeBuilderVisitor() {
+}
+
+Status* CodeBuilderVisitor::start(AstFunction* top) {
+	TypeInferenceVisitor typer(_types);
+	typer.processFunction(top);
+	processFunction(top);
+	return 0;
 }
 
 void CodeBuilderVisitor::dummyCond(AstNode* cond, Label& label) {
@@ -314,8 +322,19 @@ void CodeBuilderVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 
 void CodeBuilderVisitor::visitPrintNode(PrintNode* node) {
-	node->visitChildren(this);
-	addInsn(BC_IPRINT);
+	for (uint32_t i = 0; i < node->operands(); ++i) {
+		AstNode* operand = node->operandAt(i);
+		operand->visit(this);
+		switch (_types[operand]) {
+			case VT_DOUBLE:		addInsn(BC_DPRINT); break;
+			case VT_INT:		addInsn(BC_IPRINT); break;
+			case VT_STRING:		addInsn(BC_SPRINT); break;
+			case VT_INVALID:
+			case VT_VOID:
+			default:			assert(false); break;
+		}
+	}
+
 }
 
 void CodeBuilderVisitor::pushToStack(const AstVar* var) {

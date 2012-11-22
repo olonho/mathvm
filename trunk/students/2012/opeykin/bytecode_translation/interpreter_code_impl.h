@@ -84,13 +84,14 @@ public:
 private:
     uint16_t nextUInt16();
     int64_t nextInt();
-    double readDoubleFromBytecode();
+    double nextDouble();
 
-    int64_t getIntFromTOS();
-    double getDoubleFromTOS();
-    uint16_t getStringIdFromTOS();
-    void pushIntToTOS(int value);
-    void pushDoubleToTOS(double value);
+    int64_t popInt();
+    double popDouble();
+    uint16_t popStringId();
+    void pushInt(int value);
+    void pushDouble(double value);
+    void pushString(uint16_t id);
 
 //    void loadIntVar(uint32_t index);
 //    void loadDoubleVar(uint32_t index);
@@ -102,7 +103,7 @@ private:
 
     template<class Comparator>
     void jump(Comparator comparator) {
-    	if (comparator(getIntFromTOS(), getIntFromTOS())) {
+    	if (comparator(popInt(), popInt())) {
     		_ip += _bp->getInt16(_ip);
     	} else {
     		_ip += 2;

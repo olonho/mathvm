@@ -69,6 +69,7 @@ private:
 
 
 class CodeBuilderVisitor: public mathvm::AstVisitor {
+	map<CustomDataHolder*, VarType> _types;
 	Code* _code;
 	std::stack<BytecodeFunction*> _functions;
 	std::stack<VarScopeMap*> _varScopes;
@@ -77,7 +78,8 @@ public:
 	CodeBuilderVisitor(Code* code);
 	virtual ~CodeBuilderVisitor();
 
-	void processFunction(AstFunction* top);
+
+	Status* start(AstFunction* top);
 
 #define VISITOR_FUNCTION(type, name) \
     virtual void visit##type(type* node);
@@ -97,6 +99,7 @@ private:
 	VarInfo getVarInfo(const AstVar* var) {
 		return _varScopes.top()->get(var);
 	}
+	void processFunction(AstFunction* top);
 
 	void pushToStack(const AstVar* var);
 	void storeLocalVar(VarType type, uint16_t id);
@@ -105,6 +108,8 @@ private:
 	void addUInt16(uint16_t value);
 
 	void dummyCond(AstNode* cond, Label& label);
+
+
 };
 
 } /* namespace mathvm */
