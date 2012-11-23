@@ -1,11 +1,13 @@
 #!/bin/bash
 
-GLOBAL_TESTS_ROOT=../../../../tests/
-GLOBAL_TESTS_EXPECT=expect_gl/
+# TEST_BIN=""
+# TESTS_ROOT="./tests"
+# TESTS_EXPECT="./tests"
+# SUFF="test"
 
 TEST_BIN=$1
-MINE_TESTS_ROOT=$2
-MINE_TESTS_EXPECT=$3
+TESTS_ROOT=$2
+TESTS_EXPECT=$3
 SUFF=$4
 COLOR=$5
 SHOWALL=$6
@@ -85,7 +87,7 @@ function test {
 
 	for i in $(find $TESTS_ROOT -type f -iname "*.mvm"); do
 		BASEFILENAME=$(basename $i ".mvm")
-		OUT="$TEST_OUT/$BASEFILENAME.out"
+		OUT="$TEST_OUT/$BASEFILENAME.$SUFF.out"
 		EXPECT="$TEST_EXPECT$BASEFILENAME.$SUFF.expect"
 
 		# if [ -f $EXPECT ] ; then
@@ -98,5 +100,4 @@ function test {
 # rm -rf $TEST_OUT
 mkdir -p $TEST_OUT
 
-test $MINE_TESTS_ROOT $MINE_TESTS_EXPECT
-# test $GLOBAL_TESTS_ROOT $GLOBAL_TESTS_EXPECT
+test $TESTS_ROOT $TESTS_EXPECT
