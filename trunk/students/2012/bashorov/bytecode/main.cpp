@@ -20,14 +20,25 @@ enum EReturnCode {
     EReturnCode_COUNT
 };
 
+const std::string DISASM = "disasm";
+const std::string INTERPRETE = "interprete";
+const std::string JIT = "jit";
+
 int main(int argc, char** argv) {
     const char* script = 0;
-    if (argc > 1) {
-        script = argv[1];
+    std::string mode = INTERPRETE;
+    for (int32_t i = 1; i < argc; i++) {
+      if (string(argv[i]) == "-d") {
+        mode = "disasm";
+      } else if (string(argv[i]) == "-j") {
+        mode = "jit";
+      } else {
+        script = argv[i];
+      }
     }
 
     if (script == 0) {
-        cout << "Usage: translate <source_file>" << endl;
+        cout << "Usage: translate [-d | -j] <source_file>" << endl;
         return WRONG_ARG_COUNT;
     }
 
@@ -51,10 +62,13 @@ int main(int argc, char** argv) {
     } else {
         assert(code != 0);
 
-        // code->disassemble(cout);
-        vector<Var*> t;
-        code->execute(t);
-
+        if (mode == DISASM) {
+            code->disassemble(cout);
+        } else if (mode == JIT) {
+        } else {
+            vector<Var*> t;
+            code->execute(t);
+        }
 
         delete code;
     }
