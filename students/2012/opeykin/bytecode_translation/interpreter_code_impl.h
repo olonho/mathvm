@@ -93,13 +93,15 @@ private:
     void pushDouble(double value);
     void pushString(uint16_t id);
 
-//    void loadIntVar(uint32_t index);
-//    void loadDoubleVar(uint32_t index);
-    void loadVar(uint32_t index);
-    void storeIntVar(uint32_t index);
-    void storeStringVar(uint32_t index);
-    void storeDoubleVar(uint32_t index);
-    void callFunction(uint32_t id);
+    void loadVar(uint16_t varId);
+    void loadVar(uint16_t contextId, uint16_t varId);
+    void storeContextIntVar();
+    void storeContextDoubleVar();
+    void storeContextStringVar();
+    void storeIntVar(uint16_t varId);
+    void storeStringVar(uint16_t varId);
+    void storeDoubleVar(uint16_t varId);
+    void callFunction(uint16_t id);
 
     template<class Comparator>
     void jump(Comparator comparator) {

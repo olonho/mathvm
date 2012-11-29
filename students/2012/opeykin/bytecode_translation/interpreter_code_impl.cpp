@@ -77,30 +77,53 @@ void InterpreterCodeImpl::pushString(uint16_t id) {
 	_stack.push(unit);
 }
 
-void InterpreterCodeImpl::loadVar(uint32_t index) {
-	_stack.push(*_context->getVar(index));
+void InterpreterCodeImpl::loadVar(uint16_t varId) {
+	_stack.push(*_context->getVar(varId));
 }
 
-//void InterpreterCodeImpl::loadVar(uint32_t index) {
-//	_stack.push(*_context->getVar(index));
-//}
+void InterpreterCodeImpl::loadVar(uint16_t contextId, uint16_t varId) {
+	Context* context = _context->getContext(contextId);
+	assert(context);
+	_stack.push(*context->getVar(varId));
+}
 
-void InterpreterCodeImpl::storeIntVar(uint32_t index) {
-	ContextVar* var = _context->getVar(index);
+void InterpreterCodeImpl::storeContextIntVar() {
+	Context* context = _context->getContext(nextUInt16());
+	assert(context);
+	ContextVar* var = context->getVar(nextUInt16());
 	var->_intValue = popInt();
 }
 
-void InterpreterCodeImpl::storeDoubleVar(uint32_t index) {
-	ContextVar* var = _context->getVar(index);
+void InterpreterCodeImpl::storeContextDoubleVar() {
+	Context* context = _context->getContext(nextUInt16());
+	assert(context);
+	ContextVar* var = context->getVar(nextUInt16());
 	var->_doubleValue = popDouble();
 }
 
-void InterpreterCodeImpl::storeStringVar(uint32_t index) {
-	ContextVar* var = _context->getVar(index);
+void InterpreterCodeImpl::storeContextStringVar() {
+	Context* context = _context->getContext(nextUInt16());
+	assert(context);
+	ContextVar* var = context->getVar(nextUInt16());
 	var->_stringId = popStringId();
 }
 
-void InterpreterCodeImpl::callFunction(uint32_t id) {
+void InterpreterCodeImpl::storeIntVar(uint16_t varId) {
+	ContextVar* var = _context->getVar(varId);
+	var->_intValue = popInt();
+}
+
+void InterpreterCodeImpl::storeDoubleVar(uint16_t varId) {
+	ContextVar* var = _context->getVar(varId);
+	var->_doubleValue = popDouble();
+}
+
+void InterpreterCodeImpl::storeStringVar(uint16_t varId) {
+	ContextVar* var = _context->getVar(varId);
+	var->_stringId = popStringId();
+}
+
+void InterpreterCodeImpl::callFunction(uint16_t id) {
 	if (_context != 0) {
 		_context->setIp(_ip);
 	}
@@ -186,12 +209,12 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_STOREDVAR: storeDoubleVar(nextUInt16()); break;
 			case BC_STOREIVAR: storeIntVar(nextUInt16());break;
 			case BC_STORESVAR: storeStringVar(nextUInt16()); break;
-			case BC_LOADCTXDVAR: break;
-			case BC_LOADCTXIVAR: break;
-			case BC_LOADCTXSVAR: break;
-			case BC_STORECTXDVAR: break;
-			case BC_STORECTXIVAR: break;
-			case BC_STORECTXSVAR: break;
+			case BC_LOADCTXDVAR: loadVar(nextUInt16(), nextUInt16()); break;
+			case BC_LOADCTXIVAR: loadVar(nextUInt16(), nextUInt16()); break;
+			case BC_LOADCTXSVAR: loadVar(nextUInt16(), nextUInt16()); break;
+			case BC_STORECTXDVAR: storeContextDoubleVar(); break;
+			case BC_STORECTXIVAR: storeContextIntVar(); break;
+			case BC_STORECTXSVAR: storeContextStringVar(); break;
 			case BC_DCMP: break;
 			case BC_ICMP: break;
 			case BC_JA: _ip += _bp->getInt16(_ip); break;
