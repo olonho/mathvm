@@ -81,10 +81,10 @@ void InterpreterCodeImpl::loadVar(uint16_t varId) {
 	_stack.push(*_context->getVar(varId));
 }
 
-void InterpreterCodeImpl::loadVar(uint16_t contextId, uint16_t varId) {
-	Context* context = _context->getContext(contextId);
+void InterpreterCodeImpl::loadContextVar() {
+	Context* context = _context->getContext(nextUInt16());
 	assert(context);
-	_stack.push(*context->getVar(varId));
+	_stack.push(*context->getVar(nextUInt16()));
 }
 
 void InterpreterCodeImpl::storeContextIntVar() {
@@ -209,9 +209,9 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_STOREDVAR: storeDoubleVar(nextUInt16()); break;
 			case BC_STOREIVAR: storeIntVar(nextUInt16());break;
 			case BC_STORESVAR: storeStringVar(nextUInt16()); break;
-			case BC_LOADCTXDVAR: loadVar(nextUInt16(), nextUInt16()); break;
-			case BC_LOADCTXIVAR: loadVar(nextUInt16(), nextUInt16()); break;
-			case BC_LOADCTXSVAR: loadVar(nextUInt16(), nextUInt16()); break;
+			case BC_LOADCTXDVAR: loadContextVar(); break;
+			case BC_LOADCTXIVAR: loadContextVar(); break;
+			case BC_LOADCTXSVAR: loadContextVar(); break;
 			case BC_STORECTXDVAR: storeContextDoubleVar(); break;
 			case BC_STORECTXIVAR: storeContextIntVar(); break;
 			case BC_STORECTXSVAR: storeContextStringVar(); break;
