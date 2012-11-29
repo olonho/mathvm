@@ -94,7 +94,7 @@ private:
     void pushString(uint16_t id);
 
     void loadVar(uint16_t varId);
-    void loadVar(uint16_t contextId, uint16_t varId);
+    void loadContextVar();
     void storeContextIntVar();
     void storeContextDoubleVar();
     void storeContextStringVar();
