@@ -63,11 +63,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode* node) {
-//        out << "(";
-//        node->left()->visit(this);
-//        out << " " << tokenOp(node->kind()) << " ";
-//        node->right()->visit(this);
-//        out << ")";
         node->right()->visit(this);
         VarType right_type = m_latest_type;
         node->left()->visit(this);
@@ -133,24 +128,26 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
                 break;
             }
             default: {
-                m_bytecode->addInsn(BC_INVALID);
+                m_primitives.Invalid(m_bytecode);
                 break;
             }
         }
     }
     virtual void visitUnaryOpNode(UnaryOpNode* node) {
-//        out << " " << tokenOp(node->kind()) << "(";
         node->operand()->visit(this);
-//        out << ")";
 
         switch (node->kind()) {
             case tNOT: {    // "!"
-                m_primitives.Not(m_bytecode);
+                m_primitives.Not(m_bytecode, m_latest_type);
+                break;
+            }
+            case tSUB: {    // "!"
+                m_primitives.Neg(m_bytecode, m_latest_type);
                 break;
             }
 
             default: {
-                m_bytecode->addInsn(BC_INVALID);
+                m_primitives.Invalid(m_bytecode);
                 std::cerr << "Error: Unknown AST node kind '"
                           << node->kind()
                           << "'"
