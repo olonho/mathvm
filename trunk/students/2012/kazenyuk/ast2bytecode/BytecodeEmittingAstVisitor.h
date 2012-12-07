@@ -83,168 +83,23 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
         switch (node->kind()) {
             case tADD: {    // "+"
-                Instruction instr = BC_INVALID;
-                switch (m_latest_type) {
-                    case VT_INVALID:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Invalid AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                    case VT_DOUBLE:
-                        instr = BC_DADD;
-                        break;
-                    case VT_INT:
-                        instr = BC_IADD;
-                        break;
-                    case VT_VOID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_STRING:
-                        instr = BC_INVALID;
-                        break;
-                    default:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Unknown AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                }
-                m_bytecode->addInsn(instr);
+                m_primitives.Add(m_bytecode, left_type, right_type);
                 break;
             }
             case tSUB: {    // "-"
-                Instruction instr = BC_INVALID;
-                switch (m_latest_type) {
-                    case VT_INVALID:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Invalid AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                    case VT_DOUBLE:
-                        instr = BC_DSUB;
-                        break;
-                    case VT_INT:
-                        instr = BC_ISUB;
-                        break;
-                    case VT_VOID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_STRING:
-                        instr = BC_INVALID;
-                        break;
-                    default:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Unknown AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                }
-                m_bytecode->addInsn(instr);
+                m_primitives.Sub(m_bytecode, left_type, right_type);
                 break;
             }
             case tMUL: {    // "*"
-                Instruction instr = BC_INVALID;
-                switch (m_latest_type) {
-                    case VT_INVALID:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Invalid AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                    case VT_DOUBLE:
-                        instr = BC_DMUL;
-                        break;
-                    case VT_INT:
-                        instr = BC_IMUL;
-                        break;
-                    case VT_VOID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_STRING:
-                        instr = BC_INVALID;
-                        break;
-                    default:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Unknown AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                }
-                m_bytecode->addInsn(instr);
+                m_primitives.Mul(m_bytecode, left_type, right_type);
                 break;
             }
             case tDIV: {    // "/"
-                Instruction instr = BC_INVALID;
-                switch (m_latest_type) {
-                    case VT_INVALID:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Invalid AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                    case VT_DOUBLE:
-                        instr = BC_DDIV;
-                        break;
-                    case VT_INT:
-                        instr = BC_IDIV;
-                        break;
-                    case VT_VOID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_STRING:
-                        instr = BC_INVALID;
-                        break;
-                    default:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Unknown AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                }
-                m_bytecode->addInsn(instr);
+                m_primitives.Div(m_bytecode, left_type, right_type);
                 break;
             }
             case tMOD: {    // "%"
-                Instruction instr = BC_INVALID;
-                switch (m_latest_type) {
-                    case VT_INVALID:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Invalid AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                    case VT_DOUBLE:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_INT:
-                        instr = BC_IMOD;
-                        break;
-                    case VT_VOID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_STRING:
-                        instr = BC_INVALID;
-                        break;
-                    default:
-                        instr = BC_INVALID;
-                        std::cerr << "Error: Unknown AST var type '"
-                                  << m_latest_type
-                                  << "'"
-                                  << std::endl;
-                        break;
-                }
-                m_bytecode->addInsn(instr);
+                m_primitives.Mod(m_bytecode, left_type, right_type);
                 break;
             }
 //            case tAND: {    // &&
