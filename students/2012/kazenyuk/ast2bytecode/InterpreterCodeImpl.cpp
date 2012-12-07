@@ -6,7 +6,7 @@
 
 #include "InterpreterCodeImpl.h"
 
-// #define ENABLE_TRACING 1
+#define ENABLE_TRACING 1
 
 namespace mathvm {
 
@@ -214,8 +214,10 @@ class ByteStack {
 
 void decodeInsn(Bytecode* bytecode, size_t bci, Instruction& insn, size_t& length) {
     insn = bytecode->getInsn(bci);
+#ifndef ENABLE_TRACING
+    bcName(insn, length);
+#else
     const char* name = bcName(insn, length);
-#ifdef ENABLE_TRACING
     std::ostream& out(std::clog);
     out << std::setw(5) << bci << ": ";
     switch (insn) {
@@ -431,7 +433,7 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                     continue;
                 }
                 break;
-            case BC_IFICMPL:
+            case BC_IFICMPL: 
                 if (stack.popInt64() < stack.popInt64()) {
                     bci += bytecode->getInt16(bci + 1) + 1;
                     continue;
@@ -444,7 +446,6 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                 }
                 break;
             case BC_JA:
-//                  out << name << " " << getInt16(bci + 1) + bci + 1;
                 bci += bytecode->getInt16(bci + 1) + 1;
                 continue;
                 break;
@@ -468,7 +469,6 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                 continue;
                 break;//}
             case BC_CALLNATIVE:
-                //                  out << name << " *" << getUInt16(bci + 1);
                 return new Status("Native functions are currently not supported\n", bci);
                 break;
             case BC_RETURN: {
@@ -489,10 +489,8 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                 return new Status("Breakpoints are currently not supported\n", bci);
                 break;
             default:
-                //                  out << name;
                 return new Status("Unknown or unsupported instruction\n", bci);
         }
-        //          out << endl;
         bci += length;
     }
 #ifdef ENABLE_TRACING
