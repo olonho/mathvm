@@ -20,6 +20,9 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    bool output_bytecode = (argc == 3);
+    bool interpret_bytecode = (argc == 2);
+
     const std::string text(text_buffer);
     mathvm::Code* code = 0;
 
@@ -41,7 +44,7 @@ int main(int argc, char** argv) {
     }
 
 #ifndef ENABLE_TRACING
-    if (argc == 2) {
+    if (output_bytecode) {
 #endif
         code->disassemble(std::cout, 0);
 #ifndef ENABLE_TRACING
@@ -52,7 +55,7 @@ int main(int argc, char** argv) {
     delete translator;
     delete[] text_buffer;
 
-    if (argc == 3) {
+    if (interpret_bytecode) {
 #ifdef ENABLE_TRACING
         std::cout << "\nExecuting" << std::endl;
 #endif
