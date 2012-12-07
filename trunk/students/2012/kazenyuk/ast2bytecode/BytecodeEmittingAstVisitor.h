@@ -188,7 +188,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
     }
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
-//        uint16_t string_id = m_code->makeStringConstant(escape_all(node->literal()));
         uint16_t string_id = m_code->makeStringConstant(node->literal());
 
         m_bytecode->addInsn(BC_SLOAD);
@@ -292,13 +291,15 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
         // upper is 0, lower is the condition
         // jump if upper >= lower, i.e. jump if the condition evaluates to false
-        m_bytecode->addInsn(BC_IFICMPGE);
+        Label elseLabel(m_bytecode);
+        m_bytecode->addBranch(BC_IFICMPG, elseLabel);
+        // m_bytecode->addInsn(BC_IFICMPGE);
         //TODO: add IFICMPGE argument (offset/dst to else block)
 
         node->thenBlock()->visit(this);
 
+        m_bytecode->bind(elseLabel);
         if (node->elseBlock()) {
-//            out << "else ";
             node->elseBlock()->visit(this);
         }
     }
@@ -456,7 +457,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_bytecode->addInsn(BC_RETURN);
     }
     virtual void visitCallNode(CallNode* node) {
-        // push arguments on the stack
+        // pass arguments through VARs
         uint32_t parameters_number = node->parametersNumber();
         if (parameters_number > 0) {
             uint32_t last_parameter = parameters_number - 1;
@@ -511,7 +512,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
                         break;
                 }
             m_bytecode->addInsn(instr);
-                m_bytecode->addUInt16(var_id++);
+            m_bytecode->addUInt16(var_id++);
         }
 
         // resolve function by name
@@ -526,19 +527,19 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_bytecode->addInsn(BC_CALL);  //BC_CALL must push return address on the stack
         m_bytecode->addUInt16(function_id);
 
-        const size_t DatatypeSize[] = {0,   // VT_INVALID
-                                       0,   // VT_VOID
-                                       sizeof(double),  // VT_DOUBLE
-                                       sizeof(int64_t), // VT_INT
-                                       sizeof(uint16_t) // VT_STRING
-        };
+        // const size_t DatatypeSize[] = {0,   // VT_INVALID
+        //                                0,   // VT_VOID
+        //                                sizeof(double),  // VT_DOUBLE
+        //                                sizeof(int64_t), // VT_INT
+        //                                sizeof(uint16_t) // VT_STRING
+        // };
 
-        // remove function arguments from the stack (byte by byte)
-        for (uint32_t i = 0; i < parameters_number; ++i) {
-            for (uint32_t j = 0; j < DatatypeSize[function->parameterType(i)]; ++j) {
-                m_bytecode->addInsn(BC_POP);
-            }
-        }
+        // // remove function arguments from the stack (byte by byte)
+        // for (uint32_t i = 0; i < parameters_number; ++i) {
+        //     for (uint32_t j = 0; j < DatatypeSize[function->parameterType(i)]; ++j) {
+        //         m_bytecode->addInsn(BC_POP);
+        //     }
+        // }
 
         // move function return value from VAR0 to the top of the stack
         switch (function->returnType()) {
