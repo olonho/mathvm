@@ -280,28 +280,37 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //        node->body()->visit(this);
     }
     virtual void visitWhileNode(WhileNode* node) {
-//        out << "while (";
-//        node->whileExpr()->visit(this);
-//        out << ") ";
-//        node->loopBlock()->visit(this);
+        Label entryLoopLabel(m_bytecode, m_bytecode->current());
+        Label exitLoopLabel(m_bytecode);
+
+        m_bytecode->addInsn(BC_ILOAD0);
+        node->whileExpr()->visit(this);
+
+        m_bytecode->addBranch(BC_IFICMPE, exitLoopLabel);
+
+        node->loopBlock()->visit(this);
+        m_bytecode->addBranch(BC_JA, entryLoopLabel);
+
+        m_bytecode->bind(exitLoopLabel);
     }
     virtual void visitIfNode(IfNode* node) {
         m_bytecode->addInsn(BC_ILOAD0);
         node->ifExpr()->visit(this);
 
-        // upper is 0, lower is the condition
-        // jump if upper >= lower, i.e. jump if the condition evaluates to false
         Label elseLabel(m_bytecode);
-        m_bytecode->addBranch(BC_IFICMPG, elseLabel);
-        // m_bytecode->addInsn(BC_IFICMPGE);
-        //TODO: add IFICMPGE argument (offset/dst to else block)
+        Label ifExitLabel(m_bytecode);
+        //jump if the condition evaluates to false
+        m_bytecode->addBranch(BC_IFICMPE, elseLabel);
 
         node->thenBlock()->visit(this);
+        m_bytecode->addBranch(BC_JA, ifExitLabel);
 
         m_bytecode->bind(elseLabel);
         if (node->elseBlock()) {
             node->elseBlock()->visit(this);
         }
+
+        m_bytecode->bind(ifExitLabel);
     }
     virtual void visitBlockNode(BlockNode* node) {
 //        out << "{\n";
