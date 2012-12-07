@@ -186,6 +186,39 @@ public:
         out->addInsn(instr);
     }
 
+    void Neg(Bytecode* out, VarType type = VT_VOID) {
+        Instruction instr = BC_INVALID;
+        switch (type) {
+            case VT_DOUBLE:
+                instr = BC_DNEG;
+                break;
+            case VT_INT:
+                instr = BC_INEG;
+                break;
+            case VT_VOID:
+            case VT_STRING:
+                instr = BC_INVALID;
+                std::cerr << "Error: Unsupported type of the argument"
+                        << std::endl;
+                break;
+            case VT_INVALID:
+                instr = BC_INVALID;
+                std::cerr << "Error: Invalid AST var type '"
+                          << type
+                          << "'"
+                          << std::endl;
+                break;
+            default:
+                instr = BC_INVALID;
+                std::cerr << "Error: Unknown AST var type '"
+                          << type
+                          << "'"
+                          << std::endl;
+                break;
+        }
+        out->addInsn(instr);
+    }
+
     void CmpEq(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         Cmp(out, BC_IFICMPE, leftType, rightType);
     }
@@ -213,6 +246,11 @@ public:
     void Not(Bytecode* out, VarType type = VT_VOID) {
         out->addInsn(BC_ILOAD0);
         CmpEq(out);
+    }
+
+    void Invalid(Bytecode* out) {
+        std::cerr << "Warning: emitting BC_INVALID" << std::endl;
+        out->addInsn(BC_INVALID);
     }
 
 private:

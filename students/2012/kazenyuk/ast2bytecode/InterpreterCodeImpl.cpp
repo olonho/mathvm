@@ -6,7 +6,7 @@
 
 #include "InterpreterCodeImpl.h"
 
-// #define ENABLE_TRACING 1
+#define ENABLE_TRACING 1
 
 namespace mathvm {
 
@@ -336,6 +336,12 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
                 break;
             case BC_IMOD:
                 stack.pushInt64(stack.popInt64() % stack.popInt64());
+                break;
+            case BC_DNEG:
+                stack.pushDouble(-stack.popDouble());
+                break;
+            case BC_INEG:
+                stack.pushInt64(-stack.popInt64());
                 break;
 
             case BC_IPRINT:
