@@ -316,6 +316,27 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
             case BC_IADD:
                 stack.pushInt64(stack.popInt64() + stack.popInt64());
                 break;
+            case BC_DSUB:
+                stack.pushDouble(stack.popDouble() - stack.popDouble());
+                break;
+            case BC_ISUB:
+                stack.pushInt64(stack.popInt64() - stack.popInt64());
+                break;
+            case BC_DMUL:
+                stack.pushDouble(stack.popDouble() * stack.popDouble());
+                break;
+            case BC_IMUL:
+                stack.pushInt64(stack.popInt64() * stack.popInt64());
+                break;
+            case BC_DDIV:
+                stack.pushDouble(stack.popDouble() / stack.popDouble());
+                break;
+            case BC_IDIV:
+                stack.pushInt64(stack.popInt64() / stack.popInt64());
+                break;
+            case BC_IMOD:
+                stack.pushInt64(stack.popInt64() % stack.popInt64());
+                break;
 
             case BC_IPRINT:
                 std::cout << stack.popInt64();
