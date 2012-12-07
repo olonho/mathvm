@@ -187,30 +187,6 @@ public:
     }
 
     void CmpEq(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
-//        switch (node->var()->type()) {
-//                    case VT_INVALID:
-//                        instr = BC_INVALID;
-//                        break;
-//                    case VT_VOID:
-//                        instr = BC_INVALID;
-//                        break;
-//                    case VT_DOUBLE:
-//                        instr = BC_LOADDVAR;
-//                        break;
-//                    case VT_INT:
-//                        instr = BC_LOADIVAR;
-//                        break;
-//                    case VT_STRING:
-//                        instr = BC_LOADSVAR;
-//                        break;
-//                    default:
-//                        instr = BC_INVALID;
-//                        std::cerr << "Error: Unknown AST var type '"
-//                                  << node->var()->type()
-//                                  << "'"
-//                                  << std::endl;
-
-//                out->addBranch(BC_IFICMPG, *(new Label()));
         Cmp(out, BC_IFICMPE, leftType, rightType);
     }
 
