@@ -1,11 +1,12 @@
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <string>
 #include <map>
 
 #include "InterpreterCodeImpl.h"
 
-//#define ENABLE_TRACING 1
+// #define ENABLE_TRACING 1
 
 namespace mathvm {
 
@@ -130,6 +131,7 @@ class ByteStack {
     }
 
     uint8_t pop() {
+        assert(_data.size() != 0);
         uint8_t val = _data.back();
         _data.pop_back();
         return val;
@@ -210,6 +212,59 @@ class ByteStack {
     }
 };
 
+void decodeInsn(Bytecode* bytecode, size_t bci, Instruction& insn, size_t& length) {
+    insn = bytecode->getInsn(bci);
+    const char* name = bcName(insn, length);
+#ifdef ENABLE_TRACING
+    std::ostream& out(std::clog);
+    out << std::setw(5) << bci << ": ";
+    switch (insn) {
+        case BC_DLOAD:
+            out << name << " " << bytecode->getDouble(bci + 1);
+            break;
+        case BC_ILOAD:
+            out << name << " " << bytecode->getInt64(bci + 1);
+            break;
+        case BC_SLOAD:
+            out << name << " @" << bytecode->getUInt16(bci + 1);
+            break;
+        case BC_CALL:
+        case BC_CALLNATIVE:
+            out << name << " *" << bytecode->getUInt16(bci + 1);
+            break;
+        case BC_LOADDVAR:
+        case BC_STOREDVAR:
+        case BC_LOADIVAR:
+        case BC_STOREIVAR:
+        case BC_LOADSVAR:
+        case BC_STORESVAR:
+            out << name << " @" << bytecode->getUInt16(bci + 1);
+            break;
+        case BC_LOADCTXDVAR:
+        case BC_STORECTXDVAR:
+        case BC_LOADCTXIVAR:
+        case BC_STORECTXIVAR:
+        case BC_LOADCTXSVAR:
+        case BC_STORECTXSVAR:
+            out << name << " @" << bytecode->getUInt16(bci + 1)
+                << ":" << bytecode->getUInt16(bci + 3);
+            break;
+        case BC_IFICMPNE:
+        case BC_IFICMPE:
+        case BC_IFICMPG:
+        case BC_IFICMPGE:
+        case BC_IFICMPL:
+        case BC_IFICMPLE:
+        case BC_JA:
+            out << name << " " << bytecode->getInt16(bci + 1) + bci + 1;
+            break;
+      default:
+            out << name;
+    }
+    out << std::endl;
+#endif  // ENABLE_TRACING
+}
+
 Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
     ByteStack stack;
     typedef std::map<uint16_t, ByteStorage> VarMap;
@@ -219,15 +274,12 @@ Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
     Bytecode* bytecode = function->bytecode();
 
     for (size_t bci = 0; bci < bytecode->length();) {
-        size_t length;
-        Instruction insn = bytecode->getInsn(bci);
-        const char* name = bcName(insn, length);
-#ifdef ENABLE_TRACING
-        std::clog << bci << ": " << name << std::endl;
-#endif
+        Instruction insn = BC_INVALID;
+        size_t length = 1;  // size of the BC_INVALID
+        decodeInsn(bytecode, bci, insn, length);
         switch (insn) {
             case BC_INVALID:
-                return new Status(name, bci);
+                return new Status("BC_INVALID", bci);
                 break;
 
             case BC_DLOAD:
