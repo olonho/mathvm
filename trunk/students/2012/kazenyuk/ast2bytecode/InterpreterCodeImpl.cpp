@@ -6,7 +6,7 @@
 
 #include "InterpreterCodeImpl.h"
 
-#define ENABLE_TRACING 1
+// #define ENABLE_TRACING 1
 
 namespace mathvm {
 
