@@ -145,7 +145,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
                 m_primitives.Neg(m_bytecode, m_latest_type);
                 break;
             }
-
             default: {
                 m_primitives.Invalid(m_bytecode);
                 std::cerr << "Error: Unknown AST node kind '"
@@ -173,72 +172,38 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_latest_type = VT_INT;
     }
     virtual void visitLoadNode(LoadNode* node) {
-//        out << node->var()->name();
+        // NOTE: nothing to visit - it's just a variable name
 
-        // load value from the VAR and push on the stack
-        Instruction instr;
-        switch (node->var()->type()) {
-            case VT_INVALID:
-                instr = BC_INVALID;
-                break;
-            case VT_VOID:
-                instr = BC_INVALID;
-                break;
-            case VT_DOUBLE:
-                instr = BC_LOADDVAR;
-                break;
-            case VT_INT:
-                instr = BC_LOADIVAR;
-                break;
-            case VT_STRING:
-                instr = BC_LOADSVAR;
-                break;
-            default:
-                instr = BC_INVALID;
-                std::cerr << "Error: Unknown AST var type '"
-                          << node->var()->type()
-                          << "'"
-                          << std::endl;
-                break;
-        }
         m_latest_type = node->var()->type();
+        uint16_t var_id = getVarStorage(node->var()->name());
 
-        m_bytecode->addInsn(instr);
-        uint16_t var_id = getVarStorage(node->var()->name());    //TODO: get from the scope (by node->var()->name())
-        m_bytecode->addUInt16(var_id);
-
+         // load value from the VAR and push on the stack
+        m_primitives.Load(m_bytecode, var_id, m_latest_type);
     }
     virtual void visitStoreNode(StoreNode* node) {
 //        out << node->var()->name() << " = ";
         node->value()->visit(this);
-
-        // get value from the top of the stack and store in the VAR
-        Instruction instr;
-        switch (node->var()->type()) {
-            case VT_INVALID:
-                instr = BC_INVALID;
-                break;
-            case VT_VOID:
-                instr = BC_INVALID;
-                break;
-            case VT_DOUBLE:
-                instr = BC_STOREDVAR;
-                break;
-            case VT_INT:
-                instr = BC_STOREIVAR;
-                break;
-            case VT_STRING:
-                instr = BC_STORESVAR;
-                break;
-            default:
-                instr = BC_INVALID;
-                break;
-        }
         m_latest_type = node->var()->type();
 
-        m_bytecode->addInsn(instr);
-        uint16_t var_id = getVarStorage(node->var()->name());    //TODO: get from the scope (by node->var()->name())
-        m_bytecode->addUInt16(var_id);
+        uint16_t var_id = getVarStorage(node->var()->name());
+
+        switch (node->op()) {
+            case tASSIGN: {
+                m_primitives.Store(m_bytecode, var_id, m_latest_type);
+                break;
+            }
+            case tINCRSET: {
+                m_primitives.Inc(m_bytecode, var_id, m_latest_type);
+                break;
+            }
+            case tDECRSET: {
+                m_primitives.Dec(m_bytecode, var_id, m_latest_type);
+                break;
+            }
+            default:
+                m_primitives.Invalid(m_bytecode);
+                break;
+        }
     }
     virtual void visitForNode(ForNode* node) {
 //        out << "for ( " << node->var()->name()
@@ -399,36 +364,8 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
        if (node->returnExpr()) {
            node->returnExpr()->visit(this);
 
-           Instruction instr;
-           switch (m_latest_type) {
-               case VT_INVALID:
-                   instr = BC_INVALID;
-                   std::cerr << "Error: Invalid AST var type '"
-                             << m_latest_type
-                             << "'"
-                             << std::endl;
-                   break;
-               case VT_VOID:
-                   instr = BC_INVALID;
-                   break;
-               case VT_DOUBLE:
-                   instr = BC_STOREDVAR0;
-                   break;
-               case VT_INT:
-                   instr = BC_STOREIVAR0;
-                   break;
-               case VT_STRING:
-                   instr = BC_STORESVAR0;
-                   break;
-               default:
-                   instr = BC_INVALID;
-                   std::cerr << "Error: Unknown AST var type '"
-                             << m_latest_type
-                             << "'"
-                             << std::endl;
-                   break;
-           }
-           m_bytecode->addInsn(instr);   // move return value to VAR0
+           // move return value to VAR0
+           m_primitives.Store(m_bytecode, 0, m_latest_type);
        }
         // return address is on top the stack now
         m_bytecode->addInsn(BC_RETURN);
@@ -442,54 +379,10 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             uint16_t var_id = m_var_storage.size();
             for (uint32_t i = last_parameter; i > 0; --i) {
                 node->parameterAt(i)->visit(this);
-                Instruction instr = BC_INVALID;
-                switch (m_latest_type) {
-                    case VT_INVALID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_VOID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_DOUBLE:
-                        instr = BC_STOREDVAR;
-                        break;
-                    case VT_INT:
-                        instr = BC_STOREIVAR;
-                        break;
-                    case VT_STRING:
-                        instr = BC_STORESVAR;
-                        break;
-                    default:
-                        instr = BC_INVALID;
-                        break;
-                }
-                m_bytecode->addInsn(instr);
-                m_bytecode->addUInt16(var_id++);
+                m_primitives.Store(m_bytecode, var_id++, m_latest_type);
             }
             node->parameterAt(0)->visit(this);
-            Instruction instr = BC_INVALID;
-            switch (m_latest_type) {
-                    case VT_INVALID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_VOID:
-                        instr = BC_INVALID;
-                        break;
-                    case VT_DOUBLE:
-                        instr = BC_STOREDVAR;
-                        break;
-                    case VT_INT:
-                        instr = BC_STOREIVAR;
-                        break;
-                    case VT_STRING:
-                        instr = BC_STORESVAR;
-                        break;
-                    default:
-                        instr = BC_INVALID;
-                        break;
-                }
-            m_bytecode->addInsn(instr);
-            m_bytecode->addUInt16(var_id++);
+            m_primitives.Store(m_bytecode, var_id++, m_latest_type);
         }
 
         // resolve function by name
@@ -519,26 +412,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         // }
 
         // move function return value from VAR0 to the top of the stack
-        switch (function->returnType()) {
-            case VT_INVALID:
-                m_bytecode->addInsn(BC_INVALID);
-                break;
-            case VT_VOID:
-                // do nothing
-                break;
-            case VT_DOUBLE:
-                m_bytecode->addInsn(BC_LOADDVAR0);
-                break;
-            case VT_INT:
-                m_bytecode->addInsn(BC_LOADIVAR0);
-                break;
-            case VT_STRING:
-                m_bytecode->addInsn(BC_LOADSVAR0);
-                break;
-            default:
-                m_bytecode->addInsn(BC_INVALID);
-                break;
-        }
+        m_primitives.Load(m_bytecode, 0, m_latest_type);
     }
     virtual void visitNativeCallNode(NativeCallNode* node) {
         //TODO:
@@ -561,27 +435,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
         // emit needed number of print instructions
         for (uint32_t i = 0; i < parameters_number; ++i) {
-//            m_bytecode->addInsn(BC_IPRINT);
-            switch (parameter_types[parameters_number - i - 1]) {
-                case VT_INVALID:
-                    m_bytecode->addInsn(BC_INVALID);
-                    break;
-                case VT_VOID:
-                    // do nothing
-                    break;
-                case VT_DOUBLE:
-                    m_bytecode->addInsn(BC_DPRINT);
-                    break;
-                case VT_INT:
-                    m_bytecode->addInsn(BC_IPRINT);
-                    break;
-                case VT_STRING:
-                    m_bytecode->addInsn(BC_SPRINT);
-                    break;
-                default:
-                    m_bytecode->addInsn(BC_INVALID);
-                    break;
-            }
+            m_primitives.Print(m_bytecode, parameter_types[parameters_number - i - 1]);
         }
     }
 
