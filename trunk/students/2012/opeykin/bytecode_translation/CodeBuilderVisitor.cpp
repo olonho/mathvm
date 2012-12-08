@@ -162,6 +162,9 @@ Instruction CodeBuilderVisitor::CondTokenToInstruction(TokenKind kind) {
 
 // >, <, != ...
 void CodeBuilderVisitor::visitBinaryCondition(BinaryOpNode* node) {
+	if (_types[node->right()] != VT_INT || _types[node->left()] != VT_INT) {
+		ERROR("double comparison is too complex");
+	}
 	node->right()->visit(this);
 	node->left()->visit(this);
 	Instruction instruction = CondTokenToInstruction(node->kind());

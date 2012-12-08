@@ -18,6 +18,12 @@ namespace mathvm {
 	cout << "ERROR: " << INPUT << endl; \
 	assert(false);
 
+#define ASSERT_MSG(CONDITION, MSG) \
+	if (!CONDITION) { \
+		cout << "ERROR: " << MSG << endl; \
+		assert(false); \
+	};
+
 #define WARNING(INPUT) \
 	cout << "WARNING: " << INPUT << endl;
 
