@@ -60,29 +60,21 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         node->left()->visit(this);
         VarType left_type = m_latest_type;
 
-        if (right_type != left_type) {
-            std::cerr << "Error: Type mismatch: left is "
-                      << typeToName(left_type)
-                      << " but right is"
-                      << typeToName(right_type)
-                      << std::endl;
-        }
-
         switch (node->kind()) {
             case tADD:  // "+"
-                m_primitives.Add(m_bytecode, left_type, right_type);
+                m_latest_type = m_primitives.Add(m_bytecode, left_type, right_type);
                 break;
             case tSUB:  // "-"
-                m_primitives.Sub(m_bytecode, left_type, right_type);
+                m_latest_type = m_primitives.Sub(m_bytecode, left_type, right_type);
                 break;
             case tMUL:  // "*"
-                m_primitives.Mul(m_bytecode, left_type, right_type);
+                m_latest_type = m_primitives.Mul(m_bytecode, left_type, right_type);
                 break;
             case tDIV:  // "/"
-                m_primitives.Div(m_bytecode, left_type, right_type);
+                m_latest_type = m_primitives.Div(m_bytecode, left_type, right_type);
                 break;
             case tMOD:  // "%"
-                m_primitives.Mod(m_bytecode, left_type, right_type);
+                m_latest_type = m_primitives.Mod(m_bytecode, left_type, right_type);
                 break;
 //            case tAND: {    // &&
 //                break;
@@ -91,25 +83,25 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //                break;
 //            }
             case tEQ:   // "=="
-                m_primitives.CmpEq(m_bytecode);
+                m_latest_type = m_primitives.CmpEq(m_bytecode, left_type, right_type);
                 break;
             case tNEQ:  // "!=";
-                m_primitives.CmpNeq(m_bytecode);
+                m_latest_type = m_primitives.CmpNeq(m_bytecode, left_type, right_type);
                 break;
             case tGT:   // ">";
-                m_primitives.CmpGt(m_bytecode);
+                m_latest_type = m_primitives.CmpGt(m_bytecode, left_type, right_type);
                 break;
             case tGE:   // ">=";
-                m_primitives.CmpGe(m_bytecode);
+                m_latest_type = m_primitives.CmpGe(m_bytecode, left_type, right_type);
                 break;
             case tLT:   // "<";
-                m_primitives.CmpLt(m_bytecode);
+                m_latest_type = m_primitives.CmpLt(m_bytecode, left_type, right_type);
                 break;
             case tLE:   // "<=";
-                m_primitives.CmpLe(m_bytecode);
+                m_latest_type = m_primitives.CmpLe(m_bytecode, left_type, right_type);
                 break;
             default:
-                m_primitives.Invalid(m_bytecode);
+                m_latest_type = m_primitives.Invalid(m_bytecode);
                 break;
         }
     }
@@ -118,13 +110,13 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
         switch (node->kind()) {
             case tNOT:  // "!"
-                m_primitives.Not(m_bytecode, m_latest_type);
+                m_latest_type = m_primitives.Not(m_bytecode, m_latest_type);
                 break;
             case tSUB:  // "-"
-                m_primitives.Neg(m_bytecode, m_latest_type);
+                m_latest_type = m_primitives.Neg(m_bytecode, m_latest_type);
                 break;
             default:
-                m_primitives.Invalid(m_bytecode);
+                m_latest_type = m_primitives.Invalid(m_bytecode);
                 std::cerr << "Error: Unknown AST node kind '"
                           << node->kind()
                           << "'"
@@ -155,7 +147,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         uint16_t var_id = getVarStorage(node->var()->name());
 
          // load value from the VAR and push on the stack
-        m_primitives.Load(m_bytecode, var_id, m_latest_type);
+        m_latest_type = m_primitives.Load(m_bytecode, var_id, m_latest_type);
     }
     virtual void visitStoreNode(StoreNode* node) {
 //        out << node->var()->name() << " = ";
@@ -175,7 +167,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
                 m_primitives.Dec(m_bytecode, var_id, m_latest_type);
                 break;
             default:
-                m_primitives.Invalid(m_bytecode);
+                m_latest_type = m_primitives.Invalid(m_bytecode);
                 break;
         }
     }
@@ -386,7 +378,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         // }
 
         // move function return value from VAR0 to the top of the stack
-        m_primitives.Load(m_bytecode, 0, m_latest_type);
+        m_latest_type = m_primitives.Load(m_bytecode, 0, m_latest_type);
     }
     virtual void visitNativeCallNode(NativeCallNode* node) {
         //TODO:

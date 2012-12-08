@@ -13,9 +13,13 @@ public:
     BytecodeInstructionPrimitives();
     virtual ~BytecodeInstructionPrimitives();
 
-    void Add(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+    VarType Add(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         if (leftType != rightType) {
-            std::cerr << "Error: Type mismatch" << std::endl;
+            std::cerr << "Error: Type mismatch: left is "
+                      << typeToName(leftType)
+                      << " but right is"
+                      << typeToName(rightType)
+                      << std::endl;
         }
 
         Instruction instr = BC_INVALID;
@@ -46,11 +50,17 @@ public:
                 break;
         }
         out->addInsn(instr);
+
+        return leftType;
     }
 
-    void Sub(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+    VarType Sub(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         if (leftType != rightType) {
-            std::cerr << "Error: Type mismatch" << std::endl;
+            std::cerr << "Error: Type mismatch: left is "
+                      << typeToName(leftType)
+                      << " but right is"
+                      << typeToName(rightType)
+                      << std::endl;
         }
 
         Instruction instr = BC_INVALID;
@@ -81,11 +91,17 @@ public:
                 break;
         }
         out->addInsn(instr);
+
+        return leftType;
     }
 
-    void Mul(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+    VarType Mul(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         if (leftType != rightType) {
-            std::cerr << "Error: Type mismatch" << std::endl;
+            std::cerr << "Error: Type mismatch: left is "
+                      << typeToName(leftType)
+                      << " but right is"
+                      << typeToName(rightType)
+                      << std::endl;
         }
 
         Instruction instr = BC_INVALID;
@@ -116,11 +132,17 @@ public:
                 break;
         }
         out->addInsn(instr);
+
+        return leftType;
     }
 
-    void Div(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+    VarType Div(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         if (leftType != rightType) {
-            std::cerr << "Error: Type mismatch" << std::endl;
+            std::cerr << "Error: Type mismatch: left is "
+                      << typeToName(leftType)
+                      << " but right is"
+                      << typeToName(rightType)
+                      << std::endl;
         }
 
         Instruction instr = BC_INVALID;
@@ -151,11 +173,17 @@ public:
                 break;
         }
         out->addInsn(instr);
+
+        return leftType;
     }
 
-    void Mod(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+    VarType Mod(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         if (leftType != rightType) {
-            std::cerr << "Error: Type mismatch" << std::endl;
+            std::cerr << "Error: Type mismatch: left is "
+                      << typeToName(leftType)
+                      << " but right is"
+                      << typeToName(rightType)
+                      << std::endl;
         }
 
         Instruction instr = BC_INVALID;
@@ -184,9 +212,11 @@ public:
                 break;
         }
         out->addInsn(instr);
+
+        return leftType;
     }
 
-    void Neg(Bytecode* out, VarType type = VT_VOID) {
+    VarType Neg(Bytecode* out, VarType type = VT_VOID) {
         Instruction instr = BC_INVALID;
         switch (type) {
             case VT_DOUBLE:
@@ -217,35 +247,37 @@ public:
                 break;
         }
         out->addInsn(instr);
+
+        return type;
     }
 
-    void CmpEq(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
-        Cmp(out, BC_IFICMPE, leftType, rightType);
+    VarType CmpEq(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        return Cmp(out, BC_IFICMPE, leftType, rightType);
     }
 
-    void CmpNeq(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
-        Cmp(out, BC_IFICMPNE, leftType, rightType);
+    VarType CmpNeq(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        return Cmp(out, BC_IFICMPNE, leftType, rightType);
     }
 
-    void CmpGt(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
-        Cmp(out, BC_IFICMPG, leftType, rightType);
+    VarType CmpGt(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        return Cmp(out, BC_IFICMPG, leftType, rightType);
     }
 
-    void CmpGe(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
-        Cmp(out, BC_IFICMPGE, leftType, rightType);
+    VarType CmpGe(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        return Cmp(out, BC_IFICMPGE, leftType, rightType);
     }
 
-    void CmpLt(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
-        Cmp(out, BC_IFICMPL, leftType, rightType);
+    VarType CmpLt(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        return Cmp(out, BC_IFICMPL, leftType, rightType);
     }
 
-    void CmpLe(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
-        Cmp(out, BC_IFICMPLE, leftType, rightType);
+    VarType CmpLe(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        return Cmp(out, BC_IFICMPLE, leftType, rightType);
     }
 
-    void Not(Bytecode* out, VarType type = VT_VOID) {
+    VarType Not(Bytecode* out, VarType type = VT_VOID) {
         out->addInsn(BC_ILOAD0);
-        CmpEq(out);
+        return CmpEq(out);
     }
 
     void Store(Bytecode* out, uint16_t varId, VarType varType) {
@@ -283,7 +315,7 @@ public:
         }
     }
 
-    void Load(Bytecode* out, uint16_t varId, VarType varType) {
+    VarType Load(Bytecode* out, uint16_t varId, VarType varType) {
         Instruction instr = BC_INVALID;
 
         switch (varType) {
@@ -315,6 +347,8 @@ public:
         if (instr != BC_INVALID) {
             out->addUInt16(varId);
         }
+
+        return varType;
     }
 
     void Inc(Bytecode* out, uint16_t varId, VarType varType) {
@@ -374,14 +408,16 @@ public:
         out->addInsn(instr);
     }
 
-    void Invalid(Bytecode* out) {
+    VarType Invalid(Bytecode* out) {
         std::cerr << "Warning: emitting BC_INVALID" << std::endl;
         out->addInsn(BC_INVALID);
+
+        return VT_INVALID;
     }
 
 private:
 
-    void Cmp(Bytecode* out, Instruction cmpInsn, VarType leftType, VarType rightType) {
+    VarType Cmp(Bytecode* out, Instruction cmpInsn, VarType leftType, VarType rightType) {
         out->addInsn(cmpInsn);
         const uint16_t jump_offset_size = sizeof(uint16_t);
         out->addInt16(jump_offset_size + InsnSize[BC_ILOAD0] + InsnSize[BC_JA]);
@@ -396,6 +432,7 @@ private:
 //                out->addInsn(BC_POP);
 //                out->addInsn(BC_SWAP);
 //                out->addInsn(BC_POP);
+        return VT_INT;
     }
 
     static const uint8_t InsnSize[];
