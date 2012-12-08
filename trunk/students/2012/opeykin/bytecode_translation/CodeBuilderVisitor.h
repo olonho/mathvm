@@ -126,6 +126,7 @@ private:
 	void visitBinaryCalc(BinaryOpNode* node);
 	void visitBinarySet(BinaryOpNode* node);
 	Instruction CondTokenToInstruction(TokenKind);
+	Instruction CalcTokenToInstruction(TokenKind, VarType);
 
 	void processCondition(AstNode* node, Label* trueJump, Label* falseJump);
 };
