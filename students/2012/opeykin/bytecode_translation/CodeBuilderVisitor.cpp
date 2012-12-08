@@ -26,36 +26,6 @@ Status* CodeBuilderVisitor::start(AstFunction* top) {
 	return 0;
 }
 
-//void CodeBuilderVisitor::dummyCond(AstNode* cond, Label& label) {
-//	if (cond->isLoadNode()) {
-//		LoadNode* loadNode = static_cast<LoadNode*>(cond);
-//		assert(loadNode->var()->type() == VT_INT);
-//		addInsn(BC_ILOAD0);
-//		pushToStack(loadNode->var());
-//		bytecode()->addBranch(BC_IFICMPNE, label);
-//	} else if (cond->isIntLiteralNode()) {
-//		int64_t value = ((IntLiteralNode*)cond)->literal();
-//		if (value != 0) {
-//			bytecode()->addBranch(BC_JA, label);
-//		}
-//	} else if (cond->isBinaryOpNode()) {
-//		BinaryOpNode* binaryOpNode = static_cast<BinaryOpNode*>(cond);
-//		binaryOpNode->left()->visit(this);
-//		binaryOpNode->right()->visit(this);
-//		switch(binaryOpNode->kind()) {
-//			case tEQ: bytecode()->addBranch(BC_IFICMPE, label); break;
-//			case tNEQ: bytecode()->addBranch(BC_IFICMPNE, label); break;
-//			case tGT: bytecode()->addBranch(BC_IFICMPG, label); break;
-//			case tGE: bytecode()->addBranch(BC_IFICMPGE, label); break;
-//			case tLT: bytecode()->addBranch(BC_IFICMPL, label); break;
-//			case tLE: bytecode()->addBranch(BC_IFICMPLE, label); break;
-//			default: assert(false); break;
-//		}
-//	} else {
-//		assert(false);
-//	}
-//}
-
 void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 	BytecodeFunction* function = new BytecodeFunction(ast_function);
 	uint16_t id = _code->addFunction(function);
@@ -199,36 +169,43 @@ void CodeBuilderVisitor::visitBinaryCondition(BinaryOpNode* node) {
 	bytecode()->addBranch(BC_JA, *_jmp_loc->second);
 }
 
+Instruction CodeBuilderVisitor::CalcTokenToInstruction(TokenKind kind, VarType type) {
+	if (type == VT_INT) {
+		switch (kind) {
+			case tADD: return BC_IADD;
+			case tSUB: return BC_ISUB;
+			case tMUL: return BC_IMUL;
+			case tDIV: return BC_IDIV;
+			case tMOD: return BC_IMOD;
+			default:
+				ERROR("unsupported kind: " << kind);
+				return BC_INVALID;
+		}
+	} else if (type == VT_DOUBLE) {
+		switch (kind) {
+			case tADD: return BC_DADD;
+			case tSUB: return BC_DSUB;
+			case tMUL: return BC_DMUL;
+			case tDIV: return BC_DDIV;
+			default:
+				ERROR("unsupported kind: " << kind);
+				return BC_INVALID;
+		}
+	} else {
+		ERROR("unsupported type for calculation TokenKind -> Instruction conversion");
+		return BC_INVALID;
+	}
+
+}
+
 // +, -, / ...
 void CodeBuilderVisitor::visitBinaryCalc(BinaryOpNode* node) {
 	VarType common_type = _types[node];
 	assert(common_type == _types[node->left()]);
 	assert(common_type == _types[node->right()]);
-
-	typedef pair<TokenKind, VarType> Key;
-	map<Key, Instruction> operations;
-
-	operations[Key(tADD, VT_INT)] = BC_IADD;
-	operations[Key(tSUB, VT_INT)] = BC_ISUB;
-	operations[Key(tMUL, VT_INT)] = BC_IMUL;
-	operations[Key(tDIV, VT_INT)] = BC_IDIV;
-	operations[Key(tMOD, VT_INT)] = BC_IMOD;
-
-	operations[Key(tADD, VT_DOUBLE)] = BC_DADD;
-	operations[Key(tSUB, VT_DOUBLE)] = BC_DSUB;
-	operations[Key(tMUL, VT_DOUBLE)] = BC_DMUL;
-	operations[Key(tDIV, VT_DOUBLE)] = BC_DDIV;
-
-	map<Key, Instruction>::iterator it =
-			operations.find(Key(node->kind(), common_type));
-
-	if (it != operations.end()) {
-		node->right()->visit(this);
-		node->left()->visit(this);
-		addInsn(it->second);
-	} else {
-		ERROR("Unknown kind: " << node->kind());
-	}
+	node->right()->visit(this);
+	node->left()->visit(this);
+	addInsn(CalcTokenToInstruction(node->kind(), common_type));
 }
 
 void CodeBuilderVisitor::addInsn(Instruction instruction) {
