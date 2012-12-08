@@ -149,6 +149,7 @@ void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	operations[Key(tSUB, VT_INT)] = BC_ISUB;
 	operations[Key(tMUL, VT_INT)] = BC_IMUL;
 	operations[Key(tDIV, VT_INT)] = BC_IDIV;
+	operations[Key(tMOD, VT_INT)] = BC_IMOD;
 
 	operations[Key(tADD, VT_DOUBLE)] = BC_DADD;
 	operations[Key(tSUB, VT_DOUBLE)] = BC_DSUB;
@@ -171,14 +172,14 @@ void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			case tOR:
 				_jmp_loc = &or_loc;
 				node->left()->visit(this);
-				right.bind(bytecode()->current());
+				right.bind(current());
 				_jmp_loc = old_loc;
 				node->right()->visit(this);
 				break;
 			case tAND:
 				_jmp_loc = &and_loc;
 				node->left()->visit(this);
-				right.bind(bytecode()->current());
+				right.bind(current());
 				_jmp_loc = old_loc;
 				node->right()->visit(this);
 				break;
@@ -287,32 +288,48 @@ void CodeBuilderVisitor::visitForNode(ForNode* node) {
 
 
 void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
+//	Label true_label(bytecode());
+//	Label false_label(bytecode());
+//	processCondition(node->ifExpr(), &true_label, &false_label);
+//	true_label.bind(current());
+//	node->thenBlock()->visit(this);
+//	if (node->elseBlock()) {
+//		Label end_label(bytecode());
+//		bytecode()->addBranch(BC_JA, end_label);
+//		false_label.bind(current());
+//		node->elseBlock()->visit(this);
+//		end_label.bind(current());
+//	} else {
+//		false_label.bind(current());
+//	}
+
 	Label condition_label(bytecode());
 	Label block_label(bytecode());
+	Label end_label(bytecode());
 
 	bytecode()->addBranch(BC_JA, condition_label);
-	block_label.bind(bytecode()->current());
+	block_label.bind(current());
 	node->loopBlock()->visit(this);
 
-	condition_label.bind(bytecode()->current());
-	dummyCond(node->whileExpr(), block_label);
-
+	condition_label.bind(current());
+	processCondition(node->whileExpr(), &block_label, &end_label);
+	end_label.bind(current());
 }
 
 void CodeBuilderVisitor::visitIfNode(IfNode* node) {
 	Label true_label(bytecode());
 	Label false_label(bytecode());
 	processCondition(node->ifExpr(), &true_label, &false_label);
-	true_label.bind(bytecode()->current());
+	true_label.bind(current());
 	node->thenBlock()->visit(this);
 	if (node->elseBlock()) {
 		Label end_label(bytecode());
 		bytecode()->addBranch(BC_JA, end_label);
-		false_label.bind(bytecode()->current());
+		false_label.bind(current());
 		node->elseBlock()->visit(this);
-		end_label.bind(bytecode()->current());
+		end_label.bind(current());
 	} else {
-		false_label.bind(bytecode()->current());
+		false_label.bind(current());
 	}
 }
 
