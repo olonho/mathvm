@@ -26,35 +26,35 @@ Status* CodeBuilderVisitor::start(AstFunction* top) {
 	return 0;
 }
 
-void CodeBuilderVisitor::dummyCond(AstNode* cond, Label& label) {
-	if (cond->isLoadNode()) {
-		LoadNode* loadNode = static_cast<LoadNode*>(cond);
-		assert(loadNode->var()->type() == VT_INT);
-		addInsn(BC_ILOAD0);
-		pushToStack(loadNode->var());
-		bytecode()->addBranch(BC_IFICMPNE, label);
-	} else if (cond->isIntLiteralNode()) {
-		int64_t value = ((IntLiteralNode*)cond)->literal();
-		if (value != 0) {
-			bytecode()->addBranch(BC_JA, label);
-		}
-	} else if (cond->isBinaryOpNode()) {
-		BinaryOpNode* binaryOpNode = static_cast<BinaryOpNode*>(cond);
-		binaryOpNode->left()->visit(this);
-		binaryOpNode->right()->visit(this);
-		switch(binaryOpNode->kind()) {
-			case tEQ: bytecode()->addBranch(BC_IFICMPE, label); break;
-			case tNEQ: bytecode()->addBranch(BC_IFICMPNE, label); break;
-			case tGT: bytecode()->addBranch(BC_IFICMPG, label); break;
-			case tGE: bytecode()->addBranch(BC_IFICMPGE, label); break;
-			case tLT: bytecode()->addBranch(BC_IFICMPL, label); break;
-			case tLE: bytecode()->addBranch(BC_IFICMPLE, label); break;
-			default: assert(false); break;
-		}
-	} else {
-		assert(false);
-	}
-}
+//void CodeBuilderVisitor::dummyCond(AstNode* cond, Label& label) {
+//	if (cond->isLoadNode()) {
+//		LoadNode* loadNode = static_cast<LoadNode*>(cond);
+//		assert(loadNode->var()->type() == VT_INT);
+//		addInsn(BC_ILOAD0);
+//		pushToStack(loadNode->var());
+//		bytecode()->addBranch(BC_IFICMPNE, label);
+//	} else if (cond->isIntLiteralNode()) {
+//		int64_t value = ((IntLiteralNode*)cond)->literal();
+//		if (value != 0) {
+//			bytecode()->addBranch(BC_JA, label);
+//		}
+//	} else if (cond->isBinaryOpNode()) {
+//		BinaryOpNode* binaryOpNode = static_cast<BinaryOpNode*>(cond);
+//		binaryOpNode->left()->visit(this);
+//		binaryOpNode->right()->visit(this);
+//		switch(binaryOpNode->kind()) {
+//			case tEQ: bytecode()->addBranch(BC_IFICMPE, label); break;
+//			case tNEQ: bytecode()->addBranch(BC_IFICMPNE, label); break;
+//			case tGT: bytecode()->addBranch(BC_IFICMPG, label); break;
+//			case tGE: bytecode()->addBranch(BC_IFICMPGE, label); break;
+//			case tLT: bytecode()->addBranch(BC_IFICMPL, label); break;
+//			case tLE: bytecode()->addBranch(BC_IFICMPLE, label); break;
+//			default: assert(false); break;
+//		}
+//	} else {
+//		assert(false);
+//	}
+//}
 
 void CodeBuilderVisitor::processFunction(AstFunction* ast_function) {
 	BytecodeFunction* function = new BytecodeFunction(ast_function);
@@ -137,13 +137,76 @@ void CodeBuilderVisitor::loadLocalVar(VarType type, uint16_t id) {
 }
 
 void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
+	switch (node->kind()) {
+		case tOR:
+		case tAND: visitBinaryLogic(node); break;
+		case tEQ:
+		case tNEQ:
+		case tGT:
+		case tGE:
+		case tLT:
+		case tLE: visitBinaryCondition(node); break;
+		case tADD:
+		case tSUB:
+		case tMUL:
+		case tDIV:
+		case tMOD: visitBinaryCalc(node); break;
+		case tINCRSET:
+		case tDECRSET: break;
+		default: assert(false); break;
+	}
+}
 
+// || and &&
+void CodeBuilderVisitor::visitBinaryLogic(BinaryOpNode* node) {
+	Label right(bytecode());
+	JumpLocation or_loc (_jmp_loc->first, &right);
+	JumpLocation and_loc (&right, _jmp_loc->second);
+	JumpLocation* old_loc = _jmp_loc;
 
-	VarType common_type = VT_INT;
+	switch (node->kind()) {
+		case tOR: 	_jmp_loc = &or_loc;	 break;
+		case tAND: 	_jmp_loc = &and_loc; break;
+		default: break;
+	}
+
+	node->left()->visit(this);
+	right.bind(current());
+	_jmp_loc = old_loc;
+	node->right()->visit(this);
+}
+
+Instruction CodeBuilderVisitor::CondTokenToInstruction(TokenKind kind) {
+	switch (kind) {
+		case tEQ: 	return BC_IFICMPE;
+		case tNEQ: 	return BC_IFICMPNE;
+		case tGT: 	return BC_IFICMPG;
+		case tGE: 	return BC_IFICMPGE;
+		case tLT: 	return BC_IFICMPL;
+		case tLE: 	return BC_IFICMPLE;
+		default:
+			ERROR("can not convert '" << kind << "' kind to token");
+			return BC_INVALID;
+	}
+}
+
+// >, <, != ...
+void CodeBuilderVisitor::visitBinaryCondition(BinaryOpNode* node) {
+	node->right()->visit(this);
+	node->left()->visit(this);
+	Instruction instruction = CondTokenToInstruction(node->kind());
+	bytecode()->addBranch(instruction, *_jmp_loc->first);
+	bytecode()->addBranch(BC_JA, *_jmp_loc->second);
+}
+
+// +, -, / ...
+void CodeBuilderVisitor::visitBinaryCalc(BinaryOpNode* node) {
+	VarType common_type = _types[node];
+	assert(common_type == _types[node->left()]);
+	assert(common_type == _types[node->right()]);
 
 	typedef pair<TokenKind, VarType> Key;
 	map<Key, Instruction> operations;
-	TokenKind kind = node->kind();
 
 	operations[Key(tADD, VT_INT)] = BC_IADD;
 	operations[Key(tSUB, VT_INT)] = BC_ISUB;
@@ -157,56 +220,14 @@ void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	operations[Key(tDIV, VT_DOUBLE)] = BC_DDIV;
 
 	map<Key, Instruction>::iterator it =
-			operations.find(Key(kind, common_type));
+			operations.find(Key(node->kind(), common_type));
 
 	if (it != operations.end()) {
 		node->right()->visit(this);
 		node->left()->visit(this);
 		addInsn(it->second);
 	} else {
-		Label right(bytecode());
-		JumpLocation or_loc (_jmp_loc->first, &right);
-		JumpLocation and_loc (&right, _jmp_loc->second);
-		JumpLocation* old_loc = _jmp_loc;
-		switch (kind) {
-			case tOR:
-				_jmp_loc = &or_loc;
-				node->left()->visit(this);
-				right.bind(current());
-				_jmp_loc = old_loc;
-				node->right()->visit(this);
-				break;
-			case tAND:
-				_jmp_loc = &and_loc;
-				node->left()->visit(this);
-				right.bind(current());
-				_jmp_loc = old_loc;
-				node->right()->visit(this);
-				break;
-			default: break;
-		}
-
-
-
-#define CASE(TYPE, INSN) \
-		case TYPE: \
-			node->right()->visit(this); \
-			node->left()->visit(this); \
-			bytecode()->addBranch(INSN, *_jmp_loc->first); \
-			bytecode()->addBranch(BC_JA, *_jmp_loc->second); \
-			break;
-
-		switch (kind) {
-			CASE(tEQ, BC_IFICMPE);
-			CASE(tNEQ, BC_IFICMPNE);
-			CASE(tGT, BC_IFICMPG);
-			CASE(tGE, BC_IFICMPGE);
-			CASE(tLT, BC_IFICMPL);
-			CASE(tLE, BC_IFICMPLE);
-			default: break;
-		}
-#undef CASE
-
+		ERROR("Unknown kind: " << node->kind());
 	}
 }
 
@@ -288,21 +309,6 @@ void CodeBuilderVisitor::visitForNode(ForNode* node) {
 
 
 void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
-//	Label true_label(bytecode());
-//	Label false_label(bytecode());
-//	processCondition(node->ifExpr(), &true_label, &false_label);
-//	true_label.bind(current());
-//	node->thenBlock()->visit(this);
-//	if (node->elseBlock()) {
-//		Label end_label(bytecode());
-//		bytecode()->addBranch(BC_JA, end_label);
-//		false_label.bind(current());
-//		node->elseBlock()->visit(this);
-//		end_label.bind(current());
-//	} else {
-//		false_label.bind(current());
-//	}
-
 	Label condition_label(bytecode());
 	Label block_label(bytecode());
 	Label end_label(bytecode());
