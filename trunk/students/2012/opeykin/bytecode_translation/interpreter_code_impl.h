@@ -105,7 +105,9 @@ private:
 
     template<class Comparator>
     void jump(Comparator comparator) {
-    	if (comparator(popInt(), popInt())) {
+    	int left = popInt();
+    	int right = popInt();
+    	if (comparator(left, right)) {
     		_ip += _bp->getInt16(_ip);
     	} else {
     		_ip += 2;

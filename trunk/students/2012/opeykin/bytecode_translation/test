@@ -12,7 +12,6 @@ rm -rf $OUTPUT_DIR
 mkdir $OUTPUT_DIR
 
 for FNAME in $(ls $INPUT_DIR) ; do
-    echo $FNAME
     $BIN_DIR/bytecode_translation $INPUT_DIR/$FNAME 1 2 > $OUTPUT_DIR/$FNAME
 done
 
