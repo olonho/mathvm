@@ -14,6 +14,13 @@
 
 namespace mathvm {
 
+#define ERROR(INPUT) \
+	cout << "ERROR: " << INPUT << endl; \
+	assert(false);
+
+#define WARNING(INPUT) \
+	cout << "WARNING: " << INPUT << endl;
+
 struct VarInfo {
 	VarInfo(const uint16_t id, const uint16_t functionId)
 			: id(id), context(functionId) { }
@@ -114,7 +121,11 @@ private:
 	void addInsn(Instruction instruction);
 	void addUInt16(uint16_t value);
 
-	void dummyCond(AstNode* cond, Label& label);
+	void visitBinaryLogic(BinaryOpNode* node);
+	void visitBinaryCondition(BinaryOpNode* node);
+	void visitBinaryCalc(BinaryOpNode* node);
+	void visitBinarySet(BinaryOpNode* node);
+	Instruction CondTokenToInstruction(TokenKind);
 
 	void processCondition(AstNode* node, Label* trueJump, Label* falseJump);
 };
