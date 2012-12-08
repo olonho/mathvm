@@ -42,19 +42,11 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
     void bytecodeByTokenKind(TokenKind token) {
 //        switch (token) {
 //        case tEOF: return "";
-//            case tLPAREN: return "(";
-//            case tRPAREN: return ")";
-//            case tLBRACE: return "{";
-//            case tRBRACE: return "}";
-//            case tASSIGN: return "=";
 //            case tRANGE: return "..";
-//            case tINCRSET: return "+=";
-//            case tDECRSET: return "-=";
 //            case tDOUBLE: return "";
 //            case tINT: return "";
 //            case tSTRING: return "";
 //            case tCOMMA: return ",";
-//            case tSEMICOLON: return ";";
 //            case tIDENT: return "";
 //            case tERROR: return "";
 //            case tUNDEF: return "";
@@ -77,81 +69,66 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
 
         switch (node->kind()) {
-            case tADD: {    // "+"
+            case tADD:  // "+"
                 m_primitives.Add(m_bytecode, left_type, right_type);
                 break;
-            }
-            case tSUB: {    // "-"
+            case tSUB:  // "-"
                 m_primitives.Sub(m_bytecode, left_type, right_type);
                 break;
-            }
-            case tMUL: {    // "*"
+            case tMUL:  // "*"
                 m_primitives.Mul(m_bytecode, left_type, right_type);
                 break;
-            }
-            case tDIV: {    // "/"
+            case tDIV:  // "/"
                 m_primitives.Div(m_bytecode, left_type, right_type);
                 break;
-            }
-            case tMOD: {    // "%"
+            case tMOD:  // "%"
                 m_primitives.Mod(m_bytecode, left_type, right_type);
                 break;
-            }
 //            case tAND: {    // &&
 //                break;
 //            }
 //            case tOR: { // "||"
 //                break;
 //            }
-            case tEQ: { // "=="
+            case tEQ:   // "=="
                 m_primitives.CmpEq(m_bytecode);
                 break;
-            }
-            case tNEQ: {    // "!=";
+            case tNEQ:  // "!=";
                 m_primitives.CmpNeq(m_bytecode);
                 break;
-            }
-            case tGT: { // ">";
+            case tGT:   // ">";
                 m_primitives.CmpGt(m_bytecode);
                 break;
-            }
-            case tGE: { // ">=";
+            case tGE:   // ">=";
                 m_primitives.CmpGe(m_bytecode);
                 break;
-            }
-            case tLT: { // "<";
+            case tLT:   // "<";
                 m_primitives.CmpLt(m_bytecode);
                 break;
-            }
-            case tLE: { // "<=";
+            case tLE:   // "<=";
                 m_primitives.CmpLe(m_bytecode);
                 break;
-            }
-            default: {
+            default:
                 m_primitives.Invalid(m_bytecode);
                 break;
-            }
         }
     }
     virtual void visitUnaryOpNode(UnaryOpNode* node) {
         node->operand()->visit(this);
 
         switch (node->kind()) {
-            case tNOT: {    // "!"
+            case tNOT:  // "!"
                 m_primitives.Not(m_bytecode, m_latest_type);
                 break;
-            }
-            case tSUB: {    // "!"
+            case tSUB:  // "-"
                 m_primitives.Neg(m_bytecode, m_latest_type);
                 break;
-            }
-            default: {
+            default:
                 m_primitives.Invalid(m_bytecode);
                 std::cerr << "Error: Unknown AST node kind '"
                           << node->kind()
                           << "'"
                           << std::endl;
-            }
         }
     }
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
@@ -188,18 +165,15 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         uint16_t var_id = getVarStorage(node->var()->name());
 
         switch (node->op()) {
-            case tASSIGN: {
+            case tASSIGN:
                 m_primitives.Store(m_bytecode, var_id, m_latest_type);
                 break;
-            }
-            case tINCRSET: {
+            case tINCRSET:
                 m_primitives.Inc(m_bytecode, var_id, m_latest_type);
                 break;
-            }
-            case tDECRSET: {
+            case tDECRSET:
                 m_primitives.Dec(m_bytecode, var_id, m_latest_type);
                 break;
-            }
             default:
                 m_primitives.Invalid(m_bytecode);
                 break;
