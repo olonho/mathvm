@@ -137,24 +137,18 @@ void CodeBuilderVisitor::loadLocalVar(VarType type, uint16_t id) {
 }
 
 void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
-	node->right()->visit(this);
-	node->left()->visit(this);
+
 
 	VarType common_type = VT_INT;
 
 	typedef pair<TokenKind, VarType> Key;
 	map<Key, Instruction> operations;
+	TokenKind kind = node->kind();
 
 	operations[Key(tADD, VT_INT)] = BC_IADD;
 	operations[Key(tSUB, VT_INT)] = BC_ISUB;
 	operations[Key(tMUL, VT_INT)] = BC_IMUL;
 	operations[Key(tDIV, VT_INT)] = BC_IDIV;
-//	operations[Key(tEQ, VT_INT)] = ;
-//	operations[Key(tNEQ, VT_INT)] = ;
-//	operations[Key(tGT, VT_INT)] = ;
-//	operations[Key(tGE, VT_INT)] = ;
-//	operations[Key(tLT, VT_INT)] = ;
-//	operations[Key(tLE, VT_INT)] = ;
 
 	operations[Key(tADD, VT_DOUBLE)] = BC_DADD;
 	operations[Key(tSUB, VT_DOUBLE)] = BC_DSUB;
@@ -162,13 +156,56 @@ void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	operations[Key(tDIV, VT_DOUBLE)] = BC_DDIV;
 
 	map<Key, Instruction>::iterator it =
-			operations.find(Key(node->kind(), common_type));
+			operations.find(Key(kind, common_type));
 
 	if (it != operations.end()) {
+		node->right()->visit(this);
+		node->left()->visit(this);
 		addInsn(it->second);
 	} else {
-		cout << "UNEXPECTED KIND: " << node->kind() << endl;
-		assert(false);
+		Label right(bytecode());
+		JumpLocation or_loc (_jmp_loc->first, &right);
+		JumpLocation and_loc (&right, _jmp_loc->second);
+		JumpLocation* old_loc = _jmp_loc;
+		switch (kind) {
+			case tOR:
+				_jmp_loc = &or_loc;
+				node->left()->visit(this);
+				right.bind(bytecode()->current());
+				_jmp_loc = old_loc;
+				node->right()->visit(this);
+				break;
+			case tAND:
+				_jmp_loc = &and_loc;
+				node->left()->visit(this);
+				right.bind(bytecode()->current());
+				_jmp_loc = old_loc;
+				node->right()->visit(this);
+				break;
+			default: break;
+		}
+
+
+
+#define CASE(TYPE, INSN) \
+		case TYPE: \
+			node->right()->visit(this); \
+			node->left()->visit(this); \
+			bytecode()->addBranch(INSN, *_jmp_loc->first); \
+			bytecode()->addBranch(BC_JA, *_jmp_loc->second); \
+			break;
+
+		switch (kind) {
+			CASE(tEQ, BC_IFICMPE);
+			CASE(tNEQ, BC_IFICMPNE);
+			CASE(tGT, BC_IFICMPG);
+			CASE(tGE, BC_IFICMPGE);
+			CASE(tLT, BC_IFICMPL);
+			CASE(tLE, BC_IFICMPLE);
+			default: break;
+		}
+#undef CASE
+
 	}
 }
 
@@ -264,15 +301,19 @@ void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
 
 void CodeBuilderVisitor::visitIfNode(IfNode* node) {
 	Label true_label(bytecode());
-	Label end_label(bytecode());
-	dummyCond(node->ifExpr(), true_label);
-	if (node->elseBlock()) {
-		node->elseBlock()->visit(this);
-	}
-	bytecode()->addBranch(BC_JA, end_label);
+	Label false_label(bytecode());
+	processCondition(node->ifExpr(), &true_label, &false_label);
 	true_label.bind(bytecode()->current());
 	node->thenBlock()->visit(this);
-	end_label.bind(bytecode()->current());
+	if (node->elseBlock()) {
+		Label end_label(bytecode());
+		bytecode()->addBranch(BC_JA, end_label);
+		false_label.bind(bytecode()->current());
+		node->elseBlock()->visit(this);
+		end_label.bind(bytecode()->current());
+	} else {
+		false_label.bind(bytecode()->current());
+	}
 }
 
 void CodeBuilderVisitor::visitBlockNode(BlockNode* node) {
@@ -354,6 +395,12 @@ void CodeBuilderVisitor::pushToStack(const AstVar* var) {
 		bytecode()->addInt16(varInfo.context);
 		addUInt16(varInfo.id);
 	}
+}
+
+void CodeBuilderVisitor::processCondition(AstNode* node, Label* trueJump, Label* falseJump) {
+	JumpLocation location (trueJump, falseJump);
+	_jmp_loc = &location;
+	node->visit(this);
 }
 
 } /* namespace mathvm */

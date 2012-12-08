@@ -69,10 +69,13 @@ private:
 
 
 class CodeBuilderVisitor: public mathvm::AstVisitor {
+	typedef pair<Label*, Label*> JumpLocation;
+
 	map<CustomDataHolder*, VarType> _types;
 	Code* _code;
 	std::stack<BytecodeFunction*> _functions;
 	std::stack<VarScopeMap*> _varScopes;
+	JumpLocation* _jmp_loc;
 
 public:
 	CodeBuilderVisitor(Code* code);
@@ -109,7 +112,7 @@ private:
 
 	void dummyCond(AstNode* cond, Label& label);
 
-
+	void processCondition(AstNode* node, Label* trueJump, Label* falseJump);
 };
 
 } /* namespace mathvm */

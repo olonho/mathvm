@@ -30,7 +30,7 @@ public:
 
 private:
     TypeMap& _types;
-	stack<Scope*> _scopes;
+    stack<Scope*> _scopes;
 };
 
 } /* namespace mathvm */
