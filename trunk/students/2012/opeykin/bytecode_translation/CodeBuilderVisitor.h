@@ -95,6 +95,10 @@ private:
 		return _functions.top()->bytecode();
 	}
 
+    uint32_t current() {
+        return bytecode()->current();
+    }
+
 	void addVar(const AstVar* var) {
 		_varScopes.top()->add(var);
 	}
