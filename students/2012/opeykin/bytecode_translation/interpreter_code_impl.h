@@ -89,7 +89,7 @@ private:
     int64_t popInt();
     double popDouble();
     uint16_t popStringId();
-    void pushInt(int value);
+    void pushInt(int64_t value);
     void pushDouble(double value);
     void pushString(uint16_t id);
 
