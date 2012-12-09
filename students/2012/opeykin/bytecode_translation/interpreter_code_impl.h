@@ -21,7 +21,7 @@ union ContextVar {
 
 class Context {
 	Context* _parent;
-	uint16_t _ip;
+	uint32_t _ip;
 	BytecodeFunction* _function;
 	vector<ContextVar> _variables;
 public:
@@ -33,11 +33,11 @@ public:
 	~Context() {
 	}
 
-	uint16_t ip() const {
+	uint32_t ip() const {
 		return _ip;
 	}
 
-	void setIp(uint16_t ip) {
+	void setIp(uint32_t ip) {
 		_ip = ip;
 	}
 
@@ -120,7 +120,7 @@ private:
 
     std::stack<ContextVar> _stack;
 	Bytecode* _bp;
-	uint16_t _ip;
+	uint32_t _ip;
 	Context* _context;
 	ostream& _out;
 };
