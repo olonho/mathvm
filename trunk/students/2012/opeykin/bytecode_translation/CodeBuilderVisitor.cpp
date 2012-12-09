@@ -121,9 +121,9 @@ void CodeBuilderVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 		case tMUL:
 		case tDIV:
 		case tMOD: visitBinaryCalc(node); break;
-		case tINCRSET:
-		case tDECRSET: break;
-		default: assert(false); break;
+		default:
+			ERROR("unsupported kind: " << node->kind());
+			break;
 	}
 }
 
@@ -146,7 +146,7 @@ void CodeBuilderVisitor::visitBinaryLogic(BinaryOpNode* node) {
 	node->right()->visit(this);
 }
 
-Instruction CodeBuilderVisitor::CondTokenToInstruction(TokenKind kind) {
+Instruction CodeBuilderVisitor::condTokenToInstruction(TokenKind kind) {
 	switch (kind) {
 		case tEQ: 	return BC_IFICMPE;
 		case tNEQ: 	return BC_IFICMPNE;
@@ -167,12 +167,12 @@ void CodeBuilderVisitor::visitBinaryCondition(BinaryOpNode* node) {
 	}
 	node->right()->visit(this);
 	node->left()->visit(this);
-	Instruction instruction = CondTokenToInstruction(node->kind());
+	Instruction instruction = condTokenToInstruction(node->kind());
 	bytecode()->addBranch(instruction, *_jmp_loc->first);
 	bytecode()->addBranch(BC_JA, *_jmp_loc->second);
 }
 
-Instruction CodeBuilderVisitor::CalcTokenToInstruction(TokenKind kind, VarType type) {
+Instruction CodeBuilderVisitor::calcTokenToInstruction(TokenKind kind, VarType type) {
 	if (type == VT_INT) {
 		switch (kind) {
 			case tADD: return BC_IADD;
@@ -208,7 +208,7 @@ void CodeBuilderVisitor::visitBinaryCalc(BinaryOpNode* node) {
 	assert(common_type == _types[node->right()]);
 	node->right()->visit(this);
 	node->left()->visit(this);
-	addInsn(CalcTokenToInstruction(node->kind(), common_type));
+	addInsn(calcTokenToInstruction(node->kind(), common_type));
 }
 
 void CodeBuilderVisitor::addInsn(Instruction instruction) {
@@ -243,10 +243,20 @@ void CodeBuilderVisitor::visitLoadNode(LoadNode* node) {
 }
 
 void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
+	VarType type = node->var()->type();
+	if (type != _types[node->value()]) {
+		ERROR("type casts are not supported yet");
+	}
+
 	node->value()->visit(this);
 
-	// TODO: add -= += etc. support
-	assert(node->op() == tASSIGN);
+	if (node->op() == tINCRSET ) {
+		pushToStack(node->var());
+		addInsn(calcTokenToInstruction(tADD, type));
+	} else if (node->op() == tDECRSET) {
+		pushToStack(node->var());
+		addInsn(calcTokenToInstruction(tSUB, type));
+	}
 
 	// TODO: add type conversion
 	const AstVar* var = node->var();

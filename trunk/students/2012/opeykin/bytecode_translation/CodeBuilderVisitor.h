@@ -131,8 +131,8 @@ private:
 	void visitBinaryCondition(BinaryOpNode* node);
 	void visitBinaryCalc(BinaryOpNode* node);
 	void visitBinarySet(BinaryOpNode* node);
-	Instruction CondTokenToInstruction(TokenKind);
-	Instruction CalcTokenToInstruction(TokenKind, VarType);
+	Instruction condTokenToInstruction(TokenKind);
+	Instruction calcTokenToInstruction(TokenKind, VarType);
 
 	void processCondition(AstNode* node, Label* trueJump, Label* falseJump);
 };
