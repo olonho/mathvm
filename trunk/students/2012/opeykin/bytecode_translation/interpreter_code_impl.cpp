@@ -59,7 +59,7 @@ uint16_t InterpreterCodeImpl::popStringId() {
 	return id;
 }
 
-void InterpreterCodeImpl::pushInt(int value) {
+void InterpreterCodeImpl::pushInt(int64_t value) {
 	ContextVar unit;
 	unit._intValue = value;
 	_stack.push(unit);
