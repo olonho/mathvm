@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
 		delete exec_status;
 		return 1;
 	} else {
-		cout << endl;
+//		cout << endl;
 	}
 
 	delete exec_status;
