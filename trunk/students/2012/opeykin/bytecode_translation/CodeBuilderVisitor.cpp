@@ -239,7 +239,7 @@ void CodeBuilderVisitor::visitIntLiteralNode(IntLiteralNode* node) {
 }
 
 void CodeBuilderVisitor::visitLoadNode(LoadNode* node) {
-	pushToStack(node->var());
+	loadVar(node->var());
 }
 
 void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
@@ -251,15 +251,17 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 	node->value()->visit(this);
 
 	if (node->op() == tINCRSET ) {
-		pushToStack(node->var());
+		loadVar(node->var());
 		addInsn(calcTokenToInstruction(tADD, type));
 	} else if (node->op() == tDECRSET) {
-		pushToStack(node->var());
+		loadVar(node->var());
 		addInsn(calcTokenToInstruction(tSUB, type));
 	}
 
-	// TODO: add type conversion
-	const AstVar* var = node->var();
+	storeVar(node->var());
+}
+
+void CodeBuilderVisitor::storeVar(const AstVar* var) {
 	VarInfo varInfo = getVarInfo(var);
 
 	if (varInfo.context == _functions.top()->id()) {
@@ -276,27 +278,41 @@ void CodeBuilderVisitor::visitStoreNode(StoreNode* node) {
 		bytecode()->addInt16(varInfo.context);
 		addUInt16(varInfo.id);
 	}
-
 }
 
 void CodeBuilderVisitor::visitForNode(ForNode* node) {
-	node->inExpr()->visit(this);
-	addInsn(BC_INVALID);
+	ASSERT_MSG(node->inExpr()->isBinaryOpNode(), "ForNode inExp is not BinaryOpNode");
+	BinaryOpNode* inExp = static_cast<BinaryOpNode*>(node->inExpr());
+
+	ASSERT_MSG(inExp->kind() == tRANGE, "ForNode inExp is not tRANGE");
+	ASSERT_MSG(_types[inExp->left()] == VT_INT && _types[inExp->left()] == VT_INT,
+			"type conversion is not supported yet");
+
+	Label condition_label(bytecode());
+	Label end_label(bytecode());
+
+	// init iterator
+	inExp->left()->visit(this);
+	const AstVar* var = node->var() ;
+	storeVar(var);
+
+	// condition
+	condition_label.bind(current());
+	inExp->right()->visit(this);
+	loadVar(var);
+	bytecode()->addBranch(BC_IFICMPG, end_label);
+
 	node->body()->visit(this);
-//
-//	bytecode->addInsn(BC_JA);
-//	uint32_t jump_to_cond = bytecode->current();
-//	bytecode->addInt16(0);
-//	uint32_t body_begin = bytecode->current();
-//		node->loopBlock()->visit(this);
-//		bytecode->setInt16(jump_to_cond, bytecode->current() - jump_to_cond);
-//		node->whileExpr()->visit(this);
-//		bytecode->addInsn(BC_ILOAD0);
-//		bytecode->addInsn(BC_IFICMPNE);
-//		bytecode->addInt16(body_begin - bytecode->current());
+
+	// increase iterator
+	loadVar(var);
+	bytecode()->addInsn(BC_ILOAD1);
+	bytecode()->addInsn(BC_IADD);
+	storeVar(var);
+
+	bytecode()->addBranch(BC_JA, condition_label);
+	end_label.bind(current());
 }
-
-
 
 void CodeBuilderVisitor::visitWhileNode(WhileNode* node) {
 	Label condition_label(bytecode());
@@ -391,7 +407,7 @@ void CodeBuilderVisitor::visitPrintNode(PrintNode* node) {
 
 }
 
-void CodeBuilderVisitor::pushToStack(const AstVar* var) {
+void CodeBuilderVisitor::loadVar(const AstVar* var) {
 	VarInfo varInfo = getVarInfo(var);
 
 	if (varInfo.context == _functions.top()->id()) {
