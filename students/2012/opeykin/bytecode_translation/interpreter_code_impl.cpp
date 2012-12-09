@@ -171,8 +171,8 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 			case BC_IMOD: pushInt(popInt() % popInt()); break;
 			case BC_DNEG: pushDouble(-popDouble()); break;
 			case BC_INEG: pushInt(-popInt()); break;
-			case BC_IPRINT: _out << popInt() << endl; break;
-			case BC_DPRINT: _out << popDouble() << endl; break;
+			case BC_IPRINT: _out << popInt(); break;
+			case BC_DPRINT: _out << popDouble(); break;
 			case BC_SPRINT: _out << constantById(popStringId()); break;
 			case BC_I2D: pushDouble((double)popInt()); break;
 			case BC_D2I: pushInt((int)popDouble()); break;

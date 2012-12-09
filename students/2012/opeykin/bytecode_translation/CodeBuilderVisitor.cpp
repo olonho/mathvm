@@ -220,6 +220,21 @@ void CodeBuilderVisitor::addUInt16(uint16_t value) {
 }
 
 void CodeBuilderVisitor::visitUnaryOpNode(UnaryOpNode* node) {
+	TokenKind kind = node->kind();
+	if (kind == tSUB) {
+		node->operand()->visit(this);
+		switch (_types[node]) {
+			case VT_INT: addInsn(BC_INEG); break;
+			case VT_DOUBLE: addInsn(BC_DNEG); break;
+			default: ERROR("can not negate " << _types[node]); break;
+		}
+	} else if (kind == tNOT) {
+		JumpLocation not_loc (_jmp_loc->second, _jmp_loc->first);
+		_jmp_loc = &not_loc;
+		node->operand()->visit(this);
+	} else {
+		ERROR("unsupported unary operation: " << kind);
+	}
 }
 
 void CodeBuilderVisitor::visitStringLiteralNode(StringLiteralNode* node) {
