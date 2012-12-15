@@ -76,17 +76,17 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             case tMOD:  // "%"
                 m_latest_type = m_primitives.Mod(m_bytecode, left_type, right_type);
                 break;
-//            case tAND: {    // &&
-//                break;
-//            }
-//            case tOR: { // "||"
-//                break;
-//            }
+           case tAND:   // &&
+                m_latest_type = m_primitives.And(m_bytecode, left_type, right_type);
+                break;
+            case tOR:    // "||"
+                m_latest_type = m_primitives.Or(m_bytecode, left_type, right_type);
+                break;
             case tEQ:   // "=="
                 m_latest_type = m_primitives.CmpEq(m_bytecode, left_type, right_type);
                 break;
             case tNEQ:  // "!=";
-                m_latest_type = m_primitives.CmpNeq(m_bytecode, left_type, right_type);
+                m_latest_type = m_primitives.CmpNe(m_bytecode, left_type, right_type);
                 break;
             case tGT:   // ">";
                 m_latest_type = m_primitives.CmpGt(m_bytecode, left_type, right_type);
@@ -116,29 +116,22 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
                 m_latest_type = m_primitives.Neg(m_bytecode, m_latest_type);
                 break;
             default:
-                m_latest_type = m_primitives.Invalid(m_bytecode);
                 std::cerr << "Error: Unknown AST node kind '"
                           << node->kind()
                           << "'"
                           << std::endl;
+                m_latest_type = m_primitives.Invalid(m_bytecode);
         }
     }
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
         uint16_t string_id = m_code->makeStringConstant(node->literal());
-
-        m_bytecode->addInsn(BC_SLOAD);
-        m_bytecode->addUInt16(string_id);
-        m_latest_type = VT_STRING;
+        m_latest_type = m_primitives.Load(m_bytecode, string_id, VT_STRING);
     }
     virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
-        m_bytecode->addInsn(BC_DLOAD);
-        m_bytecode->addTyped(node->literal());
-        m_latest_type = VT_DOUBLE;
+        m_latest_type = m_primitives.Load(m_bytecode, node->literal(), VT_DOUBLE);
     }
     virtual void visitIntLiteralNode(IntLiteralNode* node) {
-        m_bytecode->addInsn(BC_ILOAD);
-        m_bytecode->addTyped(node->literal());
-        m_latest_type = VT_INT;
+        m_latest_type = m_primitives.Load(m_bytecode, node->literal(), VT_INT);
     }
     virtual void visitLoadNode(LoadNode* node) {
         // NOTE: nothing to visit - it's just a variable name
@@ -147,7 +140,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         uint16_t var_id = getVarStorage(node->var()->name());
 
          // load value from the VAR and push on the stack
-        m_latest_type = m_primitives.Load(m_bytecode, var_id, m_latest_type);
+        m_latest_type = m_primitives.LoadVar(m_bytecode, var_id, m_latest_type);
     }
     virtual void visitStoreNode(StoreNode* node) {
 //        out << node->var()->name() << " = ";
@@ -158,7 +151,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
         switch (node->op()) {
             case tASSIGN:
-                m_primitives.Store(m_bytecode, var_id, m_latest_type);
+                m_primitives.StoreVar(m_bytecode, var_id, m_latest_type);
                 break;
             case tINCRSET:
                 m_primitives.Inc(m_bytecode, var_id, m_latest_type);
@@ -331,7 +324,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
            node->returnExpr()->visit(this);
 
            // move return value to VAR0
-           m_primitives.Store(m_bytecode, 0, m_latest_type);
+           m_primitives.StoreVar(m_bytecode, 0, m_latest_type);
        }
         // return address is on top the stack now
         m_bytecode->addInsn(BC_RETURN);
@@ -345,10 +338,10 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             uint16_t var_id = m_var_storage.size();
             for (uint32_t i = last_parameter; i > 0; --i) {
                 node->parameterAt(i)->visit(this);
-                m_primitives.Store(m_bytecode, var_id++, m_latest_type);
+                m_primitives.StoreVar(m_bytecode, var_id++, m_latest_type);
             }
             node->parameterAt(0)->visit(this);
-            m_primitives.Store(m_bytecode, var_id++, m_latest_type);
+            m_primitives.StoreVar(m_bytecode, var_id++, m_latest_type);
         }
 
         // resolve function by name
@@ -378,7 +371,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         // }
 
         // move function return value from VAR0 to the top of the stack
-        m_latest_type = m_primitives.Load(m_bytecode, 0, m_latest_type);
+        m_latest_type = m_primitives.LoadVar(m_bytecode, 0, m_latest_type);
     }
     virtual void visitNativeCallNode(NativeCallNode* node) {
         //TODO:
