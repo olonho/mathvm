@@ -13,6 +13,44 @@ public:
     BytecodeInstructionPrimitives();
     virtual ~BytecodeInstructionPrimitives();
 
+    // load immediate value on tos
+    template <typename T>
+    VarType Load(Bytecode* out, T value, VarType varType) {
+        Instruction instr = BC_INVALID;
+
+        switch (varType) {
+            case VT_INVALID:
+                instr = BC_INVALID;
+                break;
+            case VT_VOID:
+                instr = BC_INVALID;
+                break;
+            case VT_DOUBLE:
+                instr = BC_DLOAD;
+                break;
+            case VT_INT:
+                instr = BC_ILOAD;
+                break;
+            case VT_STRING:
+                instr = BC_SLOAD;
+                break;
+            default:
+                instr = BC_INVALID;
+                std::cerr << "Error: Unknown type '"
+                          << varType
+                          << "'"
+                          << std::endl;
+                break;
+        }
+
+        out->addInsn(instr);
+        if (instr != BC_INVALID) {
+            out->addTyped(value);
+        }
+
+        return varType;
+    }
+
     VarType Add(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         if (leftType != rightType) {
             std::cerr << "Error: Type mismatch: left is "
@@ -216,6 +254,20 @@ public:
         return leftType;
     }
 
+    VarType And(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        std::cerr << "Error: Unsupported operation 'AND'" << std::endl;
+        Invalid(out);
+
+        return leftType;
+    }
+
+    VarType Or(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        std::cerr << "Error: Unsupported operation 'Or'" << std::endl;
+        Invalid(out);
+
+        return leftType;
+    }
+
     VarType Neg(Bytecode* out, VarType type = VT_VOID) {
         Instruction instr = BC_INVALID;
         switch (type) {
@@ -255,7 +307,7 @@ public:
         return Cmp(out, BC_IFICMPE, leftType, rightType);
     }
 
-    VarType CmpNeq(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+    VarType CmpNe(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         return Cmp(out, BC_IFICMPNE, leftType, rightType);
     }
 
@@ -280,7 +332,7 @@ public:
         return CmpEq(out);
     }
 
-    void Store(Bytecode* out, uint16_t varId, VarType varType) {
+    void StoreVar(Bytecode* out, uint16_t varId, VarType varType) {
         Instruction instr = BC_INVALID;
 
         // get value from the top of the stack and store in the VAR
@@ -315,7 +367,8 @@ public:
         }
     }
 
-    VarType Load(Bytecode* out, uint16_t varId, VarType varType) {
+    // load variable on tos
+    VarType LoadVar(Bytecode* out, uint16_t varId, VarType varType) {
         Instruction instr = BC_INVALID;
 
         switch (varType) {
@@ -355,20 +408,20 @@ public:
         // NOTE: inc argument is already on the top of the stack
 
         // load
-        Load(out, varId, varType);
+        LoadVar(out, varId, varType);
         // inc
         Add(out, varType, varType);
         // store back
-        Store(out, varId, varType);
+        StoreVar(out, varId, varType);
     }
 
     void Dec(Bytecode* out, uint16_t varId, VarType varType) {
         // load
-        Load(out, varId, varType);
+        LoadVar(out, varId, varType);
         // inc
         Sub(out, varType, varType);
         // store back
-        Store(out, varId, varType);
+        StoreVar(out, varId, varType);
     }
 
     void Print(Bytecode* out, VarType type = VT_VOID) {
@@ -409,7 +462,8 @@ public:
     }
 
     VarType Invalid(Bytecode* out) {
-        std::cerr << "Warning: emitting BC_INVALID" << std::endl;
+        std::cerr << "Warning: emitting BC_INVALID at "
+                  << out->current() << std::endl;
         out->addInsn(BC_INVALID);
 
         return VT_INVALID;
