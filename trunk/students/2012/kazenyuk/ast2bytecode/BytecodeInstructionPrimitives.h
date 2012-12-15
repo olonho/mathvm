@@ -285,10 +285,33 @@ public:
     }
 
     VarType Or(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
-        std::cerr << "Error: Unsupported operation 'Or'" << std::endl;
-        Invalid(out);
+        // TODO: only integer types must be supported, because only integers can be compared
 
-        return leftType;
+        Label earlyExitLabel(out);
+        Label exit0Label(out);
+        Label exit1Label(out);
+        Label exitLabel(out);
+
+        out->addInsn(BC_ILOAD0);
+        out->addBranch(BC_IFICMPNE, earlyExitLabel);
+        out->addInsn(BC_ILOAD0);
+        out->addBranch(BC_IFICMPE, exit0Label);
+        out->addBranch(BC_JA, exit1Label);
+
+        // EarlyExit
+        out->bind(earlyExitLabel);
+        out->addInsn(BC_POP);
+        // Exit1
+        out->bind(exit1Label);
+        out->addInsn(BC_ILOAD1);
+        out->addBranch(BC_JA, exitLabel);
+        // Exit0
+        out->bind(exit0Label);
+        out->addInsn(BC_ILOAD0);
+        // Exit
+        out->bind(exitLabel);
+
+        return VT_INT;
     }
 
     VarType Neg(Bytecode* out, VarType type = VT_VOID) {
