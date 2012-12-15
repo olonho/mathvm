@@ -245,7 +245,7 @@ void BytecodeGenerationVisitor::visitStringLiteralNode(StringLiteralNode* node) 
 
     uint16_t strId = code -> makeStringConstant(node -> literal());
     bytecode -> addInsn(BC_SLOAD);
-    bytecode -> addTyped(strID);
+    bytecode -> addUInt16(strID);
     types.push(VT_STRING);
 }
 
@@ -398,8 +398,6 @@ void BytecodeGenerationVisitor::visitIfNode(IfNode* node) {   // DONE
 }
 
 void BytecodeGenerationVisitor::visitBlockNode(BlockNode* node) {   // DONE
-    Bytecode *bytecode = getBytecode();
-
     Scope::VarIterator varsToAdd(node -> scope());
     while (varsToAdd.hasNext()) {
         addVar(varsToAdd.next());
@@ -407,18 +405,12 @@ void BytecodeGenerationVisitor::visitBlockNode(BlockNode* node) {   // DONE
 
     Scope::FunctionIterator functionsToAdd(node -> scope());
     while (functionsToAdd.hasNext()) {
-        FunctionNode *node = functionsToAdd.next() -> node();
-        AstFunction *astFunction = new AstFunction(node, currentScope());
+        AstFunction *astFunction = functionsToAdd.next() -> node();
         BytecodeFunction *butecodeFunction = new BytecodeFunction(astFunction);
-
         code -> addFunction(bytecodeFunction);
     }
 
-    Scope::FunctionIterator functionsToVisit(node -> scope());
-    while (functionsToVisit.hasNext()) {
-        functions.next() -> node() -> visit(this);
-    }
-
+    Bytecode *bytecode = getBytecode();
     for (unsigned int i = 0; i < (node -> nodes()); i++) {
         int stackSize = types.size();
         node -> nodeAt(i) -> visit(this);
@@ -455,6 +447,22 @@ void BytecodeGenerationVisitor::visitFunctionNode(FunctionNode* node) {
         node->body()->visit(this);
         std::cout << "}" << std::endl;
         blockEnded = true;
+    }
+
+    if (node -> returnType() != VT_VOID) {
+        if (types.top() != (node -> returnType())) {
+            if (types.top() == VT_INT && (node -> returnType()) == VT_DOUBLE) {
+                bytecode -> addInsn(BC_I2D);
+                types.pop();
+                types.push(VT_DOUBLE);
+            } else if (types.top() == VT_DOUBLE && (node -> returnType()) == VT_INT) {
+                bytecode -> addInsn(BC_D2I);
+                types.pop();
+                types.push(VT_INT);
+            } else {
+                throw std::exception("Can't convert from type of return expression to function return type");
+            }
+        }
     }
 }
 
@@ -538,8 +546,6 @@ uint16_t BytecodeGenerationVisitor::getVarId(const string& name) {
     }
     return -1;
 }
-
-Scope* BytecodeGenerationVisitor::currentScope();
 
 void BytecodeGenerationVisitor::addVar(AstVar *var) {
     vars.push_back(var);

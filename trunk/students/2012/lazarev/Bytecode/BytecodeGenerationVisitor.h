@@ -43,11 +43,9 @@ typedef enum {
 
 class BytecodeGenerationVisitor: public AstVisitor {
 
-    map< pair<TokenKind, VarType>, pair<Instruction, VarType> > binaryOpToBytecodeInsn;
     stack<VarType> types;
     map< VarType, map<TokenKind, Instruction> > insnByToken;
     map< VarType, map<UntypedInstruction, Instruction> > insnByUntypedInsn;
-    map< TokenKind, Instruction > comparison;
     std::vector<AstVar*> vars;
 
     InterpreterCodeImpl *code;
