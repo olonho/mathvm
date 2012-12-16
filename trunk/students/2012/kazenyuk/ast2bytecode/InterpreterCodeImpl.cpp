@@ -212,13 +212,15 @@ class ByteStack {
     }
 };
 
-void decodeInsn(Bytecode* bytecode, size_t bci, Instruction& insn, size_t& length) {
+void InterpreterCodeImpl::decodeInsn(Bytecode* bytecode, size_t bci, Instruction& insn, size_t& length) {
     insn = bytecode->getInsn(bci);
-#ifndef ENABLE_TRACING
     bcName(insn, length);
-#else
     const char* name = bcName(insn, length);
-    std::ostream& out(std::clog);
+    
+    if (!m_trace) {
+        return;
+    }
+    static std::ostream& out(std::clog);
     out << std::setw(5) << bci << ": ";
     switch (insn) {
         case BC_DLOAD:
@@ -264,13 +266,18 @@ void decodeInsn(Bytecode* bytecode, size_t bci, Instruction& insn, size_t& lengt
             out << name;
     }
     out << std::endl;
-#endif  // ENABLE_TRACING
 }
 
-Status* InterpreterCodeImpl::execute(std::vector<mathvm::Var*>&) {
+Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) {
     ByteStack stack;
     typedef std::map<uint16_t, ByteStorage> VarMap;
     VarMap var_map;
+
+    for (std::vector<Var*>::iterator it = vars.begin(); it != vars.end(); ++it) {
+        if ((*it)->name() == "#__INTERPRETER_TRACING__#") {
+            m_trace = true;
+        }
+    }
 
     BytecodeFunction* function = (BytecodeFunction*) functionById(0);
     Bytecode* bytecode = function->bytecode();
