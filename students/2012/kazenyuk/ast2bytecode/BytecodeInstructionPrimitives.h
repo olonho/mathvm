@@ -254,6 +254,46 @@ public:
         return leftType;
     }
 
+    void Pop(Bytecode* out, VarType type) {
+        // NOTE: semantically, it should be just BC_POP, but interpreter's stack must be typed
+        // in order to interpret (untyped) BC_POP correctly
+        // We are using BC_STORE*VAR0 to mimic typed POP operation (VAR0 is used only to return value from the function,
+        // therefore, its _now_ safe to use it inside the function)
+
+        // out->addInsn(BC_POP);
+
+        Instruction instr = BC_INVALID;
+        switch (type) {
+            case VT_INT:
+                instr = BC_STOREIVAR0;
+                break;
+            case VT_VOID:
+                instr = BC_INVALID;
+                break;
+            case VT_DOUBLE:
+                instr = BC_STOREDVAR0;
+                break;
+            case VT_STRING:
+                instr = BC_STORESVAR0;
+                break;
+            case VT_INVALID:
+                instr = BC_INVALID;
+                std::cerr << "Error: Invalid AST var type '"
+                          << type
+                          << "'"
+                          << std::endl;
+                break;
+            default:
+                instr = BC_INVALID;
+                std::cerr << "Error: Unknown AST var type '"
+                          << type
+                          << "'"
+                          << std::endl;
+                break;
+        }
+        out->addInsn(instr);
+    }
+
     VarType And(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         // TODO: only integer types must be supported, because only integers can be compared
 
@@ -270,7 +310,7 @@ public:
 
         // EarlyExit
         out->bind(earlyExitLabel);
-        out->addInsn(BC_POP);
+        Pop(out, VT_INT);
         // Exit0
         out->bind(exit0Label);
         out->addInsn(BC_ILOAD0);
@@ -300,7 +340,7 @@ public:
 
         // EarlyExit
         out->bind(earlyExitLabel);
-        out->addInsn(BC_POP);
+        Pop(out, VT_INT);
         // Exit1
         out->bind(exit1Label);
         out->addInsn(BC_ILOAD1);
