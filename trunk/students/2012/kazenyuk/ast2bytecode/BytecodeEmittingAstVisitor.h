@@ -136,6 +136,11 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
     virtual void visitLoadNode(LoadNode* node) {
         // NOTE: nothing to visit - it's just a variable name
 
+        // TODO: type checks, the following must not be possible (unless
+        // we're doing implicit type casts):
+        // int a; double b; a = b;
+        // Now it is possible...
+
         m_latest_type = node->var()->type();
         uint16_t var_id = getVarStorage(node->var()->name());
 
@@ -350,6 +355,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             //TODO: better error-handling
             assert(function && "Unresolved function name\n");
         }
+        m_latest_type = function->returnType();
 
         // call function
         uint16_t function_id = function->id();
