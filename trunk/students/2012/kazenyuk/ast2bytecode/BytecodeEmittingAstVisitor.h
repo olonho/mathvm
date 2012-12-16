@@ -377,7 +377,9 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         // }
 
         // move function return value from VAR0 to the top of the stack
-        m_latest_type = m_primitives.LoadVar(m_bytecode, 0, m_latest_type);
+        if (m_latest_type != VT_VOID) { // TODO: this should be, probably, checked by LoadVar
+            m_latest_type = m_primitives.LoadVar(m_bytecode, 0, m_latest_type);
+        }
     }
     virtual void visitNativeCallNode(NativeCallNode* node) {
         //TODO:
