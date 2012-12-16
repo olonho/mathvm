@@ -7,7 +7,7 @@
 //#define ENABLE_TRACING 1
 
 int main(int argc, char** argv) {
-    if (argc < 2 || argc > 3) {
+    if (argc < 2 || argc > 4) {
         std::cout << "Usage: " << argv[0] << " <program source code file>"
                   << std::endl;
         return 1;
@@ -20,8 +20,9 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    bool output_bytecode = (argc == 3);
-    bool interpret_bytecode = (argc == 2);
+    bool output_bytecode_only = (argc == 3);
+    bool run_interpreter = (argc == 2);
+    bool run_interpreter_tracing = (argc == 4);
 
     const std::string text(text_buffer);
     mathvm::Code* code = 0;
@@ -43,23 +44,23 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-#ifndef ENABLE_TRACING
-    if (output_bytecode) {
-#endif
+    if (output_bytecode_only) {
         code->disassemble(std::cout, 0);
-#ifndef ENABLE_TRACING
+        return 0;
     }
-#endif
 
     delete translateStatus;
     delete translator;
     delete[] text_buffer;
 
-    if (interpret_bytecode) {
+    if (run_interpreter || run_interpreter_tracing) {
 #ifdef ENABLE_TRACING
         std::cout << "\nExecuting" << std::endl;
 #endif
         std::vector<mathvm::Var*> vars;
+        if (run_interpreter_tracing) {
+            vars.push_back(new mathvm::Var(mathvm::VT_INT, "#__INTERPRETER_TRACING__#"));
+        }
         mathvm::Status* exec_status = code->execute(vars);
         if (exec_status && exec_status->isError()) {
             std::cerr << "Cannot execute expression: error: "
