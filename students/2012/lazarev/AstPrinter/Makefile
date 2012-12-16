@@ -6,7 +6,7 @@ USER_OBJ = \
    $(OBJ)/astPrinter$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
-CFLAGS += -m64
+CFLAGS += -march=native
 
 AST_PRINTER = $(BIN)/ast_printer
 
