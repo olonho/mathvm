@@ -1,0 +1,9 @@
+CONSTANTS:
+[1] : 'Hello world'
+
+function [0] void <top>()
+0: CALL *1
+function [1] void hello()
+0: SLOAD @1
+3: SPRINT
+4: RETURN

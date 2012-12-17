@@ -1,0 +1,4 @@
+function void hello() {
+	print('Hello world');
+};
+hello();

@@ -1,5 +1,6 @@
-function [0] void <top>()
 CONSTANTS:
+
+function [0] void <top>()
 0: DLOAD 1.22
 9: ILOADM1
 10: I2D
