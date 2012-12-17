@@ -44,7 +44,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
     void bytecodeByTokenKind(TokenKind token) {
 //        switch (token) {
 //        case tEOF: return "";
-//            case tRANGE: return "..";
 //            case tDOUBLE: return "";
 //            case tINT: return "";
 //            case tSTRING: return "";
@@ -105,6 +104,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             case tRANGE:    // ".."
                 std::cerr << "Error: Ranges are supported only as a FOR loop condition"
                           << std::endl;
+                m_latest_type = m_primitives.Invalid(m_bytecode);
                 break;
             default:
                 m_latest_type = m_primitives.Invalid(m_bytecode);
@@ -185,7 +185,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         BinaryOpNode* range = (BinaryOpNode*) node->inExpr();
         assert(range->isBinaryOpNode() && range->kind() == tRANGE);
 
-
         addVarStorage(node->var()->name());
         range->left()->visit(this);
         VarType left_type = m_latest_type;
@@ -201,7 +200,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         range->right()->visit(this);
         m_primitives.LoadVar(m_bytecode, loop_var_id, left_type);
         m_bytecode->addBranch(BC_IFICMPG, exitLoopLabel);
-        
+
         // execute loop body and increment the counter
         node->body()->visit(this);
         m_primitives.Load(m_bytecode, (int64_t) 1, left_type);
@@ -275,33 +274,17 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
     }
 
-//    void removeVarStorage(std::string &name) {
-//        for (size_t i = m_var_storage.size() - 1; i >= 0; i--) {
-//            if (m_var_storage[i] == name) {
-//                m_var_storage
-//                return;
-//            }
-//        }
-//    }
-
     virtual void visitFunctionNode(FunctionNode* node) {
 //        out << "function "
 //            << mathvm::typeToName(node->returnType()) << " "
 //            << node->name() << "(";
 
-        // AstFunction ast_func(node, node->body()->scope());
-        // BytecodeFunction *function = new BytecodeFunction(&ast_func);
         BytecodeFunction *function = new BytecodeFunction(new AstFunction(node, node->body()->scope()));
         m_code->addFunction(function);
 
         Bytecode* old_bytecode = m_bytecode;
         m_bytecode = function->bytecode();
 
-        // TODO: create RuntimeScope
-        // RuntimeScope(node->body()->scope())
-        // TODO: add function's parameters to RuntimeScope
-
-//
        // function's parameters
         uint32_t parameters_number = node->parametersNumber();
 #ifdef FUNCTION_ARGUMENTS_ON_STACK
@@ -422,9 +405,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
     }
 
-    // std::map<AstVar*,uint16_t> m_var_map;
-    // uint16_t m_max_var_number;
-
     void convertScope(Scope* scope) {
 //#if defined(_DEBUG_COMMENTS)
 //        out << "// parent scope: " << scope->parent() << std::endl;
@@ -436,7 +416,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             AstVar* var = var_iterator.next();
 //            std::cout << mathvm::typeToName(var->type()) << " "
 //              << var->name() << ";\n";
-//            m_var_map.insert(std::make_pair(var, ++m_max_var_number));
             addVarStorage(std::string(var->name()));
          }
 //#if defined(_DEBUG_COMMENTS)
@@ -461,9 +440,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             var = var;  // suppress debugger's warning
 //            std::cout << mathvm::typeToName(var->type()) << " "
 //              << var->name() << ";\n";
-
             m_var_storage.pop_back();
-//            m_var_map.erase(var);
          }
     }
 
@@ -472,8 +449,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
     Code* m_code;
     Scope* m_scope;
     VarType m_latest_type;
-
-    static const uint8_t InsnSize[];
 
     BytecodeInstructionPrimitives m_primitives;
 };
