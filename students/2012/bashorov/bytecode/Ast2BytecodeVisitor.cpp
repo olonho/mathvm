@@ -126,6 +126,7 @@ void Ast2BytecodeVisitor::visitStoreNode(StoreNode* node) {
 }
 
 void Ast2BytecodeVisitor::initScope(Scope* scope) {
+	assert(scope);
 //     Scope::VarIterator varIt(scope);
 //     while (varIt.hasNext()) {
 //         AstVar* var = varIt.next();
@@ -135,13 +136,13 @@ void Ast2BytecodeVisitor::initScope(Scope* scope) {
     while (funcIt.hasNext()) {
         AstFunction* func = funcIt.next();
 
-        // BytecodeFunction *bytecodeFunction = new BytecodeFunction(func);
-        // _code->addFunction(bytecodeFunction);
-        // _bytecode = bytecodeFunction->bytecode();
+        BytecodeFunction *bytecodeFunction = new BytecodeFunction(func);
+        _code->addFunction(bytecodeFunction);
 
+        Bytecode* prev = _bytecode;
+        _bytecode = bytecodeFunction->bytecode();
         func->node()->visit(this);
-
-        // _functions.insert(make_pair(fun, bytecode_function));
+        _bytecode = prev;
     }
 }
 
@@ -230,12 +231,13 @@ void Ast2BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
 
     // if (node->body()->nodes() && node->body()->nodeAt(0)->isNativeCallNode())
     //     node->body()->nodeAt(0)->visit(this);
-
-       node->visitChildren(this);
+	assert(node);
+    node->visitChildren(this);
 }
 
 void Ast2BytecodeVisitor::visitReturnNode(ReturnNode* node) {
-    node->returnExpr()->visit(this);
+	if (node->returnExpr())
+		node->returnExpr()->visit(this);
     //todo convert return type
     bc().ret();
 }
@@ -245,9 +247,7 @@ void Ast2BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 
 void Ast2BytecodeVisitor::visitCallNode(CallNode* node) {
-    // printSignature(node->name(), node->parametersNumber(),
-    //     std::bind1st(std::mem_fun(&CallNode::parameterAt), node),
-    //     std::bind2nd(std::mem_fun(&AstNode::visit), this));
+	bc().call(_code->functionByName(node->name())->id());
 }
 
 void Ast2BytecodeVisitor::visitPrintNode(PrintNode* node) {
