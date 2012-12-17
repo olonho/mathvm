@@ -10,15 +10,73 @@ Ast2BytecodeVisitor::Ast2BytecodeVisitor(Code* code)
 , _bcHelper(_code)
 {}
 
-void Ast2BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
-    // _out << "(";
-    // node->left()->visit(this);
-    // _out << " " << tokenOp(node->kind()) << " ";
-    // node->right()->visit(this);
-    // _out << ")";
+bool generateCompare(const TokenKind& kind, BytecodeHelper& bc) {
+	Label ELSE;
+	Label END;
+
+	switch(kind) {
+		case tEQ:  bc.ifcmpE(ELSE); break;
+		case tLT:  bc.ifcmpL(ELSE); break;
+		case tLE:  bc.ifcmpLE(ELSE); break;
+		case tGT:  bc.ifcmpG(ELSE); break;
+		case tGE:  bc.ifcmpGE(ELSE); break;
+		case tNEQ: bc.cmp(); return true;
+		default: return false;
+	}
+
+	bc
+	.load(false)
+	.jmp(END)
+
+	.setLabel(ELSE)
+	.load(true)
+
+	.setLabel(END);
+
+	return true;
 }
+
+void generateLogical(BytecodeHelper& bc, const TokenKind& kind, AstVisitor* visitor, AstNode* left, AstNode* right) {
+	Label END;
+	Label LAZY_END;
+	left->visit(visitor);
+	bc
+	.load(false);
+	if (kind == tOR)
+		bc.ifcmpNE(LAZY_END);
+	else
+		bc.ifcmpE(LAZY_END);
+
+	right->visit(visitor);
+	bc
+	.jmp(END)
+	.setLabel(LAZY_END)
+	.load(kind == tOR)
+	.setLabel(END);
+}
+
+void Ast2BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
+	if (node->kind() == tAND || node->kind() == tOR) {
+	    return generateLogical(bc(), node->kind(), this, node->left(), node->right());
+	}
+
+    node->left()->visit(this);
+    node->right()->visit(this);
+    if (node->kind() == tADD) {
+    	bc().add();
+    } else if (node->kind() == tSUB) {
+    	bc().sub();
+    } else if (node->kind() == tMUL) {
+    	bc().mul();
+    } else if (node->kind() == tDIV) {
+    	bc().div();
+    } else if (!generateCompare(node->kind(), bc())) {
+    	assert("Unknown operation" == 0);
+    }
+}
+
 void Ast2BytecodeVisitor::visitUnaryOpNode(UnaryOpNode* node) {
-    if (node->kind() == tSUB ) {
+	if (node->kind() == tSUB ) {
         if (node->operand()->isIntLiteralNode()) {
             int64_t value = - ((IntLiteralNode*) node->operand())->literal();
             bc().load(value);
@@ -27,20 +85,15 @@ void Ast2BytecodeVisitor::visitUnaryOpNode(UnaryOpNode* node) {
             double value = - ((DoubleLiteralNode*) node->operand())->literal();
             bc().load(value);
             return;
+        } else {
+            node->operand()->visit(this);
+			bc().neg();
         }
-    } else if (node->kind() == tNOT) {
-        // convert_to_logic(source_type);
-        // load_const((int64_t)0);
-        // do_comparision(tEQ, VT_INT);
     } else {
-        node->operand()->visit(this);    
-        if (node->kind() == tSUB)
-        {
-            // if (source_type == VT_INT)
-                bc().ineg();
-            // else 
-                // bc().dneg();
-        }
+    	node->operand()->visit(this);
+    	if (node->kind() == tNOT) {
+    		bc().inot();
+    	}
     }
 }
 
@@ -55,23 +108,28 @@ void Ast2BytecodeVisitor::visitIntLiteralNode(IntLiteralNode* node) {
 }
 
 void Ast2BytecodeVisitor::visitLoadNode(LoadNode* node) {
-    // bc().load(node->var());
+     bc().loadvar(node->var());
 }
 void Ast2BytecodeVisitor::visitStoreNode(StoreNode* node) {
-    // _out << node->var()->name() << " " << tokenOp(node->op()) << " ";
-    // node->visitChildren(this);
-    // bc().storevar(node->var(), type)
+	node->visitChildren(this);
+	if (node->op() != tASSIGN) {
+		bc().loadvar(node->var());
+		if (node->op() == tINCRSET) {
+			bc().add();
+		} else if (node->op() == tDECRSET) {
+			bc().sub();
+		} else {
+			assert("Bad operation" == 0);
+		}
+	}
+    bc().storevar(node->var());
 }
 
 void Ast2BytecodeVisitor::initScope(Scope* scope) {
-    // std::string indent(0, ' ');
-
-    // Scope::VarIterator varIt(scope);
-    // while (varIt.hasNext()) {
-    //     // AstVar* var = varIt.next();
-    //     varIt.next();
-    //     // _out << indent << mathvm::typeToName(var->type()) << " "<< var->name() << ";" << std::endl;
-    // }
+//     Scope::VarIterator varIt(scope);
+//     while (varIt.hasNext()) {
+//         AstVar* var = varIt.next();
+//     }
 
     Scope::FunctionIterator funcIt(scope);
     while (funcIt.hasNext()) {
@@ -95,104 +153,95 @@ void Ast2BytecodeVisitor::start(AstFunction* top) {
     top->node()->visit(this);
 }
 
-void Ast2BytecodeVisitor::printBlock(BlockNode* node) {
-    initScope(node->scope());
-
-    // std::string indent(_indent, ' ');
-    for (uint32_t i = 0; i != node->nodes(); ++i)
-    {
-        // _out << indent;
-        node->nodeAt(i)->visit(this);
-        if (!node->nodeAt(i)->isIfNode() &&
-            !node->nodeAt(i)->isForNode() &&
-            !node->nodeAt(i)->isWhileNode() && 
-            !node->nodeAt(i)->isBlockNode());
-            // _out << ";";
-        // _out << std::endl;
-    }
-}
-
 void Ast2BytecodeVisitor::visitBlockNode(BlockNode* node) {
-    // _out << "{" << std::endl;
-    // _indent += _indentSize;
-    printBlock(node);
-    // _indent -= _indentSize;
-    // _out << std::string(_indent, ' ') << "}";// << std::endl;
+    initScope(node->scope());
+    node->visitChildren(this);
 }
 
 void Ast2BytecodeVisitor::visitForNode(ForNode* node) {
-    // _out << "for (" 
-    //      << node->var()->name()
-    //      << " in ";
-    // node->inExpr()->visit(this);
-    // _out << ") ";
-    // node->body()->visit(this);
+	Label LOOP;
+	Label END;
+
+	BinaryOpNode* range = (BinaryOpNode*) node->inExpr();
+	assert(range->isBinaryOpNode() && range->kind() == tRANGE);
+
+	range->right()->visit(this);
+	range->left()->visit(this);
+	bc()
+	.storevar(node->var())
+	.loadvar(node->var())
+	.ifcmpL(END)
+	.setLabel(LOOP);
+
+	node->body()->visit(this);
+
+	range->right()->visit(this);
+	bc()
+	.loadvar(node->var())
+	.ifcmpGE(LOOP)
+	.setLabel(END);
 }
 
 void Ast2BytecodeVisitor::visitWhileNode(WhileNode* node) {
-    // _out << "while (";
-    // node->whileExpr()->visit(this);
-    // _out << ") ";
-    // node->loopBlock()->visit(this);
+	Label LOOP;
+	Label END;
+
+	node->whileExpr()->visit(this);
+
+	bc()
+	.load(false)
+	.ifcmpE(END)
+	.setLabel(LOOP);
+
+    node->loopBlock()->visit(this);
+
+	node->whileExpr()->visit(this);
+    bc()
+	.load(false)
+	.ifcmpE(LOOP)
+	.setLabel(END);
 }
 
 void Ast2BytecodeVisitor::visitIfNode(IfNode* node) {
-    // _out << "if (";
-    // node->ifExpr()->visit(this);
-    // _out << ") ";
-    // node->thenBlock()->visit(this);
-    // if (node->elseBlock()) {
-    //     _out << " else ";
-    //     node->elseBlock()->visit(this);
-    // }
-}
+	Label ELSE;
+	Label END;
 
-void printSignatureElement(std::ostream* out, SignatureElement el) {
-    // (*out) << mathvm::typeToName(el.first) << " " << el.second;
+	node->ifExpr()->visit(this);
+	bc()
+	.load(false)
+	.ifcmpE(ELSE);
+
+	node->thenBlock()->visit(this);
+	bc()
+	.jmp(END)
+	.setLabel(ELSE);
+
+    if (node->elseBlock()) {
+       node->elseBlock()->visit(this);
+    }
+
+    bc().setLabel(END);
 }
 
 void Ast2BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
-    // _out << "function "
-    //      << mathvm::typeToName(node->returnType()) << " ";
-
-    // const Signature& signature = node->signature();
-    // printSignature(node->name(), signature.size(),
-    //     std::bind1st(std::mem_fun<const SignatureElement&, Signature, size_t>(&Signature::operator[]), &signature),
-    //     std::bind1st(std::ptr_fun<std::ostream*, SignatureElement, void>(&printSignatureElement), &_out),
-    //     1);
+//node->returnType()
+//node->signature();
+//node->name()
 
     // if (node->body()->nodes() && node->body()->nodeAt(0)->isNativeCallNode())
     //     node->body()->nodeAt(0)->visit(this);
-    // else
+
        node->visitChildren(this);
 }
 
 void Ast2BytecodeVisitor::visitReturnNode(ReturnNode* node) {
-    // VarType returnType = get_type(node);
-    // if (returnType != VT_VOID)
-    // {
-    //     node->returnExpr()->visit(this);
-    //     convert_to(get_type(node->returnExpr()), returnType);
-    // }
+    node->returnExpr()->visit(this);
+    //todo convert return type
     bc().ret();
 }
 
 void Ast2BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
     // _out << "native '" << node->nativeName() << "';";
-}
-
-template <typename TF1, typename TF2>
-void Ast2BytecodeVisitor::printSignature(const std::string& name, uint32_t size, TF1 at, TF2 action, uint32_t begin) const {
-    // uint32_t i = begin;
-    // _out << name << "(";
-    // if (i < size) {
-    //     action(at(i++));
-    // }
-    // while (i < size) {
-    //     _out << ", ";
-    //     action(at(i++));
-    // }
-    // _out << ")";
 }
 
 void Ast2BytecodeVisitor::visitCallNode(CallNode* node) {
@@ -207,5 +256,5 @@ void Ast2BytecodeVisitor::visitPrintNode(PrintNode* node) {
         bc().print();
     }
 }
-    
+
 }
