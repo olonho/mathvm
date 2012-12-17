@@ -1,0 +1,185 @@
+int i;
+int j;
+int k;
+int a;
+int b;
+int c;
+int x;
+int y2;
+
+double y;
+double z;
+double t;
+double d;
+
+i = 1;
+d = 2.0;
+
+print ('i+1=', i+1,'\n');
+print ('d+1=', d+1.0,'\n');
+print ('i+123456789012345=', i+123456789012345,'\n');
+print ('d+1e9=',d+1e9,'\n');
+
+a = 1;
+b = 2;
+c = 3;
+
+a = a + 1;
+print(a, '\n');
+a += b * c ;
+print(a, '\n');
+b -= a - 5;
+print(b, '\n');
+
+i = 19;
+d = 7.0;
+
+print ('i / 6=', i / 6,'\n');
+print ('d / 3=', d / 3.0,'\n');
+print ('i / 123456789012345=', i/ 123456789012345,'\n');
+print ('d / 1e15=',d/1e15,'\n');
+y = 11.0;
+t = 7.0;
+
+z = t + 2.0 * y - 1.0;
+print(z, '\n');
+
+z = (t + 2.0) * y - 1.0;
+print(z, '\n');
+
+i = 2;
+j = 7;
+
+k = j / 2 + 1;
+print(k, '\n');
+
+k = j * i / -3;
+print(k, '\n');
+
+j = 3;
+
+print ('Begin.\n');
+for (i in -3..4)  {
+    j += i; print(i, ' ');
+}
+print('\n', j, '\n');
+print ('The end.\n');
+
+function int add(int x, int y) {
+    return x + y;
+}
+
+function void doit() {
+    print('Hi\n');
+}
+
+function double mul5(int max, double x1, double x2, double x3, double x4, double x5) {
+    double r;
+
+    r = 1.0;
+
+    if (max > 1) {
+        r = r * x1;
+    }
+
+    if (max > 2) {
+        r = r * x2;
+    }
+
+    if (max > 3) {
+        r = r * x3;
+    }
+
+    if (max > 4) {
+        r = r * x4;
+    }
+
+    if (max > 5) {
+        r = r * x5;
+    }
+
+    return r;
+}
+
+function int fact(int n) {
+    if (n < 3) {
+        return n;
+    }
+    return n*fact(n-1);
+}
+
+print(add(2, 3), '\n');
+doit();
+print(mul5(2, 2.0, 0.0, 0.0, 0.0, 0.0), '\n');
+print(mul5(4, 2.0, 3.0, 4.0, 5.0, 0.0), '\n');
+print(mul5(5, 2.0, 3.0, 4.0, 5.0, 6.0), '\n');
+print(fact(9),'\n');
+
+x = 7;
+y2 = 8;
+
+if (x < y2 && y2 > 1 && !(x < 2)) {
+    print('1: Less\n');
+}
+
+if (x == y2) {
+    print('2: Equal\n');
+} else {
+    print('2: Different\n');
+}
+
+if (x <= 7) {
+    print('3: Lesser\n');
+} else {
+    print('3: Greater\n');
+}
+
+if (x >= 77) {
+    print('4: Greater\n');
+} else {
+    print('4: Lesser\n');
+}
+
+print(1, '\n');
+print(-2, '\n');
+print(1234567890123456, '\n');
+print(-1234567890123456, '\n');
+
+print(1.0, '\n');
+print(-2.0, '\n');
+print(1e8, '\n');
+print(1e-8, '\n');
+
+i = 3;
+d = 7.0;
+
+print ('i*6=', i*6,'\n');
+print ('d*3=', d*3.0,'\n');
+print ('i*123456789012345=', i*123456789012345,'\n');
+print ('d*1e15=',d*1e15,'\n');
+
+i = 1;
+d = 2.0;
+
+print ('i-1=', i-1,'\n');
+print ('d-1=', d-1.0,'\n');
+print ('i-123456789012345=', i-123456789012345,'\n');
+print ('d-1e9=',d-1e9,'\n');
+
+x = 3;
+
+while (x < 19) {
+    print(x,'\n');
+    x += 1;
+}
+
+y2 = 4;
+
+while (x > 0) {
+    while(y2 < 3) {
+      print ('hello\n');
+      print ('world');
+    }
+    print ('my name');
+    print ('is ivanovak');
+}
