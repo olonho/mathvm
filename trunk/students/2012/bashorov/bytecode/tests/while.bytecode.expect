@@ -1,5 +1,6 @@
-function [0] void <top>()
 CONSTANTS:
+
+function [0] void <top>()
 0: ILOAD1
 1: STOREIVAR0
 2: LOADIVAR0
