@@ -29,16 +29,16 @@ int main(int argc, char** argv) {
     std::string mode = INTERPRETE;
     for (int32_t i = 1; i < argc; i++) {
       if (string(argv[i]) == "-d") {
-        mode = "disasm";
+        mode = DISASM;
       } else if (string(argv[i]) == "-j") {
-        mode = "jit";
+        mode = JIT;
       } else {
         script = argv[i];
       }
     }
 
     if (script == 0) {
-        cout << "Usage: translate [-d | -j] <source_file>" << endl;
+        cout << "Usage: interpreter [-d | -j] <source_file>" << endl;
         return WRONG_ARG_COUNT;
     }
 
@@ -53,7 +53,9 @@ int main(int argc, char** argv) {
     Code* code = 0;
 
     Status* translateStatus = translator->translate(expr, &code);
-    if (translateStatus == 0 || translateStatus->isError()) {
+    if (translateStatus == 0) {
+    	//todo
+    } else if (translateStatus->isError()) {
         uint32_t position = translateStatus->getPosition();
         uint32_t line = 0, offset = 0;
         positionToLineOffset(expr, position, line, offset);

@@ -13,8 +13,11 @@ COLOR=$5
 SHOWALL=$6
 
 TEST_OUT=testout
+RUNNED_COUNT=0
+PASSED_COUNT=0
 
 function run {
+	RUNNED_COUNT=$[$RUNNED_COUNT+1]
 	IN=$1
 	OUT=$2
 	EXPECT=$3
@@ -28,21 +31,23 @@ function run {
 	else
 		check $OUT $EXPECT
 		RESULT=$?
-		[ "$RESULT" == "0" ] && [ "$SHOWALL" != "showall" ] && return 0
 
 		if [ "$COLOR" == "coloroff" ]; then
 			if [ $RESULT -ne "0" ]; then
-				RESULT=" /="
+				RESULT_TEXT=" /="
 			else
-				RESULT=" =="
+				RESULT_TEXT=" =="
+				PASSED_COUNT=$[$PASSED_COUNT+1]
 			fi
 		else
-			RESULT=""
+			RESULT_TEXT=""
 		fi
+
+		[ "$RESULT" == "0" ] && [ "$SHOWALL" != "showall" ] && (PASSED_COUNT=$[$PASSED_COUNT+1]) && return 0
 	fi
 
 	echo " [$IN -> $OUT]"
-	echo " $RESULT"
+	echo " $RESULT_TEXT"
 	colorOff
 }
 
@@ -95,6 +100,14 @@ function test {
 		# fi
 
 	done
+
+	echo
+	if [ "$RUNNED_COUNT" == "$PASSED_COUNT" ]; then
+		echo "All passed ($PASSED_COUNT)"
+	else
+		echo "Passed: $PASSED_COUNT"
+		echo "Runned: $RUNNED_COUNT"
+	fi
 }
 
 # rm -rf $TEST_OUT
