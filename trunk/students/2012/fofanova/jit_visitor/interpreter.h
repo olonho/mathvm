@@ -28,7 +28,6 @@ private:
     enum type {i, d, s};
 
     Code* code;
-    Compiler compiler;
 
     std::vector<int> calls;
     std::vector<VarType> stackTypes;
@@ -49,18 +48,18 @@ public:
     interpreter(Code* code_): code(code_){ }
 
     void executeFunction(BytecodeFunction* function, int funcIndex);
-    void executeGPArithmetics(Instruction insn);
-    void executeXMMArithmetics(Instruction insn);
-    void executeCompare(Instruction insn, Bytecode* bytecode, int index);
+    void executeGPArithmetics(Instruction insn, Compiler& compiler);
+    void executeXMMArithmetics(Instruction insn, Compiler& compiler);
+    void executeCompare(Instruction insn, Bytecode* bytecode, int index, Compiler& compiler);
     void generate(BytecodeFunction* function);
-    void loadd(double val);
-    void loadi(int val);
-    void loads(int val);
+    void loadd(double val, Compiler& compiler);
+    void loadi(int val, Compiler& compiler);
+    void loads(int val, Compiler& compiler);
     FunctionBuilderX build(BytecodeFunction* bytecode);
-    void pop(XMMVar& var);
-    void push(XMMVar& var);
-    void pop(GPVar& var);
-    void push(GPVar& var);
+    void pop(XMMVar& var, Compiler& compiler);
+    void push(XMMVar& var, Compiler& compiler);
+    void pop(GPVar& var, Compiler& compiler);
+    void push(GPVar& var, Compiler& compiler);
 };
 
 void printi(sysint_t value) {
@@ -95,7 +94,7 @@ sysint_t s2i(const char* val) {
     return atoi(val);
 }
 
-void interpreter::loadd(double val)
+void interpreter::loadd(double val, Compiler& compiler)
 {
     stackTypes.push_back(VT_DOUBLE);
     GPVar var(compiler.newGP());
@@ -104,13 +103,13 @@ void interpreter::loadd(double val)
     compiler.unuse(var);
 }
 
-void interpreter::loadi(int val)
+void interpreter::loadi(int val, Compiler& compiler)
 {
     stackTypes.push_back(VT_INT);
     compiler.push(imm(val));
 }
 
-void interpreter::loads(int val)
+void interpreter::loads(int val, Compiler& compiler)
 {
     stackTypes.push_back(VT_STRING);
     const char* str = code->constantById(val).c_str();
@@ -186,7 +185,7 @@ FunctionBuilderX interpreter::build(BytecodeFunction* bytecode)
     return builder;
 }
 
-void interpreter::pop(XMMVar& xmmvar)
+void interpreter::pop(XMMVar& xmmvar, Compiler& compiler)
 {
     GPVar gpvar(compiler.newGP());
     compiler.pop(gpvar);
@@ -194,7 +193,7 @@ void interpreter::pop(XMMVar& xmmvar)
     compiler.unuse(gpvar);
 }
 
-void interpreter::push(XMMVar& var)
+void interpreter::push(XMMVar& var, Compiler& compiler)
 {
     GPVar gpvar(compiler.newGP());
     compiler.movq(gpvar, var);
@@ -202,17 +201,17 @@ void interpreter::push(XMMVar& var)
     compiler.unuse(gpvar);
 }
 
-void interpreter::pop(GPVar& gpvar)
+void interpreter::pop(GPVar& gpvar, Compiler& compiler)
 {
     compiler.pop(gpvar);
 }
 
-void interpreter::push(GPVar& gpvar)
+void interpreter::push(GPVar& gpvar, Compiler& compiler)
 {
     compiler.push(gpvar);
 }
 
-void interpreter::executeCompare(Instruction insn, Bytecode* bytecode, int index)
+void interpreter::executeCompare(Instruction insn, Bytecode* bytecode, int index, Compiler& compiler)
 {
 
     int16_t offset = bytecode->getInt16(index + 1);
@@ -223,8 +222,8 @@ void interpreter::executeCompare(Instruction insn, Bytecode* bytecode, int index
     }
     GPVar var2(compiler.newGP());
     GPVar var1(compiler.newGP());
-    pop(var2);
-    pop(var1);
+    pop(var2, compiler);
+    pop(var1, compiler);
     compiler.cmp(var1, var2);
     switch (insn)
     {
@@ -269,12 +268,12 @@ void interpreter::executeCompare(Instruction insn, Bytecode* bytecode, int index
     compiler.unuse(var2);
 }
 
-void interpreter::executeXMMArithmetics(Instruction insn)
+void interpreter::executeXMMArithmetics(Instruction insn, Compiler& compiler)
 {
     XMMVar var1(compiler.newXMM());
     XMMVar var2(compiler.newXMM());
-    pop(var1);
-    pop(var2);
+    pop(var1, compiler);
+    pop(var2, compiler);
 
     switch(insn)
     {
@@ -302,13 +301,13 @@ void interpreter::executeXMMArithmetics(Instruction insn)
                 cout << "Wrong operation " << insn << " was interpretated as XMM arithmetic operation" << endl;
     }
 
-    push(var1);
+    push(var1, compiler);
     compiler.unuse(var1);
     compiler.unuse(var2);
     stackTypes.pop_back();
 }
 
-void interpreter::executeGPArithmetics(Instruction insn)
+void interpreter::executeGPArithmetics(Instruction insn, Compiler& compiler)
 {
     GPVar var1(compiler.newGP());
     GPVar var2(compiler.newGP());
@@ -375,6 +374,7 @@ void interpreter::executeGPArithmetics(Instruction insn)
 
 void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
 {
+    Compiler compiler;
     compiler.newFunction(CALL_CONV_DEFAULT, build(function));
     compiler.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
 
@@ -386,40 +386,46 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             compiler.bind(*labels[index]);
         }
         Instruction insn = bytecode->getInsn(index);
-        //std::cout << str(insn) << endl;
+        std::cout << str(insn) << endl;
         switch(insn)
         {
         //one
             case BC_DLOAD:
             {
                 double val = bytecode->getDouble(index + 1);
-                loadd(val);
+                loadd(val, compiler);
                 break;
             }
             case BC_ILOAD:
             {
                 int val = bytecode->getInt64(index + 1);
-                loadi(val);
+                loadi(val, compiler);
                 break;
             }
             case BC_SLOAD:
             {
                 int val = bytecode->getInt16(index + 1);
-                loads(val);
+                loads(val, compiler);
                 break;
             }
             case BC_CALL:
             {
-                //int id = bytecode->getInt16(index + 1);
-                //BytecodeFunction *fun = (BytecodeFunction *)code->functionById(id);
-               // executeFunction(fun); 
+                int id = bytecode->getInt16(index + 1);
+                BytecodeFunction *fun = (BytecodeFunction *)code->functionById(id);
+                if (functions.count(id) == 0)
+                {
+                    executeFunction(fun, id); 
+                }
+                ECall* call = compiler.call(imm((sysint_t)(functions[id])));
+                call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
                 break;
             }
             case BC_RETURN: 
             {
-                compiler.endFunction();  
-                functions[funcIndex] = compiler.make();
-                return;
+                //compiler.ret();
+                //compiler.endFunction();
+                //functions[funcIndex] = compiler.make();
+                break;
             }
             case BC_CALLNATIVE:
             {
@@ -429,7 +435,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var = dvars[id];
-                push(var);
+                push(var, compiler);
                 stackTypes.push_back(VT_DOUBLE);
                 break;
             }
@@ -437,7 +443,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var = ivars[id];
-                push(var);
+                push(var, compiler);
                 stackTypes.push_back(VT_INT);
                 break;
             }
@@ -445,7 +451,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var = svars[id];
-                push(var);
+                push(var, compiler);
                 stackTypes.push_back(VT_STRING);
                 break;
             }
@@ -453,7 +459,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 dvars[id] = var;
                 stackTypes.pop_back();
                 break;
@@ -462,7 +468,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 ivars[id] = var;
                 stackTypes.pop_back();
                 break;
@@ -471,7 +477,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 svars[id] = var;
                 stackTypes.pop_back();
                 break;
@@ -483,7 +489,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_IFICMPL:
             case BC_IFICMPLE:
             {
-                executeCompare(insn, bytecode, index);
+                executeCompare(insn, bytecode, index, compiler);
                 break;
             }
             case BC_JA:
@@ -511,37 +517,37 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
          //none 
             case BC_DLOAD0:
             {
-                loadd(0.0);
+                loadd(0.0, compiler);
                 break;
             }
             case BC_ILOAD0:
             {
-                loadi(0);
+                loadi(0, compiler);
                 break;
             }
             case BC_SLOAD0:
             {
-                loads(code->makeStringConstant(""));
+                loads(code->makeStringConstant(""), compiler);
                 break;
             }
             case BC_DLOAD1:
             {
-                loadd(1.0);
+                loadd(1.0, compiler);
                 break;
             }
             case BC_ILOAD1:
             {
-                loadi(1);
+                loadi(1, compiler);
                 break;
             }
             case BC_DLOADM1:
             {
-                loadd(-1.0);
+                loadd(-1.0, compiler);
                 break;
             }
             case BC_ILOADM1:
             {
-                loadi(-1);
+                loadi(-1, compiler);
                 break;
             }
             case BC_DADD:
@@ -549,7 +555,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_DMUL:
             case BC_DDIV:
             {
-                executeXMMArithmetics(insn);
+                executeXMMArithmetics(insn, compiler);
                 break;
             }
             case BC_IADD:
@@ -558,27 +564,35 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_IMOD:
             case BC_IDIV:
             {
-                executeGPArithmetics(insn);
+                executeGPArithmetics(insn, compiler);
                 break;
             }
             case BC_DNEG:
             {
-
+                XMMVar var(compiler.newXMM());
+                loadd(-1.0, compiler);
+                XMMVar sign(compiler.newXMM());
+                pop(sign, compiler);
+                pop(var, compiler);
+                compiler.mulsd(var, sign);
+                push(var, compiler);
+                compiler.unuse(var);
+                compiler.unuse(sign);
                 break;
             }
             case BC_INEG:
             {
                 GPVar var(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 compiler.imul(var, imm(-1));
-                push(var);
+                push(var, compiler);
                 compiler.unuse(var); 
                 break;
             }
             case BC_IPRINT:
             {
                 GPVar var(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 ECall* call = compiler.call((sysint_t)printi);
                 call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, sysint_t>());
                 call->setArgument(0, var);
@@ -589,7 +603,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_DPRINT:
             {
                 XMMVar var(compiler.newXMM());
-                pop(var);
+                pop(var, compiler);
                 ECall* call = compiler.call((sysint_t)printd);
                 call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, double>());
                 call->setArgument(0, var);
@@ -600,7 +614,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_SPRINT:
             {
                 GPVar var(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 ECall* call = compiler.call((sysint_t)prints);
                 call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, const char*>());
                 call->setArgument(0, var);
@@ -612,12 +626,12 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 GPVar var(compiler.newGP());
                 XMMVar ret(compiler.newXMM());
-                pop(var);
+                pop(var, compiler);
                 ECall* call = compiler.call((sysint_t)i2d);
                 call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<double, sysint_t>());
                 call->setArgument(0, var);
                 call->setReturn(ret);
-                push(ret);
+                push(ret, compiler);
                 compiler.unuse(ret);
                 compiler.unuse(var);
                 stackTypes.pop_back();
@@ -628,12 +642,12 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 XMMVar var(compiler.newXMM());
                 GPVar ret(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 ECall* call = compiler.call((sysint_t)d2i);
                 call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<sysint_t, double>());
                 call->setArgument(0, var);
                 call->setReturn(ret);
-                push(ret);
+                push(ret, compiler);
                 compiler.unuse(ret);
                 compiler.unuse(var);
                 stackTypes.pop_back();
@@ -644,12 +658,12 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 GPVar var(compiler.newGP());
                 GPVar ret(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 ECall* call = compiler.call((sysint_t)s2i);
                 call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<sysint_t, const char*>());
                 call->setArgument(0, var);
                 call->setReturn(ret);
-                push(ret);
+                push(ret, compiler);
                 compiler.unuse(ret);
                 compiler.unuse(var);
                 stackTypes.pop_back();
@@ -660,10 +674,10 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 GPVar var1(compiler.newGP());
                 GPVar var2(compiler.newGP());
-                pop(var1);
-                pop(var2);
-                push(var1);
-                push(var2);
+                pop(var1, compiler);
+                pop(var2, compiler);
+                push(var1, compiler);
+                push(var2, compiler);
                 compiler.unuse(var1);
                 compiler.unuse(var2);
                 VarType type1;
@@ -679,7 +693,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_POP:
             {
                 GPVar var(compiler.newGP());
-                pop(var);
+                pop(var, compiler);
                 compiler.unuse(var);
                 stackTypes.pop_back();
                 break;
@@ -710,6 +724,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_STORESVAR3:
             default:
             {
+                compiler.ret();
                 compiler.endFunction();  
                 functions[funcIndex] = compiler.make();
                 return;  
@@ -718,4 +733,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
         }
         index += (length(insn));
     }
+                compiler.ret();
+                compiler.endFunction();  
+                functions[funcIndex] = compiler.make();
 }
