@@ -260,6 +260,13 @@ public:
         // We are using BC_STORE*VAR0 to mimic typed POP operation (VAR0 is used only to return value from the function,
         // therefore, its _now_ safe to use it inside the function)
 
+        // const size_t DatatypeSize[] = {0,   // VT_INVALID
+        //                                0,   // VT_VOID
+        //                                sizeof(double),  // VT_DOUBLE
+        //                                sizeof(int64_t), // VT_INT
+        //                                sizeof(uint16_t) // VT_STRING
+        // };
+
         // out->addInsn(BC_POP);
 
         Instruction instr = BC_INVALID;

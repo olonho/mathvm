@@ -8,6 +8,8 @@
 #include "BytecodeInstructionPrimitives.h"
 #include <map>
 
+// #define FUNCTION_ARGUMENTS_ON_STACK 1
+
 namespace mathvm_ext {
 
 using namespace mathvm;
@@ -100,6 +102,10 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             case tLE:   // "<=";
                 m_latest_type = m_primitives.CmpLe(m_bytecode, left_type, right_type);
                 break;
+            case tRANGE:    // ".."
+                std::cerr << "Error: Ranges are supported only as a FOR loop condition"
+                          << std::endl;
+                break;
             default:
                 m_latest_type = m_primitives.Invalid(m_bytecode);
                 break;
@@ -175,6 +181,35 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //        node->inExpr()->visit(this);
 //        out << ") ";
 //        node->body()->visit(this);
+
+        BinaryOpNode* range = (BinaryOpNode*) node->inExpr();
+        assert(range->isBinaryOpNode() && range->kind() == tRANGE);
+
+
+        addVarStorage(node->var()->name());
+        range->left()->visit(this);
+        VarType left_type = m_latest_type;
+
+        uint16_t loop_var_id = getVarStorage(node->var()->name());
+        m_primitives.StoreVar(m_bytecode, loop_var_id, left_type);
+
+        Label entryLoopLabel(m_bytecode);
+        Label exitLoopLabel(m_bytecode);
+
+        // check loop condition
+        m_bytecode->bind(entryLoopLabel);
+        range->right()->visit(this);
+        m_primitives.LoadVar(m_bytecode, loop_var_id, left_type);
+        m_bytecode->addBranch(BC_IFICMPG, exitLoopLabel);
+        
+        // execute loop body and increment the counter
+        node->body()->visit(this);
+        m_primitives.Load(m_bytecode, (int64_t) 1, left_type);
+        m_primitives.Inc(m_bytecode, loop_var_id, left_type);
+        m_bytecode->addBranch(BC_JA, entryLoopLabel);
+
+        m_bytecode->bind(exitLoopLabel);
+        m_var_storage.pop_back();
     }
     virtual void visitWhileNode(WhileNode* node) {
         Label entryLoopLabel(m_bytecode, m_bytecode->current());
@@ -269,14 +304,15 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //
        // function's parameters
         uint32_t parameters_number = node->parametersNumber();
-//        if (parameters_number > 0) {
-//            uint32_t last_parameter = parameters_number - 1;
-//            for (uint32_t i = 0; i < last_parameter; ++i) {
-//                addVarStorage(node->parameterName(i));
-//            }
-//            addVarStorage(node->parameterName(last_parameter));
-//        }
-
+#ifdef FUNCTION_ARGUMENTS_ON_STACK
+       if (parameters_number > 0) {
+           uint32_t last_parameter = parameters_number - 1;
+           for (uint32_t i = 0; i < last_parameter; ++i) {
+               addVarStorage(node->parameterName(i));
+           }
+           addVarStorage(node->parameterName(last_parameter));
+       }
+#else
         if (parameters_number > 0) {
             uint32_t last_parameter = parameters_number - 1;
             for (uint32_t i = last_parameter; i > 0; --i) {
@@ -284,32 +320,14 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             }
             addVarStorage(node->parameterName(0));
         }
+#endif
 
-//        for (uint32_t i = 0; i < parameters_number; ++i) {
-//            switch (node->parameterType(i)) {
-//                case VT_INVALID:
-//                    m_bytecode->addInsn(BC_INVALID);
-//                    break;
-//                case VT_VOID:
-//                    // do nothing
-//                    break;
-//                case VT_DOUBLE:
-//                    m_bytecode->addInsn(BC_STOREDVAR);
-//                    m_bytecode->addUInt16(getVarStorage(node->parameterName(i)));
-//                    break;
-//                case VT_INT:
-//                    m_bytecode->addInsn(BC_STOREIVAR);
-//                    m_bytecode->addUInt16(getVarStorage(node->parameterName(i)));
-//                    break;
-//                case VT_STRING:
-//                    m_bytecode->addInsn(BC_STORESVAR);
-//                    m_bytecode->addUInt16(getVarStorage(node->parameterName(i)));
-//                    break;
-//                default:
-//                    m_bytecode->addInsn(BC_INVALID);
-//                    break;
-//            }
-//        }
+#ifdef FUNCTION_ARGUMENTS_ON_STACK
+        for (uint32_t i = 0; i < parameters_number; ++i) {
+            m_primitives.StoreVar(m_bytecode, getVarStorage(node->parameterName(i)),
+                                              node->parameterType(i));
+        }
+#endif
 
         node->body()->visit(this);
 
@@ -335,18 +353,22 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_bytecode->addInsn(BC_RETURN);
     }
     virtual void visitCallNode(CallNode* node) {
-        // pass arguments through VARs
         uint32_t parameters_number = node->parametersNumber();
+        uint16_t var_id = m_var_storage.size();
         if (parameters_number > 0) {
             uint32_t last_parameter = parameters_number - 1;
 
-            uint16_t var_id = m_var_storage.size();
+            // uint16_t var_id = m_var_storage.size();
             for (uint32_t i = last_parameter; i > 0; --i) {
                 node->parameterAt(i)->visit(this);
+#ifndef FUNCTION_ARGUMENTS_ON_STACK
                 m_primitives.StoreVar(m_bytecode, var_id++, m_latest_type);
+#endif
             }
             node->parameterAt(0)->visit(this);
+#ifndef FUNCTION_ARGUMENTS_ON_STACK
             m_primitives.StoreVar(m_bytecode, var_id++, m_latest_type);
+#endif
         }
 
         // resolve function by name
@@ -362,19 +384,13 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_bytecode->addInsn(BC_CALL);  //BC_CALL must push return address on the stack
         m_bytecode->addUInt16(function_id);
 
-        // const size_t DatatypeSize[] = {0,   // VT_INVALID
-        //                                0,   // VT_VOID
-        //                                sizeof(double),  // VT_DOUBLE
-        //                                sizeof(int64_t), // VT_INT
-        //                                sizeof(uint16_t) // VT_STRING
-        // };
-
-        // // remove function arguments from the stack (byte by byte)
-        // for (uint32_t i = 0; i < parameters_number; ++i) {
-        //     for (uint32_t j = 0; j < DatatypeSize[function->parameterType(i)]; ++j) {
-        //         m_bytecode->addInsn(BC_POP);
-        //     }
-        // }
+#ifdef FUNCTION_ARGUMENTS_ON_STACK
+        // remove function arguments from the stack (byte by byte)
+        for (uint32_t i = 0; i < parameters_number; ++i) {
+            // m_primitives.Pop(m_bytecode, function->parameterType(i));
+            m_primitives.StoreVar(m_bytecode, var_id - 1, function->parameterType(i));
+        }
+#endif
 
         // move function return value from VAR0 to the top of the stack
         if (m_latest_type != VT_VOID) { // TODO: this should be, probably, checked by LoadVar
@@ -406,8 +422,8 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
     }
 
-    std::map<AstVar*,uint16_t> m_var_map;
-    uint16_t m_max_var_number;
+    // std::map<AstVar*,uint16_t> m_var_map;
+    // uint16_t m_max_var_number;
 
     void convertScope(Scope* scope) {
 //#if defined(_DEBUG_COMMENTS)
