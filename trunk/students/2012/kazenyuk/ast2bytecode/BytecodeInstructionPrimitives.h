@@ -310,10 +310,10 @@ public:
         Label exitLabel(out);
 
         out->addInsn(BC_ILOAD0);
-        out->addBranch(BC_IFICMPE, earlyExitLabel);
+        JmpEq(out, earlyExitLabel);
         out->addInsn(BC_ILOAD0);
-        out->addBranch(BC_IFICMPE, exit0Label);
-        out->addBranch(BC_JA, exit1Label);
+        JmpEq(out, exit0Label);
+        Jmp(out, exit1Label);
 
         // EarlyExit
         out->bind(earlyExitLabel);
@@ -321,7 +321,7 @@ public:
         // Exit0
         out->bind(exit0Label);
         out->addInsn(BC_ILOAD0);
-        out->addBranch(BC_JA, exitLabel);
+        Jmp(out, exitLabel);
         // Exit1
         out->bind(exit1Label);
         out->addInsn(BC_ILOAD1);
@@ -340,10 +340,10 @@ public:
         Label exitLabel(out);
 
         out->addInsn(BC_ILOAD0);
-        out->addBranch(BC_IFICMPNE, earlyExitLabel);
+        JmpNe(out, earlyExitLabel);
         out->addInsn(BC_ILOAD0);
-        out->addBranch(BC_IFICMPE, exit0Label);
-        out->addBranch(BC_JA, exit1Label);
+        JmpEq(out, exit0Label);
+        Jmp(out, exit1Label);
 
         // EarlyExit
         out->bind(earlyExitLabel);
@@ -351,7 +351,7 @@ public:
         // Exit1
         out->bind(exit1Label);
         out->addInsn(BC_ILOAD1);
-        out->addBranch(BC_JA, exitLabel);
+        Jmp(out, exitLabel);
         // Exit0
         out->bind(exit0Label);
         out->addInsn(BC_ILOAD0);
@@ -418,6 +418,34 @@ public:
 
     VarType CmpLe(Bytecode* out, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
         return Cmp(out, BC_IFICMPLE, leftType, rightType);
+    }
+
+    void Jmp(Bytecode* out, Label &target) {
+        out->addBranch(BC_JA, target);
+    }
+
+    void JmpEq(Bytecode* out, Label &target, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        out->addBranch(BC_IFICMPE, target);
+    }
+
+    void JmpNe(Bytecode* out, Label &target, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        out->addBranch(BC_IFICMPNE, target);
+    }
+
+    void JmpGt(Bytecode* out, Label &target, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        out->addBranch(BC_IFICMPG, target);
+    }
+
+    void JmpGe(Bytecode* out, Label &target, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        out->addBranch(BC_IFICMPGE, target);
+    }
+
+    void JmpLt(Bytecode* out, Label &target, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        out->addBranch(BC_IFICMPL, target);
+    }
+
+    void JmpLe(Bytecode* out, Label &target, VarType leftType = VT_VOID, VarType rightType = VT_VOID) {
+        out->addBranch(BC_IFICMPLE, target);
     }
 
     VarType Not(Bytecode* out, VarType type = VT_VOID) {
