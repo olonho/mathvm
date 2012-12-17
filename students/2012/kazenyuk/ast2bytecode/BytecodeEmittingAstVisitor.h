@@ -199,13 +199,13 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_bytecode->bind(entryLoopLabel);
         range->right()->visit(this);
         m_primitives.LoadVar(m_bytecode, loop_var_id, left_type);
-        m_bytecode->addBranch(BC_IFICMPG, exitLoopLabel);
+        m_primitives.JmpGt(m_bytecode, exitLoopLabel);
 
         // execute loop body and increment the counter
         node->body()->visit(this);
         m_primitives.Load(m_bytecode, (int64_t) 1, left_type);
         m_primitives.Inc(m_bytecode, loop_var_id, left_type);
-        m_bytecode->addBranch(BC_JA, entryLoopLabel);
+        m_primitives.Jmp(m_bytecode, entryLoopLabel);
 
         m_bytecode->bind(exitLoopLabel);
         m_var_storage.pop_back();
@@ -217,10 +217,10 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_bytecode->addInsn(BC_ILOAD0);
         node->whileExpr()->visit(this);
 
-        m_bytecode->addBranch(BC_IFICMPE, exitLoopLabel);
+        m_primitives.JmpEq(m_bytecode, exitLoopLabel);
 
         node->loopBlock()->visit(this);
-        m_bytecode->addBranch(BC_JA, entryLoopLabel);
+        m_primitives.Jmp(m_bytecode, entryLoopLabel);
 
         m_bytecode->bind(exitLoopLabel);
     }
@@ -231,10 +231,10 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         Label elseLabel(m_bytecode);
         Label ifExitLabel(m_bytecode);
         //jump if the condition evaluates to false
-        m_bytecode->addBranch(BC_IFICMPE, elseLabel);
+        m_primitives.JmpEq(m_bytecode, elseLabel);
 
         node->thenBlock()->visit(this);
-        m_bytecode->addBranch(BC_JA, ifExitLabel);
+        m_primitives.Jmp(m_bytecode, ifExitLabel);
 
         m_bytecode->bind(elseLabel);
         if (node->elseBlock()) {
