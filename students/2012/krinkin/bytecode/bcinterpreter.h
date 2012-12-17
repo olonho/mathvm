@@ -9,6 +9,8 @@
 
 #include "bccode.h"
 
+#define MAX_FRAME_SIZE 1024
+
 using namespace mathvm;
 
 class BCInterpreter
@@ -17,14 +19,21 @@ public:
     void run(BCCode *code)
     {
         m_code = code;
-	    m_local_memory.resize(functions());
+	    m_local_memory.resize(m_code->function_count());
 	    m_int_vars.resize(4, (int64_t)0);
 	    m_double_vars.resize(4, 0.0);
 	    m_string_vars.resize(4, (char *)0);
 	    make_call((BytecodeFunction *)m_code->functionByName(AstFunction::top_name));
     }
+    
+    BCInterpreter() {}
+    virtual ~BCInterpreter() {}
 
 private:
+    typedef void (*void_call)(char *frame);
+    typedef int64_t (*int64_t_call)(char *frame);
+    typedef double (*double_call)(char *frame);
+    typedef char const *(*string_call)(char *frame);
     typedef union _value
     {
 		int64_t _int;
@@ -49,7 +58,8 @@ private:
 	
 	BCCode *m_code;
 	
-	std::string empty;
+	char m_frame[MAX_FRAME_SIZE];
+	std::string m_empty;
 
     void call(BytecodeFunction *function);
 
@@ -60,14 +70,6 @@ private:
         call(function);
         pop_scope(function);
         while (sp < m_eval_stack.size()) m_eval_stack.pop();
-    }
-    
-    size_t functions() const
-    {
-	    size_t count = 0;
-	    Code::FunctionIterator it(m_code);
-	    while (it.next()) ++count;
-	    return count;
     }
     
     bool no_arg(Instruction insn) const
@@ -82,7 +84,7 @@ private:
 		case BC_LOADSVAR0: case BC_LOADSVAR1: case BC_LOADSVAR2: case BC_LOADSVAR3:
 		case BC_LOADDVAR: case BC_LOADIVAR: case BC_LOADSVAR:
 		case BC_LOADCTXDVAR: case BC_LOADCTXIVAR: case BC_LOADCTXSVAR:
-		case BC_CALL: case BC_RETURN:
+		case BC_CALL: case BC_CALLNATIVE: case BC_RETURN:
 		    return true;
         default:
             return jump(insn);
@@ -109,7 +111,7 @@ private:
 	    {
 	    case BC_DNEG: case BC_INEG:
 	    case BC_IPRINT: case BC_DPRINT: case BC_SPRINT:
-	    case BC_I2D: case BC_D2I:
+	    case BC_I2D: case BC_D2I: case BC_S2I:
 	    case BC_POP:
 	    case BC_STOREDVAR0: case BC_STOREDVAR1: case BC_STOREDVAR2: case BC_STOREDVAR3:
 	    case BC_STOREIVAR0: case BC_STOREIVAR1: case BC_STOREIVAR2: case BC_STOREIVAR3:
@@ -228,6 +230,9 @@ private:
     void print_int(int64_t value) const { std::cout << value; }
     void print_double(double value) const { std::cout << value; }
     void print_string(char const *value) const { std::cout << value; }
+    
+    void fill_frame(Signature const &signature);
+    VarType return_type(Signature const &signature) { return signature[0].first; }
 };
 
 #endif /* __INTERPRETER_H__ */
