@@ -1,5 +1,10 @@
 #include "typer.h"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <dlfcn.h>
+
 void Typer::visitBinaryOpNode(BinaryOpNode *node)
 {
     node->left()->visit(this);
@@ -50,6 +55,13 @@ void Typer::visitBinaryOpNode(BinaryOpNode *node)
 void Typer::visitUnaryOpNode(UnaryOpNode *node)
 {
     node->operand()->visit(this);
+    
+    if ((type(node->operand()) == VT_STRING) && (node->kind() == tNOT))
+    {
+        type(node, VT_INT);
+        return;
+    }
+    
     if (!check_number(node->operand())) return;
     
     switch (node->kind())
@@ -145,8 +157,7 @@ void Typer::visitBlockNode(BlockNode *node)
 void Typer::visitFunctionNode(FunctionNode *node)
 {
     push_function(node);
-	if (node->body()->nodes() && !node->body()->nodeAt(0)->isNativeCallNode())
-		node->body()->visit(this);
+	if (node->body()->nodes()) node->body()->visit(this);
     pop_function();
 }
 
@@ -205,7 +216,15 @@ void Typer::visitCallNode(CallNode *node)
 
 void Typer::visitNativeCallNode(NativeCallNode *node)
 {
+    void *native = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+    if (!native)
+    {
+        error(dlerror(), node);
+        type(node, VT_INVALID);
+        return;
+    }
     type(node, function()->returnType());
+    node->setInfo(native);
 }
 
 void Typer::visitPrintNode(PrintNode *node)

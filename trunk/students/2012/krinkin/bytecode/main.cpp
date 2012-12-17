@@ -2,6 +2,7 @@
 #include "parser.h"
 
 #include "bctranslator.h"
+#include "bccompiler.h"
 #include "typer.h"
 
 #include <iostream>
@@ -35,8 +36,11 @@ int main(int argc, char **argv)
 		return 3;
 	}
 	
-	std::vector<Var*> vars;
-    code->execute(vars);
+//	std::vector<Var*> vars;
+//    code->execute(vars);
+    
+    BCCompiler compiler((BCCode *)code);
+    compiler.execute();
 
     delete code;
 	delete [] expr;

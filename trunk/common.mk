@@ -1,6 +1,6 @@
 OUT    = $(ROOT)/build
 ifeq ($(OPT),)
- CFLAGS = -g
+ CFLAGS = -g3
  OBJ    = $(OUT)/debug
  BIN    = $(OUT)/debug
 else
@@ -48,7 +48,8 @@ endif
 
 ifneq ($(WITH_SDL),)
   DEFS += -DMATHVM_WITH_SDL
-  LIBS += -lSDL
+  LIBS += $(shell sdl-config --libs)
+  CFLAGS += $(shell sdl-config --cflags)
 endif
 
 ifneq ($(NO_JIT),1)

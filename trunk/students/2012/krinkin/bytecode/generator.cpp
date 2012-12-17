@@ -1,6 +1,11 @@
 #include <cassert>
 
+#include <AsmJit/Assembler.h>
+#include <AsmJit/Logger.h>
+
 #include "generator.h"
+
+using namespace AsmJit;
 
 void Generator::translate(AstFunction *top, std::map<AstNode *, VarType> *mapping, BCCode *code)
 {
@@ -24,6 +29,9 @@ void Generator::visitBinaryOpNode(BinaryOpNode *node)
 	case tOR: case tAND:
 	{
 		eval_logic(node->left());
+		
+		annotate(LOCK_RESULT);
+		
 		bytecode()->addInsn(BC_ILOAD0);
 		if (node->kind() == tOR) bytecode()->addInsn(BC_IFICMPNE);
 		else bytecode()->addInsn(BC_IFICMPE);
@@ -31,10 +39,15 @@ void Generator::visitBinaryOpNode(BinaryOpNode *node)
 		bytecode()->addInt16(0);
 		bytecode()->addInsn(BC_POP);
 		eval_logic(node->right());
+		
+		annotate(SAVE_RESULT);
+		
 		bytecode()->addInsn(BC_SWAP);
 		int16_t offset = bytecode()->current() - lazy_jump;
 		bytecode()->setInt16(lazy_jump, offset);
 		bytecode()->addInsn(BC_POP);
+		
+		annotate(UNLOCK_RESULT);
 		break;
 	}
 	case tMUL: case tDIV:
@@ -96,7 +109,12 @@ void Generator::visitBinaryOpNode(BinaryOpNode *node)
 	{
 	    if (type(node->right()) == VT_DOUBLE || type(node->left()) == VT_DOUBLE)
 	    {
-	        if (node->kind() != tNEQ) bytecode()->addInsn(BC_ILOAD0);
+	        if (node->kind() != tNEQ)
+	        {
+	            annotate(LOCK_RESULT);
+	            
+	            bytecode()->addInsn(BC_ILOAD0);
+            }
             eval_double(node->left());
             eval_double(node->right());
             bytecode()->addInsn(BC_DCMP);
@@ -132,13 +150,21 @@ void Generator::visitBinaryOpNode(BinaryOpNode *node)
                 bytecode()->addInsn(BC_POP);
                 bytecode()->addInsn(BC_POP);
                 bytecode()->addInsn(BC_ILOAD1);
+                
+                annotate(SAVE_RESULT);
+                
                 offset = bytecode()->current() - jump2;
                 bytecode()->setInt16(jump2, offset);
+                
+                annotate(UNLOCK_RESULT);
 	        }
 	    }
 	    else if (type(node->right()) == VT_INT || type(node->left()) == VT_INT)
 	    {
 	        eval_int(node->left());
+	        
+	        annotate(LOCK_RESULT);
+	        
 	        eval_int(node->right());
             switch (node->kind())
             {
@@ -167,6 +193,9 @@ void Generator::visitBinaryOpNode(BinaryOpNode *node)
             bytecode()->addInsn(BC_POP);
             bytecode()->addInsn(BC_POP);
             bytecode()->addInsn(BC_ILOAD0);
+            
+            annotate(SAVE_RESULT);
+            
             bytecode()->addInsn(BC_JA);
             uint32_t jump2 = bytecode()->current();
             bytecode()->addInt16(0);
@@ -175,8 +204,13 @@ void Generator::visitBinaryOpNode(BinaryOpNode *node)
             bytecode()->addInsn(BC_POP);
             bytecode()->addInsn(BC_POP);
             bytecode()->addInsn(BC_ILOAD1);
+            
+            annotate(SAVE_RESULT);
+            
             offset = bytecode()->current() - jump2;
             bytecode()->setInt16(jump2, offset);
+            
+            annotate(UNLOCK_RESULT);
 	    }
 	    else assert(0);
 		break;
@@ -245,6 +279,9 @@ void Generator::visitUnaryOpNode(UnaryOpNode *node)
         {
             bytecode()->addInsn(BC_DLOAD0);
             bytecode()->addInsn(BC_DCMP);
+            
+            annotate(LOCK_RESULT);
+            
             bytecode()->addInsn(BC_ILOAD0);
             bytecode()->addInsn(BC_IFICMPE);
             uint32_t jump1 = bytecode()->current();
@@ -258,8 +295,13 @@ void Generator::visitUnaryOpNode(UnaryOpNode *node)
             bytecode()->addInsn(BC_POP);
             bytecode()->addInsn(BC_POP);
             bytecode()->addInsn(BC_ILOAD1);
+            
+            annotate(SAVE_RESULT);
+            
             offset = bytecode()->current() - jump2;
             bytecode()->setInt16(jump2, offset);
+            
+            annotate(UNLOCK_RESULT);
         }
         break;
     case VT_INT:
@@ -271,6 +313,9 @@ void Generator::visitUnaryOpNode(UnaryOpNode *node)
         else if (node->kind() == tNOT)
         {
             bytecode()->addInsn(BC_ILOAD0);
+            
+            annotate(LOCK_RESULT);
+            
             eval_int(node->operand());
             bytecode()->addInsn(BC_IFICMPE);
             uint32_t jump1 = bytecode()->current();
@@ -284,8 +329,13 @@ void Generator::visitUnaryOpNode(UnaryOpNode *node)
             bytecode()->addInsn(BC_POP);
             bytecode()->addInsn(BC_POP);
             bytecode()->addInsn(BC_ILOAD1);
+            
+            annotate(SAVE_RESULT);
+            
             offset = bytecode()->current() - jump2;
             bytecode()->setInt16(jump2, offset);
+            
+            annotate(UNLOCK_RESULT);
         }
         break;
 	default: assert(0);
@@ -459,7 +509,7 @@ void Generator::visitFunctionNode(FunctionNode *node)
 		visit_scope(node->body()->scope()->parent());
 		for (uint32_t i = 0; i != node->parametersNumber(); ++i)
 		{
-			AstVar *local = lookup_variable(node->parameterName(node->parametersNumber() - i - 1));
+			AstVar *local = lookup_variable(node->parameterName(i));
 			save_variable(local);
 		}
 		node->body()->visit(this);
@@ -495,16 +545,17 @@ void Generator::visitCallNode(CallNode *node)
 	uint16_t id = lookup_function(function)->id();
 	for (uint32_t i = 0; i != node->parametersNumber(); ++i)
 	{
-	    switch (function->parameterType(i))
+	    uint32_t pos = node->parametersNumber() - i - 1;
+	    switch (function->parameterType(pos))
 	    {
 	    case VT_INT:
-	        eval_int(node->parameterAt(i));
+	        eval_int(node->parameterAt(pos));
 	        break;
         case VT_DOUBLE:
-	        eval_double(node->parameterAt(i));
+	        eval_double(node->parameterAt(pos));
 	        break;
         case VT_STRING:
-	        eval_string(node->parameterAt(i));
+	        eval_string(node->parameterAt(pos));
 	        break;
         default: assert(0);
 	    }
@@ -528,7 +579,45 @@ void Generator::visitCallNode(CallNode *node)
 
 void Generator::visitNativeCallNode(NativeCallNode *node)
 {
-	uint16_t id = m_code->makeNativeFunction(node->nativeName(), node->nativeSignature(), 0);
+    static XMMReg dregs[] = {
+        xmm0 , xmm1 , xmm2 , xmm3 ,
+        xmm4 , xmm5 , xmm6 , xmm7 ,
+        xmm8 , xmm9 , xmm10, xmm11,
+        xmm12, xmm13, xmm14, xmm15 };
+    static GPReg cregs[] = {
+        ndi, nsi, ndx, ncx, r8, r9
+    };
+    Assembler asmb;
+    asmb.push(nbp);
+    asmb.mov(nbp, nsp);
+    if (node->nativeSignature().size() > 1)
+    {
+        asmb.mov(nax, ndi);
+        size_t dregpos = 0, cregpos = 0, shift = 0, it = 1;
+        for (; it < node->nativeSignature().size(); ++it)
+        {
+            if (node->nativeSignature()[it].first == VT_DOUBLE)
+            {
+                asmb.movsd(dregs[dregpos], qword_ptr(nax, shift));
+                shift += sizeof(double);
+                ++dregpos;
+            }
+            else
+            {
+                asmb.mov(cregs[cregpos], qword_ptr(nax, shift));
+                ++cregpos;
+                if (node->nativeSignature()[it].first == VT_INT) shift += sizeof(int64_t);
+                else shift += sizeof(char const *);
+            }
+        }
+    }
+    asmb.call(imm((sysint_t)node->info()));
+    asmb.mov(nsp, nbp);
+    asmb.pop(nbp);
+    asmb.ret();
+	uint16_t id = m_code->makeNativeFunction(node->nativeName(),
+	                                         node->nativeSignature(),
+	                                         asmb.make());
 	bytecode()->addInsn(BC_CALLNATIVE);
 	bytecode()->addInt16(id);
 	bytecode()->addInsn(BC_RETURN);
@@ -678,6 +767,8 @@ void Generator::eval_int(AstNode *node)
         bytecode()->addInsn(BC_D2I);
         break;
     case VT_STRING:
+        bytecode()->addInsn(BC_S2I);
+        break;
     case VT_VOID:
     case VT_INVALID:
         assert(0);
@@ -727,7 +818,7 @@ void Generator::eval_logic(AstNode *node)
         eval_double(node);
         bytecode()->addInsn(BC_DCMP);
         break;
-    case VT_INT:
+    case VT_INT: case VT_STRING:
         eval_int(node);
         break;
     default: assert(0);

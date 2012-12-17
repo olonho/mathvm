@@ -1,5 +1,9 @@
 #include "bcinterpreter.h"
 
+#include <AsmJit/Assembler.h>
+
+using namespace AsmJit;
+
 void BCInterpreter::call(BytecodeFunction *function)
 {
     Bytecode *bytecode = function->bytecode();
@@ -65,7 +69,7 @@ void BCInterpreter::call(BytecodeFunction *function)
 				    push_int((int64_t)0);
 					break;
 				case BC_SLOAD0:
-				    push_string(empty.c_str());
+				    push_string(m_empty.c_str());
 					break;
 				case BC_DLOAD1:
 				    push_double(1.0);
@@ -142,6 +146,42 @@ void BCInterpreter::call(BytecodeFunction *function)
                     make_call((BytecodeFunction *)called);
 					break;
                 }
+                case BC_CALLNATIVE:
+                {
+                    Signature const *signature;
+                    void const *native = m_code->nativeById(bytecode->getUInt16(bci + 1),
+                                                            &signature);
+                    assert(native);
+                    fill_frame(*signature);
+                    switch (return_type(*signature))
+                    {
+                    case VT_DOUBLE:
+                    {
+                        double_call dcall = function_cast<double_call>(native);
+                        m_double_vars[0] = (*dcall)(m_frame);
+                    }
+                    break;
+                    case VT_STRING:
+                    {
+                        string_call scall = function_cast<string_call>(native);
+                        m_string_vars[0] = (*scall)(m_frame);
+                    }
+                    break;
+                    case VT_INT:
+                    {
+                        int64_t_call icall = function_cast<int64_t_call>(native);
+                        m_int_vars[0] = (*icall)(m_frame);
+                    }
+                    break;
+                    case VT_VOID:
+                    {
+                        void_call vcall = function_cast<void_call>(native);
+                        (*vcall)(m_frame);
+                    }
+                    break;
+                    default: assert(0);
+                    }
+                }
 				case BC_RETURN: return;
 				default: assert(0);
 				}
@@ -174,6 +214,9 @@ void BCInterpreter::call(BytecodeFunction *function)
 			case BC_D2I:
 			    push_int((int64_t)tos._double);
 				break;
+            case BC_S2I:
+                push_int((int64_t)tos._string);
+                break;
 			case BC_POP:
 				break;
 			case BC_STOREDVAR0:
@@ -287,4 +330,28 @@ void BCInterpreter::call(BytecodeFunction *function)
 			bci += insn_len(insn);
         }
 	}
+}
+
+void BCInterpreter::fill_frame(Signature const &signature)
+{
+    size_t shift = 0;
+    for (size_t it = 1; it < signature.size(); ++it)
+    {
+        switch (signature[it].first)
+        {
+        case VT_DOUBLE:
+            *((double *)(m_frame + shift)) = pop_double();
+            shift += sizeof(double);
+            break;
+        case VT_STRING:
+            *((char const **)(m_frame + shift)) = pop_string();
+            shift += sizeof(char const *);
+            break;
+        case VT_INT:
+            *((int64_t *)(m_frame + shift)) = pop_int();
+            shift += sizeof(int64_t);
+            break;
+        default: assert(0);
+        }
+    }
 }

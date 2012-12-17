@@ -4,7 +4,7 @@
 
 Status* BCCode::execute(vector<Var*> &vars)
 {
-    disassemble(std::cout);
+    //disassemble(std::cout);
     BCInterpreter interpreter;
     interpreter.run(this);
     return 0;

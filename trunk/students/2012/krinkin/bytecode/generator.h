@@ -91,6 +91,11 @@ private:
     {
         return m_code->declare_function(afun);
     }
+
+    void annotate(uint8_t flag)
+    {
+        m_code->annotate(current_id(), bytecode()->current(), flag);
+    }
 };
 
 #endif /* __GENERATOR_H__ */
