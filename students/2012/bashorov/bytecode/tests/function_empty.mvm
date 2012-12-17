@@ -1,0 +1,3 @@
+function void hello() {
+	print("Hello world");
+}
