@@ -1,4 +1,5 @@
 #include "Runner.h"
+#include <iostream>
 
 namespace mathvm {
 
