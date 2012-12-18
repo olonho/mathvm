@@ -28,6 +28,7 @@ private:
     enum type {i, d, s};
 
     Code* code;
+    Compiler compiler;
 
     std::vector<int> calls;
     std::vector<VarType> stackTypes;
@@ -40,22 +41,21 @@ private:
     std::map<int, GPVar> dvars;
     std::map<int, GPVar> svars;
 
-    std::map<int, void*> functions;
+    void* main;
     map<uint32_t, AsmJit::Label*> labels;
 
 
 public:
     interpreter(Code* code_): code(code_){ }
 
-    void executeFunction(BytecodeFunction* function, int funcIndex);
-    void executeGPArithmetics(Instruction insn, Compiler& compiler);
-    void executeXMMArithmetics(Instruction insn, Compiler& compiler);
-    void executeCompare(Instruction insn, Bytecode* bytecode, int index, Compiler& compiler);
+    void generateFunction(BytecodeFunction* function, int funcIndex);
+    void generateGPArithmetics(Instruction insn, Compiler& compiler);
+    void generateXMMArithmetics(Instruction insn, Compiler& compiler);
+    void generateCompare(Instruction insn, Bytecode* bytecode, int index, Compiler& compiler);
     void generate(BytecodeFunction* function);
     void loadd(double val, Compiler& compiler);
     void loadi(int val, Compiler& compiler);
     void loads(int val, Compiler& compiler);
-    FunctionBuilderX build(BytecodeFunction* bytecode);
     void pop(XMMVar& var, Compiler& compiler);
     void push(XMMVar& var, Compiler& compiler);
     void pop(GPVar& var, Compiler& compiler);
@@ -121,68 +121,15 @@ void interpreter::loads(int val, Compiler& compiler)
 
 void interpreter::generate(BytecodeFunction* function)
 {
-    executeFunction(function, 0);
-    if(functions[0]) {
-        function_cast<void (*)()>(functions[0])();
-    }
-}
-
-
-FunctionBuilderX interpreter::build(BytecodeFunction* bytecode) 
-{
-    FunctionBuilderX builder;
-    switch (bytecode->returnType())
+    generateFunction(function, 0);
+    if(main) 
     {
-        case VT_VOID:
-        {
-            builder.setReturnValue<void>();
-            break;
-        }
-        case VT_INT:
-        {
-            builder.setReturnValue<sysint_t>();
-            break;
-        }
-        case VT_DOUBLE:
-        {
-            builder.setReturnValue<double>();
-            break;
-        }
-        case VT_STRING:
-        {
-            builder.setReturnValue<const char*>();
-            break;
-        }
-        default:
-        {
-            cout << "Unsuuported return type" << endl;
-        }
+        function_cast<void (*)()>(main)();
     }
-    for (uint16_t i = 0; i != bytecode->parametersNumber(); ++i) {
-        switch (bytecode->parameterType(i))
-        {
-            case VT_INT:
-            {
-                builder.addArgument<sysint_t>();
-                break;
-            }
-            case VT_DOUBLE:
-            {
-                builder.addArgument<double>();
-                break;
-            }
-            case VT_STRING:
-            {
-                builder.addArgument<const char*>();
-                break;
-            }
-            default:
-            {
-               cout << "Unsupported type of argument" << endl;
-            }
-        }
+    else
+    {
+        cout << "Fatal error during generating!" << endl;
     }
-    return builder;
 }
 
 void interpreter::pop(XMMVar& xmmvar, Compiler& compiler)
@@ -211,7 +158,7 @@ void interpreter::push(GPVar& gpvar, Compiler& compiler)
     compiler.push(gpvar);
 }
 
-void interpreter::executeCompare(Instruction insn, Bytecode* bytecode, int index, Compiler& compiler)
+void interpreter::generateCompare(Instruction insn, Bytecode* bytecode, int index, Compiler& compiler)
 {
 
     int16_t offset = bytecode->getInt16(index + 1);
@@ -224,7 +171,7 @@ void interpreter::executeCompare(Instruction insn, Bytecode* bytecode, int index
     GPVar var1(compiler.newGP());
     pop(var2, compiler);
     pop(var1, compiler);
-    compiler.cmp(var1, var2);
+    compiler.cmp(var2, var1);
     switch (insn)
     {
         case BC_IFICMPNE:
@@ -268,7 +215,7 @@ void interpreter::executeCompare(Instruction insn, Bytecode* bytecode, int index
     compiler.unuse(var2);
 }
 
-void interpreter::executeXMMArithmetics(Instruction insn, Compiler& compiler)
+void interpreter::generateXMMArithmetics(Instruction insn, Compiler& compiler)
 {
     XMMVar var1(compiler.newXMM());
     XMMVar var2(compiler.newXMM());
@@ -307,7 +254,7 @@ void interpreter::executeXMMArithmetics(Instruction insn, Compiler& compiler)
     stackTypes.pop_back();
 }
 
-void interpreter::executeGPArithmetics(Instruction insn, Compiler& compiler)
+void interpreter::generateGPArithmetics(Instruction insn, Compiler& compiler)
 {
     GPVar var1(compiler.newGP());
     GPVar var2(compiler.newGP());
@@ -372,21 +319,25 @@ void interpreter::executeGPArithmetics(Instruction insn, Compiler& compiler)
 }
 
 
-void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
+void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
 {
-    Compiler compiler;
-    compiler.newFunction(CALL_CONV_DEFAULT, build(function));
-    compiler.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
+    bool start = true;
+    if (!funcIndex)
+    {
+        compiler.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+        compiler.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
+    }
 
     Bytecode* bytecode = function->bytecode();
     uint32_t index = 0;
     while (index < bytecode->length())
     {
+        bool jump = false;
         if (labels.count(index) > 0) {
             compiler.bind(*labels[index]);
         }
         Instruction insn = bytecode->getInsn(index);
-        std::cout << str(insn) << endl;
+        if (insn != BC_JA) start = false;
         switch(insn)
         {
         //one
@@ -412,19 +363,11 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 BytecodeFunction *fun = (BytecodeFunction *)code->functionById(id);
-                if (functions.count(id) == 0)
-                {
-                    executeFunction(fun, id); 
-                }
-                ECall* call = compiler.call(imm((sysint_t)(functions[id])));
-                call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+                generateFunction(fun, id); 
                 break;
             }
             case BC_RETURN: 
             {
-                //compiler.ret();
-                //compiler.endFunction();
-                //functions[funcIndex] = compiler.make();
                 break;
             }
             case BC_CALLNATIVE:
@@ -489,7 +432,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_IFICMPL:
             case BC_IFICMPLE:
             {
-                executeCompare(insn, bytecode, index, compiler);
+                generateCompare(insn, bytecode, index, compiler);
                 break;
             }
             case BC_JA:
@@ -501,6 +444,11 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
                     labels[index + offset + 1] = label;
                 }
                 compiler.jmp(*labels[index + offset + 1]);
+                if (!funcIndex && start)
+                {
+                    index += (offset + 1);
+                    jump = true;
+                }
                 break;
             }
         // two
@@ -555,7 +503,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_DMUL:
             case BC_DDIV:
             {
-                executeXMMArithmetics(insn, compiler);
+                generateXMMArithmetics(insn, compiler);
                 break;
             }
             case BC_IADD:
@@ -564,7 +512,7 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             case BC_IMOD:
             case BC_IDIV:
             {
-                executeGPArithmetics(insn, compiler);
+                generateGPArithmetics(insn, compiler);
                 break;
             }
             case BC_DNEG:
@@ -726,14 +674,14 @@ void interpreter::executeFunction(BytecodeFunction* function, int funcIndex)
             {
                 compiler.ret();
                 compiler.endFunction();  
-                functions[funcIndex] = compiler.make();
+                main = compiler.make();
                 return;  
             }
 
         }
-        index += (length(insn));
+        if (!jump)
+        {
+            index += (length(insn));
+        }
     }
-                compiler.ret();
-                compiler.endFunction();  
-                functions[funcIndex] = compiler.make();
 }

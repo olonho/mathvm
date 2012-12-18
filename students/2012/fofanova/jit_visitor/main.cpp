@@ -38,7 +38,6 @@ int main(int argc, const char * argv[])
     main2->bytecode()->add(BC_STOP);
     //
 
-    main2->bytecode()->dump(std::cout);
     interpreter interp(code);
     interp.generate(main2);
 
