@@ -1,0 +1,26 @@
+CONSTANTS:
+[1] : '2'
+[2] : 'sss'
+
+function [0] void <top>()
+function [1] int d_i()
+0: DLOAD 2
+9: D2I
+10: RETURN
+function [2] void d_v()
+0: DLOAD 2
+9: RETURN
+function [3] double i_d()
+0: ILOAD 2
+9: I2D
+10: RETURN
+function [4] void i_v()
+0: ILOAD1
+1: RETURN
+function [5] int s_i()
+0: SLOAD @1
+3: S2I
+4: RETURN
+function [6] void s_v()
+0: SLOAD @2
+3: RETURN

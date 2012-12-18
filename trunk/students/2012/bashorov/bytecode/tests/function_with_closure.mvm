@@ -1,0 +1,19 @@
+int i;
+
+i = 122;
+
+function void closure() {
+	double d;
+	d = 22;
+	i = 22;
+	print(i);
+};
+
+function void closure2() {
+	int i;
+	function void inner() {
+		i = 0;
+	}
+};
+
+closure();

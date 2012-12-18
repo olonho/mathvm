@@ -2,23 +2,37 @@
 #define BYTECODE_HELPER_H
 
 #include <stack>
+#include <set>
 #include "mathvm.h"
 
 namespace mathvm {
 
 class BytecodeHelper
 {
-	typedef std::map<std::string, uint16_t> variables2id_t;
+	typedef std::map<std::string, uint16_t> variable2id_t;
+	typedef std::map<Scope*, variable2id_t> scope2variables_t;
+	typedef std::vector<Scope*> scopes_t;
+	typedef std::vector< std::set<Scope*> > context_t;
+	typedef std::vector<uint16_t> contextIds_t;
 
 	Code* _code;
 	Bytecode* _bc;
 	std::stack<VarType> _elTypes;
-	variables2id_t _variables;
+	scopes_t _scopes;
+	scope2variables_t _scope2vars;
+	context_t _context;
+	contextIds_t _contextIds;
 
-	void pushType(VarType type) { _elTypes.push(type); }
-	void popType() { _elTypes.pop(); }
-	VarType topType() { return _elTypes.top(); }
+	void popType() {
+		assert(_elTypes.size());
+		_elTypes.pop();
+	}
+	VarType topType() {
+		assert(_elTypes.size());
+		return _elTypes.top();
+	}
 	VarType pretopType() {
+		assert(_elTypes.size());
 		VarType t = _elTypes.top();
 		_elTypes.pop();
 		VarType ret = _elTypes.top();
@@ -26,6 +40,10 @@ class BytecodeHelper
 		return ret;
 	}
 public:
+	void pushType(VarType type) {
+		_elTypes.push(type);
+	}
+
 	BytecodeHelper(Code* code): _code(code), _bc(0) {}
 
 	BytecodeHelper& operator()(Bytecode* bc) {
@@ -197,7 +215,7 @@ public:
 	}
 
 	#define LOADCTXVAR(type, TYPE, PUSHTYPE) \
-	BytecodeHelper& load##type##ctxvar(uint16_t ctx, uint16_t id) { \
+	BytecodeHelper& loadctx##type##var(uint16_t ctx, uint16_t id) { \
 		_bc->addInsn(BC_LOADCTX##TYPE##VAR); \
 		_bc->addUInt16(ctx); \
 		_bc->addUInt16(id); \
@@ -212,27 +230,53 @@ public:
 	LOADCTXVAR(i, I, INT)
 	LOADCTXVAR(s, S, STRING)
 
-//	uint16_t varName2id(const string& name) {
-//		variables2id_t::iterator it = _variables.find(name);
-//		if (it == _variables.end()) {
-//			it = _variables.insert(std::make_pair(name, _variables.size())).first;
-//		}
-//
-//		return it->second;
-//	}
+	bool isLocal(Scope* scope) {
+		return _context.back().find(scope) != _context.back().end();
+	}
+
+	uint16_t findCtx(Scope* scope) {
+		for(size_t i = _context.size() - 1; i >= 0; --i) {
+			if (_context[i].find(scope) != _context[i].end())
+				return _contextIds[i];
+		}
+
+		assert("Context not found" == 0);
+		return 0;
+	}
 
 	BytecodeHelper& loadvar(const AstVar* const var) {
-		variables2id_t::iterator it = _variables.find(var->name());
-		//todo что делать если переменной нет?
-		assert (it != _variables.end());
+		assert(!_scopes.empty());
+		Scope* top = _scopes.back();
+		assert(top);
 
-		const uint16_t id = it->second;
-		if (var->type() == VT_INT)
-			loadivar(id);
-		if (var->type() == VT_DOUBLE)
-			loaddvar(id);
-		if (var->type() == VT_STRING)
-			loadsvar(id);
+		AstVar* foundVar = top->lookupVariable(var->name());
+		assert(foundVar);
+		Scope* foundScope = foundVar->owner();
+		assert(foundScope);
+
+		variable2id_t::iterator itId = _scope2vars[foundScope].find(var->name());
+		//todo что делать если переменной нет?
+		assert (itId != _scope2vars[foundScope].end());
+
+		const uint16_t id = itId->second;
+
+		if (isLocal(foundScope)) {
+			if (var->type() == VT_INT)
+				loadivar(id);
+			if (var->type() == VT_DOUBLE)
+				loaddvar(id);
+			if (var->type() == VT_STRING)
+				loadsvar(id);
+		} else {
+			const uint16_t ctxId = findCtx(foundScope);
+			if (var->type() == VT_INT)
+				loadctxivar(ctxId, id);
+			if (var->type() == VT_DOUBLE)
+				loadctxdvar(ctxId, id);
+			if (var->type() == VT_STRING)
+				loadctxsvar(ctxId, id);
+		}
+
 
 		return *this;
 	}
@@ -261,7 +305,7 @@ public:
 	}
 
 	#define STORECTXVAR(type, TYPE, PUSHTYPE) \
-	BytecodeHelper& store##type##ctxvar(uint16_t ctx, uint16_t id) { \
+	BytecodeHelper& storectx##type##var(uint16_t ctx, uint16_t id) { \
 		_bc->addInsn(BC_STORECTX##TYPE##VAR); \
 		_bc->addUInt16(ctx); \
 		_bc->addUInt16(id); \
@@ -276,15 +320,25 @@ public:
 	STORECTXVAR(i, I, INT)
 	STORECTXVAR(s, S, STRING)
 
+//todo replace AstVar* to Var& ?
 	BytecodeHelper& storevar(const AstVar* const var) {
 		assert(var != 0);
+		assert(!_scopes.empty());
+		Scope* top = _scopes.back();
+		assert(top);
 
-		variables2id_t::iterator it = _variables.find(var->name());
-		if (it == _variables.end()) {
-			it = _variables.insert(std::make_pair(var->name(), _variables.size())).first;
+		AstVar* foundVar = top->lookupVariable(var->name());
+		if (!foundVar) std::cerr << var->name() <<std::endl;
+		assert(foundVar);
+		Scope* foundScope = foundVar->owner();
+		assert(foundScope);
+
+		variable2id_t::iterator itId = _scope2vars[foundScope].find(var->name());
+		if (itId == _scope2vars[foundScope].end()) {
+			itId = _scope2vars[foundScope].insert(std::make_pair(var->name(), _scope2vars[foundScope].size())).first;
 		}
 
-		const uint16_t id = it->second;
+		const uint16_t id = itId->second;
 
 		VarType type = topType();
 		if (var->type() == VT_INT) {
@@ -293,17 +347,26 @@ public:
 			} else if (type == VT_STRING) {
 				s2i();
 			}
-			storeivar(id);
+			if (isLocal(foundScope))
+				storeivar(id);
+			else
+				storectxivar(findCtx(foundScope), id);
 		}
 		if (var->type() == VT_DOUBLE) {
 			if (type == VT_INT) {
 				i2d();
 			}
-			storedvar(id);
+			if (isLocal(foundScope))
+				storedvar(id);
+			else
+				storectxdvar(findCtx(foundScope), id);
 		}
 		if (var->type() == VT_STRING) {
 			assert(type == VT_STRING);
-			storesvar(id);
+			if (isLocal(foundScope))
+				storesvar(id);
+			else
+				storectxsvar(findCtx(foundScope), id);
 		}
 
 		return *this;
@@ -372,11 +435,28 @@ public:
 
 	SIMPLE(dump, DUMP, POP0, PUSH0(0))
 	SIMPLE(stop, STOP, POP0, PUSH0(0))
-
 	SIMPLE(pop, RETURN, POP1, PUSH0(0))
-
-	SIMPLE(ret, RETURN, POP0, PUSH0(0))
 	SIMPLE(brk, BREAK, POP0, PUSH0(0))
+
+	void ret(VarType retType = VT_VOID) {
+		if (retType != VT_VOID) {
+			VarType type = topType();
+			if (retType == VT_INT) {
+				if (type == VT_DOUBLE) {
+					d2i();
+				} else if (type == VT_STRING) {
+					s2i();
+				}
+			} else if (retType == VT_DOUBLE) {
+				if (type == VT_INT) {
+					i2d();
+				}
+			}
+			assert(retType == topType());
+		}
+
+		_bc->addInsn(BC_RETURN);
+	}
 
 	#define CMD_ID(cmd, CMD) \
 	BytecodeHelper& cmd(uint16_t id) { \
@@ -422,7 +502,35 @@ public:
 		label.bind(_bc->current(), _bc);
 		return *this;
 	}
-};
+
+	void enterScope(Scope* scope) {
+		scope2variables_t::iterator it =  _scope2vars.find(scope);
+		if (it == _scope2vars.end()) {
+			_scope2vars[scope] = variable2id_t();
+			_scopes.push_back(scope);
+			_context.back().insert(scope);
+		}
+	}
+
+	void exitScope() {
+		assert(!_scopes.empty());
+		Scope* top = _scopes.back();
+		_scope2vars.erase(top);
+		_context.back().erase(top);
+		_scopes.pop_back();
+	}
+
+	void enterContext(uint16_t functionId) {
+		_contextIds.push_back(functionId);
+		_context.push_back(std::set<Scope*>());
+	}
+
+	void exitContext(uint16_t functionId) {
+		assert(!_context.empty());
+		assert(_contextIds.back() == functionId);
+		_contextIds.pop_back();
+		_context.pop_back();
+	}};
 
 }
 

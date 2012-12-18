@@ -40,10 +40,16 @@ private:
     Code* _code;
     Bytecode* _bytecode;
     BytecodeHelper _bcHelper;
+    AstFunction* _currentFunc;
+
+//    typedef unsigned short int scopeId_t;
+//    typedef std::map<Scope*, scopeId_t> scope2id_t;
+//    scope2id_t _scope2id;
 
     BytecodeHelper& bc() { return _bcHelper(_bytecode); }
 
     void initScope(Scope* scope);
+//    scopeId_t scope2id(Scope* scope);
 };
 
 }

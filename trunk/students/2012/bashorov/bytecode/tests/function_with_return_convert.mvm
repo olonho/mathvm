@@ -1,0 +1,26 @@
+function void i_v() {
+	1;
+    return;
+}
+
+function void d_v() {
+	2.0
+    return;
+}
+
+function void s_v() {
+	'sss';
+    return;
+}
+
+function int d_i() {
+    return 2.0;
+}
+
+function int s_i() {
+    return '2';
+}
+
+function double i_d() {
+    return 2;
+}

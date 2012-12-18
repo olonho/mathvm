@@ -1,5 +1,5 @@
 #include "Ast2BytecodeVisitor.h"
-#include <functional>
+#include <sstream>
 
 namespace mathvm
 {
@@ -8,6 +8,7 @@ Ast2BytecodeVisitor::Ast2BytecodeVisitor(Code* code)
 : _code(code)
 , _bytecode(0)
 , _bcHelper(_code)
+, _currentFunc(0)
 {}
 
 bool generateCompare(const TokenKind& kind, BytecodeHelper& bc) {
@@ -125,6 +126,14 @@ void Ast2BytecodeVisitor::visitStoreNode(StoreNode* node) {
     bc().storevar(node->var());
 }
 
+//Ast2BytecodeVisitor::scopeId_t Ast2BytecodeVisitor::scope2id(Scope* scope) {
+//	scope2id_t::iterator it = _scope2id.find(scope);
+//	if (it == _scope2id.end()) {
+//		it = _scope2id.insert(std::make_pair(scope, (Ast2BytecodeVisitor::scopeId_t) _scope2id.size())).first;
+//	}
+//	return it->second;
+//}
+
 void Ast2BytecodeVisitor::initScope(Scope* scope) {
 	assert(scope);
 //     Scope::VarIterator varIt(scope);
@@ -134,19 +143,27 @@ void Ast2BytecodeVisitor::initScope(Scope* scope) {
 
     Scope::FunctionIterator funcIt(scope);
     while (funcIt.hasNext()) {
-        AstFunction* func = funcIt.next();
+    	AstFunction* prevFunc = _currentFunc;
+    	_currentFunc = funcIt.next();
 
-        BytecodeFunction *bytecodeFunction = new BytecodeFunction(func);
+//    	scopeId_t scopeId = scope2id(scope);
+
+        BytecodeFunction *bytecodeFunction = new BytecodeFunction(_currentFunc);
+//        bytecodeFunction->setScopeId(scopeId);
+
         _code->addFunction(bytecodeFunction);
 
-        Bytecode* prev = _bytecode;
+
+        Bytecode* prevBC = _bytecode;
         _bytecode = bytecodeFunction->bytecode();
-        func->node()->visit(this);
-        _bytecode = prev;
+        _currentFunc->node()->visit(this);
+        _bytecode = prevBC;
+        _currentFunc = prevFunc;
     }
 }
 
 void Ast2BytecodeVisitor::start(AstFunction* top) {
+	_currentFunc = top;
     BytecodeFunction *bytecodeFunction = new BytecodeFunction(top);
     _code->addFunction(bytecodeFunction);
     _bytecode = bytecodeFunction->bytecode();
@@ -155,8 +172,12 @@ void Ast2BytecodeVisitor::start(AstFunction* top) {
 }
 
 void Ast2BytecodeVisitor::visitBlockNode(BlockNode* node) {
+	bc().enterScope(node->scope());
+
     initScope(node->scope());
     node->visitChildren(this);
+
+    bc().exitScope();
 }
 
 void Ast2BytecodeVisitor::visitForNode(ForNode* node) {
@@ -225,21 +246,34 @@ void Ast2BytecodeVisitor::visitIfNode(IfNode* node) {
 }
 
 void Ast2BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
-//node->returnType()
-//node->signature();
-//node->name()
-
-    // if (node->body()->nodes() && node->body()->nodeAt(0)->isNativeCallNode())
-    //     node->body()->nodeAt(0)->visit(this);
 	assert(node);
-    node->visitChildren(this);
+	uint16_t functionId = _code->functionByName(node->name())->id();
+	bc().enterContext(functionId);
+
+	for (size_t i = node->parametersNumber(); i > 0; --i) {
+			bc().pushType(node->parameterType(i - 1));
+	}
+
+	Scope* scope = node->body()->scope();
+	assert(scope);
+
+	//fixme ???
+	bc().enterScope(scope);
+	for (size_t i = 0; i < node->parametersNumber(); ++i) {
+		scope->declareVariable(node->parameterName(i), node->parameterType(i));
+		AstVar* param = scope->lookupVariable(node->parameterName(i), false);
+		bc().storevar(param);
+	}
+
+	node->visitChildren(this);
+
+	bc().exitContext(functionId);
 }
 
 void Ast2BytecodeVisitor::visitReturnNode(ReturnNode* node) {
 	if (node->returnExpr())
 		node->returnExpr()->visit(this);
-    //todo convert return type
-    bc().ret();
+    bc().ret(_currentFunc->returnType());
 }
 
 void Ast2BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
@@ -247,7 +281,10 @@ void Ast2BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 
 void Ast2BytecodeVisitor::visitCallNode(CallNode* node) {
-	bc().call(_code->functionByName(node->name())->id());
+	node->visitChildren(this);
+	TranslatedFunction* func = _code->functionByName(node->name());
+	assert(func != 0);
+	bc().call(func->id());
 }
 
 void Ast2BytecodeVisitor::visitPrintNode(PrintNode* node) {
