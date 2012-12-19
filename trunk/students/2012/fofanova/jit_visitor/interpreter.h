@@ -337,6 +337,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             compiler.bind(*labels[index]);
         }
         Instruction insn = bytecode->getInsn(index);
+        cout << str(insn) << endl;
         if (insn != BC_JA) start = false;
         switch(insn)
         {
@@ -368,7 +369,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             }
             case BC_RETURN: 
             {
-                break;
+                return;
             }
             case BC_CALLNATIVE:
             {
