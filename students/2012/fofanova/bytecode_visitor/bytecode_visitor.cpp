@@ -114,8 +114,15 @@ void ByteCodeVisitor::visitBlockNode(BlockNode *node) {
 			AstFunction* function= func.next();
       		BytecodeFunction* bytecodeFunction = new BytecodeFunction(function);
       		code->addFunction(bytecodeFunction);
+		}
+	Scope::FunctionIterator func2(node->scope());
+    while(func2.hasNext())
+		{
+			AstFunction* function= func2.next();
+      		BytecodeFunction* bytecodeFunction = (BytecodeFunction*)code->functionByName(function->name());
       		uint32_t i = bytecode->length();
 			function->node()->visit(this);
+			
 			for(i+=3/*JA*/;i < bytecode->length(); ++i) {
 				bytecodeFunction->bytecode()->add(bytecode->get(i));
 			}

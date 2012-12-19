@@ -7,7 +7,7 @@ USER_OBJ    = \
 
 include $(VM_ROOT)/common.mk
 
-BYTECODEVISITOR = $(BIN)/bytecode_visitor $(BIN)/interpreter
+BYTECODEVISITOR = $(BIN)/bytecode_visitor
 
 all: $(BYTECODEVISITOR)
 
