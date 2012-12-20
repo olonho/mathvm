@@ -248,13 +248,13 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         Scope* old_scope = m_scope;
         m_scope = node->scope();
 
-        convertScope(node->scope());
+        enterScope(node->scope());
 
         for (uint32_t i = 0; i < node->nodes(); i++) {
             node->nodeAt(i)->visit(this);
         }
 
-        convertScope2(node->scope());
+        leaveScope(node->scope());
 
         m_scope = old_scope;
 //        out << "}\n";
@@ -285,25 +285,12 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         Bytecode* old_bytecode = m_bytecode;
         m_bytecode = function->bytecode();
 
-       // function's parameters
+       // function's parameters passing (right-to-left)
         uint32_t parameters_number = node->parametersNumber();
-#ifdef FUNCTION_ARGUMENTS_ON_STACK
-       if (parameters_number > 0) {
-           uint32_t last_parameter = parameters_number - 1;
-           for (uint32_t i = 0; i < last_parameter; ++i) {
-               addVarStorage(node->parameterName(i));
-           }
-           addVarStorage(node->parameterName(last_parameter));
-       }
-#else
-        if (parameters_number > 0) {
-            uint32_t last_parameter = parameters_number - 1;
-            for (uint32_t i = last_parameter; i > 0; --i) {
-                addVarStorage(node->parameterName(i));
-            }
-            addVarStorage(node->parameterName(0));
+        uint32_t last_parameter = parameters_number - 1;
+        for (uint32_t i = 0; i < parameters_number; ++i) {
+            addVarStorage(node->parameterName(last_parameter - i));
         }
-#endif
 
 #ifdef FUNCTION_ARGUMENTS_ON_STACK
         for (uint32_t i = 0; i < parameters_number; ++i) {
@@ -314,11 +301,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
         node->body()->visit(this);
 
-        if (parameters_number > 0) {
-            uint32_t last_parameter = parameters_number - 1;
-            for (uint32_t i = 0; i < last_parameter; ++i) {
-                m_var_storage.pop_back();
-            }
+        for (uint32_t i = 0; i < parameters_number; ++i) {
             m_var_storage.pop_back();
         }
 
@@ -386,62 +369,50 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 //        m_bytecode->addInsn(BC_LOADDVAR0);
     }
     virtual void visitPrintNode(PrintNode* node) {
-        // push operands on top the stack in the right-to-left order
         uint32_t parameters_number = node->operands();
+        uint32_t last_parameter = parameters_number - 1;
+
         std::vector<VarType> parameter_types;
         parameter_types.reserve(parameters_number);
-        if (parameters_number > 0) {
-            uint32_t last_parameter = parameters_number - 1;
-            for (uint32_t i = last_parameter; i > 0; --i) {
-                node->operandAt(i)->visit(this);
-                parameter_types.push_back(m_latest_type);
-            }
-            node->operandAt(0)->visit(this);
+        
+        // push arguments on the top of the stack in the right-to-left order
+        for (uint32_t i = 0; i < parameters_number; ++i) {
+            node->operandAt(last_parameter - i)->visit(this);
             parameter_types.push_back(m_latest_type);
         }
+
         // emit needed number of print instructions
         for (uint32_t i = 0; i < parameters_number; ++i) {
-            m_primitives.Print(m_bytecode, parameter_types[parameters_number - i - 1]);
+            m_primitives.Print(m_bytecode, parameter_types[last_parameter - i]);
         }
     }
 
-    void convertScope(Scope* scope) {
-//#if defined(_DEBUG_COMMENTS)
-//        out << "// parent scope: " << scope->parent() << std::endl;
-//
-//        out << "// scope variables: \n";
-//#endif
-         Scope::VarIterator var_iterator(scope);
-         while (var_iterator.hasNext()) {
+    void enterScope(Scope* scope) {
+        // reserve storage for all scope variables
+        Scope::VarIterator var_iterator(scope);
+        while (var_iterator.hasNext()) {
             AstVar* var = var_iterator.next();
-//            std::cout << mathvm::typeToName(var->type()) << " "
-//              << var->name() << ";\n";
+            // std::cout << mathvm::typeToName(var->type()) << " "
+            //           << var->name() << ";\n";
             addVarStorage(std::string(var->name()));
-         }
-//#if defined(_DEBUG_COMMENTS)
-//        out << "// end of scope variables.\n";
-//
-//        out << "// scope functions: \n";
-//#endif
+        }
+        // generate bytecode for scope functions
         Scope::FunctionIterator function_iterator(scope);
         while (function_iterator.hasNext()) {
             AstFunction* function = function_iterator.next();
             (*this)(function->node());
         }
-//#if defined(_DEBUG_COMMENTS)
-//        out << "// end of scope functions.\n";
-//#endif
     }
 
-    void convertScope2(Scope* scope) {
-         Scope::VarIterator var_iterator(scope);
-         while (var_iterator.hasNext()) {
-            AstVar* var = var_iterator.next();
-            var = var;  // suppress debugger's warning
-//            std::cout << mathvm::typeToName(var->type()) << " "
-//              << var->name() << ";\n";
+    void leaveScope(Scope* scope) {
+        // unregister scope variables
+        Scope::VarIterator var_iterator(scope);
+        while (var_iterator.hasNext()) {
+            var_iterator.next();
+            // std::cout << mathvm::typeToName(var->type()) << " "
+            //           << var->name() << ";\n";
             m_var_storage.pop_back();
-         }
+        }
     }
 
   private:
