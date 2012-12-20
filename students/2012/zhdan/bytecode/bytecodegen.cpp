@@ -99,11 +99,30 @@ void CodeGenVisitor::visitCallNode(CallNode* node) {
 }
 
 void CodeGenVisitor::visitForNode(ForNode* node) {
-
+	BinaryOpNode* inExpr = node->inExpr()->asBinaryOpNode();
+	inExpr->left()->visit(this);
+	store(node->var(), &VT_INT);
+	Bytecode* currentBytecode = getCurrentBytecode();
+	int loop_condition = currentBytecode->current();
+	load_var(node->var());
+	inExpr->right()->visit(this);
+	currentBytecode->addInsn(BC_IFICMPLE);
+	int if_false = currentBytecode->current();
+	currentBytecode->addInt16(0);
+	node->body()->visit(this);
+	currentBytecode->addInsn(BC_JA);
+	currentBytecode->add(loop_condition - currentBytecode->current());
+	currentBytecode->setInt16(if_false, currentBytecode->current() - if_false);
 }
 
 void CodeGenVisitor::visitFunctionNode(FunctionNode* node) {
+	AstFunction* function = get_curernt_scope()->lookupFunction(node->name());
+	Bytecode* prevBytecode = _code;
+	_code = _functions.at(function);
+	Scope* prevScope =
 
+
+	_code = prevBytecode;
 }
 
 void CodeGenVisitor::visitIfNode(IfNode* node) {
@@ -211,7 +230,7 @@ void CodeGenVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
 }
 
 void CodeGenVisitor::visitLoadNode(LoadNode* node) {
-
+	load_var(node->var());
 }
 
 void CodeGenVisitor::visitStoreNode(StoreNode* node) {
@@ -227,7 +246,7 @@ void CodeGenVisitor::visitStoreNode(StoreNode* node) {
 		process_numbers_bin_op(*getNodeType(node), new LoadNode(0, node->var()), node->value(), BC_ISUB, BC_DSUB);
 		break;
 	}
-
+	store(node->var(), getNodeType(node->value()));
 }
 
 void CodeGenVisitor::load_string_const(const string& value) {
