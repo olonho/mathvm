@@ -436,7 +436,29 @@ void ByteCodeVisitor::visitFunctionNode(FunctionNode *node) {
 	Label end(bytecode);
 	bytecode->addBranch(BC_JA, end);
     for (uint32_t j = 0; j < node->parametersNumber(); j++) {
-		vars[node->parameterName(j)] = node->parameterType(j);
+		vars[node->parameterName(j)] = last_id++;
+		switch (node->parameterType(j))
+		{
+			case (VT_INT):
+			{
+				bytecode->addInsn(BC_LOADIVAR);
+				break;
+			}
+			case (VT_DOUBLE):
+			{
+				bytecode->addInsn(BC_LOADDVAR);
+				break;
+			}
+			case (VT_STRING):
+			{
+				bytecode->addInsn(BC_LOADSVAR);
+				break;
+			}
+			default:
+				cout << "ATATA!";
+		}
+		std::cout << vars[code->functionByName(node->name())->parameterName(j)] << std::endl;
+		bytecode->addUInt16(vars[code->functionByName(node->name())->parameterName(j)]);
     }
     if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode())
     {

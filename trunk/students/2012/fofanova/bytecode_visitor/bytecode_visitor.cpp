@@ -436,7 +436,7 @@ void ByteCodeVisitor::visitFunctionNode(FunctionNode *node) {
 	Label end(bytecode);
 	bytecode->addBranch(BC_JA, end);
     for (uint32_t j = 0; j < node->parametersNumber(); j++) {
-		vars[node->parameterName(j)] = node->parameterType(j);
+		vars[node->parameterName(j)] = last_id++;
     }
     if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode())
     {
