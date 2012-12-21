@@ -525,6 +525,80 @@ public:
         return varType;
     }
 
+    void StoreCtxVar(Bytecode* out, uint16_t ctxId, uint16_t varId, VarType varType) {
+        Instruction instr = BC_INVALID;
+
+        // get value from the top of the stack and store in the VAR
+        switch (varType) {
+            case VT_INVALID:
+                instr = BC_INVALID;
+                break;
+            case VT_VOID:
+                instr = BC_INVALID;
+                break;
+            case VT_DOUBLE:
+                instr = BC_STORECTXDVAR;
+                break;
+            case VT_INT:
+                instr = BC_STORECTXIVAR;
+                break;
+            case VT_STRING:
+                instr = BC_STORECTXSVAR;
+                break;
+            default:
+                instr = BC_INVALID;
+                std::cerr << "Error: Unknown type '"
+                          << varType
+                          << "'"
+                          << std::endl;
+                break;
+        }
+
+        out->addInsn(instr);
+        if (instr != BC_INVALID) {
+            out->addUInt16(ctxId);
+            out->addUInt16(varId);
+        }
+    }
+
+    // load variable on tos
+    VarType LoadCtxVar(Bytecode* out, uint16_t ctxId, uint16_t varId, VarType varType) {
+        Instruction instr = BC_INVALID;
+
+        switch (varType) {
+            case VT_INVALID:
+                instr = BC_INVALID;
+                break;
+            case VT_VOID:
+                instr = BC_INVALID;
+                break;
+            case VT_DOUBLE:
+                instr = BC_LOADCTXDVAR;
+                break;
+            case VT_INT:
+                instr = BC_LOADCTXIVAR;
+                break;
+            case VT_STRING:
+                instr = BC_LOADCTXSVAR;
+                break;
+            default:
+                instr = BC_INVALID;
+                std::cerr << "Error: Unknown type '"
+                          << varType
+                          << "'"
+                          << std::endl;
+                break;
+        }
+
+        out->addInsn(instr);
+        if (instr != BC_INVALID) {
+            out->addUInt16(ctxId);
+            out->addUInt16(varId);
+        }
+
+        return varType;
+    }
+
     void Inc(Bytecode* out, uint16_t varId, VarType varType) {
         // NOTE: inc argument is already on the top of the stack
 
