@@ -16,129 +16,21 @@ using namespace mathvm;
 
 class BytecodeEmittingAstVisitor : public AstVisitor {
   public:
-    BytecodeEmittingAstVisitor(Code* output)
-      : m_bytecode(0), m_code(output), m_scope(0) {
-        m_var_storage.push_back("");
-    }
-    virtual ~BytecodeEmittingAstVisitor() {
-    }
+    BytecodeEmittingAstVisitor(Code* output);
+    virtual ~BytecodeEmittingAstVisitor();
 
-    Code* operator()(AstFunction* main_func) {
-        // we're doing
-//        main_func->node()->body()->visit(this);
-        // and not
-         main_func->node()->visit(this);
-        // because name of the top-level function in AST is not a valid
-        // identifier in the language, so we output only function's body
-        // (the global scope). Calls Visitor::visitBlockNode
-        return m_code;
-    }
-
-    Code* operator()(AstNode* ast) {
-        ast->visit(this);
-        return m_code;
-    }
+    Code* operator()(AstFunction* main_func);
+    Code* operator()(AstNode* ast);
 
   private:
 
-    void bytecodeByTokenKind(TokenKind token) {
-//        switch (token) {
-//        case tEOF: return "";
-//            case tDOUBLE: return "";
-//            case tINT: return "";
-//            case tSTRING: return "";
-//            case tCOMMA: return ",";
-//            case tIDENT: return "";
-//            case tERROR: return "";
-//            case tUNDEF: return "";
-//            default: return "";
-//        }
-    }
-
-    virtual void visitBinaryOpNode(BinaryOpNode* node) {
-        node->right()->visit(this);
-        VarType right_type = m_latest_type;
-        node->left()->visit(this);
-        VarType left_type = m_latest_type;
-
-        switch (node->kind()) {
-            case tADD:  // "+"
-                m_latest_type = m_primitives.Add(m_bytecode, left_type, right_type);
-                break;
-            case tSUB:  // "-"
-                m_latest_type = m_primitives.Sub(m_bytecode, left_type, right_type);
-                break;
-            case tMUL:  // "*"
-                m_latest_type = m_primitives.Mul(m_bytecode, left_type, right_type);
-                break;
-            case tDIV:  // "/"
-                m_latest_type = m_primitives.Div(m_bytecode, left_type, right_type);
-                break;
-            case tMOD:  // "%"
-                m_latest_type = m_primitives.Mod(m_bytecode, left_type, right_type);
-                break;
-           case tAND:   // &&
-                m_latest_type = m_primitives.And(m_bytecode, left_type, right_type);
-                break;
-            case tOR:    // "||"
-                m_latest_type = m_primitives.Or(m_bytecode, left_type, right_type);
-                break;
-            case tEQ:   // "=="
-                m_latest_type = m_primitives.CmpEq(m_bytecode, left_type, right_type);
-                break;
-            case tNEQ:  // "!=";
-                m_latest_type = m_primitives.CmpNe(m_bytecode, left_type, right_type);
-                break;
-            case tGT:   // ">";
-                m_latest_type = m_primitives.CmpGt(m_bytecode, left_type, right_type);
-                break;
-            case tGE:   // ">=";
-                m_latest_type = m_primitives.CmpGe(m_bytecode, left_type, right_type);
-                break;
-            case tLT:   // "<";
-                m_latest_type = m_primitives.CmpLt(m_bytecode, left_type, right_type);
-                break;
-            case tLE:   // "<=";
-                m_latest_type = m_primitives.CmpLe(m_bytecode, left_type, right_type);
-                break;
-            case tRANGE:    // ".."
-                std::cerr << "Error: Ranges are supported only as a FOR loop condition"
-                          << std::endl;
-                m_latest_type = m_primitives.Invalid(m_bytecode);
-                break;
-            default:
-                m_latest_type = m_primitives.Invalid(m_bytecode);
-                break;
-        }
-    }
-    virtual void visitUnaryOpNode(UnaryOpNode* node) {
-        node->operand()->visit(this);
-
-        switch (node->kind()) {
-            case tNOT:  // "!"
-                m_latest_type = m_primitives.Not(m_bytecode, m_latest_type);
-                break;
-            case tSUB:  // "-"
-                m_latest_type = m_primitives.Neg(m_bytecode, m_latest_type);
-                break;
-            default:
-                std::cerr << "Error: Unknown AST node kind '"
-                          << node->kind()
-                          << "'"
-                          << std::endl;
-                m_latest_type = m_primitives.Invalid(m_bytecode);
-        }
-    }
-    virtual void visitStringLiteralNode(StringLiteralNode* node) {
-        uint16_t string_id = m_code->makeStringConstant(node->literal());
-        m_latest_type = m_primitives.Load(m_bytecode, string_id, VT_STRING);
-    }
-    virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
-        m_latest_type = m_primitives.Load(m_bytecode, node->literal(), VT_DOUBLE);
-    }
-    virtual void visitIntLiteralNode(IntLiteralNode* node) {
-        m_latest_type = m_primitives.Load(m_bytecode, node->literal(), VT_INT);
-    }
+    virtual void visitBinaryOpNode(BinaryOpNode* node);
+    virtual void visitUnaryOpNode(UnaryOpNode* node);
+    
+    virtual void visitStringLiteralNode(StringLiteralNode* node);
+    virtual void visitDoubleLiteralNode(DoubleLiteralNode* node);
+    virtual void visitIntLiteralNode(IntLiteralNode* node);
+    
     virtual void visitLoadNode(LoadNode* node) {
         // NOTE: nothing to visit - it's just a variable name
 
@@ -153,6 +45,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
          // load value from the VAR and push on the stack
         m_latest_type = m_primitives.LoadVar(m_bytecode, var_id, m_latest_type);
     }
+    
     virtual void visitStoreNode(StoreNode* node) {
 //        out << node->var()->name() << " = ";
         node->value()->visit(this);
@@ -175,13 +68,8 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
                 break;
         }
     }
+    
     virtual void visitForNode(ForNode* node) {
-//        out << "for ( " << node->var()->name()
-//                        << " in ";
-//        node->inExpr()->visit(this);
-//        out << ") ";
-//        node->body()->visit(this);
-
         BinaryOpNode* range = (BinaryOpNode*) node->inExpr();
         assert(range->isBinaryOpNode() && range->kind() == tRANGE);
 
@@ -210,68 +98,23 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_bytecode->bind(exitLoopLabel);
         m_var_storage.pop_back();
     }
-    virtual void visitWhileNode(WhileNode* node) {
-        Label entryLoopLabel(m_bytecode, m_bytecode->current());
-        Label exitLoopLabel(m_bytecode);
+    
+    virtual void visitWhileNode(WhileNode* node);
+    virtual void visitIfNode(IfNode* node);
 
-        m_bytecode->addInsn(BC_ILOAD0);
-        node->whileExpr()->visit(this);
-
-        m_primitives.JmpEq(m_bytecode, exitLoopLabel);
-
-        node->loopBlock()->visit(this);
-        m_primitives.Jmp(m_bytecode, entryLoopLabel);
-
-        m_bytecode->bind(exitLoopLabel);
-    }
-    virtual void visitIfNode(IfNode* node) {
-        m_bytecode->addInsn(BC_ILOAD0);
-        node->ifExpr()->visit(this);
-
-        Label elseLabel(m_bytecode);
-        Label ifExitLabel(m_bytecode);
-        //jump if the condition evaluates to false
-        m_primitives.JmpEq(m_bytecode, elseLabel);
-
-        node->thenBlock()->visit(this);
-        m_primitives.Jmp(m_bytecode, ifExitLabel);
-
-        m_bytecode->bind(elseLabel);
-        if (node->elseBlock()) {
-            node->elseBlock()->visit(this);
-        }
-
-        m_bytecode->bind(ifExitLabel);
-    }
     virtual void visitBlockNode(BlockNode* node) {
-//        out << "{\n";
         Scope* old_scope = m_scope;
         m_scope = node->scope();
 
-        enterScope(node->scope());
+        enterScope(m_scope);
 
         for (uint32_t i = 0; i < node->nodes(); i++) {
             node->nodeAt(i)->visit(this);
         }
 
-        leaveScope(node->scope());
+        leaveScope(m_scope);
 
         m_scope = old_scope;
-//        out << "}\n";
-    }
-
-    std::vector<std::string> m_var_storage;
-
-    void addVarStorage(const std::string &name) {
-        m_var_storage.push_back(name);
-    }
-
-    uint16_t getVarStorage(const std::string &name) {
-        for (size_t i = m_var_storage.size() - 1; i >= 0; i--) {
-            if (m_var_storage[i] == name) {
-                return i;
-            }
-        }
     }
 
     virtual void visitFunctionNode(FunctionNode* node) {
@@ -285,39 +128,24 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         Bytecode* old_bytecode = m_bytecode;
         m_bytecode = function->bytecode();
 
-       // function's parameters passing (right-to-left)
+        // function's parameters passing (right-to-left)
         uint32_t parameters_number = node->parametersNumber();
         uint32_t last_parameter = parameters_number - 1;
         for (uint32_t i = 0; i < parameters_number; ++i) {
             addVarStorage(node->parameterName(last_parameter - i));
         }
 
-#ifdef FUNCTION_ARGUMENTS_ON_STACK
-        for (uint32_t i = 0; i < parameters_number; ++i) {
-            m_primitives.StoreVar(m_bytecode, getVarStorage(node->parameterName(i)),
-                                              node->parameterType(i));
-        }
-#endif
-
         node->body()->visit(this);
 
         for (uint32_t i = 0; i < parameters_number; ++i) {
-            m_var_storage.pop_back();
+            removeLatestVarStorage();
         }
 
         m_bytecode = old_bytecode;
     }
-    virtual void visitReturnNode(ReturnNode* node) {
-//        out << "return";
-       if (node->returnExpr()) {
-           node->returnExpr()->visit(this);
 
-           // move return value to VAR0
-           m_primitives.StoreVar(m_bytecode, 0, m_latest_type);
-       }
-        // return address is on top the stack now
-        m_bytecode->addInsn(BC_RETURN);
-    }
+    virtual void visitReturnNode(ReturnNode* node);
+
     virtual void visitCallNode(CallNode* node) {
         uint32_t parameters_number = node->parametersNumber();
         uint16_t var_id = m_var_storage.size();
@@ -339,10 +167,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
         // resolve function by name
         TranslatedFunction *function = m_code->functionByName(node->name());
-        if (!function) {
-            //TODO: better error-handling
-            assert(function && "Unresolved function name\n");
-        }
+        assert(function && "Unresolved function name\n");
         m_latest_type = function->returnType();
 
         // call function
@@ -363,29 +188,14 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             m_latest_type = m_primitives.LoadVar(m_bytecode, 0, m_latest_type);
         }
     }
+
     virtual void visitNativeCallNode(NativeCallNode* node) {
         //TODO:
         // move function return value from VAR0 on TOS
 //        m_bytecode->addInsn(BC_LOADDVAR0);
     }
-    virtual void visitPrintNode(PrintNode* node) {
-        uint32_t parameters_number = node->operands();
-        uint32_t last_parameter = parameters_number - 1;
 
-        std::vector<VarType> parameter_types;
-        parameter_types.reserve(parameters_number);
-        
-        // push arguments on the top of the stack in the right-to-left order
-        for (uint32_t i = 0; i < parameters_number; ++i) {
-            node->operandAt(last_parameter - i)->visit(this);
-            parameter_types.push_back(m_latest_type);
-        }
-
-        // emit needed number of print instructions
-        for (uint32_t i = 0; i < parameters_number; ++i) {
-            m_primitives.Print(m_bytecode, parameter_types[last_parameter - i]);
-        }
-    }
+    virtual void visitPrintNode(PrintNode* node);
 
     void enterScope(Scope* scope) {
         // reserve storage for all scope variables
@@ -415,11 +225,29 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         }
     }
 
+    void addVarStorage(const std::string &name) {
+        m_var_storage.push_back(name);
+    }
+
+    uint16_t getVarStorage(const std::string &name) {
+        for (size_t i = m_var_storage.size() - 1; i >= 0; i--) {
+            if (m_var_storage[i] == name) {
+                return i;
+            }
+        }
+    }
+
+    void removeLatestVarStorage() {
+        m_var_storage.pop_back();
+    }
+
   private:
     Bytecode* m_bytecode;
     Code* m_code;
     Scope* m_scope;
     VarType m_latest_type;
+
+    std::vector<std::string> m_var_storage;
 
     BytecodeInstructionPrimitives m_primitives;
 };
