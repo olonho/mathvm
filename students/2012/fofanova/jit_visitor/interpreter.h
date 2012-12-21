@@ -28,21 +28,21 @@ private:
     enum type {i, d, s};
 
     Code* code;
-    Compiler compiler;
+    char args[2000];
+    char ret[100];
 
     std::vector<int> calls;
     std::vector<VarType> stackTypes;
 
-    std::vector<int> ints;
-    std::vector<double> doubles;
-    std::vector<int> strs;
-
     std::map<int, GPVar> ivars;
+    std::vector<GPVar> istack;
     std::map<int, GPVar> dvars;
+    std::vector<GPVar> dstack;
     std::map<int, GPVar> svars;
+    std::vector<GPVar> sstack;
 
-    void* main;
-    map<uint32_t, AsmJit::Label*> labels;
+    std::map<int, void*> functions;
+    std::map<uint32_t, AsmJit::Label*> labels;
 
 
 public:
@@ -53,6 +53,8 @@ public:
     void generateXMMArithmetics(Instruction insn, Compiler& compiler);
     void generateCompare(Instruction insn, Bytecode* bytecode, int index, Compiler& compiler);
     void generate(BytecodeFunction* function);
+    void buildFunction(BytecodeFunction* function, Compiler& compiler);
+    void prepareFunction(BytecodeFunction* function, Compiler& compiler);
     void loadd(double val, Compiler& compiler);
     void loadi(int val, Compiler& compiler);
     void loads(int val, Compiler& compiler);
@@ -121,10 +123,15 @@ void interpreter::loads(int val, Compiler& compiler)
 
 void interpreter::generate(BytecodeFunction* function)
 {
-    generateFunction(function, 0);
-    if(main) 
+    Code::FunctionIterator it(code);
+    int i = 0;
+    while (it.hasNext())
     {
-        function_cast<void (*)()>(main)();
+        generateFunction((BytecodeFunction*)it.next(), i++);
+    }
+    if(functions[0]) 
+    {
+        function_cast<void (*)()>(functions[0])();
     }
     else
     {
@@ -318,18 +325,112 @@ void interpreter::generateGPArithmetics(Instruction insn, Compiler& compiler)
     stackTypes.pop_back();
 }
 
+void interpreter::buildFunction(BytecodeFunction* function, Compiler& compiler)
+{
+    GPVar arguments(compiler.newGP());
+    compiler.mov(arguments, imm((size_t)args));
+    int addr = 0;
+    int ii = 0;
+    int di = 0;
+    int si = 0;
+    for (uint16_t i = 0; i != function->parametersNumber(); ++i) {
+        switch (function->parameterType(i))
+        {
+            case VT_INT:
+            {
+                compiler.mov(qword_ptr(arguments, addr), istack[ii]);
+                addr += sizeof(int64_t);
+                compiler.unuse(istack[ii++]);
+                break;
+            }
+            case VT_DOUBLE:
+            {
+                GPVar var(dstack[di++]);
+                compiler.mov(qword_ptr(arguments, addr), var);
+                addr += sizeof(double);
+                compiler.unuse(var);
+                break;
+            }
+            case VT_STRING:
+            {
+                GPVar var(sstack[si++]);
+                compiler.mov(qword_ptr(arguments, addr), var);
+                addr += sizeof(char*);
+                compiler.unuse(var);
+                break;
+            }
+            default:
+            {
+               cout << "Unsupported type of argument" << endl;
+            }
+        }
+    }
+    compiler.unuse(arguments);
+    istack.clear();
+    dstack.clear();
+    sstack.clear();
+}
 
 void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
 {
+    Compiler compiler;
     bool start = true;
-    if (!funcIndex)
-    {
-        compiler.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
-        compiler.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
-    }
-
+    compiler.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+    compiler.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
     Bytecode* bytecode = function->bytecode();
     uint32_t index = 0;
+    GPVar arguments(compiler.newGP());
+    compiler.mov(arguments, imm((size_t)args));
+    int addr = 0;
+    int param = 0;
+    while (param++ < function->parametersNumber() && (bytecode->getInsn(index) == BC_LOADIVAR || bytecode->getInsn(index) == BC_LOADDVAR || bytecode->getInsn(index) == BC_LOADSVAR))
+    {
+        Instruction insn = bytecode->getInsn(index);
+            cout << str(insn) << endl;
+        switch(insn)
+        {
+            case BC_LOADIVAR:
+            {
+                int id = bytecode->getInt16(index + 1);
+                cout << "from memory " << id << endl;
+                GPVar var(compiler.newGP());
+                compiler.mov(var, qword_ptr(arguments, addr));
+                ivars[id] = var;
+                addr += sizeof(int64_t);
+                //compiler.unuse(var);
+
+                break;
+            }
+            case BC_LOADDVAR:
+            {
+                int id = bytecode->getInt16(index + 1);
+                GPVar var(compiler.newGP());
+                compiler.mov(var, qword_ptr(arguments, addr));
+                dvars[id] = var;
+                addr += sizeof(double);
+                compiler.unuse(var);
+
+                break;
+            }
+            case BC_LOADSVAR:
+            {
+                int id = bytecode->getInt16(index + 1);
+                GPVar var(compiler.newGP());
+                compiler.mov(var, qword_ptr(arguments, addr));
+                svars[id] = var;
+                addr += sizeof(char*);
+                compiler.unuse(var);
+
+                break;
+            }
+
+            default:
+                cout << "ATATA" << endl;
+        }
+        index += (length(insn));    
+    }
+    compiler.unuse(arguments);
+    //index = 0;
     while (index < bytecode->length())
     {
         bool jump = false;
@@ -363,12 +464,44 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_CALL:
             {
                 int id = bytecode->getInt16(index + 1);
-                BytecodeFunction *fun = (BytecodeFunction *)code->functionById(id);
-                generateFunction(fun, id); 
+                BytecodeFunction* funct = (BytecodeFunction*)code->functionById(id);
+                buildFunction(funct, compiler);
+                GPVar fun = compiler.newGP();
+                compiler.mov(fun, imm((size_t)&functions[id]));
+                ECall *call = compiler.call(ptr(fun));
+                call->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+                compiler.unuse(fun);
+                if (funct->returnType() != VT_VOID)
+                {
+                    cout << "call return type" << endl;
+                    GPVar retval(compiler.newGP());
+                    GPVar var(compiler.newGP());
+                    compiler.mov(retval, imm((size_t)ret));
+                    compiler.mov(var, qword_ptr(retval));
+                    push(var, compiler);
+                    stackTypes.push_back(funct->returnType());
+                    compiler.unuse(var);
+                    compiler.unuse(retval);
+                }
                 break;
             }
             case BC_RETURN: 
             {
+                if (function->returnType() != VT_VOID)
+                {
+                    cout << "ret return type" << endl;
+                    GPVar retval(compiler.newGP());
+                    GPVar var(compiler.newGP());
+                    pop(var, compiler);
+                    stackTypes.pop_back();
+                    compiler.mov(retval, imm((size_t)ret));
+                    compiler.mov(qword_ptr(retval), var);
+                    compiler.unuse(var);
+                    compiler.unuse(retval);
+                }
+                compiler.ret();
+                compiler.endFunction();
+                functions[funcIndex] = compiler.make();
                 return;
             }
             case BC_CALLNATIVE:
@@ -386,6 +519,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_LOADIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
+                cout << id << endl;
                 GPVar var = ivars[id];
                 push(var, compiler);
                 stackTypes.push_back(VT_INT);
@@ -403,6 +537,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var(compiler.newGP());
+                dstack.push_back(var);
                 pop(var, compiler);
                 dvars[id] = var;
                 stackTypes.pop_back();
@@ -412,6 +547,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var(compiler.newGP());
+                istack.push_back(var);
                 pop(var, compiler);
                 ivars[id] = var;
                 stackTypes.pop_back();
@@ -421,6 +557,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             {
                 int id = bytecode->getInt16(index + 1);
                 GPVar var(compiler.newGP());
+                sstack.push_back(var);
                 pop(var, compiler);
                 svars[id] = var;
                 stackTypes.pop_back();
@@ -674,8 +811,8 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             default:
             {
                 compiler.ret();
-                compiler.endFunction();  
-                main = compiler.make();
+                compiler.endFunction();
+                functions[funcIndex] = compiler.make();
                 return;  
             }
 
@@ -685,4 +822,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             index += (length(insn));
         }
     }
+    compiler.ret();
+    compiler.endFunction();
+    functions[funcIndex] = compiler.make();
 }
