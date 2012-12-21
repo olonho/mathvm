@@ -582,6 +582,21 @@ public:
         out->addInsn(instr);
     }
 
+    VarType Return(Bytecode* out, VarType type = VT_VOID) {
+        assert(type != VT_INVALID);
+
+        bool valuable_return = type != VT_VOID;
+        if (valuable_return) {
+            // move return value to VAR0
+            StoreVar(out, 0, type);
+        }
+
+        // return address is on top the stack now
+        out->addInsn(BC_RETURN);
+
+        return type;
+    }
+
     VarType Invalid(Bytecode* out) {
         std::cerr << "Warning: emitting BC_INVALID at "
                   << out->current() << std::endl;
