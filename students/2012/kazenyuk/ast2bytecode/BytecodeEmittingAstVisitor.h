@@ -96,7 +96,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         m_primitives.Jmp(m_bytecode, entryLoopLabel);
 
         m_bytecode->bind(exitLoopLabel);
-        m_var_storage.pop_back();
+        removeLatestVarStorage();
     }
     
     virtual void visitWhileNode(WhileNode* node);
@@ -148,21 +148,13 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
     virtual void visitCallNode(CallNode* node) {
         uint32_t parameters_number = node->parametersNumber();
-        uint16_t var_id = m_var_storage.size();
-        if (parameters_number > 0) {
-            uint32_t last_parameter = parameters_number - 1;
+        uint32_t last_parameter = parameters_number - 1;
 
-            // uint16_t var_id = m_var_storage.size();
-            for (uint32_t i = last_parameter; i > 0; --i) {
-                node->parameterAt(i)->visit(this);
-#ifndef FUNCTION_ARGUMENTS_ON_STACK
-                m_primitives.StoreVar(m_bytecode, var_id++, m_latest_type);
-#endif
-            }
-            node->parameterAt(0)->visit(this);
-#ifndef FUNCTION_ARGUMENTS_ON_STACK
+        uint16_t var_id = getFirstUnusedVarId();
+
+        for (uint32_t i = 0; i < parameters_number; ++i) {
+            node->parameterAt(last_parameter - i)->visit(this);
             m_primitives.StoreVar(m_bytecode, var_id++, m_latest_type);
-#endif
         }
 
         // resolve function by name
@@ -174,14 +166,6 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
         uint16_t function_id = function->id();
         m_bytecode->addInsn(BC_CALL);  //BC_CALL must push return address on the stack
         m_bytecode->addUInt16(function_id);
-
-#ifdef FUNCTION_ARGUMENTS_ON_STACK
-        // remove function arguments from the stack (byte by byte)
-        for (uint32_t i = 0; i < parameters_number; ++i) {
-            // m_primitives.Pop(m_bytecode, function->parameterType(i));
-            m_primitives.StoreVar(m_bytecode, var_id - 1, function->parameterType(i));
-        }
-#endif
 
         // move function return value from VAR0 to the top of the stack
         if (m_latest_type != VT_VOID) { // TODO: this should be, probably, checked by LoadVar
@@ -221,7 +205,7 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
             var_iterator.next();
             // std::cout << mathvm::typeToName(var->type()) << " "
             //           << var->name() << ";\n";
-            m_var_storage.pop_back();
+            removeLatestVarStorage();
         }
     }
 
@@ -239,6 +223,10 @@ class BytecodeEmittingAstVisitor : public AstVisitor {
 
     void removeLatestVarStorage() {
         m_var_storage.pop_back();
+    }
+
+    uint16_t getFirstUnusedVarId() {
+        return m_var_storage.size();
     }
 
   private:
