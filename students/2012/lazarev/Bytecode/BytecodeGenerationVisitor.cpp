@@ -5,7 +5,7 @@
 namespace mathvm {
 
 BytecodeGenerationVisitor::BytecodeGenerationVisitor(InterpreterCodeImpl *code):
-	functionNode(false), currentScope(0), code(code) {
+	currentScope(0), code(code), stackSize(0) {
 	fillInstructionsForInt();
 	fillInstructionsForDouble();
 	fillInstructionsForString();
@@ -136,8 +136,6 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	switch (op) {
 		case tRANGE:
 			if (commonType == VT_INT) {
-//				types.push(secondType);
-//				types.push(firstType);
 				currentType = VT_VOID;
 				return;
 			} else {
@@ -155,7 +153,7 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			Instruction ins = insnByToken[commonType][op];
 			bytecode -> addInsn(ins);
 			currentType = commonType;
-//			types.push(commonType);
+			stackSize--;
 			break;
 		}
 
@@ -165,7 +163,7 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			}
 			AND();
 			currentType = VT_INT;
-//			types.push(VT_INT);
+			stackSize--;
 			break;
 		case tOR:
 			if (commonType != VT_INT) {
@@ -173,7 +171,7 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			}
 			OR();
 			currentType = VT_INT;
-//			types.push(VT_INT);
+			stackSize--;
 			break;
 
 		case tEQ:
@@ -188,7 +186,7 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 				compareDoubles(insnByToken[VT_INT][op]);
 			}
 			currentType = VT_INT;
-//			types.push(VT_INT);
+			stackSize--;
 			break;
 		default:
 			throw std::exception();
@@ -234,21 +232,21 @@ void BytecodeGenerationVisitor::visitStringLiteralNode(StringLiteralNode* node) 
 	bytecode -> addInsn(BC_SLOAD);
 	bytecode -> addUInt16(strId);
 	currentType = VT_STRING;
-//	types.push(VT_STRING);
+	stackSize++;
 }
 
 void BytecodeGenerationVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) { // DONE
 	bytecode -> addInsn(BC_DLOAD);
 	bytecode -> addDouble(node -> literal());
 	currentType = VT_DOUBLE;
-//	types.push(VT_DOUBLE);
+	stackSize++;
 }
 
 void BytecodeGenerationVisitor::visitIntLiteralNode(IntLiteralNode* node) { // DONE
 	bytecode -> addInsn(BC_ILOAD);
 	bytecode -> addInt64(node -> literal());
 	currentType = VT_INT;
-//	types.push(VT_INT);
+	stackSize++;
 }
 
 void BytecodeGenerationVisitor::visitLoadNode(LoadNode* node) { // DONE
@@ -259,7 +257,7 @@ void BytecodeGenerationVisitor::visitLoadNode(LoadNode* node) { // DONE
 	bytecode -> addUInt16(varId);
 
 	currentType = type;
-//	types.push(type);
+	stackSize++;
 }
 
 void BytecodeGenerationVisitor::visitStoreNode(StoreNode* node) {   // DONE
@@ -299,7 +297,7 @@ void BytecodeGenerationVisitor::visitStoreNode(StoreNode* node) {   // DONE
 	}
 	
 	currentType = VT_VOID;
-//	types.pop();
+	stackSize--;
 }
 
 void BytecodeGenerationVisitor::visitForNode(ForNode* node) { // DONE
@@ -337,8 +335,7 @@ void BytecodeGenerationVisitor::visitForNode(ForNode* node) { // DONE
 	bytecode -> addInsn(BC_POP);
 	bytecode -> addInsn(BC_POP);
 	currentType = VT_VOID;
-//	types.pop();
-//	types.pop();
+	stackSize -= 2;
 }
 
 void BytecodeGenerationVisitor::visitWhileNode(WhileNode* node) { // DONE
@@ -352,10 +349,9 @@ void BytecodeGenerationVisitor::visitWhileNode(WhileNode* node) { // DONE
 
 	bytecode->addInsn(BC_POP);
 	bytecode->addInsn(BC_POP);
-//	removeConditionCheckingParams();
+	stackSize--;
 
 	node->loopBlock()->visit(this);
-//	int returnIndex = bytecode -> length();
 	bytecode -> addInsn(BC_JA);
 	bytecode -> addInt16(startIndex - (bytecode->length() + 2));
 
@@ -365,40 +361,44 @@ void BytecodeGenerationVisitor::visitWhileNode(WhileNode* node) { // DONE
 	bytecode->addInsn(BC_POP);
 	bytecode->addInsn(BC_POP);
 	currentType = VT_VOID;
-	
-//	types.pop();
-//	removeConditionCheckingParams();
 }
 
 void BytecodeGenerationVisitor::visitIfNode(IfNode* node) {   // DONE
 	node -> ifExpr() -> visit(this);
 	bytecode -> addInsn(BC_ILOAD0);
+	stackSize++;
 	bytecode -> addInsn(BC_IFICMPE);
 	int jumpFromIfOffset = bytecode -> length();
 	bytecode -> addInt16(0);
 	int jumpFromIf = bytecode -> length();
 
-//	int thenBlockStartIndex = bytecode -> length();
+	bytecode->addInsn(BC_POP);
+	bytecode->addInsn(BC_POP);
+	
 	node->thenBlock()->visit(this);
+	
+	bytecode -> addInsn(BC_JA);
+	int jumpFromThenOffset = bytecode -> length();
+	bytecode -> addInt16(0);
+	int jumpFromThen = bytecode -> length();
 
 	if ((node -> elseBlock()) != 0) {
-		bytecode -> addInsn(BC_JA);
-		int jumpFromThenOffset = bytecode -> length();
-		bytecode -> addInt16(0);
-		int jumpFromThen = bytecode -> length();
 
 		bytecode -> setInt16(jumpFromIfOffset, (bytecode -> length()) - jumpFromIf);
 
+		bytecode->addInsn(BC_POP);
+		bytecode->addInsn(BC_POP);
 		node -> elseBlock() -> visit(this);
 		int elseBlockEndIndex = bytecode -> length();
 		bytecode -> setInt16(jumpFromThenOffset, elseBlockEndIndex - jumpFromThen);
 	} else {
 		bytecode -> setInt16(jumpFromIfOffset, (bytecode -> length()) - jumpFromIf);
+		bytecode->addInsn(BC_POP);
+		bytecode->addInsn(BC_POP);
+		bytecode -> setInt16(jumpFromThenOffset, (bytecode -> length()) - jumpFromThen);
 	}
 
-	bytecode->addInsn(BC_POP);
-	bytecode->addInsn(BC_POP);
-//	types.pop();
+	stackSize--;
 	
 	currentType = VT_VOID;
 }
@@ -420,17 +420,18 @@ void BytecodeGenerationVisitor::visitBlockNode(BlockNode* node) {   // DONE
 		AstFunction *astFunction = functionsToAdd.next();
 		BytecodeFunction *bytecodeFunction = new BytecodeFunction(astFunction);
 		code -> addFunction(bytecodeFunction);
+	}
+	
+	Scope::FunctionIterator functionsToBuild(node -> scope());
+	while (functionsToBuild.hasNext()) {
+		AstFunction *astFunction = functionsToBuild.next();
 		astFunction->node()->visit(this);
 	}
 
 	for (unsigned int i = 0; i < (node -> nodes()); i++) {
-//		size_t stackSize = types.size();
 		node -> nodeAt(i) -> visit(this);
 
-//		assert(stackSize == types.size() || stackSize + 1 == types.size());
-//		if (types.size() == stackSize + 1) {
 		if (currentType != VT_VOID && !(node->nodeAt(i)->isReturnNode())) {
-//			types.pop();
 			bytecode -> addInsn(BC_POP);
 		}
 	}
@@ -502,9 +503,14 @@ void BytecodeGenerationVisitor::visitCallNode(CallNode* node) {
 		bytecode->addInsn(insnByUntypedInsn[sign[i + 1].first][UT_LOADVAR]);
 		bytecode->addInt16(varId);
 		node->parameterAt(i)->visit(this);
+		if (currentType == VT_INT && sign[i + 1].first == VT_DOUBLE) {
+			bytecode->addInsn(BC_I2D);
+		} else if (currentType == VT_DOUBLE && sign[i + 1].first == VT_INT) {
+			bytecode->addInsn(BC_D2I);
+		}
 		bytecode->addInsn(insnByUntypedInsn[sign[i + 1].first][UT_STOREVAR]);
 		bytecode->addInt16(varId);
-//		types.pop();
+		
 	}
 	
 	bytecode->addInsn(BC_CALL);
@@ -523,7 +529,6 @@ void BytecodeGenerationVisitor::visitCallNode(CallNode* node) {
 			bytecode->addInsn(insnByUntypedInsn[sign[i].first][UT_STOREVAR]);
 			bytecode->addInt16(varId);
 		}
-//		types.push(sign[0].first);
 	}
 	
 	currentType = sign[0].first;
@@ -538,7 +543,6 @@ void BytecodeGenerationVisitor::visitPrintNode(PrintNode* node) {   // DONE
 	for (unsigned int i = 0; i < node -> operands(); i++) {
 		node -> operandAt(i) -> visit(this);
 		bytecode -> addInsn(insnByUntypedInsn[currentType][UT_PRINT]);
-//		types.pop();
 	}
 	currentType = VT_VOID;
 }

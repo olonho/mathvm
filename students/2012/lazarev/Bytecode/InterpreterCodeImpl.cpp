@@ -16,7 +16,7 @@ namespace mathvm {
 
 
 Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
-	disassemble();
+//	disassemble();
 	BytecodeFunction* f = (BytecodeFunction*)functionById(0);
 	runBytecode(f->bytecode());
 	return new Status();
@@ -26,7 +26,7 @@ void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 	size_t bci = 0;
 	while (bci < (bytecode -> length())) {
 		Instruction insn = bytecode -> getInsn(bci);
-
+		
 		switch (insn) {
 			case BC_DLOAD:
 				push(getDoubleVar(bytecode -> getDouble(bci + 1)));
@@ -260,6 +260,7 @@ void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 				break;
 			}
 			case BC_RETURN: {
+				
 				return;
 			}
 				
