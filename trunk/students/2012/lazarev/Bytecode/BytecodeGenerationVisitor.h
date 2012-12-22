@@ -50,8 +50,6 @@ class BytecodeGenerationVisitor: public AstVisitor {
 	map< VarType, map<UntypedInstruction, Instruction> > insnByUntypedInsn;
 	map< string, uint16_t > vars;
 	
-	bool functionNode;
-	
 	Scope* currentScope;
 	Bytecode *bytecode;
 	
@@ -59,6 +57,9 @@ class BytecodeGenerationVisitor: public AstVisitor {
 	VarType currentType;
 
 	InterpreterCodeImpl *code;
+	
+	size_t stackSizeNeeded;
+	size_t stackSize;
 
 	Bytecode* ytecode();
 	uint16_t getVarId(const string& name);
