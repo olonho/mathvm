@@ -1,11 +1,14 @@
 #include "parser.h"
+#include "BytecodeGenerationVisitor.h"
+#include "InterpreterCodeImpl.h"
 
+using namespace mathvm;
 
 int main(int argc, char **argv)
 {
 	char* text_buffer = loadFile(argv[1]);
 	if(!text_buffer) {
-		std::cout << "Can't load file: " << argv[1] << endl;
+		std::cout << "Can't load file: " << argv[1] << std::endl;
 		return 1;
 	}
 	std::string text(text_buffer);
@@ -17,5 +20,8 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	parser.top()->node()->body()->visit(new AstPrinter());
+	InterpreterCodeImpl *code = new InterpreterCodeImpl();
+	parser.top()->node()->visit(new BytecodeGenerationVisitor(code));
+	vector<Var*> v;
+	code->execute(v);
 }
