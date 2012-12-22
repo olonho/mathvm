@@ -1,14 +1,17 @@
 #include "Runner.h"
 #include <iostream>
+#include <sstream>
 
 namespace mathvm {
 
 namespace {
 
 template <typename T>
-void print(T val) {
-	std::cout << val << std::endl;
-}
+struct Printer : std::unary_function<T, void> {
+	void operator()(T val) {
+		std::cout << val;
+	}
+};
 
 template <typename T>
 T id(FromStream*, T val) {
@@ -24,6 +27,111 @@ const std::string emptyStr() {
 	return "";
 }
 
+template <typename FROM, typename TO>
+struct Caster : std::unary_function<FROM, TO> {
+	TO operator()(FROM val) {
+		return static_cast<TO>(val);
+	}
+};
+
+template <>
+struct Caster<std::string, int64_t> : std::unary_function<std::string, int64_t> {
+	int64_t operator()(std::string val) {
+		int64_t result = 0;
+		std::stringstream(val) >> result;
+		return result;
+	}
+};
+
+template <typename T>
+struct Comparator: std::binary_function<T, T, int64_t> {
+	int64_t operator()(T left, T right) {
+		return int64_t(left) - int64_t(right);
+	}
+};
+
+template <typename T>
+T getTypedValue(const Var& var);
+
+template <>
+double getTypedValue<double>(const Var& var) {
+	assert(var.type() == VT_DOUBLE);
+	return var.getDoubleValue();
+}
+
+template <>
+int64_t getTypedValue<int64_t>(const Var& var) {
+	assert(var.type() == VT_INT);
+	return var.getIntValue();
+}
+
+template <>
+std::string getTypedValue<std::string>(const Var& var) {
+	assert(var.type() == VT_STRING);
+	return var.getStringValue();
+}
+
+void setTypedValue(Var& var, double value) {
+	assert(var.type() == VT_DOUBLE);
+	var.setDoubleValue(value);
+}
+
+void setTypedValue(Var& var, int64_t value) {
+	assert(var.type() == VT_INT);
+	var.setIntValue(value);
+}
+
+void setTypedValue(Var& var, const std::string& value) {
+	assert(var.type() == VT_STRING);
+	var.setStringValue(value.c_str());
+}
+
+template<typename T>
+VarType varType();
+template<>
+VarType varType<bool>() { return VT_INT; }
+template<>
+VarType varType<int>() { return VT_INT; }
+template<>
+VarType varType<int64_t>() { return VT_INT; }
+template<>
+VarType varType<double>() { return VT_DOUBLE; }
+template<>
+VarType varType<std::string>() { return VT_STRING; }
+
+}
+
+template <typename T, uint16_t id>
+T Runner::loadvar() {
+	std::map<uint16_t, Var>::iterator it = _variables.find(id);
+	assert(it != _variables.end());
+	return getTypedValue<T>(it->second);
+}
+
+template <typename T>
+T Runner::loadvarById(uint16_t id) {
+	std::map<uint16_t, Var>::iterator it = _variables.find(id);
+	assert(it != _variables.end());
+	return getTypedValue<T>(it->second);
+}
+
+
+template <typename T, uint16_t id>
+void Runner::storevar(T value) {
+	std::map<uint16_t, Var>::iterator it = _variables.find(id);
+	if (it == _variables.end()) {
+		it = _variables.insert(std::make_pair(id, Var(varType<T>(), ""))).first;
+	}
+	setTypedValue(it->second, value);
+}
+
+template <typename T>
+void Runner::storevarById(uint16_t id, T value) {
+	std::map<uint16_t, Var>::iterator it = _variables.find(id);
+	if (it == _variables.end()) {
+		it = _variables.insert(std::make_pair(id, Var(varType<T>(), ""))).first;
+	}
+	setTypedValue(it->second, value);
 }
 
 Runner::Runner(CodeImpl* code)
@@ -31,9 +139,9 @@ Runner::Runner(CodeImpl* code)
 , _bytecode(0)
 , _ip(0)
 {
-	_processors.insert(pr(BC_DPRINT, print<double>));
-	_processors.insert(pr(BC_IPRINT, print<int64_t>));
-	_processors.insert(pr(BC_SPRINT, print<const std::string&>));
+	_processors.insert(pr(BC_DPRINT, Printer<double>()));
+	_processors.insert(pr(BC_IPRINT, Printer<int64_t>()));
+	_processors.insert(pr(BC_SPRINT, Printer<std::string>()));
 
 	_processors.insert(pr(BC_DLOAD, id<double>));
 	_processors.insert(pr(BC_ILOAD, id<int64_t>));
@@ -48,6 +156,39 @@ Runner::Runner(CodeImpl* code)
 
 	_processors.insert(pr(BC_DLOADM1, retVal<double, -1>));
 	_processors.insert(pr(BC_ILOADM1, retVal<int64_t, -1>));
+
+	_processors.insert(pr(BC_DADD, std::plus<double>()));
+	_processors.insert(pr(BC_IADD, std::plus<int64_t>()));
+	_processors.insert(pr(BC_DSUB, std::minus<double>()));
+	_processors.insert(pr(BC_ISUB, std::minus<int64_t>()));
+	_processors.insert(pr(BC_DMUL, std::multiplies<double>()));
+	_processors.insert(pr(BC_IMUL, std::multiplies<int64_t>()));
+	_processors.insert(pr(BC_DDIV, std::divides<double>()));
+	_processors.insert(pr(BC_IDIV, std::divides<int64_t>()));
+	_processors.insert(pr(BC_DNEG, std::negate<double>()));
+	_processors.insert(pr(BC_INEG, std::negate<int64_t>()));
+	_processors.insert(pr(BC_IMOD, std::modulus<int64_t>()));
+
+	_processors.insert(pr(BC_I2D, Caster<int64_t, double>()));
+	_processors.insert(pr(BC_D2I, Caster<double, int64_t>()));
+	_processors.insert(pr(BC_S2I, Caster<std::string, int64_t>()));
+
+	_processors.insert(pr(BC_DCMP, Comparator<double>()));
+	_processors.insert(pr(BC_ICMP, Comparator<int64_t>()));
+
+//	_processors.insert(pr(BC_SWAP, ));
+//	_processors.insert(pr(BC_POP, ));
+
+//	_processors.insert(pr(BC_LOADDVAR0, std::bind1st(std::mem_fun(&Runner::loadvar<double, 0>), this)));
+//	_processors.insert(pr(BC_STOREDVAR0, std::bind1st(std::mem_fun(&Runner::storevar<double, 0>), this)));
+
+//    DO(LOADCTXDVAR, "Load double from variable, whose 2-byte context and 2-byte id inlined to insn stream, push on TOS.", 5)
+//    DO(LOADCTXIVAR, "Load int from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5)
+//    DO(LOADCTXSVAR, "Load string from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5)
+//    DO(STORECTXDVAR, "Pop TOS and store to double variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5)
+//    DO(STORECTXIVAR, "Pop TOS and store to int variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5)
+//    DO(STORECTXSVAR, "Pop TOS and store to string variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5)
+
 }
 
 Runner::~Runner() {
@@ -60,10 +201,25 @@ Status* Runner::execute(vector<Var*>&) {
 	BytecodeFunction* fun = (BytecodeFunction*) _code->functionById(0);
 	_bytecode = fun->bytecode();
 
-	std::stack<Var> stack;
+	struct State {
+		uint16_t functionId;
+		size_t ip;
+		std::map<uint16_t, Var> values;
+		size_t sp;
+	};
+
+	std::map<uint16_t, State> functionStates;
+	std::vector<uint16_t> stateStackVec;
+	std::stack<Var> stateStack(stateStackVec);
+	std::vector<Var> stackVec;
+	std::stack<Var> stack(stackVec);
 	_ip = 0;
 	while (_ip < _bytecode->length()) {
 		Instruction instruction = getInstruction();
+
+		if (instruction == BC_STOP) {
+			break;
+		}
 
 		insn2Proc_t::iterator it = _processors.find(instruction);
 		if (it != _processors.end()) {
@@ -72,7 +228,184 @@ Status* Runner::execute(vector<Var*>&) {
 		}
 
 		switch (instruction) {
-			default: ; 
+		case BC_LOADDVAR0:
+			typedPush<double>(loadvar<double, 0>());
+			break;
+		case BC_LOADIVAR0:
+			typedPush<int64_t>(loadvar<int64_t, 0>());
+			break;
+		case BC_LOADSVAR0:
+			typedPush<std::string>(loadvar<std::string, 0>());
+			break;
+		case BC_LOADDVAR1:
+			typedPush<double>(loadvar<double, 1>());
+			break;
+		case BC_LOADIVAR1:
+			typedPush<int64_t>(loadvar<int64_t, 1>());
+			break;
+		case BC_LOADSVAR1:
+			typedPush<std::string>(loadvar<std::string, 1>());
+			break;
+		case BC_LOADDVAR2:
+			typedPush<double>(loadvar<double, 2>());
+			break;
+		case BC_LOADIVAR2:
+			typedPush<int64_t>(loadvar<int64_t, 2>());
+			break;
+		case BC_LOADSVAR2:
+			typedPush<std::string>(loadvar<std::string, 2>());
+			break;
+		case BC_LOADDVAR3:
+			typedPush<double>(loadvar<double, 3>());
+			break;
+		case BC_LOADIVAR3:
+			typedPush<int64_t>(loadvar<int64_t, 3>());
+			break;
+		case BC_LOADSVAR3:
+			typedPush<std::string>(loadvar<std::string, 3>());
+			break;
+		case BC_LOADDVAR:
+			typedPush<double>(loadvarById<double>(getIdFromStream()));
+			break;
+		case BC_LOADIVAR:
+			typedPush<int64_t>(loadvarById<int64_t>(getIdFromStream()));
+			break;
+		case BC_LOADSVAR:
+			typedPush<std::string>(loadvarById<std::string>(getIdFromStream()));
+			break;
+		case BC_STOREDVAR0:
+			storevar<double, 0>(typedPop<double>());
+			break;
+		case BC_STOREIVAR0:
+			storevar<int64_t, 0>(typedPop<int64_t>());
+			break;
+		case BC_STORESVAR0:
+			storevar<std::string, 0>(typedPop<std::string>());
+			break;
+		case BC_STOREDVAR1:
+			storevar<double, 1>(typedPop<double>());
+			break;
+		case BC_STOREIVAR1:
+			storevar<int64_t, 1>(typedPop<int64_t>());
+			break;
+		case BC_STORESVAR1:
+			storevar<std::string, 1>(typedPop<std::string>());
+			break;
+		case BC_STOREDVAR2:
+			storevar<double, 2>(typedPop<double>());
+			break;
+		case BC_STOREIVAR2:
+			storevar<int64_t, 2>(typedPop<int64_t>());
+			break;
+		case BC_STORESVAR2:
+			storevar<std::string, 2>(typedPop<std::string>());
+			break;
+		case BC_STOREDVAR3:
+			storevar<double, 3>(typedPop<double>());
+			break;
+		case BC_STOREIVAR3:
+			storevar<int64_t, 3>(typedPop<int64_t>());
+			break;
+		case BC_STORESVAR3:
+			storevar<std::string, 3>(typedPop<std::string>());
+			break;
+		case BC_STOREDVAR:
+			storevarById<double>(getIdFromStream(), typedPop<double>());
+			break;
+		case BC_STOREIVAR:
+			storevarById<int64_t>(getIdFromStream(), typedPop<int64_t>());
+			break;
+		case BC_STORESVAR:
+			storevarById<std::string>(getIdFromStream(), typedPop<std::string>());
+			break;
+
+		case BC_CALL: {
+			uint16_t id = getIdFromStream();
+
+			break;
+		}
+		case BC_CALLNATIVE:
+			break;
+		case BC_RETURN:
+			break;
+
+		case BC_JA: {
+			int16_t offset = getInt16FromStream() - 2;
+			_ip += offset;
+			break;
+		}
+		case BC_IFICMPNE: {
+			int64_t lower = typedPop<int64_t>();
+			int64_t upper = typedPop<int64_t>();
+			int64_t offset = getInt16FromStream() - 2;
+			if (upper != lower)
+				_ip += offset;
+			break;
+		}
+		case BC_IFICMPE:{
+			int64_t lower = typedPop<int64_t>();
+			int64_t upper = typedPop<int64_t>();
+			int64_t offset = getInt16FromStream() - 2;
+			if (upper == lower)
+				_ip += offset;
+			break;
+		}
+		case BC_IFICMPG:{
+			int64_t lower = typedPop<int64_t>();
+			int64_t upper = typedPop<int64_t>();
+			int64_t offset = getInt16FromStream() - 2;
+			if (upper > lower)
+				_ip += offset;
+			break;
+		}
+		case BC_IFICMPGE:{
+			int64_t lower = typedPop<int64_t>();
+			int64_t upper = typedPop<int64_t>();
+			int64_t offset = getInt16FromStream() - 2;
+			if (upper >= lower)
+				_ip += offset;
+			break;
+		}
+		case BC_IFICMPL:{
+			int64_t lower = typedPop<int64_t>();
+			int64_t upper = typedPop<int64_t>();
+			int64_t offset = getInt16FromStream() - 2;
+			if (upper < lower)
+				_ip += offset;
+			break;
+		}
+		case BC_IFICMPLE:{
+			int64_t lower = typedPop<int64_t>();
+			int64_t upper = typedPop<int64_t>();
+			int64_t offset = getInt16FromStream() - 2;
+			if (upper <= lower)
+				_ip += offset;
+			break;
+		}
+		case BC_SWAP: {
+			Var v1 = _stack.top(); _stack.pop();
+			Var v2 = _stack.top(); _stack.pop();
+			_stack.push(v1);
+			_stack.push(v2);
+			break;
+		}
+		case BC_POP:
+			_stack.pop();
+			break;
+		case BC_DUMP: {
+			Var v = _stack.top();
+			if (v.type() == VT_DOUBLE)
+				std::cout << v.getDoubleValue();
+			else if (v.type() == VT_INT)
+				std::cout << v.getIntValue();
+			else if (v.type() == VT_STRING)
+				std::cout << v.getStringValue();
+			else
+				assert("Unknown type for DUMP" == 0);
+			break;
+		}
+		case BC_BREAK:; break;
+		default: ;//assert("instruction doesn't supported" == 0);
 		}
 	}
 
@@ -80,40 +413,44 @@ Status* Runner::execute(vector<Var*>&) {
 }
 
 // Helpers:
-int64_t Runner::popInteger() {
-	int64_t val = _stack.top().getIntValue();
-	_stack.pop();
-	return val;
+namespace detail {
+	template<typename T>
+	T typedPop(Code* code, std::stack<Var>& stack) {
+		T val = getTypedValue<T>(stack.top());
+		stack.pop();
+		return val;
+	}
+
+	template<typename T>
+	void typedPush(Code* code, std::stack<Var>& stack, T val) {
+		Var var(varType<T>(), "");
+		setTypedValue(var, val);
+		stack.push(var);
+	}
+
+	template<>
+	std::string typedPop<std::string>(Code* code, std::stack<Var>& stack) {
+		uint16_t id = typedPop<int64_t>(code, stack);
+		return code->constantById(id);
+	}
+
+	 template<>
+	 void typedPush<std::string>(Code* code, std::stack<Var>& stack, std::string val) {
+		typedPush<int64_t>(code, stack, code->makeStringConstant(val));
+	}
+
+	template<>
+	void typedPop<void>(Code* code, std::stack<Var>& stack) {}
 }
 
-void Runner::pushInteger(int64_t val) {
-	Var var(VT_INT, "");
-	var.setIntValue(val);
-	_stack.push(var);
-
+template<typename T>
+T Runner::typedPop() {
+	return detail::typedPop<T>(_code, _stack);
 }
 
-double Runner::popDouble() {
-	double val = _stack.top().getDoubleValue();
-	_stack.pop();
-	return val;
-}
-
-void Runner::pushDouble(double val) {
-	Var var(VT_DOUBLE, "");
-	var.setDoubleValue(val);
-	_stack.push(var);
-}
-
-const std::string Runner::popString() {
-	uint16_t id = popInteger();
-	return _code->constantById(id);
-}
-
-void Runner::pushString(const std::string& val) {
-	Var var(VT_INT, "");
-	var.setIntValue(_code->makeStringConstant(val));
-	_stack.push(var);
+template<typename T>
+void Runner::typedPush(T val) {
+	detail::typedPush(_code, _stack, val);
 }
 
 Bytecode* Runner::bytecode() {
@@ -122,7 +459,13 @@ Bytecode* Runner::bytecode() {
 
 uint16_t Runner::getIdFromStream() {
 	uint16_t val = bytecode()->getInt16(_ip);
-	_ip += 2; 
+	_ip += 2; //todo move this logic to another location
+	return val;
+}
+
+int16_t Runner::getInt16FromStream() {
+	uint16_t val = bytecode()->getInt16(_ip);
+	_ip += 2; //todo move this logic to another location
 	return val;
 }
 

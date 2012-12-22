@@ -17,8 +17,21 @@ $(INTERPRETER): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 
 build_: $(INTERPRETER)
 
-run: build_
+# for runing in Sublime
+run: test
+
+testAll: testBytecode testInterpreter
+
+testBytecode: build_
 	./test.sh "$(INTERPRETER) -d" ./tests/ ./tests/ bytecode coloroff showall
-	./test.sh "$(INTERPRETER)" ./tests/ ./tests/ interpreter coloroff showall
+
+testInterpreter: build_
+	./test.sh "$(INTERPRETER)" ./tests/ ./tests/ interpreter coloroff show
+
+testInterpreterExt: build_
+	./test.sh "$(INTERPRETER)" $(VM_ROOT)/tests/ $(VM_ROOT)/tests/ "" coloroon show
+
+extTest:
+	$(VM_ROOT)/tests/run.py -v -e $(INTERPRETER) -t $(VM_ROOT)/tests/
 
 all: build_
