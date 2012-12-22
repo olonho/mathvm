@@ -97,8 +97,11 @@ function test {
 		DIR=$(dirname $i)
 		OUT="$TEST_OUT/$BASEFILENAME$SUFF.out"
 		EXPECT="$DIR/$BASEFILENAME.expect"
-		# EXPECT="$TEST_EXPECT$BASEFILENAME$SUFF.expect"
-
+		
+		if [ ! -f /tmp/foo.txt ] ; then
+			EXPECT="$TEST_EXPECT$BASEFILENAME$SUFF.expect"
+		fi
+		
 		# if [ -f $EXPECT ] ; then
 			run $i $OUT $EXPECT
 		# fi
