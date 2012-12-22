@@ -1,0 +1,6 @@
+Interperter works on:
+recursive fib(30)
+ackermann(3, 8)
+complex2 - foo(27)
+
+fails on larger tests

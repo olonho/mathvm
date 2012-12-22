@@ -5,7 +5,7 @@
 namespace mathvm {
 
 BytecodeGenerationVisitor::BytecodeGenerationVisitor(InterpreterCodeImpl *code):
-	currentScope(0), code(code), stackSize(0) {
+	currentScope(0), code(code) {
 	fillInstructionsForInt();
 	fillInstructionsForDouble();
 	fillInstructionsForString();
@@ -153,7 +153,6 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			Instruction ins = insnByToken[commonType][op];
 			bytecode -> addInsn(ins);
 			currentType = commonType;
-			stackSize--;
 			break;
 		}
 
@@ -163,7 +162,6 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			}
 			AND();
 			currentType = VT_INT;
-			stackSize--;
 			break;
 		case tOR:
 			if (commonType != VT_INT) {
@@ -171,7 +169,6 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			}
 			OR();
 			currentType = VT_INT;
-			stackSize--;
 			break;
 
 		case tEQ:
@@ -186,7 +183,6 @@ void BytecodeGenerationVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 				compareDoubles(insnByToken[VT_INT][op]);
 			}
 			currentType = VT_INT;
-			stackSize--;
 			break;
 		default:
 			throw std::exception();
@@ -232,36 +228,32 @@ void BytecodeGenerationVisitor::visitStringLiteralNode(StringLiteralNode* node) 
 	bytecode -> addInsn(BC_SLOAD);
 	bytecode -> addUInt16(strId);
 	currentType = VT_STRING;
-	stackSize++;
 }
 
 void BytecodeGenerationVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) { // DONE
 	bytecode -> addInsn(BC_DLOAD);
 	bytecode -> addDouble(node -> literal());
 	currentType = VT_DOUBLE;
-	stackSize++;
 }
 
 void BytecodeGenerationVisitor::visitIntLiteralNode(IntLiteralNode* node) { // DONE
 	bytecode -> addInsn(BC_ILOAD);
 	bytecode -> addInt64(node -> literal());
 	currentType = VT_INT;
-	stackSize++;
 }
 
 void BytecodeGenerationVisitor::visitLoadNode(LoadNode* node) { // DONE
-	uint16_t varId = getVarId(node -> var() -> name());
+	uint16_t varId = getVarId(node -> var());
 	VarType type = node -> var() -> type();
 
 	bytecode -> addInsn(insnByUntypedInsn[type][UT_LOADVAR]);
 	bytecode -> addUInt16(varId);
 
 	currentType = type;
-	stackSize++;
 }
 
 void BytecodeGenerationVisitor::visitStoreNode(StoreNode* node) {   // DONE
-	uint16_t varId = getVarId(node -> var() -> name());
+	uint16_t varId = getVarId(node -> var());
 	VarType type = node -> var() -> type();
 
 	node -> value() -> visit(this);
@@ -297,11 +289,10 @@ void BytecodeGenerationVisitor::visitStoreNode(StoreNode* node) {   // DONE
 	}
 	
 	currentType = VT_VOID;
-	stackSize--;
 }
 
 void BytecodeGenerationVisitor::visitForNode(ForNode* node) { // DONE
-	uint16_t varId = getVarId(node -> var() -> name());
+	uint16_t varId = getVarId(node -> var());
 	node -> inExpr() -> visit(this);
 
 	// checking cycle condition
@@ -335,7 +326,6 @@ void BytecodeGenerationVisitor::visitForNode(ForNode* node) { // DONE
 	bytecode -> addInsn(BC_POP);
 	bytecode -> addInsn(BC_POP);
 	currentType = VT_VOID;
-	stackSize -= 2;
 }
 
 void BytecodeGenerationVisitor::visitWhileNode(WhileNode* node) { // DONE
@@ -349,7 +339,6 @@ void BytecodeGenerationVisitor::visitWhileNode(WhileNode* node) { // DONE
 
 	bytecode->addInsn(BC_POP);
 	bytecode->addInsn(BC_POP);
-	stackSize--;
 
 	node->loopBlock()->visit(this);
 	bytecode -> addInsn(BC_JA);
@@ -366,7 +355,6 @@ void BytecodeGenerationVisitor::visitWhileNode(WhileNode* node) { // DONE
 void BytecodeGenerationVisitor::visitIfNode(IfNode* node) {   // DONE
 	node -> ifExpr() -> visit(this);
 	bytecode -> addInsn(BC_ILOAD0);
-	stackSize++;
 	bytecode -> addInsn(BC_IFICMPE);
 	int jumpFromIfOffset = bytecode -> length();
 	bytecode -> addInt16(0);
@@ -398,21 +386,25 @@ void BytecodeGenerationVisitor::visitIfNode(IfNode* node) {   // DONE
 		bytecode -> setInt16(jumpFromThenOffset, (bytecode -> length()) - jumpFromThen);
 	}
 
-	stackSize--;
-	
 	currentType = VT_VOID;
 }
 
 void BytecodeGenerationVisitor::visitBlockNode(BlockNode* node) {   // DONE
-	pushScope(node->scope());
+	Scope* prevScope = currentScope;
+	currentScope = node->scope();
 	
-	Scope::VarIterator varsToSave(node->scope());
-	int k = 0;
+	Scope::VarIterator varsToSave(currentScope);
 	while (varsToSave.hasNext()) {
-		k++;
 		AstVar* v = varsToSave.next();
+//		AstVar* var = prevScope->lookupVariable(v->name());
+//		if (var != 0) {
+//			bytecode->addInsn(insnByUntypedInsn[var->type()][UT_LOADVAR]);
+//			bytecode->addInt16(getVarId(var->name()));
+//		} else {
 		bytecode->addInsn(insnByUntypedInsn[v->type()][UT_LOADVAR]);
-		bytecode->addInt16(getVarId(v->name()));
+		bytecode->addInt16(getVarId(v));
+		locals.push_back(v);
+//		}
 	}
 	
 	Scope::FunctionIterator functionsToAdd(node -> scope());
@@ -434,41 +426,55 @@ void BytecodeGenerationVisitor::visitBlockNode(BlockNode* node) {   // DONE
 		if (currentType != VT_VOID && !(node->nodeAt(i)->isReturnNode())) {
 			bytecode -> addInsn(BC_POP);
 		}
+		
+		
 	}
 	
-	Scope::VarIterator varsToRestore(node->scope());
+	
+	Scope::VarIterator varsToRestore(currentScope);
 	stack<AstVar*> variables;
 	while (varsToRestore.hasNext()) {
 		variables.push(varsToRestore.next());
-		
 	}
 	
 	while (!variables.empty()) {
 		AstVar* v = variables.top();
+//		AstVar* var = prevScope->lookupVariable(v->name());
+//		if (var != 0) {
+//			bytecode->addInsn(insnByUntypedInsn[var->type()][UT_STOREVAR]);
+//			bytecode->addInt16(getVarId(var->name()));
+//		} else {
 		bytecode->addInsn(insnByUntypedInsn[v->type()][UT_STOREVAR]);
-		bytecode->addInt16(getVarId(v->name()));
+		bytecode->addInt16(getVarId(v));
+		locals.pop_back();
+//		}
 		variables.pop();
 	}
 	
-	popScope();
+	currentScope = prevScope;
 	currentType = VT_VOID;
 }
 
 void BytecodeGenerationVisitor::visitFunctionNode(FunctionNode* node) {
-	AstFunction* astFunction = new AstFunction(node, currentScope);
-	BytecodeFunction *bytecodeFunction = new BytecodeFunction(astFunction);
-	code->addFunction(bytecodeFunction);
-	
 	Bytecode* currentBytecode = bytecode;
-	bytecode = bytecodeFunction->bytecode();
-	pushScope(node->body()->scope());
+	vector<const AstVar*> prevLocals = locals;
+	locals.clear();
+	
+	AstFunction* astFunction = node->body()->scope()->lookupFunction(node->name());//new AstFunction(node, currentScope);
+	BytecodeFunction *bytecodeFunction = new BytecodeFunction(astFunction);
+	if (code->functionByName(node->name()) == 0) {
+		code->addFunction(bytecodeFunction);
+		bytecode = bytecodeFunction->bytecode();
+	} else {
+		bytecode = ((BytecodeFunction*)(code->functionByName(node->name())))->bytecode();
+	}
 	
 	VarType prevReturnType = returnType;
 	returnType = node -> returnType();
 	
-	for (unsigned int i = 0; i < node->parametersNumber(); i++) {
-		getVarId(node->parameterName(i));
-	}
+//	for (unsigned int i = 0; i < node->parametersNumber(); i++) {
+//		getVarId(node->parameterName(i));
+//	}
 	
 	if (node->body()->nodeAt(0)->isNativeCallNode()) {
 		node->body()->nodeAt(0)->visit(this);	// TODO
@@ -476,12 +482,15 @@ void BytecodeGenerationVisitor::visitFunctionNode(FunctionNode* node) {
 		node->body()->visit(this);
 	}
 	
+	locals = prevLocals;
 	returnType = prevReturnType;
 	bytecode = currentBytecode;
 }
 
 void BytecodeGenerationVisitor::visitReturnNode(ReturnNode* node) { // DONE
+	bool swap = false;
 	if (node->returnExpr() != 0) {
+		swap = true;
 		node -> returnExpr() -> visit(this);
 		if (currentType == VT_INT && returnType == VT_DOUBLE) {
 			bytecode->addInsn(BC_I2D);
@@ -491,26 +500,52 @@ void BytecodeGenerationVisitor::visitReturnNode(ReturnNode* node) { // DONE
 			throw std::exception();
 		}
 	}
+	
+	for (int i = locals.size() - 1; i >= 0; i--) {
+		if (swap) {
+			bytecode->addInsn(BC_SWAP);
+		}
+		const AstVar* v = locals[i];
+		bytecode->addInsn(insnByUntypedInsn[v->type()][UT_STOREVAR]);
+		bytecode->addInt16(getVarId(v));
+	}
+	
 	bytecode -> addInsn(BC_RETURN);
 	currentType = VT_VOID;
 }
 
 void BytecodeGenerationVisitor::visitCallNode(CallNode* node) {
 	const Signature& sign = code->functionByName(node->name())->signature();
-
+	AstFunction* f = currentScope->lookupFunction(node->name());
+	
 	for (unsigned int i = 0; i < node->parametersNumber(); i++) {
-		uint16_t varId = getVarId(sign[i + 1].second);
-		bytecode->addInsn(insnByUntypedInsn[sign[i + 1].first][UT_LOADVAR]);
-		bytecode->addInt16(varId);
+		AstVar* v = f->scope()->lookupVariable(sign[i + 1].second);
+		uint16_t varId = getVarId(v);
+		
+//		AstVar* var = currentScope->lookupVariable(sign[i + 1].second);
+//		if (var != 0) {
+			bytecode->addInsn(insnByUntypedInsn[v->type()][UT_LOADVAR]);
+			bytecode->addInt16(varId);
+//		} else {
+//			bytecode->addInsn(insnByUntypedInsn[sign[i + 1].first][UT_LOADVAR]);
+//			bytecode->addInt16(getVarId(sign[i + 1].second));
+//		}
+	}
+	
+	for (unsigned int i = 0; i < node->parametersNumber(); i++) {
 		node->parameterAt(i)->visit(this);
 		if (currentType == VT_INT && sign[i + 1].first == VT_DOUBLE) {
 			bytecode->addInsn(BC_I2D);
 		} else if (currentType == VT_DOUBLE && sign[i + 1].first == VT_INT) {
 			bytecode->addInsn(BC_D2I);
 		}
-		bytecode->addInsn(insnByUntypedInsn[sign[i + 1].first][UT_STOREVAR]);
+	}
+	
+	for (int i = node->parametersNumber(); i > 0; i--) {
+		AstVar* v = f->scope()->lookupVariable(sign[i].second);
+		uint16_t varId = getVarId(v);
+		bytecode->addInsn(insnByUntypedInsn[sign[i].first][UT_STOREVAR]);
 		bytecode->addInt16(varId);
-		
 	}
 	
 	bytecode->addInsn(BC_CALL);
@@ -518,16 +553,40 @@ void BytecodeGenerationVisitor::visitCallNode(CallNode* node) {
 	
 	if (sign[0].first == VT_VOID) {
 		for (unsigned int i = node->parametersNumber(); i > 0; i--) {
-			uint16_t varId = getVarId(sign[i].second);
-			bytecode->addInsn(insnByUntypedInsn[sign[i].first][UT_STOREVAR]);
-			bytecode->addInt16(varId);
+			AstVar* v = f->scope()->lookupVariable(sign[i].second);
+			uint16_t varId = getVarId(v);
+//			AstVar* var = currentScope->lookupVariable(sign[i].second);
+//			if (var != 0) {
+				bytecode->addInsn(insnByUntypedInsn[v->type()][UT_STOREVAR]);
+				bytecode->addInt16(varId);
+//			} else {
+//				uint16_t varId = getVarId(sign[i].second);
+//				bytecode->addInsn(insnByUntypedInsn[sign[i].first][UT_STOREVAR]);
+//				bytecode->addInt16(varId);
+//			}
 		}
 	} else {
 		for (unsigned int i = node->parametersNumber(); i > 0; i--) {
-			uint16_t varId = getVarId(sign[i].second);
+			AstVar* v = f->scope()->lookupVariable(sign[i].second);
+			uint16_t varId = getVarId(v);
+//			AstVar* var = currentScope->lookupVariable(sign[i].second);
+//			if (var != 0) {
 			bytecode->addInsn(BC_SWAP);
-			bytecode->addInsn(insnByUntypedInsn[sign[i].first][UT_STOREVAR]);
+			bytecode->addInsn(insnByUntypedInsn[v->type()][UT_STOREVAR]);
 			bytecode->addInt16(varId);
+			
+//			AstVar* var = currentScope->lookupVariable(sign[i].second);
+//			if (var != 0) {
+//				uint16_t varId = getVarId(sign[i].second);
+//				bytecode->addInsn(BC_SWAP);
+//				bytecode->addInsn(insnByUntypedInsn[var->type()][UT_STOREVAR]);
+//				bytecode->addInt16(varId);
+//			} else {
+//				uint16_t varId = getVarId(sign[i].second);
+//				bytecode->addInsn(BC_SWAP);
+//				bytecode->addInsn(insnByUntypedInsn[sign[i].first][UT_STOREVAR]);
+//				bytecode->addInt16(varId);				
+//			}
 		}
 	}
 	
@@ -567,21 +626,54 @@ void BytecodeGenerationVisitor::compareDoubles(Instruction insn) {
 	compareInts(insn);
 }
 
-uint16_t BytecodeGenerationVisitor::getVarId(const string& name) {
-	if (vars.find(name) == vars.end()) {
+uint16_t BytecodeGenerationVisitor::getVarId(const AstVar *var) {
+	if (vars.find(var) == vars.end()) {
 		uint16_t id = (uint16_t) vars.size();
-		vars[name] = id;
+		vars[var] = id;
 	}
-	return vars[name];
+	return vars[var];
 }
 
-void BytecodeGenerationVisitor::pushScope(Scope* newScope) {
-	currentScope = newScope;
-}
+//void BytecodeGenerationVisitor::saveScope(Scope* scope) {
+//	if (scope == 0) {
+//		return;
+//	}
+//	Scope::VarIterator varsToSave(scope);
+//	while (varsToSave.hasNext()) {
+//		AstVar* v = varsToSave.next();
+//		bytecode->addInsn(insnByUntypedInsn[v->type()][UT_LOADVAR]);
+//		bytecode->addInt16(getVarId(v->name()));
+//	}
+//}
 
-void BytecodeGenerationVisitor::popScope() {
-	currentScope = currentScope->parent();
-}
+//void BytecodeGenerationVisitor::restoreScope(Scope *scope, bool swap) {
+//	if (scope == 0) {
+//		return;
+//	}
+//	Scope::VarIterator varsToRestore(scope);
+//	stack<AstVar*> variables;
+//	while (varsToRestore.hasNext()) {
+//		variables.push(varsToRestore.next());
+//	}
+	
+//	while (!variables.empty()) {
+//		AstVar* v = variables.top();
+//		if (swap) {
+//			bytecode->addInsn(BC_SWAP);
+//		}
+//		bytecode->addInsn(insnByUntypedInsn[v->type()][UT_STOREVAR]);
+//		bytecode->addInt16(getVarId(v->name()));
+//		variables.pop();
+//	}
+//}
+
+//void BytecodeGenerationVisitor::pushScope(Scope* newScope) {
+//	currentScope = newScope;
+//}
+
+//void BytecodeGenerationVisitor::popScope() {
+//	currentScope = currentScope->parent();
+//}
 
 void BytecodeGenerationVisitor::OR() {
 	bytecode->addInsn(BC_ILOAD0);
