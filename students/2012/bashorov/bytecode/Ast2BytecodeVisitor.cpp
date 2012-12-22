@@ -284,8 +284,9 @@ void Ast2BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
 }
 
 void Ast2BytecodeVisitor::visitReturnNode(ReturnNode* node) {
-	if (node->returnExpr())
+	if (node->returnExpr()) {
 		node->returnExpr()->visit(this);
+	}
     bc().ret(_currentFunc->returnType());
 }
 
@@ -294,9 +295,13 @@ void Ast2BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
 }
 
 void Ast2BytecodeVisitor::visitCallNode(CallNode* node) {
-	node->visitChildren(this);
 	TranslatedFunction* func = _code->functionByName(node->name());
 	assert(func != 0);
+
+	for (uint32_t i = 0; i < node->parametersNumber(); i++) {
+    	node->parameterAt(i)->visit(this);
+    	bc().convertIfNeedTo(func->parameterType(i));
+    }
 	bc().call(func->id());
 }
 

@@ -456,6 +456,7 @@ public:
 			assert(retType == topType());
 		}
 
+
 		_bc->addInsn(BC_RETURN);
 	}
 
@@ -463,6 +464,7 @@ public:
 	BytecodeHelper& cmd(uint16_t id) { \
 		_bc->addInsn(BC_##CMD); \
 		_bc->addUInt16(id); \
+		pushType(_code->functionById(id)->returnType()); \
 		return *this; \
 	}
 
@@ -531,7 +533,35 @@ public:
 		assert(_contextIds.back() == functionId);
 		_contextIds.pop_back();
 		_context.pop_back();
-	}};
+	}
+
+	void convertIfNeedTo(VarType to) {
+		VarType from = topType();
+		if (from == to)
+			return;
+
+		if (from == VT_INT) {
+			if (to == VT_DOUBLE) {
+				i2d();
+			} else {
+				assert("Unsupported cast" == 0);
+			}
+		} else if (from == VT_DOUBLE) {
+			if (to == VT_INT) {
+				d2i();
+			} else {
+				assert("Unsupported cast" == 0);
+			}
+		} else if (from == VT_STRING) {
+			if (to == VT_INT) {
+				s2i();
+			} else {
+				assert("Unsupported cast" == 0);
+			}
+		}
+	}
+
+};
 
 }
 
