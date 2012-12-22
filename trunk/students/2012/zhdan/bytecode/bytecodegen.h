@@ -39,7 +39,9 @@ public:
 
 private:
 	const Code* _code;
+	Scope* _scope;
 	std::map<AstFunction*, BytecodeFunction*> _functions;
+	std::map<std::string, uint16_t> _variables;
 
 	Bytecode* getCurrentBytecode();
 	void load_string_const(const string& value);
@@ -54,6 +56,10 @@ private:
 	void set_current_scope(Scope* scope);
 	int get_function_id(AstFunction* function);
 	void store(const AstVar* var, VarType* type);
+	uint16_t get_id() { 
+		static int c = 0;
+		return c++;	
+	}
 };
 
 }
