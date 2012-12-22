@@ -56,7 +56,7 @@ public:
     void buildFunction(BytecodeFunction* function, Compiler& compiler);
     void prepareFunction(BytecodeFunction* function, Compiler& compiler);
     void loadd(double val, Compiler& compiler);
-    void loadi(int val, Compiler& compiler);
+    void loadi(sysint_t val, Compiler& compiler);
     void loads(int val, Compiler& compiler);
     void pop(XMMVar& var, Compiler& compiler);
     void push(XMMVar& var, Compiler& compiler);
@@ -105,7 +105,7 @@ void interpreter::loadd(double val, Compiler& compiler)
     compiler.unuse(var);
 }
 
-void interpreter::loadi(int val, Compiler& compiler)
+void interpreter::loadi(sysint_t val, Compiler& compiler)
 {
     stackTypes.push_back(VT_INT);
     compiler.push(imm(val));
@@ -386,13 +386,11 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
     while (param++ < function->parametersNumber() && (bytecode->getInsn(index) == BC_LOADIVAR || bytecode->getInsn(index) == BC_LOADDVAR || bytecode->getInsn(index) == BC_LOADSVAR))
     {
         Instruction insn = bytecode->getInsn(index);
-            cout << str(insn) << endl;
         switch(insn)
         {
             case BC_LOADIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                cout << "from memory " << id << endl;
                 GPVar var(compiler.newGP());
                 compiler.mov(var, qword_ptr(arguments, addr));
                 ivars[id] = var;
@@ -438,7 +436,6 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             compiler.bind(*labels[index]);
         }
         Instruction insn = bytecode->getInsn(index);
-        cout << str(insn) << endl;
         if (insn != BC_JA) start = false;
         switch(insn)
         {
@@ -451,7 +448,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             }
             case BC_ILOAD:
             {
-                int val = bytecode->getInt64(index + 1);
+                int64_t val = bytecode->getInt64(index + 1);
                 loadi(val, compiler);
                 break;
             }
@@ -473,7 +470,6 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
                 compiler.unuse(fun);
                 if (funct->returnType() != VT_VOID)
                 {
-                    cout << "call return type" << endl;
                     GPVar retval(compiler.newGP());
                     GPVar var(compiler.newGP());
                     compiler.mov(retval, imm((size_t)ret));
@@ -489,7 +485,6 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             {
                 if (function->returnType() != VT_VOID)
                 {
-                    cout << "ret return type" << endl;
                     GPVar retval(compiler.newGP());
                     GPVar var(compiler.newGP());
                     pop(var, compiler);
@@ -519,7 +514,6 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_LOADIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                cout << id << endl;
                 GPVar var = ivars[id];
                 push(var, compiler);
                 stackTypes.push_back(VT_INT);

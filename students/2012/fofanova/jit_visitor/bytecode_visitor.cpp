@@ -326,8 +326,8 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 					{
 						std::cout << "Can't store variable!\n";
 					}
-				break;
 				}
+				break;
 			}
 			case tASSIGN:
 			{	

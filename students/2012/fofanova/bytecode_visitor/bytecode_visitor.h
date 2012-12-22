@@ -6,13 +6,14 @@
 
 #include <string>
 #include <map>
+#include <stack>
 
 using namespace mathvm;
 
 class ByteCodeVisitor : public AstVisitor {
 		Code* code;
 		Bytecode* bytecode;
-		VarType TOStype; 
+        VarType TOStype;
         VarType UOStype;
 		std::map<std::string, uint16_t> vars;
 		uint16_t last_id;
