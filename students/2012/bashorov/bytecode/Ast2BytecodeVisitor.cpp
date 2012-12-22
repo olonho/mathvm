@@ -143,18 +143,19 @@ void Ast2BytecodeVisitor::initScope(Scope* scope) {
 //         AstVar* var = varIt.next();
 //     }
 
+	{
+		Scope::FunctionIterator funcIt(scope);
+		while (funcIt.hasNext()) {
+			_code->addFunction(new BytecodeFunction(funcIt.next()));
+		}
+	}
+
     Scope::FunctionIterator funcIt(scope);
     while (funcIt.hasNext()) {
     	AstFunction* prevFunc = _currentFunc;
     	_currentFunc = funcIt.next();
 
-//    	scopeId_t scopeId = scope2id(scope);
-
-        BytecodeFunction *bytecodeFunction = new BytecodeFunction(_currentFunc);
-//        bytecodeFunction->setScopeId(scopeId);
-
-        _code->addFunction(bytecodeFunction);
-
+    	BytecodeFunction* bytecodeFunction = (BytecodeFunction*) _code->functionByName(_currentFunc->name());
 
         Bytecode* prevBC = _bytecode;
         _bytecode = bytecodeFunction->bytecode();
