@@ -7,7 +7,7 @@ function [0] void <top>()
 function [1] int add(int, int)
 0: STOREIVAR0
 1: STOREIVAR1
-2: LOADIVAR0
-3: LOADIVAR1
+2: LOADIVAR1
+3: LOADIVAR0
 4: IADD
 5: RETURN
