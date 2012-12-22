@@ -74,7 +74,29 @@ void CodeGenVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 
 void CodeGenVisitor::visitBlockNode(BlockNode* node) {
 	Scope* current_scope = get_curernt_scope();
-	set_current_scope(node->scope());
+	Scope* newScope = node->scope();
+	set_current_scope(newScope);
+	// process scope
+	Scope::VarIterator ivar(scope);
+	while (ivar.hasNext())
+	{
+		AstVar *var = ivar.next();
+		_variables[var] = fet_id();		
+		
+	}
+	
+	Scope::FunctionIterator ifun(scope);
+	while (ifun.hasNext()) {
+		BytecodeFunction *bytecode_function = new BytecodeFunction(fun);
+		_code->addFunction(bytecode_function);
+		m_functions.insert(make_pair(fun, bytecode_function));
+	}
+	
+	ifun = Scope::FunctionIterator(scope);
+	while (ifun.hasNext()) ifun.next()->node()->visit(this);
+
+
+	
 	int nodesCount = node->nodes();
 	for (int i = 0; i < nodesCount; i++) {
 		node->nodeAt(i)->visit(this);
@@ -82,6 +104,41 @@ void CodeGenVisitor::visitBlockNode(BlockNode* node) {
 	set_current_scope(current_scope);
 }
 
+Scope* CodeGenVisitor::get_current_scope() {
+	return _scope;		
+}
+
+void CodeGenVisitor::set_current_scope(Scope* scope) {
+	_scope = scope;
+}
+
+int CodeGenVisitor::get_function_id(AstFunction* astFunction) {
+	return _functions.find(function)->second->id();
+}
+
+void CodeGenVisitor::store(const AstVar* var, VarType* type) {
+	switch (*type) {
+	case VT_INT:
+		{
+		bytecode->addInsn(BC_STOREIVAR);
+		bytecode->addUInt16(_variables[node->var()->name()]);
+		break;
+		}
+	case VT_DOUBLE:
+	{
+		bytecode->addInsn(BC_STOREDVAR);
+		bytecode->addUInt16(_variables[node->var()->name()]);
+		break;
+	}
+	case VT_STRING:
+	{
+		bytecode->addInsn(BC_STORESVAR);
+		bytecode->addUInt16(_variables[node->var()->name()]);
+		break;
+	}
+	}
+}
+ 
 void CodeGenVisitor::visitCallNode(CallNode* node) {
 	AstFunction* f = get_curernt_scope()->lookupFunction(node->name(), true);
 	int id = get_function_id(f);
@@ -119,9 +176,7 @@ void CodeGenVisitor::visitFunctionNode(FunctionNode* node) {
 	AstFunction* function = get_curernt_scope()->lookupFunction(node->name());
 	Bytecode* prevBytecode = _code;
 	_code = _functions.at(function);
-	Scope* prevScope =
-
-
+	node->body()->visit(this);
 	_code = prevBytecode;
 }
 
@@ -231,6 +286,30 @@ void CodeGenVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
 
 void CodeGenVisitor::visitLoadNode(LoadNode* node) {
 	load_var(node->var());
+}
+
+void CodeGenVisitor::load_var(const AstVar* var) {
+	switch (node->var()->type()) {
+	case VT_INT:
+	{
+		bytecode->addInsn(BC_LOADIVAR);
+		bytecode->addUInt16(_variables[node->var()->name()]);
+		break;
+	}
+	case VT_DOUBLE:
+	{
+		bytecode->addInsn(BC_LOADDVAR);
+		bytecode->addUInt16(_variables[node->var()->name()]);
+		break;
+	}
+	case VT_STRING:
+	{
+		bytecode->addInsn(BC_LOADSVAR);
+		bytecode->addUInt16(_variables[node->var()->name()]);
+		break;
+	}
+	}
+	
 }
 
 void CodeGenVisitor::visitStoreNode(StoreNode* node) {
