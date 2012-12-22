@@ -29,7 +29,10 @@ testInterpreter: build_
 	./test.sh "$(INTERPRETER)" ./tests/ ./tests/ interpreter coloroff show
 
 testInterpreterExt: build_
-	./test.sh "$(INTERPRETER)" $(VM_ROOT)/tests/ $(VM_ROOT)/tests/ "" coloroon show
+	./test.sh "$(INTERPRETER)" $(VM_ROOT)/tests/ $(VM_ROOT)/tests/ "" coloroon not_showAll
+
+testInterpreterExtAdd: build_
+	./test.sh "$(INTERPRETER)" $(VM_ROOT)/tests/additional/ $(VM_ROOT)/tests/additional/ "" coloroon showAll
 
 extTest:
 	$(VM_ROOT)/tests/run.py -v -e $(INTERPRETER) -t $(VM_ROOT)/tests/

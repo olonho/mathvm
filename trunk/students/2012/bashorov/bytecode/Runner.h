@@ -25,7 +25,7 @@ class Runner
 		std::map<uint16_t, Var> variables;
 	};
 
-	std::map<uint16_t, std::stack<State> > _functionStates;
+	std::map<uint16_t, std::stack<State> > _states;
 	std::stack<uint16_t> _callStack;
 	std::stack<Var> _stack;
 	Bytecode* _bytecode;
@@ -60,10 +60,14 @@ private:
 	T loadvar();
 	template <typename T>
 	T loadvarById(uint16_t id);
+	template <typename T>
+	T loadvarById(uint16_t  ctx, uint16_t id);
 	template <typename T, uint16_t id>
 	void storevar(T value);
 	template <typename T>
 	void storevarById(uint16_t id, T value);
+	template <typename T>
+	void storevarById(uint16_t ctx, uint16_t id, T value);
 	//
 	struct Processor {
 		virtual void operator()() = 0;

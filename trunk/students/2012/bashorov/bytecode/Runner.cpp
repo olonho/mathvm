@@ -115,6 +115,14 @@ T Runner::loadvarById(uint16_t id) {
 	return getTypedValue<T>(it->second);
 }
 
+template <typename T>
+T Runner::loadvarById(uint16_t  ctx, uint16_t id) {
+	State& ctxstate = _states[ctx].top();
+	std::map<uint16_t, Var>::iterator it = ctxstate.variables.find(id);
+	assert(it != ctxstate.variables.end());
+	return getTypedValue<T>(it->second);
+}
+
 
 template <typename T, uint16_t id>
 void Runner::storevar(T value) {
@@ -130,6 +138,16 @@ void Runner::storevarById(uint16_t id, T value) {
 	std::map<uint16_t, Var>::iterator it = _state->variables.find(id);
 	if (it == _state->variables.end()) {
 		it = _state->variables.insert(std::make_pair(id, Var(varType<T>(), ""))).first;
+	}
+	setTypedValue(it->second, value);
+}
+
+template <typename T>
+void Runner::storevarById(uint16_t ctx, uint16_t id, T value) {
+	State& ctxstate = _states[ctx].top();
+	std::map<uint16_t, Var>::iterator it = ctxstate.variables.find(id);
+	if (it == ctxstate.variables.end()) {
+		it = ctxstate.variables.insert(std::make_pair(id, Var(varType<T>(), ""))).first;
 	}
 	setTypedValue(it->second, value);
 }
@@ -181,14 +199,6 @@ Runner::Runner(CodeImpl* code)
 
 //	_processors.insert(pr(BC_LOADDVAR0, std::bind1st(std::mem_fun(&Runner::loadvar<double, 0>), this)));
 //	_processors.insert(pr(BC_STOREDVAR0, std::bind1st(std::mem_fun(&Runner::storevar<double, 0>), this)));
-
-//    DO(LOADCTXDVAR, "Load double from variable, whose 2-byte context and 2-byte id inlined to insn stream, push on TOS.", 5)
-//    DO(LOADCTXIVAR, "Load int from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5)
-//    DO(LOADCTXSVAR, "Load string from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5)
-//    DO(STORECTXDVAR, "Pop TOS and store to double variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5)
-//    DO(STORECTXIVAR, "Pop TOS and store to int variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5)
-//    DO(STORECTXSVAR, "Pop TOS and store to string variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5)
-
 }
 
 Runner::~Runner() {
@@ -306,6 +316,44 @@ Status* Runner::execute(vector<Var*>&) {
 			storevarById<std::string>(getIdFromStream(), typedPop<std::string>());
 			break;
 
+		case BC_LOADCTXDVAR: {
+			uint16_t ctx = getIdFromStream();
+			uint16_t id = getIdFromStream();
+			typedPush<double>(loadvarById<double>(ctx, id));
+			break;
+		}
+		case BC_LOADCTXIVAR: {
+			uint16_t ctx = getIdFromStream();
+			uint16_t id = getIdFromStream();
+			typedPush<int64_t>(loadvarById<int64_t>(ctx, id));
+			break;
+		}
+		case BC_LOADCTXSVAR: {
+			uint16_t ctx = getIdFromStream();
+			uint16_t id = getIdFromStream();
+			typedPush<std::string>(loadvarById<std::string>(ctx, id));
+			break;
+		}
+
+		case BC_STORECTXDVAR: {
+			uint16_t ctx = getIdFromStream();
+			uint16_t id = getIdFromStream();
+			storevarById<double>(ctx, id, typedPop<double>());
+			break;
+		}
+		case BC_STORECTXIVAR: {
+			uint16_t ctx = getIdFromStream();
+			uint16_t id = getIdFromStream();
+			storevarById<int64_t>(ctx, id, typedPop<int64_t>());
+			break;
+		}
+		case BC_STORECTXSVAR: {
+			uint16_t ctx = getIdFromStream();
+			uint16_t id = getIdFromStream();
+			storevarById<std::string>(ctx, id, typedPop<std::string>());
+			break;
+		}
+
 		case BC_CALL: {
 			uint16_t id = getIdFromStream();
 			prepareCall(id);
@@ -402,10 +450,10 @@ Status* Runner::execute(vector<Var*>&) {
 }
 
 void Runner::prepareCall(uint16_t functionId) {
-	_functionStates[functionId].push(State());
-	_functionStates[functionId].top().ip = 0;
+	_states[functionId].push(State());
+	_states[functionId].top().ip = 0;
 
-	_state = &_functionStates[functionId].top();
+	_state = &_states[functionId].top();
 
 	_callStack.push(functionId);
 
@@ -415,12 +463,12 @@ void Runner::prepareCall(uint16_t functionId) {
 
 void Runner::returnCall() {
 	const uint16_t functionId = _callStack.top();
-	_functionStates[functionId].pop();
+	_states[functionId].pop();
 
 	_callStack.pop();
 
 	const uint16_t parentFunctionId = _callStack.top();
-	_state = &_functionStates[parentFunctionId].top();
+	_state = &_states[parentFunctionId].top();
 
 	BytecodeFunction* fun = (BytecodeFunction*) _code->functionById(parentFunctionId);
 	_bytecode = fun->bytecode();
