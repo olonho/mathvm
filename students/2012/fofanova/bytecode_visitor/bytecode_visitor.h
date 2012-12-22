@@ -13,8 +13,7 @@ using namespace mathvm;
 class ByteCodeVisitor : public AstVisitor {
 		Code* code;
 		Bytecode* bytecode;
-        VarType TOStype;
-        VarType UOStype;
+        std::stack<VarType> typeStack;
 		std::map<std::string, uint16_t> vars;
 		uint16_t last_id;
 public:

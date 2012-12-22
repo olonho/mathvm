@@ -5,47 +5,53 @@ using namespace std;
 using namespace mathvm;
 
 void ByteCodeVisitor::castTOSToInt() {
-	if (TOStype == VT_INT)
+	if (typeStack.top() == VT_INT)
 	{
 		return;
 	}
-	else if (TOStype == VT_DOUBLE)
+	else if (typeStack.top() == VT_DOUBLE)
 	{
 		bytecode->addInsn(BC_D2I);
 	}
-	else if (TOStype == VT_STRING)
+	else if (typeStack.top() == VT_STRING)
 	{
 		bytecode->addInsn(BC_S2I);
 	}
-	TOStype = VT_INT;
-
+	typeStack.pop();
+	typeStack.push(VT_INT);
 }
 
 void ByteCodeVisitor::castTOSToDouble() {
-	if (TOStype == VT_DOUBLE)
+	if (typeStack.top() == VT_DOUBLE)
 	{
 		return;
 	}
-	else if (TOStype == VT_INT)
+	else if (typeStack.top() == VT_INT)
 	{
 		bytecode->addInsn(BC_I2D);
 	}
-	else if (TOStype == VT_STRING)
+	else if (typeStack.top() == VT_STRING)
 	{
 		bytecode->addInsn(BC_S2I);
 		bytecode->addInsn(BC_I2D);
 	}
-	TOStype = VT_DOUBLE;
-
+	typeStack.pop();
+	typeStack.push(VT_DOUBLE);
 }
 
 void ByteCodeVisitor::castTwoOperands(bool onlyInt) {
+	VarType TOStype = typeStack.top();
+	typeStack.pop();
+	VarType UOStype = typeStack.top();
+	typeStack.pop();
 	if (!TOStype || !UOStype)
 	{
 		std::cout << "Can't process binary operation!";	
 	}
 	if ((UOStype == VT_INT && TOStype == VT_INT) || (!onlyInt && UOStype == VT_DOUBLE && TOStype == VT_DOUBLE))
 	{
+		typeStack.push(UOStype);
+		typeStack.push(TOStype);
 		return;
 	}
 	if (!onlyInt && (TOStype == VT_DOUBLE || UOStype == VT_DOUBLE))
@@ -65,8 +71,8 @@ void ByteCodeVisitor::castTwoOperands(bool onlyInt) {
 		{
 			bytecode->addInsn(BC_SWAP);
 		}
-		TOStype = VT_DOUBLE;
-		UOStype = VT_DOUBLE;
+		typeStack.push(VT_DOUBLE);
+		typeStack.push(VT_DOUBLE);
 		return;
 	} 
 	else
@@ -92,8 +98,8 @@ void ByteCodeVisitor::castTwoOperands(bool onlyInt) {
 			}
 			bytecode->addInsn(BC_SWAP);
 		}
-		TOStype = VT_INT;
-		UOStype = VT_INT;
+		typeStack.push(VT_INT);
+		typeStack.push(VT_INT);
 	}
 
 }
@@ -143,7 +149,7 @@ void ByteCodeVisitor::visitPrintNode(PrintNode *node) {
     for (uint32_t i = 0; i < node->operands(); i++) {
         AstNode *pNode = node->operandAt(i);
         pNode->visit(this);
-				switch (TOStype)
+				switch (typeStack.top())
 				{
 					case VT_INT:
 					{
@@ -163,6 +169,7 @@ void ByteCodeVisitor::visitPrintNode(PrintNode *node) {
 					default:
 						std::cout << "Can't print properly!\n";
 				}
+				typeStack.pop();
     }
 }
 
@@ -171,24 +178,21 @@ void ByteCodeVisitor::visitLoadNode(LoadNode *node) {
 		{
 			case VT_INT:
 			{
-				UOStype = TOStype;
-				TOStype = VT_INT;
+				typeStack.push(VT_INT);
 				bytecode->addInsn(BC_LOADIVAR);
 				bytecode->addUInt16(vars[node->var()->name()]);
 				break;
 			}
 			case VT_DOUBLE:
 			{
-				UOStype = TOStype;
-				TOStype = VT_DOUBLE;
+				typeStack.push(VT_DOUBLE);
 				bytecode->addInsn(BC_LOADDVAR);
 				bytecode->addUInt16(vars[node->var()->name()]);
 				break;
 			}
 			case VT_STRING:
 			{
-				UOStype = TOStype;
-				TOStype = VT_STRING;
+				typeStack.push(VT_STRING);
 				bytecode->addInsn(BC_LOADSVAR);
 				bytecode->addUInt16(vars[node->var()->name()]);
 				break;
@@ -220,6 +224,7 @@ void ByteCodeVisitor::visitIfNode(IfNode *node) {
 void ByteCodeVisitor::visitCallNode(CallNode *node) {
     for (uint32_t i = 0; i < node->parametersNumber(); i++) {
         node->parameterAt(i)->visit(this);	
+        		typeStack.pop();
 				switch (code->functionByName(node->name())->parameterType(i))
 				{
 					case VT_INT:
@@ -246,8 +251,7 @@ void ByteCodeVisitor::visitCallNode(CallNode *node) {
 					}
 				}	
     }
-    UOStype = TOStype;
-    TOStype = code->functionByName(node->name())->returnType();
+    typeStack.push(code->functionByName(node->name())->returnType());
 	bytecode->addInsn(BC_CALL);
 	bytecode->addUInt16(code->functionByName(node->name())->id());
 }
@@ -255,8 +259,7 @@ void ByteCodeVisitor::visitCallNode(CallNode *node) {
 void ByteCodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
 	bytecode->addInsn(BC_DLOAD);
 	bytecode->addDouble(node->literal());
-    UOStype = TOStype;
-	TOStype = VT_DOUBLE;
+    typeStack.push(VT_DOUBLE);
 }
 
 void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
@@ -345,7 +348,7 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 					}
 					case VT_STRING:
 					{
-						if (TOStype != VT_STRING)
+						if (typeStack.top() != VT_STRING)
 						{
 							std::cout << "Undefined behaviour! Can't cast to string!" << endl;
 						}
@@ -370,8 +373,7 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 void ByteCodeVisitor::visitStringLiteralNode(StringLiteralNode *node) {
 	bytecode->addInsn(BC_SLOAD);
 	bytecode->addInt16(code->makeStringConstant(node->literal()));
-    UOStype = TOStype;
-	TOStype = VT_STRING;
+    typeStack.push(VT_STRING);
 }
 
 void ByteCodeVisitor::visitWhileNode(WhileNode *node) {
@@ -419,8 +421,7 @@ void ByteCodeVisitor::visitForNode(ForNode *node) {
 void ByteCodeVisitor::visitIntLiteralNode(IntLiteralNode *node) {
 	bytecode->addInsn(BC_ILOAD);
 	bytecode->addInt64(node->literal());
-    UOStype = TOStype;
-	TOStype = VT_INT;
+    typeStack.push(VT_INT);
 }
 
 void ByteCodeVisitor::visitFunctionNode(FunctionNode *node) {
@@ -442,8 +443,8 @@ void ByteCodeVisitor::visitFunctionNode(FunctionNode *node) {
     {
     	node->body()->visit(this);
     }
-    UOStype = TOStype;
-	TOStype = node->returnType();
+    //UOStype = TOStype;
+	//TOStype = node->returnType();
 	bytecode->bind(end);
 }
 
@@ -470,6 +471,7 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				bytecode->bind(true_end);
 				bytecode->addInsn(BC_ILOAD1);
 				bytecode->bind(end);
+				typeStack.pop();
 				break;
 			}
 			case tOR:
@@ -489,6 +491,7 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				bytecode->bind(true_end);
 				bytecode->addInsn(BC_ILOAD1);
 				bytecode->bind(end);
+				typeStack.pop();
 				break;
 			}
 			case tEQ:
@@ -502,6 +505,9 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				bytecode->bind(true_end);
 				bytecode->addInsn(BC_ILOAD1);
 				bytecode->bind(end);
+				typeStack.pop();
+				typeStack.pop();
+				typeStack.push(VT_INT);
 				break;
 			}
 			case tNEQ:
@@ -516,6 +522,9 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				bytecode->bind(true_end);
 				bytecode->addInsn(BC_ILOAD1);
 				bytecode->bind(end);
+				typeStack.pop();
+				typeStack.pop();
+				typeStack.push(VT_INT);
 				break;
 			}
 			case tGT:
@@ -530,6 +539,9 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				bytecode->bind(true_end);
 				bytecode->addInsn(BC_ILOAD1);
 				bytecode->bind(end);
+				typeStack.pop();
+				typeStack.pop();
+				typeStack.push(VT_INT);
 				break;
 			}
 			case tGE:
@@ -544,6 +556,9 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				bytecode->bind(true_end);
 				bytecode->addInsn(BC_ILOAD1);
 				bytecode->bind(end);
+				typeStack.pop();
+				typeStack.pop();
+				typeStack.push(VT_INT);
 				break;
 			}
 			case tLT:
@@ -558,6 +573,9 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				bytecode->bind(true_end);
 				bytecode->addInsn(BC_ILOAD1);
 				bytecode->bind(end);
+				typeStack.pop();
+				typeStack.pop();
+				typeStack.push(VT_INT);
 				break;
 			}
 			case tLE:
@@ -572,17 +590,20 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				bytecode->bind(true_end);
 				bytecode->addInsn(BC_ILOAD1);
 				bytecode->bind(end);
+				typeStack.pop();
+				typeStack.pop();
+				typeStack.push(VT_INT);
 				break;
 			}
 
 			case tADD:
 			{
 				castTwoOperands(0);
-				if (TOStype == VT_DOUBLE)
+				if (typeStack.top() == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DADD);
 				}
-				else if (TOStype == VT_INT)
+				else if (typeStack.top() == VT_INT)
 				{
 					bytecode->addInsn(BC_IADD);
 				}
@@ -590,17 +611,18 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				{
 					std::cerr << "Impossible adding!\n";
 				}
+				typeStack.pop();
 				break;
 			}			
 			case tSUB:
 			{
 				castTwoOperands(0);
 				bytecode->add(BC_SWAP);
-				if (TOStype == VT_DOUBLE)
+				if (typeStack.top() == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DSUB);
 				}
-				else if (TOStype == VT_INT)
+				else if (typeStack.top() == VT_INT)
 				{
 					bytecode->addInsn(BC_ISUB);
 				}
@@ -608,16 +630,17 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				{
 					std::cerr << "Impossible subtraction!\n";
 				}
+				typeStack.pop();
 				break;
 			}
 			case tMUL:
 			{
 				castTwoOperands(0);
-				if (TOStype == VT_DOUBLE)
+				if (typeStack.top() == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DMUL);
 				}
-				else if (TOStype == VT_INT)
+				else if (typeStack.top() == VT_INT)
 				{
 					bytecode->addInsn(BC_IMUL);
 				}
@@ -625,17 +648,18 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				{
 					std::cerr << "Impossible multiplication!\n";
 				}
+				typeStack.pop();
 				break;
 			}			
 			case tDIV:
 			{
 				castTwoOperands(0);
 				bytecode->add(BC_SWAP);
-				if (TOStype == VT_DOUBLE)
+				if (typeStack.top() == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DDIV);
 				}
-				else if (TOStype == VT_INT)
+				else if (typeStack.top() == VT_INT)
 				{
 					bytecode->addInsn(BC_IDIV);
 				}
@@ -643,13 +667,14 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				{
 					std::cerr << "Impossible dividing!\n";
 				}
+				typeStack.pop();
 				break;
 			}			
 			case tMOD:
 			{
 				castTwoOperands(1);
 				bytecode->add(BC_SWAP);
-				if (TOStype == VT_INT)
+				if (typeStack.top() == VT_INT)
 				{
 					bytecode->addInsn(BC_IMOD);
 				}
@@ -657,6 +682,7 @@ void ByteCodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 				{
 					std::cerr << "Impossible dividing by mod!\n";
 				}
+				typeStack.pop();
 				break;
 			}
 			default:
@@ -685,11 +711,11 @@ void ByteCodeVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 			}
 			case tSUB:
 			{
-				if (TOStype == VT_DOUBLE)
+				if (typeStack.top() == VT_DOUBLE)
 				{
 					bytecode->addInsn(BC_DNEG);
 				}
-				else if (TOStype == VT_INT)
+				else if (typeStack.top() == VT_INT)
 				{
 					bytecode->addInsn(BC_INEG);
 				}
