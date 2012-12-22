@@ -8,7 +8,7 @@ USER_OBJ = \
    $(OBJ)/BytecodeTranslatorImpl$(OBJ_SUFF) \
 
 include $(VM_ROOT)/common.mk
-CFLAGS += -march=native
+CFLAGS +=
 
 INTERPRETER = $(BIN)/interpreter
 
