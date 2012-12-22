@@ -540,9 +540,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_LOADIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                GPVar var =  ivars[id];
-                push(var, compiler);
-                compiler.unuse(var);
+                push(ivars[id], compiler);
                 stackTypes.push_back(VT_INT);
                 break;
             }
@@ -557,10 +555,13 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_STOREDVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                GPVar var(compiler.newGP());
-                dstack.push_back(var);
-                pop(var, compiler);
-                dvars[id] = var;
+                if (!dvars.count(id))
+                {
+                    dvars[id] = (compiler.newGP());
+
+                }
+                dstack.push_back(dvars[id]);
+                pop(dvars[id], compiler);
                 stackTypes.pop_back();
                 break;
             }
@@ -580,10 +581,13 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_STORESVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                GPVar var(compiler.newGP());
-                sstack.push_back(var);
-                pop(var, compiler);
-                svars[id] = var;
+                if (!svars.count(id))
+                {
+                    svars[id] = (compiler.newGP());
+
+                }
+                sstack.push_back(svars[id]);
+                pop(svars[id], compiler);
                 stackTypes.pop_back();
                 break;
             }
