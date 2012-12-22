@@ -112,18 +112,20 @@ void Ast2BytecodeVisitor::visitLoadNode(LoadNode* node) {
      bc().loadvar(node->var());
 }
 void Ast2BytecodeVisitor::visitStoreNode(StoreNode* node) {
-	node->visitChildren(this);
-	if (node->op() != tASSIGN) {
+	if (node->op() != tASSIGN)
 		bc().loadvar(node->var());
-		if (node->op() == tINCRSET) {
-			bc().add();
-		} else if (node->op() == tDECRSET) {
-			bc().sub();
-		} else {
-			assert("Bad operation" == 0);
-		}
+
+	node->visitChildren(this);
+
+	if (node->op() == tINCRSET) {
+		bc().add();
+	} else if (node->op() == tDECRSET) {
+		bc().sub();
+	} else if (node->op() != tASSIGN) {
+		assert("Bad operation" == 0);
 	}
-    bc().storevar(node->var());
+
+	bc().storevar(node->var());
 }
 
 //Ast2BytecodeVisitor::scopeId_t Ast2BytecodeVisitor::scope2id(Scope* scope) {
@@ -197,6 +199,15 @@ void Ast2BytecodeVisitor::visitForNode(ForNode* node) {
 
 	node->body()->visit(this);
 
+	bc().loadvar(node->var());
+	if (node->var()->type() == VT_DOUBLE)
+		bc().load(1.0);
+	else
+		bc().load(1);
+	bc()
+	.add()
+	.storevar(node->var());
+
 	range->right()->visit(this);
 	bc()
 	.loadvar(node->var())
@@ -220,7 +231,7 @@ void Ast2BytecodeVisitor::visitWhileNode(WhileNode* node) {
 	node->whileExpr()->visit(this);
     bc()
 	.load(false)
-	.ifcmpE(LOOP)
+	.ifcmpNE(LOOP)
 	.setLabel(END);
 }
 

@@ -8,8 +8,10 @@ j = 3;
 for (i in -3..4)  {
     j += i;
 }
+print(j, '\n');
 
 s = 0;
-for (d in -100.0..1.0)  {
+for (d in -10.0..1.0)  {
     s += d;
 }
+print(s, '\n');

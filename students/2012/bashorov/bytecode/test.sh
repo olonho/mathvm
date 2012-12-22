@@ -16,6 +16,11 @@ TEST_OUT=testout
 RUNNED_COUNT=0
 PASSED_COUNT=0
 
+if [ "$SUFF" != "" ]; then
+	SUFF=".$SUFF"
+fi
+
+
 function run {
 	RUNNED_COUNT=$[$RUNNED_COUNT+1]
 	IN=$1
@@ -24,6 +29,7 @@ function run {
 
 	$TEST_BIN $IN > $OUT
 	RESULT=$?
+	RESULT_TEXT=" ***"
 
 	if [ $RESULT -ne "0" ]; then
 		colorErr
@@ -32,18 +38,18 @@ function run {
 		check $OUT $EXPECT
 		RESULT=$?
 
-		if [ "$COLOR" == "coloroff" ]; then
-			if [ $RESULT -ne "0" ]; then
-				RESULT_TEXT=" /="
-			else
-				RESULT_TEXT=" =="
-				PASSED_COUNT=$[$PASSED_COUNT+1]
-			fi
+		if [ $RESULT -ne "0" ]; then
+			RESULT_TEXT=" /="
 		else
+			RESULT_TEXT=" =="
+			PASSED_COUNT=$[$PASSED_COUNT+1]
+		fi
+
+		if [ "$COLOR" != "coloroff" ]; then
 			RESULT_TEXT=""
 		fi
 
-		[ "$RESULT" == "0" ] && [ "$SHOWALL" != "showall" ] && (PASSED_COUNT=$[$PASSED_COUNT+1]) && return 0
+		[ "$RESULT" == "0" ] && [ "$SHOWALL" != "showall" ] && return 0
 	fi
 
 	echo " [$IN -> $OUT]"
@@ -75,14 +81,10 @@ function check {
 
 	if diff $OUT $EXPECT >/dev/null ; then
 		colorOk
-		if [ "$COLOR" == "coloroff" ]; then
-			return 0
-		fi
+		return 0
 	else
 		colorErr
-		if [ "$COLOR" == "coloroff" ]; then
-			return 1
-		fi
+		return 1
 	fi
 }
 
@@ -92,13 +94,16 @@ function test {
 
 	for i in $(find $TESTS_ROOT -type f -iname "*.mvm"); do
 		BASEFILENAME=$(basename $i ".mvm")
-		OUT="$TEST_OUT/$BASEFILENAME.$SUFF.out"
-		EXPECT="$TEST_EXPECT$BASEFILENAME.$SUFF.expect"
+		DIR=$(dirname $i)
+		OUT="$TEST_OUT/$BASEFILENAME$SUFF.out"
+		EXPECT="$DIR/$BASEFILENAME.expect"
+		# EXPECT="$TEST_EXPECT$BASEFILENAME$SUFF.expect"
 
 		# if [ -f $EXPECT ] ; then
 			run $i $OUT $EXPECT
 		# fi
 
+		colorOff
 	done
 
 	echo
@@ -114,3 +119,5 @@ function test {
 mkdir -p $TEST_OUT
 
 test $TESTS_ROOT $TESTS_EXPECT
+
+colorOff
