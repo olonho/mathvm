@@ -16,7 +16,7 @@ namespace mathvm {
 
 
 Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
-//	disassemble();
+	disassemble();
 	BytecodeFunction* f = (BytecodeFunction*)functionById(0);
 	runBytecode(f->bytecode());
 	return new Status();
@@ -256,12 +256,23 @@ void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 			case BC_CALL: {
 				int id = bytecode->getInt16(bci + 1);
 				BytecodeFunction *f = (BytecodeFunction*)functionById(id);
-				runBytecode(f->bytecode());
-				break;
+				
+				bytecodes.push(bytecode);
+				bcis.push(bci + commandLen[insn]);
+				
+				bytecode = f->bytecode();
+				bci = 0;
+				continue;
 			}
 			case BC_RETURN: {
 				
-				return;
+				bytecode = bytecodes.top();
+				bci = bcis.top();
+				
+				bytecodes.pop();
+				bcis.pop();
+				
+				continue;
 			}
 				
 			case BC_LOADDVAR:
@@ -377,7 +388,6 @@ Var *InterpreterCodeImpl::getStringVar(const char *val)
 
 double InterpreterCodeImpl::popDouble() {
 	assert(!programStack.empty());
-//	cout << endl << programStack.size() << endl;
 	Var* var = programStack.top();
 	programStack.pop();
 	return var->getDoubleValue();
@@ -398,7 +408,6 @@ const char *InterpreterCodeImpl::popString() {
 }
 
 void InterpreterCodeImpl::push(Var *val) {
-//	cout << endl << programStack.size() << endl;
 	programStack.push(val);
 }
 

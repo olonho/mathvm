@@ -45,10 +45,10 @@ typedef enum {
 
 class BytecodeGenerationVisitor: public AstVisitor {
 
-//	stack<VarType> types;
 	map< VarType, map<TokenKind, Instruction> > insnByToken;
 	map< VarType, map<UntypedInstruction, Instruction> > insnByUntypedInsn;
-	map< string, uint16_t > vars;
+	map< const AstVar*, uint16_t > vars;
+	vector<const AstVar*> locals;
 	
 	Scope* currentScope;
 	Bytecode *bytecode;
@@ -58,13 +58,8 @@ class BytecodeGenerationVisitor: public AstVisitor {
 
 	InterpreterCodeImpl *code;
 	
-	size_t stackSizeNeeded;
-	size_t stackSize;
-
-	Bytecode* ytecode();
-	uint16_t getVarId(const string& name);
-
-//	void removeConditionCheckingParams();
+	uint16_t getVarId(const AstVar *var);
+	
 	void compareInts(Instruction insn);
 	void compareDoubles(Instruction insn);
 
@@ -72,9 +67,6 @@ class BytecodeGenerationVisitor: public AstVisitor {
 	void fillInstructionsForDouble();
 	void fillInstructionsForString();
 
-	void pushScope(Scope* newScope);
-	void popScope();
-	
 	void NOT();
 	void OR();
 	void AND();

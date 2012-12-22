@@ -14,8 +14,10 @@ using std::string;
 using std::stack;
 
 
-	class InterpreterCodeImpl: public Code {
+class InterpreterCodeImpl: public Code {
 	stack<Var*> programStack;
+	stack<Bytecode*> bytecodes;
+	stack<size_t> bcis;
 	void getBytecode();
 
 	double popDouble();
@@ -31,6 +33,8 @@ using std::stack;
 	Var* getStringVar(const char* val);
 	
 	Var* mem[1 << 16];
+	
+	
 
 public:
 
