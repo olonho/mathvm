@@ -103,33 +103,33 @@ VarType varType<std::string>() { return VT_STRING; }
 
 template <typename T, uint16_t id>
 T Runner::loadvar() {
-	std::map<uint16_t, Var>::iterator it = _variables.find(id);
-	assert(it != _variables.end());
+	std::map<uint16_t, Var>::iterator it = _state->variables.find(id);
+	assert(it != _state->variables.end());
 	return getTypedValue<T>(it->second);
 }
 
 template <typename T>
 T Runner::loadvarById(uint16_t id) {
-	std::map<uint16_t, Var>::iterator it = _variables.find(id);
-	assert(it != _variables.end());
+	std::map<uint16_t, Var>::iterator it = _state->variables.find(id);
+	assert(it != _state->variables.end());
 	return getTypedValue<T>(it->second);
 }
 
 
 template <typename T, uint16_t id>
 void Runner::storevar(T value) {
-	std::map<uint16_t, Var>::iterator it = _variables.find(id);
-	if (it == _variables.end()) {
-		it = _variables.insert(std::make_pair(id, Var(varType<T>(), ""))).first;
+	std::map<uint16_t, Var>::iterator it = _state->variables.find(id);
+	if (it == _state->variables.end()) {
+		it = _state->variables.insert(std::make_pair(id, Var(varType<T>(), ""))).first;
 	}
 	setTypedValue(it->second, value);
 }
 
 template <typename T>
 void Runner::storevarById(uint16_t id, T value) {
-	std::map<uint16_t, Var>::iterator it = _variables.find(id);
-	if (it == _variables.end()) {
-		it = _variables.insert(std::make_pair(id, Var(varType<T>(), ""))).first;
+	std::map<uint16_t, Var>::iterator it = _state->variables.find(id);
+	if (it == _state->variables.end()) {
+		it = _state->variables.insert(std::make_pair(id, Var(varType<T>(), ""))).first;
 	}
 	setTypedValue(it->second, value);
 }
@@ -137,7 +137,7 @@ void Runner::storevarById(uint16_t id, T value) {
 Runner::Runner(CodeImpl* code)
 : _code(code)
 , _bytecode(0)
-, _ip(0)
+, _state(0)
 {
 	_processors.insert(pr(BC_DPRINT, Printer<double>()));
 	_processors.insert(pr(BC_IPRINT, Printer<int64_t>()));
@@ -198,23 +198,10 @@ Runner::~Runner() {
 }
 
 Status* Runner::execute(vector<Var*>&) {
-	BytecodeFunction* fun = (BytecodeFunction*) _code->functionById(0);
-	_bytecode = fun->bytecode();
+	prepareCall(0);
 
-	struct State {
-		uint16_t functionId;
-		size_t ip;
-		std::map<uint16_t, Var> values;
-		size_t sp;
-	};
-
-	std::map<uint16_t, State> functionStates;
-	std::vector<uint16_t> stateStackVec;
-	std::stack<Var> stateStack(stateStackVec);
-	std::vector<Var> stackVec;
-	std::stack<Var> stack(stackVec);
-	_ip = 0;
-	while (_ip < _bytecode->length()) {
+//	_bytecode->dump(std::cerr);
+	while (_state->ip < _bytecode->length()) {
 		Instruction instruction = getInstruction();
 
 		if (instruction == BC_STOP) {
@@ -321,17 +308,17 @@ Status* Runner::execute(vector<Var*>&) {
 
 		case BC_CALL: {
 			uint16_t id = getIdFromStream();
-
+			prepareCall(id);
 			break;
 		}
 		case BC_CALLNATIVE:
 			break;
 		case BC_RETURN:
+			returnCall();
 			break;
-
 		case BC_JA: {
 			int16_t offset = getInt16FromStream() - 2;
-			_ip += offset;
+			_state->ip += offset;
 			break;
 		}
 		case BC_IFICMPNE: {
@@ -339,7 +326,7 @@ Status* Runner::execute(vector<Var*>&) {
 			int64_t upper = typedPop<int64_t>();
 			int64_t offset = getInt16FromStream() - 2;
 			if (upper != lower)
-				_ip += offset;
+				_state->ip += offset;
 			break;
 		}
 		case BC_IFICMPE:{
@@ -347,7 +334,7 @@ Status* Runner::execute(vector<Var*>&) {
 			int64_t upper = typedPop<int64_t>();
 			int64_t offset = getInt16FromStream() - 2;
 			if (upper == lower)
-				_ip += offset;
+				_state->ip += offset;
 			break;
 		}
 		case BC_IFICMPG:{
@@ -355,7 +342,7 @@ Status* Runner::execute(vector<Var*>&) {
 			int64_t upper = typedPop<int64_t>();
 			int64_t offset = getInt16FromStream() - 2;
 			if (upper > lower)
-				_ip += offset;
+				_state->ip += offset;
 			break;
 		}
 		case BC_IFICMPGE:{
@@ -363,7 +350,7 @@ Status* Runner::execute(vector<Var*>&) {
 			int64_t upper = typedPop<int64_t>();
 			int64_t offset = getInt16FromStream() - 2;
 			if (upper >= lower)
-				_ip += offset;
+				_state->ip += offset;
 			break;
 		}
 		case BC_IFICMPL:{
@@ -371,7 +358,7 @@ Status* Runner::execute(vector<Var*>&) {
 			int64_t upper = typedPop<int64_t>();
 			int64_t offset = getInt16FromStream() - 2;
 			if (upper < lower)
-				_ip += offset;
+				_state->ip += offset;
 			break;
 		}
 		case BC_IFICMPLE:{
@@ -379,7 +366,7 @@ Status* Runner::execute(vector<Var*>&) {
 			int64_t upper = typedPop<int64_t>();
 			int64_t offset = getInt16FromStream() - 2;
 			if (upper <= lower)
-				_ip += offset;
+				_state->ip += offset;
 			break;
 		}
 		case BC_SWAP: {
@@ -405,11 +392,38 @@ Status* Runner::execute(vector<Var*>&) {
 			break;
 		}
 		case BC_BREAK:; break;
-		default: ;//assert("instruction doesn't supported" == 0);
+		default:
+			std::cerr << instruction << " instruction is not supported" << std::endl;
+			assert("instruction is not supported" == 0);
 		}
 	}
 
 	return 0;
+}
+
+void Runner::prepareCall(uint16_t functionId) {
+	_functionStates[functionId].push(State());
+	_functionStates[functionId].top().ip = 0;
+
+	_state = &_functionStates[functionId].top();
+
+	_callStack.push(functionId);
+
+	BytecodeFunction* fun = (BytecodeFunction*) _code->functionById(functionId);
+	_bytecode = fun->bytecode();
+}
+
+void Runner::returnCall() {
+	const uint16_t functionId = _callStack.top();
+	_functionStates[functionId].pop();
+
+	_callStack.pop();
+
+	const uint16_t parentFunctionId = _callStack.top();
+	_state = &_functionStates[parentFunctionId].top();
+
+	BytecodeFunction* fun = (BytecodeFunction*) _code->functionById(parentFunctionId);
+	_bytecode = fun->bytecode();
 }
 
 // Helpers:
@@ -458,26 +472,26 @@ Bytecode* Runner::bytecode() {
 }
 
 uint16_t Runner::getIdFromStream() {
-	uint16_t val = bytecode()->getInt16(_ip);
-	_ip += 2; //todo move this logic to another location
+	uint16_t val = bytecode()->getInt16(_state->ip);
+	_state->ip += 2; //todo move this logic to another location
 	return val;
 }
 
 int16_t Runner::getInt16FromStream() {
-	uint16_t val = bytecode()->getInt16(_ip);
-	_ip += 2; //todo move this logic to another location
+	uint16_t val = bytecode()->getInt16(_state->ip);
+	_state->ip += 2; //todo move this logic to another location
 	return val;
 }
 
 double Runner::getDoubleFromStream() {
-	double val = bytecode()->getDouble(_ip);
-	_ip += 8;
+	double val = bytecode()->getDouble(_state->ip);
+	_state->ip += 8;
 	return val;
 }
 
 int64_t Runner::getIntegerFromStream() {
-	int64_t val = bytecode()->getInt64(_ip);
-	_ip += 8;
+	int64_t val = bytecode()->getInt64(_state->ip);
+	_state->ip += 8;
 	return val;
 }
 
@@ -487,7 +501,7 @@ const std::string& Runner::getStringFromStream() {
 }
 
 Instruction Runner::getInstruction() {
-	return _bytecode->getInsn(_ip++)	;
+	return _bytecode->getInsn(_state->ip++)	;
 }
 
 }

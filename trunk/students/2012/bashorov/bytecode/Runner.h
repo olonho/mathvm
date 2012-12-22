@@ -19,9 +19,18 @@ class Runner
 
 	CodeImpl* _code;
 	insn2Proc_t _processors;
+
+	struct State {
+		size_t ip;
+		std::map<uint16_t, Var> variables;
+	};
+
+	std::map<uint16_t, std::stack<State> > _functionStates;
+	std::stack<uint16_t> _callStack;
 	std::stack<Var> _stack;
 	Bytecode* _bytecode;
-	size_t _ip;
+
+	State* _state;
 public:
 	Runner(CodeImpl* code);
 	~Runner();
@@ -30,6 +39,8 @@ public:
 
 private:
 	Bytecode* bytecode();
+	void prepareCall(uint16_t functionId);
+	void returnCall();
 	//Helpers
 	// work with stack:
 	template<typename T>
@@ -45,7 +56,6 @@ private:
 	//
 	Instruction getInstruction();
 	//
-	std::map<uint16_t, Var> _variables;
 	template <typename T, uint16_t id>
 	T loadvar();
 	template <typename T>

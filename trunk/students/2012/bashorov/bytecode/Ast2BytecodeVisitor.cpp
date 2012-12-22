@@ -258,11 +258,13 @@ void Ast2BytecodeVisitor::visitIfNode(IfNode* node) {
 
 void Ast2BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
 	assert(node);
-	uint16_t functionId = _code->functionByName(node->name())->id();
+	TranslatedFunction* func = _code->functionByName(node->name());
+	assert(func != 0);
+	uint16_t functionId = func->id();
 	bc().enterContext(functionId);
 
-	for (size_t i = node->parametersNumber(); i > 0; --i) {
-			bc().pushType(node->parameterType(i - 1));
+	for (size_t i = 0; i < node->parametersNumber(); ++i) {
+			bc().pushType(node->parameterType(i));
 	}
 
 	Scope* scope = node->body()->scope();
@@ -270,9 +272,9 @@ void Ast2BytecodeVisitor::visitFunctionNode(FunctionNode* node) {
 
 	//fixme ???
 	bc().enterScope(scope);
-	for (size_t i = 0; i < node->parametersNumber(); ++i) {
-		scope->declareVariable(node->parameterName(i), node->parameterType(i));
-		AstVar* param = scope->lookupVariable(node->parameterName(i), false);
+	for (size_t i = node->parametersNumber(); i > 0; --i) {
+		scope->declareVariable(node->parameterName(i - 1), node->parameterType(i - 1));
+		AstVar* param = scope->lookupVariable(node->parameterName(i - 1), false);
 		bc().storevar(param);
 	}
 
