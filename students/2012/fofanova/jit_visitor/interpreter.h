@@ -374,6 +374,8 @@ void interpreter::buildFunction(BytecodeFunction* function, Compiler& compiler)
 void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
 {
     Compiler compiler;
+    //FileLogger logger(stdout);
+    //compiler.setLogger(&logger);
     bool start = true;
     compiler.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
     compiler.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
@@ -391,7 +393,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_LOADIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                GPVar var(compiler.newGP());
+                GPVar var(ivars.count(id) ? ivars[id] : compiler.newGP());
                 compiler.mov(var, qword_ptr(arguments, addr));
                 ivars[id] = var;
                 addr += sizeof(int64_t);
@@ -402,7 +404,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_LOADDVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                GPVar var(compiler.newGP());
+                GPVar var(dvars.count(id) ? dvars[id] : compiler.newGP());
                 compiler.mov(var, qword_ptr(arguments, addr));
                 dvars[id] = var;
                 addr += sizeof(double);
@@ -413,7 +415,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_LOADSVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                GPVar var(compiler.newGP());
+                GPVar var(svars.count(id) ? svars[id] : compiler.newGP());
                 compiler.mov(var, qword_ptr(arguments, addr));
                 svars[id] = var;
                 addr += sizeof(char*);
@@ -428,7 +430,30 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
         index += (length(insn));    
     }
     compiler.unuse(arguments);
-    //index = 0;
+    int storeIndex = index;
+    while (index < bytecode->length())
+    {
+        Instruction insn = bytecode->getInsn(index);
+        if (insn == BC_JA || 
+            insn == BC_IFICMPNE || 
+            insn == BC_IFICMPE || 
+            insn == BC_IFICMPG || 
+            insn == BC_IFICMPGE || 
+            insn == BC_IFICMPL || 
+            insn == BC_IFICMPLE)
+        {
+
+                int16_t offset = bytecode->getInt16(index + 1);
+                if (labels.count(index + offset + 1) == 0)
+                {
+                    AsmJit::Label* label = new AsmJit::Label(compiler.newLabel());
+                    labels[index + offset + 1] = label;
+                }
+        }
+        index += (length(insn));
+
+    }
+    index = storeIndex;
     while (index < bytecode->length())
     {
         bool jump = false;
@@ -436,6 +461,7 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             compiler.bind(*labels[index]);
         }
         Instruction insn = bytecode->getInsn(index);
+        //cout << str(insn) << endl;
         if (insn != BC_JA) start = false;
         switch(insn)
         {
@@ -514,8 +540,9 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_LOADIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                GPVar var = ivars[id];
+                GPVar var =  ivars[id];
                 push(var, compiler);
+                compiler.unuse(var);
                 stackTypes.push_back(VT_INT);
                 break;
             }
@@ -540,10 +567,13 @@ void interpreter::generateFunction(BytecodeFunction* function, int funcIndex)
             case BC_STOREIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                GPVar var(compiler.newGP());
-                istack.push_back(var);
-                pop(var, compiler);
-                ivars[id] = var;
+                if (!ivars.count(id))
+                {
+                    ivars[id] = (compiler.newGP());
+
+                }
+                istack.push_back(ivars[id]);
+                pop(ivars[id], compiler);
                 stackTypes.pop_back();
                 break;
             }
