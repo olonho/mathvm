@@ -3,53 +3,42 @@
 
 #include <string>
 #include <stack>
+#include <cstring>
+#include "stdint.h"
+#include "mathvm.h"
 
 
-using namespace mathvm;
+namespace mathvm {
 
 using std::string;
 using std::stack;
 
 
-class Val {
-	union {
-		double doubleVal;
-		int64_t intVal;
-		string stringVal;
-	}
-
-public:
-	Val(double doubleVal): doubleVal(doubleVal) {}
-	Val(int intVal): intVal(intVal) {}
-	Val(string& stringVal): stringVal(stringVal) {}	
-
-	double getDouble() {
-		return doubleVal;
-	}
-
-	int getInt() {
-		return intVal;
-	}
-
-	string getString() {
-		return stringVal;
-	}
-};
-
-
-class InterpreterCodeImpl: public Code {
-	stack<Val> programStack;
+	class InterpreterCodeImpl: public Code {
+	stack<Var*> programStack;
 	void getBytecode();
 
 	double popDouble();
-	int popInt();
-	string popString();
+	int64_t popInt();
+	const char *popString();
+	Var* pop();
 
-	void push(Val& val);
+	void push(Var *val);
+	void runBytecode(Bytecode *bytecode);
+	
+	Var* getDoubleVar(double val);
+	Var* getIntVar(int64_t val);
+	Var* getStringVar(const char* val);
+	
+	Var* mem[1 << 16];
 
 public:
 
 	Status* execute(vector<Var*>& vars);
 };
+
+
+
+}
 
 #endif

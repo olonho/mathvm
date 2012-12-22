@@ -1,237 +1,412 @@
-#include "InterperterCodeImpl.h"
+#include "InterpreterCodeImpl.h"
+#include "mathvm.h"
 
-static int commandLen[] = {
-	#define ENUM_ELEM(b, d, l) l,
-    	FOR_BYTECODES(ENUM_ELEM)
-	#undef ENUM_ELEM
-    1
+namespace mathvm {
+	
+	
+	static int commandLen[] = {
+		#define ENUM_ELEM(b, d, l) l,
+			FOR_BYTECODES(ENUM_ELEM)
+		#undef ENUM_ELEM
+		1
+	};
 }
 
-Status* InterperterCodeImpl::execute(vector<Var*>& vars) {
+namespace mathvm {
 
 
+Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
+	disassemble();
+	BytecodeFunction* f = (BytecodeFunction*)functionById(0);
+	runBytecode(f->bytecode());
+	return new Status();
 }
 
-void InterperterCodeImpl::runBytecode(Bytecode *bytecode) {
-	int bci = 0;
+void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
+	size_t bci = 0;
 	while (bci < (bytecode -> length())) {
 		Instruction insn = bytecode -> getInsn(bci);
 
 		switch (insn) {
-			case DLOAD:
-				push(Val(bytecode -> getDouble(bci + 1)));
+			case BC_DLOAD:
+				push(getDoubleVar(bytecode -> getDouble(bci + 1)));
 				break;
-			case ILOAD:
-				push(Val(bytecode -> getInt64(bci + 1)));
+			case BC_ILOAD:
+				push(getIntVar(bytecode -> getInt64(bci + 1)));
 				break;
-			case SLOAD:
-				push(Val(constantById(bytecode -> getUInt16(bci + 1))));
-				break;
-
-			case DLOAD0:
-				push(Val(0.0));
-				break;
-			case ILOAD0:
-				push(Val(0));
-				break;
-			case SLOAD0:
-				push(Val(""));
+			case BC_SLOAD:
+				push(getStringVar(constantById(bytecode -> getUInt16(bci + 1)).c_str()));
 				break;
 
-			case DLOAD1:
-				push(Val(1.0));
+			case BC_DLOAD0:
+				push(getDoubleVar(0.0));
 				break;
-			case ILOAD1:
-				push(Val(1));
+			case BC_ILOAD0:
+				push(getIntVar(0L));
 				break;
-
-			case DLOAD1:
-				push(Val(-1.0));
-				break;
-			case ILOAD1:
-				push(Val(-1));
+			case BC_SLOAD0:
+				push(getStringVar(""));
 				break;
 
-			case DADD:
+			case BC_DLOAD1:
+				push(getDoubleVar(1.0));
+				break;
+			case BC_ILOAD1:
+				push(getIntVar(1L));
+				break;
+
+			case BC_DLOADM1:
+				push(getDoubleVar(-1.0));
+				break;
+			case BC_ILOADM1:
+				push(getIntVar(-1L));
+				break;
+
+			case BC_DADD: {
 				double first = popDouble();
 				double second = popDouble();
-				push(Val(first + second));
+				push(getDoubleVar(first + second));
 				break;
-			case IADD:
-				int first = popInt();
-				int second = popInt();
-				push(Val(first + second));
+			}
+			case BC_IADD: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(first + second));
 				break;
+			}
 
-			case DSUB:
+			case BC_DSUB: {
 				double first = popDouble();
 				double second = popDouble();
-				push(Val(first - second));
+				push(getDoubleVar(first - second));
 				break;
-			case ISUB:
-				int first = popInt();
-				int second = popInt();
-				push(Val(first - second));
+			}
+			case BC_ISUB: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(first - second));
 				break;
+			}
 
-			case DMUL:
+			case BC_DMUL: {
 				double first = popDouble();
 				double second = popDouble();
-				push(Val(first * second));
+				push(getDoubleVar(first * second));
 				break;
-			case IMUL:
-				int first = popInt();
-				int second = popInt();
-				push(Val(first * second));
+			}
+			case BC_IMUL: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(first * second));
 				break;
+			}
 
-			case DDIV:
+			case BC_DDIV: {
 				double first = popDouble();
 				double second = popDouble();
-				push(Val(first / second));
+				push(getDoubleVar(first / second));
 				break;
-			case IDIV:
-				int first = popInt();
-				int second = popInt();
-				push(Val(first / second));
+			}
+			case BC_IDIV: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(first / second));
 				break;
-			case IMOD:
-				int first = popInt();
-				int second = popInt();
-				push(Val(first % second));
+			}
+			case BC_IMOD: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(first % second));
 				break;
+			}
 
-			case DNEG:
+			case BC_DNEG: {
 				double val = popDouble();
-				push(Val(-val));
+				push(getDoubleVar(-val));
 				break;
-			case INEG:
-				int val = popInt();
-				push(Val(-val));
+			}
+			case BC_INEG: {
+				int64_t val = popInt();
+				push(getIntVar(-val));
 				break;
+			}
 
-			case DPRINT:
-				break;
-			case IPRINT:
-				break;
-			case SPRINT:
-				break;
-
-			case I2D:
-				int val = popInt();
-				push(Val((double)val));
-				break;
-			case D2I:
+			case BC_DPRINT: {
 				double val = popDouble();
-				push(Val((int)val));
+				cout << val;
 				break;
+			}
+			case BC_IPRINT: {
+				int64_t val = popInt();
+				cout << val;
+				break;
+			}
+			case BC_SPRINT: {
+				const char* val = popString();
+				cout << val;
+				break;
+			}
 
-			case POP:
+			case BC_I2D: {
+				int64_t val = popInt();
+				push(getDoubleVar((double)val));
+				break;
+			}
+			case BC_D2I: {
+				double val = popDouble();
+				push(getIntVar((int64_t )val));
+				break;
+			}
+
+			case BC_POP:
 				programStack.pop();
+				break;
 
 
-			case DCMP:
+			case BC_DCMP: {
 				double first = popDouble();
 				double second = popDouble();
 				if (first == second) {
-					push(Val(0));
+					push(getIntVar(0));
 				} else if (first > second) {
-					push(Val(1));
+					push(getIntVar(1));
 				} else {
-					push(Val(-1));
+					push(getIntVar(-1));
 				}
 				break;
-			case ICMP:
-				int first = popInt();
-				int second = popInt();
+			}
+			case BC_ICMP: {
+				int64_t first = popInt();
+				int64_t second = popInt();
 				if (first == second) {
-					push(Val(0));
+					push(getIntVar(0));
 				} else if (first > second) {
-					push(Val(1));
+					push(getIntVar(1));
 				} else {
-					push(Val(-1));
+					push(getIntVar(-1));
 				}
 				break;
+			}
 
-			case JA:
+			case BC_JA:
 				bci += (bytecode -> getInt16(bci + 1));
 				break;
-			case IFICMPNE:
-				int first = popInt();
-				int second = popInt();
+			case BC_IFICMPNE: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(second));
+				push(getIntVar(first));
 				if (first != second) {
 					bci += bytecode -> getInt16(bci + 1);
 				}
 				break;
-			case IFICMPE:
-				int first = popInt();
-				int second = popInt();
+			}
+			case BC_IFICMPE: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(second));
+				push(getIntVar(first));
 				if (first == second) {
 					bci += bytecode -> getInt16(bci + 1);
 				}
 				break;
-			case IFICMPG:
-				int first = popInt();
-				int second = popInt();
+			}
+			case BC_IFICMPG: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(second));
+				push(getIntVar(first));
 				if (first > second) {
 					bci += bytecode -> getInt16(bci + 1);
 				}
 				break;
-			case IFICMPGE:
-				int first = popInt();
-				int second = popInt();
+			}
+			case BC_IFICMPGE: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(second));
+				push(getIntVar(first));
 				if (first >= second) {
 					bci += bytecode -> getInt16(bci + 1);
 				}
 				break;
-			case IFICMPL:
-				int first = popInt();
-				int second = popInt();
+			}
+			case BC_IFICMPL: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(second));
+				push(getIntVar(first));
 				if (first < second) {
 					bci += bytecode -> getInt16(bci + 1);
 				}
 				break;
-			case IFICMPLE:
-				int first = popInt();
-				int second = popInt();
+			}
+			case BC_IFICMPLE: {
+				int64_t first = popInt();
+				int64_t second = popInt();
+				push(getIntVar(second));
+				push(getIntVar(first));
 				if (first <= second) {
 					bci += bytecode -> getInt16(bci + 1);
 				}
 				break;
+			}
+				
+				
+			case BC_CALL: {
+				int id = bytecode->getInt16(bci + 1);
+				BytecodeFunction *f = (BytecodeFunction*)functionById(id);
+				runBytecode(f->bytecode());
+				break;
+			}
+			case BC_RETURN: {
+				return;
+			}
+				
+			case BC_LOADDVAR:
+			case BC_LOADIVAR:
+			case BC_LOADSVAR: {
+				int id = bytecode->getInt16(bci + 1);
+				push(mem[id]);
+				break;
+			}
+				
+			case BC_LOADDVAR0:
+			case BC_LOADIVAR0:
+			case BC_LOADSVAR0: {
+				push(mem[0]);
+				break;
+			}
+			
+			case BC_LOADDVAR1:
+			case BC_LOADIVAR1:
+			case BC_LOADSVAR1: {
+				push(mem[1]);
+				break;
+			}
 
+			case BC_LOADDVAR2:
+			case BC_LOADIVAR2:
+			case BC_LOADSVAR2: {
+				push(mem[2]);
+				break;
+			}
+			
+			case BC_LOADDVAR3:
+			case BC_LOADIVAR3:
+			case BC_LOADSVAR3: {
+				push(mem[3]);
+				break;
+			}
+				
+			case BC_STOREDVAR:
+			case BC_STOREIVAR:
+			case BC_STORESVAR: {
+				int id = bytecode->getInt16(bci + 1);
+				mem[id] = pop();
+				break;
+			}
+				
+			case BC_STOREDVAR0:
+			case BC_STOREIVAR0:
+			case BC_STORESVAR0: {
+				mem[0] = pop();
+				break;
+			}
+				
+			case BC_STOREDVAR1:
+			case BC_STOREIVAR1:
+			case BC_STORESVAR1: {
+				mem[1] = pop();
+				break;
+			}
+				
+			case BC_STOREDVAR2:
+			case BC_STOREIVAR2:
+			case BC_STORESVAR2: {
+				mem[2] = pop();
+				break;
+			}
+				
+			case BC_STOREDVAR3:
+			case BC_STOREIVAR3:
+			case BC_STORESVAR3: {
+				mem[3] = pop();
+				break;
+			}
+				
+			case BC_SWAP: {
+				Var* val1 = pop();
+				Var* val2 = pop();
+				push(val1);
+				push(val2);
+				break;
+			}
+				
 
+			default:
+				throw std::exception();
 		}
 
 		bci += commandLen[insn];
 	}
 }
 
-
-double InterperterCodeImpl::popDouble() {
-	double res = programStack.top().getDouble();
-	programStack.pop();
-	return res;
+Var *InterpreterCodeImpl::getDoubleVar(double val)
+{
+	Var* var = new Var(VT_DOUBLE, "");
+	var->setDoubleValue(val);
+	return var;
 }
 
-int InterperterCodeImpl::popInt() {
-	int res = programStack.top().getInt();
-	programStack.pop();
-	return res;
+Var *InterpreterCodeImpl::getIntVar(int64_t val)
+{
+	Var* var = new Var(VT_INT, "");
+	var->setIntValue(val);
+	return var;
 }
 
-string InterperterCodeImpl::popString() {
-	string res = programStack.top().getString();
-	programStack.pop();
-	return res;
+Var *InterpreterCodeImpl::getStringVar(const char *val)
+{
+	Var* var = new Var(VT_STRING, "");
+	var->setStringValue(val);
+	return var;
 }
 
-void InterperterCodeImpl::push(Val& val) {
+
+double InterpreterCodeImpl::popDouble() {
+	assert(!programStack.empty());
+//	cout << endl << programStack.size() << endl;
+	Var* var = programStack.top();
+	programStack.pop();
+	return var->getDoubleValue();
+}
+
+int64_t InterpreterCodeImpl::popInt() {
+	assert(!programStack.empty());
+	Var* var = programStack.top();
+	programStack.pop();
+	return var->getIntValue();
+}
+
+const char *InterpreterCodeImpl::popString() {
+	assert(!programStack.empty());
+	Var* var = programStack.top();
+	programStack.pop();
+	return var->getStringValue();
+}
+
+void InterpreterCodeImpl::push(Var *val) {
+//	cout << endl << programStack.size() << endl;
 	programStack.push(val);
 }
 
+Var* InterpreterCodeImpl::pop() {
+	assert(!programStack.empty());
+	Var* res = programStack.top();
+	programStack.pop();
+	return res;
+}
 
 
-
-void InterperterCodeImpl::getBytecode() {
-	
 }
