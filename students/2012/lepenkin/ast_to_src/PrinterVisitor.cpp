@@ -141,6 +141,7 @@ void PrinterVisitor::visitForNode(ForNode* node)
 void PrinterVisitor::visitFunctionNode(FunctionNode* node)
 {
     cout << endl << " function node ";  
+
 }
 
 void PrinterVisitor::visitLoadNode(LoadNode* node)
