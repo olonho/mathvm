@@ -29,8 +29,6 @@ private:
 	void createFunMap(Scope* scope);
 	void createVarMap(Scope* scope);
 
-	uint16_t getNextVarID();
-
 	void visitBinaryOpNode(BinaryOpNode *node);
 	void subWorkOnBinaryOp(Bytecode *bytecode);
 

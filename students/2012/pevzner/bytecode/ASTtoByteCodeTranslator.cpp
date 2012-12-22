@@ -29,38 +29,30 @@ void ASTtoByteCodeTranslator::createFunMap(Scope* scope){
     }
 }
 
-uint16_t  ASTtoByteCodeTranslator::getNextVarID(){
-	static uint16_t  id = 0;
-	return id++;
-}
-
-void ASTtoByteCodeTranslator::createVarMap(Scope* scope){
+void ASTtoByteCodeTranslator::createVarMap(Scope *scope){
 	Scope::VarIterator varIt(scope);
+	uint16_t varId = 0;
 	while(varIt.hasNext()) {
         AstVar* var = varIt.next();
-        varMap[var] = getNextVarID();
+        varMap[var] = varId++;
     }
 }
 
 void ASTtoByteCodeTranslator::subWorkOnBinaryOp(Bytecode *bytecode){
 	uint32_t mem1, mem2;
 	mem1 = bytecode->current();
+
 	bytecode->addInt16(0);
-	bytecode->addInsn(BC_JA);
-	mem2 = bytecode->current();
-	bytecode->addInt16(0);
-	bytecode->setInt16(mem1, bytecode->current() - mem1);
+	bytecode->addInsn(BC_JA);   mem2 = bytecode->current();
+	bytecode->addInt16(0);      bytecode->setInt16(mem1, bytecode->current() - mem1);
 	bytecode->addInsn(BC_POP);
 	bytecode->addInsn(BC_POP);
-	bytecode->addInsn(BC_ILOAD1);
-	bytecode->setInt16(mem2, bytecode->current() - mem1);
-	bytecode->addInsn(BC_JA);
-	mem1 = bytecode->current();
+	bytecode->addInsn(BC_ILOAD1);    bytecode->setInt16(mem2, bytecode->current() - mem1);
+	bytecode->addInsn(BC_JA);        mem1 = bytecode->current();
 	bytecode->addInt16(0);
 	bytecode->addInsn(BC_POP);
 	bytecode->addInsn(BC_POP);
-	bytecode->addInsn(BC_ILOAD0);
-	bytecode->setInt16(mem1, bytecode->current() - mem1);
+	bytecode->addInsn(BC_ILOAD0);    bytecode->setInt16(mem1, bytecode->current() - mem1);
 }
 
 void ASTtoByteCodeTranslator::visitBinaryOpNode(BinaryOpNode* node) {
@@ -175,6 +167,7 @@ void ASTtoByteCodeTranslator::visitBinaryOpNode(BinaryOpNode* node) {
 void ASTtoByteCodeTranslator::visitUnaryOpNode(UnaryOpNode* node) {
 	Bytecode *bytecode = funStack.top()->bytecode();
 	node->operand()->visit(this);
+	uint32_t mem1, mem2;
 	switch(node->kind()) {
 		case tSUB:
 			switch(varType){
@@ -189,7 +182,17 @@ void ASTtoByteCodeTranslator::visitUnaryOpNode(UnaryOpNode* node) {
 			}
 			break;
 		case tNOT:
-
+			bytecode->addInsn(BC_ILOAD0);
+			bytecode->addInsn(BC_IFICMPNE); mem1 = bytecode->current();
+			bytecode->addInt16(0);
+			bytecode->addInsn(BC_POP);
+			bytecode->addInsn(BC_POP);
+			bytecode->addInsn(BC_ILOAD1);
+			bytecode->addInsn(BC_JA);       mem2 = bytecode->current();
+			bytecode->addInt16(0);
+			bytecode->setInt16(mem1, bytecode->current() - mem1);
+			bytecode->addInsn(BC_ILOAD0);
+			bytecode->setInt16(mem2, bytecode->current() - mem2);
 			break;
 	    default:
 	    	bytecode->addInsn(BC_INVALID);
@@ -229,9 +232,13 @@ void ASTtoByteCodeTranslator::visitLoadNode(LoadNode* node) {   // get value for
 		case VT_DOUBLE:
 			bytecode->addInsn(BC_LOADDVAR);
 			break;
+		case VT_STRING:
+			bytecode->addInsn(BC_LOADSVAR);
+			break;
 		default:
 			break;
 	}
+
 	bytecode->addInt16(varMap[node->var()]);
 }
 
@@ -340,8 +347,9 @@ void ASTtoByteCodeTranslator::visitWhileNode(WhileNode* node) {
 	bytecode->addInsn(BC_POP);
 	bytecode->addInsn(BC_POP);
 	node->loopBlock()->visit(this);
-	bytecode->addInsn(BC_JA);       bytecode->setInt16(mem3, bytecode->current() - mem3);
+	bytecode->addInsn(BC_JA);
 	bytecode->addInt16(mem1 - bytecode->current());
+	bytecode->setInt16(mem3, bytecode->current() - mem3);
 }
 
 void ASTtoByteCodeTranslator::visitIfNode(IfNode* node) {
@@ -373,20 +381,46 @@ void ASTtoByteCodeTranslator::visitBlockNode(BlockNode* node) {
 	createVarMap(node->scope());
 	createFunMap(node->scope());
 
-	int nodesNumber = node->nodes();
-	for(int i = 0; i < nodesNumber; ++i) {
+	uint32_t nodesNumber = node->nodes();
+	for(uint32_t i = 0; i < nodesNumber; ++i) {
 		node->nodeAt(i)->visit(this);
 	}
 
 	scopeStack.pop();
 }
 
+
 void ASTtoByteCodeTranslator::visitFunctionNode(FunctionNode* node) {
+	uint16_t varId = 0;
+
+	for(size_t i = 0; i < node->parametersNumber(); ++i) {
+		AstVar *var = node->body()->scope()->lookupVariable(node->parameterName(node->parametersNumber() - i - 1));
+
+		varMap[var] = varId;
+		Bytecode *bytecode = funStack.top()->bytecode();
+		switch (var->type()) {
+		    case VT_INT:
+		    	bytecode->addInsn(BC_STOREIVAR);
+		        break;
+		    case VT_DOUBLE:
+		    	bytecode->addInsn(BC_STOREDVAR);
+		        break;
+		    case VT_STRING:
+		    	bytecode->addInsn(BC_STORESVAR);
+		        break;
+		    default:
+		    	bytecode->addInsn(BC_INVALID);
+		        break;
+		}
+		bytecode->addUInt16(varId++);
+	}
 	node->body()->visit(this);
 }
 
 void ASTtoByteCodeTranslator::visitReturnNode(ReturnNode* node) {
-	node->returnExpr()->visit(this);
+	if(node->returnExpr() != NULL) {
+		node->returnExpr()->visit(this);
+	}
 	Bytecode *bytecode = funStack.top()->bytecode();
 	bytecode->addInsn(BC_RETURN);
 }
@@ -401,6 +435,9 @@ void ASTtoByteCodeTranslator::visitCallNode(CallNode* node) {
 }
 
 void ASTtoByteCodeTranslator::visitNativeCallNode(NativeCallNode* node) {
+	Bytecode *bytecode = funStack.top()->bytecode();
+	bytecode->addInsn(BC_CALLNATIVE);
+	bytecode->addUInt16(code->makeNativeFunction(node->nativeName(), node->nativeSignature(), 0));
 }
 
 void ASTtoByteCodeTranslator::visitPrintNode(PrintNode* node) {
