@@ -29,7 +29,7 @@ private:
     std::vector<int> calls;
     std::vector<pair<int, type> > stack;
 
-    std::vector<int> ints;
+    std::vector<int64_t> ints;
     std::vector<double> doubles;
     std::vector<int> strs;
 
@@ -43,7 +43,7 @@ public:
 
     void executeFunction(BytecodeFunction* function);
     void loadd(double val);
-    void loadi(int val);
+    void loadi(int64_t val);
     void loads(int val);
 };
 
@@ -53,7 +53,7 @@ void interpreter::loadd(double val)
     stack.push_back(make_pair(doubles.size() - 1, d));
 }
 
-void interpreter::loadi(int val)
+void interpreter::loadi(int64_t val)
 {
     ints.push_back(val);
     stack.push_back(make_pair(ints.size() - 1, i));
@@ -85,7 +85,7 @@ void interpreter::executeFunction(BytecodeFunction* function)
             }
             case BC_ILOAD:
             {
-                int val = bytecode->getInt64(index + 1);
+                int64_t val = bytecode->getInt64(index + 1);
                 loadi(val);
                 break;
             }
@@ -113,23 +113,23 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_LOADDVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                double value = dvars[id];
+                double value = doubles[dvars[id]];
                 doubles.push_back(value);
-                stack.push_back(make_pair(doubles.size() - 1, i));
+                stack.push_back(make_pair(doubles.size() - 1, d));
                 break;
             }
             case BC_STOREDVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                double value = doubles[stack.back().first];
+                //double value = doubles[stack.back().first];
+                dvars[id] = stack.back().first;
                 stack.pop_back();
-                dvars[id] = value;
                 break;
             }
             case BC_LOADIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                int value = ivars[id];
+                int64_t value = ints[ivars[id]];
                 ints.push_back(value);
                 stack.push_back(make_pair(ints.size() - 1, i));
                 break;
@@ -137,15 +137,15 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_STOREIVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                int value = ints[stack.back().first];
+                //int64_t value = ints[stack.back().first];
+                ivars[id] = stack.back().first;
                 stack.pop_back();
-                ivars[id] = value;
                 break;
             }
             case BC_LOADSVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                int value = svars[id];
+                int value = strs[svars[id]];
                 strs.push_back(value);
                 stack.push_back(make_pair(strs.size() - 1, i));
                 break;
@@ -153,17 +153,17 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_STORESVAR:
             {
                 int id = bytecode->getInt16(index + 1);
-                int value = strs[stack.back().first];
+                //int value = strs[stack.back().first];
+                svars[id] = stack.back().first;
                 stack.pop_back();
-                svars[id] = value;
                 break;
             }
             case BC_IFICMPNE:
             {
                 int16_t offset = bytecode->getInt16(index + 1);
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 if (val1 != val2) 
                 {
@@ -175,9 +175,9 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_IFICMPE:
             {
                 int16_t offset = bytecode->getInt16(index + 1);
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 if (val1 == val2) 
                 {
@@ -189,9 +189,9 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_IFICMPG:
             {
                 int16_t offset = bytecode->getInt16(index + 1);
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 if (val1 > val2) 
                 {
@@ -203,9 +203,9 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_IFICMPGE:
             {
                 int16_t offset = bytecode->getInt16(index + 1);
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 if (val1 >= val2) 
                 {
@@ -217,9 +217,9 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_IFICMPL:
             {
                 int16_t offset = bytecode->getInt16(index + 1);
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 if (val1 < val2) 
                 {
@@ -231,9 +231,9 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_IFICMPLE:
             {
                 int16_t offset = bytecode->getInt16(index + 1);
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 if (val1 <= val2) 
                 {
@@ -307,9 +307,9 @@ void interpreter::executeFunction(BytecodeFunction* function)
             }
             case BC_IADD:
             {
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 loadi(val1 + val2);
                 break;
@@ -325,9 +325,9 @@ void interpreter::executeFunction(BytecodeFunction* function)
             }
             case BC_ISUB:
             {
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 loadi(val1 - val2);
                 break;
@@ -343,9 +343,9 @@ void interpreter::executeFunction(BytecodeFunction* function)
             }
             case BC_IMUL:
             {
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 loadi(val1 * val2);
                 break;
@@ -361,18 +361,18 @@ void interpreter::executeFunction(BytecodeFunction* function)
             }
             case BC_IDIV:
             {
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 loadi(val1 / val2);
                 break;
             }
             case BC_IMOD:
             {
-                int val1 = ints[stack.back().first];
+                int64_t val1 = ints[stack.back().first];
                 stack.pop_back();
-                int val2 = ints[stack.back().first];
+                int64_t val2 = ints[stack.back().first];
                 stack.pop_back();
                 loadi(val1 % val2);
                 break;
@@ -386,7 +386,7 @@ void interpreter::executeFunction(BytecodeFunction* function)
             }
             case BC_INEG:
             {
-                int val = ints[stack.back().first];
+                int64_t val = ints[stack.back().first];
                 stack.pop_back();
                 loadi((-1) * val);
                 break;
@@ -419,13 +419,13 @@ void interpreter::executeFunction(BytecodeFunction* function)
             case BC_D2I:
             {
                 stack.back().second = i;
-                ints.push_back((int)doubles[stack.back().first]);
+                ints.push_back((int64_t)doubles[stack.back().first]);
                 stack.back().first = ints.size() - 1;
                 break;
             }
             case BC_S2I:
             {
-                int val = atoi(code->constantById(strs[stack.back().first]).c_str());
+                int64_t val = atoi(code->constantById(strs[stack.back().first]).c_str());
                 ints.push_back(val);
                 stack.back().first = ints.size() - 1;  
                 stack.back().second = i;

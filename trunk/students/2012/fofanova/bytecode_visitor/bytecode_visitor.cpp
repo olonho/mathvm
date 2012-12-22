@@ -272,7 +272,6 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 						castTOSToInt();
 						bytecode->addInsn(BC_LOADIVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
-						bytecode->addInsn(BC_SWAP);
 						bytecode->addInsn(BC_IADD);
 						bytecode->addInsn(BC_STOREIVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
@@ -283,7 +282,6 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 						castTOSToDouble();
 						bytecode->addInsn(BC_LOADDVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
-						bytecode->addInsn(BC_SWAP);
 						bytecode->addInsn(BC_DADD);
 						bytecode->addInsn(BC_STOREDVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
@@ -305,7 +303,6 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 						castTOSToInt();
 						bytecode->addInsn(BC_LOADIVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
-						bytecode->addInsn(BC_SWAP);
 						bytecode->addInsn(BC_ISUB);
 						bytecode->addInsn(BC_STOREIVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
@@ -316,7 +313,6 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 						castTOSToDouble();
 						bytecode->addInsn(BC_LOADDVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
-						bytecode->addInsn(BC_SWAP);
 						bytecode->addInsn(BC_DSUB);
 						bytecode->addInsn(BC_STOREDVAR);
 						bytecode->addUInt16(vars[node->var()->name()]);
@@ -326,8 +322,8 @@ void ByteCodeVisitor::visitStoreNode(StoreNode *node) {
 					{
 						std::cout << "Can't store variable!\n";
 					}
-				break;
 				}
+				break;
 			}
 			case tASSIGN:
 			{	

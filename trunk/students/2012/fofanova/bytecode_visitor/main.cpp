@@ -36,6 +36,7 @@ int main(int argc, const char * argv[])
 	code->addFunction(main2);
 	parser.top()->node()->visit(new ByteCodeVisitor(code, main2->bytecode()));
 	main2->bytecode()->add(BC_STOP);
+ //   main2->bytecode()->dump(std::cout);
     interpreter interp(code);
     interp.executeFunction(main2);
     return 0;
