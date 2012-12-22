@@ -255,8 +255,9 @@ public:
 		assert(foundScope);
 
 		variable2id_t::iterator itId = _scope2vars[foundScope].find(var->name());
-		//todo что делать если переменной нет?
-		assert (itId != _scope2vars[foundScope].end());
+		if (itId == _scope2vars[foundScope].end()) {
+			itId = _scope2vars[foundScope].insert(std::make_pair(var->name(), _scope2vars[foundScope].size())).first;
+		}
 
 		const uint16_t id = itId->second;
 
