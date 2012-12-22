@@ -2,8 +2,6 @@
 #include "mathvm.h"
 
 namespace mathvm {
-	
-	
 	static int commandLen[] = {
 		#define ENUM_ELEM(b, d, l) l,
 			FOR_BYTECODES(ENUM_ELEM)
@@ -18,7 +16,12 @@ namespace mathvm {
 Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 	disassemble();
 	BytecodeFunction* f = (BytecodeFunction*)functionById(0);
-	runBytecode(f->bytecode());
+	try {
+		runBytecode(f->bytecode());
+	} catch (std::exception e) {
+		return new Status("Error");
+	}
+
 	return new Status();
 }
 
@@ -348,8 +351,8 @@ void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 			}
 				
 			case BC_SWAP: {
-				Var* val1 = pop();
-				Var* val2 = pop();
+				shared_ptr<Var> val1 = pop();
+				shared_ptr<Var> val2 = pop();
 				push(val1);
 				push(val2);
 				break;
@@ -364,23 +367,20 @@ void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 	}
 }
 
-Var *InterpreterCodeImpl::getDoubleVar(double val)
-{
-	Var* var = new Var(VT_DOUBLE, "");
+shared_ptr<Var> InterpreterCodeImpl::getDoubleVar(double val) {
+	shared_ptr<Var> var(new Var(VT_DOUBLE, ""));
 	var->setDoubleValue(val);
 	return var;
 }
 
-Var *InterpreterCodeImpl::getIntVar(int64_t val)
-{
-	Var* var = new Var(VT_INT, "");
+shared_ptr<Var> InterpreterCodeImpl::getIntVar(int64_t val) {
+	shared_ptr<Var>var (new Var(VT_INT, ""));
 	var->setIntValue(val);
 	return var;
 }
 
-Var *InterpreterCodeImpl::getStringVar(const char *val)
-{
-	Var* var = new Var(VT_STRING, "");
+shared_ptr<Var> InterpreterCodeImpl::getStringVar(const char *val) {
+	shared_ptr<Var> var(new Var(VT_STRING, ""));
 	var->setStringValue(val);
 	return var;
 }
@@ -388,32 +388,32 @@ Var *InterpreterCodeImpl::getStringVar(const char *val)
 
 double InterpreterCodeImpl::popDouble() {
 	assert(!programStack.empty());
-	Var* var = programStack.top();
+	shared_ptr<Var> var = programStack.top();
 	programStack.pop();
 	return var->getDoubleValue();
 }
 
 int64_t InterpreterCodeImpl::popInt() {
 	assert(!programStack.empty());
-	Var* var = programStack.top();
+	shared_ptr<Var> var = programStack.top();
 	programStack.pop();
 	return var->getIntValue();
 }
 
 const char *InterpreterCodeImpl::popString() {
 	assert(!programStack.empty());
-	Var* var = programStack.top();
+	shared_ptr<Var> var = programStack.top();
 	programStack.pop();
 	return var->getStringValue();
 }
 
-void InterpreterCodeImpl::push(Var *val) {
+void InterpreterCodeImpl::push(shared_ptr<Var> val) {
 	programStack.push(val);
 }
 
-Var* InterpreterCodeImpl::pop() {
+shared_ptr<Var> InterpreterCodeImpl::pop() {
 	assert(!programStack.empty());
-	Var* res = programStack.top();
+	shared_ptr<Var> res = programStack.top();
 	programStack.pop();
 	return res;
 }
