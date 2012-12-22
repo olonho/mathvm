@@ -1,0 +1,10 @@
+function int add3(int x, int y) {
+int a;
+int b;
+a = 0;
+b = 3;
+return x + y + a + b;
+}
+
+print(add3(2, 3), '\n');
+
