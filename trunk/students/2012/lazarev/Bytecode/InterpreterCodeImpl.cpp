@@ -14,7 +14,7 @@ namespace mathvm {
 
 
 Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
-	disassemble();
+//	disassemble();
 	BytecodeFunction* f = (BytecodeFunction*)functionById(0);
 	try {
 		runBytecode(f->bytecode());
@@ -257,7 +257,7 @@ void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 				
 				
 			case BC_CALL: {
-				int id = bytecode->getInt16(bci + 1);
+				int id = bytecode->getUInt16(bci + 1);
 				BytecodeFunction *f = (BytecodeFunction*)functionById(id);
 				
 				bytecodes.push(bytecode);
@@ -281,7 +281,7 @@ void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 			case BC_LOADDVAR:
 			case BC_LOADIVAR:
 			case BC_LOADSVAR: {
-				int id = bytecode->getInt16(bci + 1);
+				int id = bytecode->getUInt16(bci + 1);
 				push(mem[id]);
 				break;
 			}
@@ -317,7 +317,7 @@ void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 			case BC_STOREDVAR:
 			case BC_STOREIVAR:
 			case BC_STORESVAR: {
-				int id = bytecode->getInt16(bci + 1);
+				int id = bytecode->getUInt16(bci + 1);
 				mem[id] = pop();
 				break;
 			}
