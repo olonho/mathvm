@@ -27,8 +27,12 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
 
 void InterpreterCodeImpl::runBytecode(Bytecode *bytecode) {
 	size_t bci = 0;
+	int k = 0;
 	while (bci < (bytecode -> length())) {
+		k++;
 		Instruction insn = bytecode -> getInsn(bci);
+		
+//		printCurrent(bytecode, bci);
 		
 		switch (insn) {
 			case BC_DLOAD:
@@ -383,6 +387,75 @@ shared_ptr<Var> InterpreterCodeImpl::getStringVar(const char *val) {
 	shared_ptr<Var> var(new Var(VT_STRING, ""));
 	var->setStringValue(val);
 	return var;
+}
+
+const char* InterpreterCodeImpl::bcName(Instruction insn) {
+    static const struct {
+        const char* name;
+        Instruction insn;
+        size_t length;
+    } names[] = {
+#define BC_NAME(b, d, l) {#b, BC_##b, l},
+        FOR_BYTECODES(BC_NAME)
+    };
+
+    if (insn >= BC_INVALID && insn < BC_LAST) {
+        return names[insn].name;
+    }
+
+    assert(false);
+    return 0;
+}
+
+void InterpreterCodeImpl::printCurrent(Bytecode *bytecode, size_t bci)
+{
+	Instruction insn = bytecode -> getInsn(bci);
+	cout << bci << ": ";
+    const char* name = bcName(insn);
+    switch (insn) {
+        case BC_DLOAD:
+            cout << name << " " << bytecode->getDouble(bci + 1);
+            break;
+        case BC_ILOAD:
+            cout << name << " " << bytecode->getInt64(bci + 1);
+            break;
+        case BC_SLOAD:
+            cout << name << " @" << bytecode->getUInt16(bci + 1);
+            break;
+        case BC_CALL:
+        case BC_CALLNATIVE:
+            cout << name << " *" << bytecode->getUInt16(bci + 1);
+            break;
+        case BC_LOADDVAR:
+        case BC_STOREDVAR:
+        case BC_LOADIVAR:
+        case BC_STOREIVAR:
+        case BC_LOADSVAR:
+        case BC_STORESVAR:
+            cout << name << " @" << bytecode->getUInt16(bci + 1);
+            break;
+        case BC_LOADCTXDVAR:
+        case BC_STORECTXDVAR:
+        case BC_LOADCTXIVAR:
+        case BC_STORECTXIVAR:
+        case BC_LOADCTXSVAR:
+        case BC_STORECTXSVAR:
+            cout << name << " @" << bytecode->getUInt16(bci + 1)
+                << ":" << bytecode->getUInt16(bci + 3);
+            break;
+        case BC_IFICMPNE:
+        case BC_IFICMPE:
+        case BC_IFICMPG:
+        case BC_IFICMPGE:
+        case BC_IFICMPL:
+        case BC_IFICMPLE:
+        case BC_JA:
+            cout << name << " " << bytecode->getInt16(bci + 1) + bci + 1;
+            break;
+      default:
+            cout << name;
+    }
+    cout << endl;
 }
 
 

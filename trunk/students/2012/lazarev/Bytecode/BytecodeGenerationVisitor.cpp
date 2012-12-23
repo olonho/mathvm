@@ -401,6 +401,14 @@ void BytecodeGenerationVisitor::visitBlockNode(BlockNode* node) {   // DONE
 		locals.push_back(v);
 	}
 	
+	Scope::VarIterator varsToInit(currentScope);
+	while (varsToInit.hasNext()) {
+		AstVar* v = varsToInit.next();
+		bytecode->addInsn(insnByUntypedInsn[v->type()][UT_LOAD0]);
+		bytecode->addInsn(insnByUntypedInsn[v->type()][UT_STOREVAR]);
+		bytecode->addInt16(getVarId(v));
+	}
+	
 	Scope::FunctionIterator functionsToAdd(node -> scope());
 	while (functionsToAdd.hasNext()) {
 		AstFunction *astFunction = functionsToAdd.next();
