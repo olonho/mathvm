@@ -35,6 +35,9 @@ class InterpreterCodeImpl: public Code {
 	
 	shared_ptr<Var> mem[1 << 16];
 	
+	void printCurrent(Bytecode* bytecode, size_t bci);
+	const char* bcName(Instruction insn);
+	
 	
 
 public:
