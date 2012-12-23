@@ -26,7 +26,7 @@ class InterpreterCodeImpl: public Code {
 	const char *popString();
 	shared_ptr<Var> pop();
 
-	void push(shared_ptr<Var>);
+	void push(shared_ptr<Var> var);
 	void runBytecode(Bytecode *bytecode);
 	
 	shared_ptr<Var> getDoubleVar(double val);
