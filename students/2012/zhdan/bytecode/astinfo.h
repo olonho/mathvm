@@ -14,22 +14,22 @@
 
 namespace mathvm {
 
-VarType* getNodeType(AstNode* node);
-void setNodeType(AstNode* node, VarType* type);
+VarType getNodeType(AstNode* node);
+void setNodeType(AstNode* node, VarType type);
 void setErrorMessage(AstNode* node, string message);
 
 class AstInfo {
 
 public:
-	AstInfo(VarType* type);
+	AstInfo(VarType type);
 	~AstInfo() {}
 
-	VarType* getType();
+	VarType getType();
 	string* getErrorMessage();
 	void setErrorMessage(string* error_message);
 
 private:
-	VarType* _type;
+	VarType _type;
 	string* _error_message;
 
 };

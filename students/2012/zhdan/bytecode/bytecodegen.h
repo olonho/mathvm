@@ -11,6 +11,7 @@
 #include "mathvm.h"
 #include <string>
 #include "astinfo.h"
+#include "ast.h"
 
 namespace mathvm {
 
@@ -18,7 +19,9 @@ class CodeGenVisitor: public AstVisitor {
 
 public:
 	CodeGenVisitor(Code* code): _code(code){}
-	~CodeGenVisitor();
+	~CodeGenVisitor() {}
+	
+	virtual BytecodeFunction* generate(AstFunction *top);
 
 	virtual void visitBinaryOpNode(BinaryOpNode* node);
 	virtual void visitUnaryOpNode(UnaryOpNode* node);
@@ -38,28 +41,30 @@ public:
 	virtual void visitPrintNode(PrintNode* node);
 
 private:
-	const Code* _code;
+	Code* _code;
 	Scope* _scope;
 	std::map<AstFunction*, BytecodeFunction*> _functions;
 	std::map<std::string, uint16_t> _variables;
+	BytecodeFunction* _current_function;
 
 	Bytecode* getCurrentBytecode();
 	void load_string_const(const string& value);
 	void load_double_const(double value);
-	void load_int_const(int value);
+	void load_int_const(int64_t value);
 	void load_var(const AstVar* var);
 	void process_numbers_bin_op(VarType commonType, AstNode* left, AstNode* right, Instruction ifInt, Instruction ifDouble);
 	void process_comprarision(AstNode* left, AstNode* right, Instruction comprassion);
 	void process_logic_operation(AstNode* left, AstNode* right, Instruction operation);
 	void convert_to_boolean(AstNode* node);
-	Scope* get_curernt_scope();
+	Scope* get_current_scope();
 	void set_current_scope(Scope* scope);
 	int get_function_id(AstFunction* function);
-	void store(const AstVar* var, VarType* type);
+	void store(const AstVar* var, VarType type);
 	uint16_t get_id() { 
 		static int c = 0;
 		return c++;	
 	}
+	void process_scope(Scope* scope);
 };
 
 }

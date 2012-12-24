@@ -6,21 +6,26 @@
  */
 
 #include "bytecodegen.h"
-#include "mathvm.h"
-#include "ast.h"
+#include <iostream>
 
 using namespace std;
 
 namespace mathvm {
 
+BytecodeFunction* CodeGenVisitor::generate(AstFunction *top) {
+	BytecodeFunction* f = new BytecodeFunction(top);
+	_current_function = f;
+	set_current_scope(top->owner());
+	top->node()->body()->visit(this);
+	return f;
+}
+
 void CodeGenVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	Bytecode* currentBytecode = getCurrentBytecode();
-	TokenKind* op = node->kind();
+	TokenKind op = node->kind();
 	AstNode* left = node->left();
 	AstNode* right = node->right();
-	VarType type = *getNodeType(node);
-	VarType leftType = *getNodeType(left);
-	VarType rightType = *getNodeType(right);
+	VarType type = getNodeType(node);
 	switch(op) {
 	case tMOD:
 		right->visit(this);
@@ -65,43 +70,47 @@ void CodeGenVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	case tOR:
 		process_logic_operation(left, right, BC_IFICMPE);
 		break;
-	case tEQ:
+	case tAND:
 		process_logic_operation(left, right, BC_IFICMPNE);
 		break;
+	default:
+		assert(0);
 	}
 
 }
 
 void CodeGenVisitor::visitBlockNode(BlockNode* node) {
-	Scope* current_scope = get_curernt_scope();
+	Scope* current_scope = get_current_scope();
 	Scope* newScope = node->scope();
 	set_current_scope(newScope);
 	// process scope
-	Scope::VarIterator ivar(scope);
-	while (ivar.hasNext())
-	{
-		AstVar *var = ivar.next();
-		_variables[var] = fet_id();		
-		
-	}
-	
-	Scope::FunctionIterator ifun(scope);
-	while (ifun.hasNext()) {
-		BytecodeFunction *bytecode_function = new BytecodeFunction(fun);
-		_code->addFunction(bytecode_function);
-		m_functions.insert(make_pair(fun, bytecode_function));
-	}
-	
-	ifun = Scope::FunctionIterator(scope);
-	while (ifun.hasNext()) ifun.next()->node()->visit(this);
+	process_scope(newScope);
 
-
-	
 	int nodesCount = node->nodes();
 	for (int i = 0; i < nodesCount; i++) {
 		node->nodeAt(i)->visit(this);
 	}
+
 	set_current_scope(current_scope);
+}
+
+void CodeGenVisitor::process_scope(Scope* scope) {
+	Scope::VarIterator ivar(scope);
+	while (ivar.hasNext())
+	{
+		AstVar *var = ivar.next();
+		_variables.insert(make_pair<std::string, uint16_t>(var->name(), get_id()));		
+		
+	}
+	Scope::FunctionIterator ifun(scope);
+	while (ifun.hasNext()) {
+		AstFunction* fun = ifun.next();
+		BytecodeFunction *bytecode_function = new BytecodeFunction(fun);
+		_code->addFunction(bytecode_function);
+		_functions.insert(make_pair<AstFunction*, BytecodeFunction*>(fun, bytecode_function));
+	}
+	ifun = Scope::FunctionIterator(scope);
+	while (ifun.hasNext()) ifun.next()->node()->visit(this);
 }
 
 Scope* CodeGenVisitor::get_current_scope() {
@@ -113,52 +122,58 @@ void CodeGenVisitor::set_current_scope(Scope* scope) {
 }
 
 int CodeGenVisitor::get_function_id(AstFunction* astFunction) {
-	return _functions.find(function)->second->id();
+	return _functions.find(astFunction)->second->id();
 }
 
-void CodeGenVisitor::store(const AstVar* var, VarType* type) {
-	switch (*type) {
+void CodeGenVisitor::store(const AstVar* var, VarType type) {
+	
+	Bytecode* bytecode = getCurrentBytecode();
+	switch (type) {
 	case VT_INT:
 		{
 		bytecode->addInsn(BC_STOREIVAR);
-		bytecode->addUInt16(_variables[node->var()->name()]);
+		bytecode->addUInt16(_variables[var->name()]);
 		break;
 		}
 	case VT_DOUBLE:
 	{
 		bytecode->addInsn(BC_STOREDVAR);
-		bytecode->addUInt16(_variables[node->var()->name()]);
+		bytecode->addUInt16(_variables[var->name()]);
 		break;
 	}
 	case VT_STRING:
 	{
 		bytecode->addInsn(BC_STORESVAR);
-		bytecode->addUInt16(_variables[node->var()->name()]);
+		bytecode->addUInt16(_variables[var->name()]);
 		break;
 	}
+	default:
+		assert(0);
 	}
 }
  
 void CodeGenVisitor::visitCallNode(CallNode* node) {
-	AstFunction* f = get_curernt_scope()->lookupFunction(node->name(), true);
+
+	AstFunction* f = get_current_scope()->lookupFunction(node->name(), true);
 	int id = get_function_id(f);
 	int paramsCount = node->parametersNumber();
 	Bytecode* currentBytecode = getCurrentBytecode();
 	for (int i = 0; i < paramsCount; i++) {
 		AstNode* parameter = node->parameterAt(i);
 		parameter->visit(this);
-		if ((f->parameterType(i) == VT_DOUBLE) && (*getNodeType(parameter) == VT_INT)) {
+		if ((f->parameterType(i) == VT_DOUBLE) && (getNodeType(parameter) == VT_INT)) {
 			currentBytecode->addInsn(BC_I2D);
 		}
 	}
 	currentBytecode->add(BC_CALL);
 	currentBytecode->addInt16(id);
+
 }
 
 void CodeGenVisitor::visitForNode(ForNode* node) {
 	BinaryOpNode* inExpr = node->inExpr()->asBinaryOpNode();
 	inExpr->left()->visit(this);
-	store(node->var(), &VT_INT);
+	store(node->var(), VT_INT);
 	Bytecode* currentBytecode = getCurrentBytecode();
 	int loop_condition = currentBytecode->current();
 	load_var(node->var());
@@ -173,11 +188,21 @@ void CodeGenVisitor::visitForNode(ForNode* node) {
 }
 
 void CodeGenVisitor::visitFunctionNode(FunctionNode* node) {
-	AstFunction* function = get_curernt_scope()->lookupFunction(node->name());
-	Bytecode* prevBytecode = _code;
-	_code = _functions.at(function);
+	AstFunction* function = get_current_scope()->lookupFunction(node->name());
+	BytecodeFunction* prevBytecode = _current_function;
+	_current_function = _functions.at(function);
+	Scope* scope = node->body()->scope()->parent();
+	process_scope(scope);
+	for (uint32_t i = 0; i != node->parametersNumber(); ++i) {
+		AstVar const * const var = scope->lookupVariable((node->parameterName(node->parametersNumber() - i - 1)));
+		store(var, var->type());
+	}
 	node->body()->visit(this);
-	_code = prevBytecode;
+	_current_function = prevBytecode;
+}
+
+Bytecode* CodeGenVisitor::getCurrentBytecode() {
+	return _current_function->bytecode();
 }
 
 void CodeGenVisitor::visitIfNode(IfNode* node) {
@@ -194,7 +219,9 @@ void CodeGenVisitor::visitIfNode(IfNode* node) {
 	currentBytecode->addInt16(0);
 	currentBytecode->setInt16(if_false, currentBytecode->current() - if_false);
 	// if false
-	node->elseBlock()->visit(this);
+	if (node->elseBlock() && node->elseBlock()->nodes()) {		
+		node->elseBlock()->visit(this);
+	}
 	currentBytecode->setInt16(if_true, currentBytecode->current() - if_true);
 }
 
@@ -208,7 +235,7 @@ void CodeGenVisitor::visitPrintNode(PrintNode* node) {
 	for (int i = 0; i < operandsCount; i++) {
 		AstNode* operand = node->operandAt(i);
 		operand->visit(this);
-		switch(*getNodeType(operand)) {
+		switch(getNodeType(operand)) {
 		case VT_INT:
 			currentBytecode->addInsn(BC_IPRINT);
 			break;
@@ -218,16 +245,18 @@ void CodeGenVisitor::visitPrintNode(PrintNode* node) {
 		case VT_STRING:
 			currentBytecode->addInsn(BC_SPRINT);
 			break;
+		default:
+			assert(0);
 		}
 	}
 }
 
 void CodeGenVisitor::visitReturnNode(ReturnNode* node) {
-	VarType type = *getNodeType(node);
+	VarType type = getNodeType(node);
 	Bytecode* currentBytecode = getCurrentBytecode();
 	if (type != VT_VOID) {
 		node->returnExpr()->visit(this);
-		if ((type == VT_DOUBLE) && (*getNodeType(node->returnExpr()))) {
+		if ((type == VT_DOUBLE) && (getNodeType(node->returnExpr()) == VT_INT)) {
 			currentBytecode->addInsn(BC_I2D);
 		}
 	}
@@ -239,20 +268,31 @@ void CodeGenVisitor::visitUnaryOpNode(UnaryOpNode* node) {
 	Bytecode* currentBytecode = getCurrentBytecode();
 	switch(node->kind()) {
 	case tNOT:
+	{
 		convert_to_boolean(node);
 		currentBytecode->addInsn(BC_ILOAD0);
-		currentBytecode->addInsn(BC_ICMP);
+		currentBytecode->addInsn(BC_IFICMPE);
+		int current = currentBytecode->current();
+		currentBytecode->addInt16(0);
+		currentBytecode->addInsn(BC_ILOAD0);
+		currentBytecode->setInt16(current, currentBytecode->current() - current);
+		currentBytecode->addInsn(BC_ILOAD1);		
 		break;
+	}
 	case tSUB:
-		switch(*getNodeType(node->operand())){
+		switch(getNodeType(node->operand())){
 		case VT_INT:
 			currentBytecode->addInsn(BC_INEG);
 			break;
 		case VT_DOUBLE:
 			currentBytecode->addInsn(BC_DNEG);
 			break;
+		default:
+			assert(0);
 		}
 		break;
+	default:
+		assert(0);
  	}
 }
 
@@ -268,7 +308,7 @@ void CodeGenVisitor::visitWhileNode(WhileNode* node) {
 	node->loopBlock()->visit(this);
 	currentBytecode->addInsn(BC_JA);
 	currentBytecode->addInt16(if_position - currentBytecode->current());
-	currentBytecode->addInsn(BC_POP);
+	//currentBytecode->addInsn(BC_POP);
 	currentBytecode->setInt16(if_false_position, currentBytecode->current() - if_false_position);
 }
 
@@ -289,41 +329,45 @@ void CodeGenVisitor::visitLoadNode(LoadNode* node) {
 }
 
 void CodeGenVisitor::load_var(const AstVar* var) {
-	switch (node->var()->type()) {
+	Bytecode* bytecode = getCurrentBytecode();
+	switch (var->type()) {
 	case VT_INT:
 	{
 		bytecode->addInsn(BC_LOADIVAR);
-		bytecode->addUInt16(_variables[node->var()->name()]);
+		bytecode->addUInt16(_variables[var->name()]);
 		break;
 	}
 	case VT_DOUBLE:
 	{
 		bytecode->addInsn(BC_LOADDVAR);
-		bytecode->addUInt16(_variables[node->var()->name()]);
+		bytecode->addUInt16(_variables[var->name()]);
 		break;
 	}
 	case VT_STRING:
 	{
 		bytecode->addInsn(BC_LOADSVAR);
-		bytecode->addUInt16(_variables[node->var()->name()]);
+		bytecode->addUInt16(_variables[var->name()]);
 		break;
 	}
+	default:
+		assert(0);
 	}
 	
 }
 
-void CodeGenVisitor::visitStoreNode(StoreNode* node) {
-	Bytecode* currentBytecode = getCurrentBytecode();
+void CodeGenVisitor::visitStoreNode(StoreNode* node) {;
 	switch(node->op()) {
 	case tASSIGN:
 		node->value()->visit(this);
 		break;
 	case tINCRSET:
-		process_numbers_bin_op(*getNodeType(node), new LoadNode(0, node->var()), node->value(), BC_IADD, BC_DADD);
+		process_numbers_bin_op(getNodeType(node), new LoadNode(0, node->var()), node->value(), BC_IADD, BC_DADD);
 		break;
 	case tDECRSET:
-		process_numbers_bin_op(*getNodeType(node), new LoadNode(0, node->var()), node->value(), BC_ISUB, BC_DSUB);
+		process_numbers_bin_op(getNodeType(node), new LoadNode(0, node->var()), node->value(), BC_ISUB, BC_DSUB);
 		break;
+	default:
+		assert(0);	
 	}
 	store(node->var(), getNodeType(node->value()));
 }
@@ -338,7 +382,7 @@ void CodeGenVisitor::load_string_const(const string& value) {
 	}
 }
 
-void CodeGenVisitor::load_int_const(int value) {
+void CodeGenVisitor::load_int_const(int64_t value) {
 	Bytecode* bc = getCurrentBytecode();
 	if (value == 1) {
 		bc->addInsn(BC_ILOAD1);
@@ -369,27 +413,28 @@ void CodeGenVisitor::load_double_const(double value) {
 void CodeGenVisitor::process_numbers_bin_op(VarType commonType, AstNode* left, AstNode* right, Instruction ifInt, Instruction ifDouble) {
 	Bytecode* currentBytecode = getCurrentBytecode();
 	if (commonType == VT_INT) {
+
 		right->visit(this);
 		left->visit(this);
 		currentBytecode->addInsn(ifInt);
 	} else if (commonType == VT_DOUBLE) {
 		right->visit(this);
-		if (*getNodeType(right) == VT_INT) {
+		if (getNodeType(right) == VT_INT) {
 			currentBytecode->addInsn(BC_I2D);
 		}
 		left->visit(this);
-		if (*getNodeType(left) == VT_INT) {
+		if (getNodeType(left) == VT_INT) {
 			currentBytecode->addInsn(BC_I2D);
 		}
-		currentBytecode->addInsn(BC_DMUL);
+		currentBytecode->addInsn(ifDouble);
 	} else {
 		assert(0);
 	}
 }
 
 void CodeGenVisitor::process_comprarision(AstNode* left, AstNode* right, Instruction comprassion) {
-	VarType leftType = *getNodeType(left);
-	VarType rightType = *getNodeType(right);
+	VarType leftType = getNodeType(left);
+	VarType rightType = getNodeType(right);
 	Bytecode* currentBytecode = getCurrentBytecode();
 	if ((leftType == VT_INT) && (rightType == VT_INT)) {
 		right->visit(this);
@@ -407,20 +452,20 @@ void CodeGenVisitor::process_comprarision(AstNode* left, AstNode* right, Instruc
 		currentBytecode->addInsn(BC_DCMP);
 	}
 	currentBytecode->addInsn(BC_ILOAD0);
-	currentBytecode->addInsn(BC_SWAP);
+	//currentBytecode->addInsn(BC_SWAP);
 
 	currentBytecode->addInsn(comprassion);
 	int comprassion_position = currentBytecode->current();
 	currentBytecode->addInt16(0);
-	currentBytecode->addInsn(BC_POP);
-	currentBytecode->addInsn(BC_POP);
+	//currentBytecode->addInsn(BC_POP);
+	//currentBytecode->addInsn(BC_POP);
 	currentBytecode->addInsn(BC_ILOAD0);
 	currentBytecode->addInsn(BC_JA);
 	int jumb_after_true_position = currentBytecode->current();
 	currentBytecode->addInt16(0);
 	currentBytecode->setInt16(comprassion_position, currentBytecode->current() - comprassion_position);
-	currentBytecode->addInsn(BC_POP);
-	currentBytecode->addInsn(BC_POP);
+	//currentBytecode->addInsn(BC_POP);
+	//currentBytecode->addInsn(BC_POP);
 	currentBytecode->addInsn(BC_ILOAD1);
 	currentBytecode->setInt16(jumb_after_true_position, currentBytecode->current() - jumb_after_true_position);
 }
@@ -434,7 +479,8 @@ void CodeGenVisitor::process_logic_operation(AstNode* left, AstNode* right, Inst
 	int check_left = currentBytecode->current();
 	currentBytecode->addInt16(0);
 	// if left is not 0
-	currentBytecode->addInsn(BC_POP);
+	//currentBytecode->addInsn(BC_POP);
+	currentBytecode->addInsn(BC_ILOAD0);
 	currentBytecode->addInsn(BC_JA);
 	int set_result_if_left_is_true = currentBytecode->current();
 	currentBytecode->addInt16(0);
@@ -442,20 +488,18 @@ void CodeGenVisitor::process_logic_operation(AstNode* left, AstNode* right, Inst
 	// set where to jump if left is 0
 	currentBytecode->setInt16(check_left, currentBytecode->current() - check_left);
 	// if left is 0
-	currentBytecode->addInsn(BC_POP);
-	currentBytecode->addInsn(BC_POP);
+	//currentBytecode->addInsn(BC_POP);
+	//currentBytecode->addInsn(BC_POP);
 	right->visit(this);
 	convert_to_boolean(right);
 
 	// set where to jump if left is 1
 	currentBytecode->setInt16(set_result_if_left_is_true, currentBytecode->current() - set_result_if_left_is_true);
-	break;
-
 }
 
 void CodeGenVisitor::convert_to_boolean(AstNode* node) {
 	Bytecode* currentBytecode = getCurrentBytecode();
-	if (*getNodeType(node) == VT_DOUBLE) {
+	if (getNodeType(node) == VT_DOUBLE) {
 		currentBytecode->addInsn(BC_DLOAD0);
 		currentBytecode->addInsn(BC_DCMP);
 	}
