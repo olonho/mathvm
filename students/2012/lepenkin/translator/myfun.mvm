@@ -1,10 +1,11 @@
-function int add3(int x, int y) {
-int a;
-int b;
-a = 0;
-b = 3;
-return x + y + a + b;
+function int add(int x, int y) {
+    return x + y;
 }
 
-print(add3(2, 3), '\n');
+function void doit() {
+    print('Hi\n');
+}
 
+
+print(add(2, 3), '\n');
+doit();

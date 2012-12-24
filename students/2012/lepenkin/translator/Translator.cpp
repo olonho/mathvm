@@ -22,7 +22,7 @@ TranslatorVisitor::~TranslatorVisitor() {
 
 void TranslatorVisitor::translate(AstFunction* top)
 {
-	WR_DEBUG("STARING TRANSLATING");
+	cout << "Bytecode:" << endl << endl;
 
     _code->pushScope();
 
@@ -32,7 +32,7 @@ void TranslatorVisitor::translate(AstFunction* top)
     ((BytecodeFunction*)_code->functionById(0))->bytecode()->addInsn(BC_STOP);
     //_code->currentBytecode()->addInsn(BC_STOP);
 
-    WR_DEBUG("TRANSLATED: OK");
+    cout << endl << "Translated." << endl << endl;
 }
 
 string kindRepr(TokenKind kind) 
@@ -140,8 +140,8 @@ void TranslatorVisitor::visitBlockNodeBody(BlockNode* node)
 
 void TranslatorVisitor::visitBlockNode(BlockNode* node)
 {
-    WR_DEBUG("visitBlockNode: START");
-    cout << "Scope: " << node->scope() << endl;
+    //WR_DEBUG("visitBlockNode: START");
+    //cout << "Scope: " << node->scope() << endl;
     visitScopeFuns(node->scope());
     visitScopeVars(node->scope());
 
@@ -150,7 +150,7 @@ void TranslatorVisitor::visitBlockNode(BlockNode* node)
     visitBlockNodeBody(node);
     _code->popScope();
 
-    WR_DEBUG("visitBlockNode: END");
+    //WR_DEBUG("visitBlockNode: END");
 }
 
 void TranslatorVisitor::visitCallNode(CallNode* node)
@@ -161,22 +161,20 @@ void TranslatorVisitor::visitCallNode(CallNode* node)
     	cout << "Function " << node->name() << " ";
     	WR_ERROR("not found");
     }
-	cout << "Calling fun ID: " << info->_id << endl;
-	WR_DEBUG("visitCallNode NI");
 
 
+    _code->currentBytecode()->addInsn(BC_CALL);
+    _code->currentBytecode()->addUInt16(info->_id);
 
-/*
-	cout << node->name() << "(";
-    if (node->parametersNumber() > 0)
-        node->parameterAt(0)->visit(this);
-    for (uint32_t i = 1; i < node->parametersNumber(); ++i)
+    for (uint32_t i = 0; i < node->parametersNumber(); ++i)
     {
-        cout << ", ";
         node->parameterAt(i)->visit(this);
+        cout << "fun param pushed ?" << endl;
     }
-    cout << ")";
-    */
+
+
+
+
 }
 
 void TranslatorVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node)
@@ -202,12 +200,12 @@ void TranslatorVisitor::visitForNode(ForNode* node)
 
 void TranslatorVisitor::visitFunctionNode(FunctionNode* node)
 {
-    WR_DEBUG("visitFunctionNode: START");
+    //WR_DEBUG("visitFunctionNode: START");
 
 	BytecodeFunction* fun = _code->declareFunctionInCurrentScope(node);
 
-    cout << "Added bytecode function. ID: " << fun->id() << " Name: " << fun->name() << endl;
-    cout << "Searching fun by name: " << _code->getFunIdByName(fun->name())->_id << endl;
+    //cout << "Added bytecode function. ID: " << fun->id() << " Name: " << fun->name() << endl;
+    //cout << "Searching fun by name: " << _code->getFunIdByName(fun->name())->_id << endl;
 
     _code->pushFunction(fun);
     _code->pushScope();
@@ -229,7 +227,7 @@ void TranslatorVisitor::visitFunctionNode(FunctionNode* node)
     _code->popFunction();
     _code->popScope();
 
-    WR_DEBUG("visitFunctionNode: OK");
+   // WR_DEBUG("visitFunctionNode: OK");
 }
 
 
@@ -238,7 +236,7 @@ void TranslatorVisitor::visitFunctionNode(FunctionNode* node)
 // load on TOS ?
 void TranslatorVisitor::visitLoadNode(LoadNode* node)
 {
-	WR_DEBUG("visitLoadNode: START");
+	//WR_DEBUG("visitLoadNode: START");
 
 	const AstVar* var = node->var();
 	VarInfo* info = _code->getVarInfoByName(var->name());
@@ -295,7 +293,8 @@ void TranslatorVisitor::visitIntLiteralNode(IntLiteralNode* node)
     _code->currentBytecode()->addInt64(node->literal());
     varStack.push(VT_INT);
 
-    WR_DEBUG("visitIntLiteralNode: OK");
+    cout << "BC_ILOAD " << node->literal() << endl;
+    cout << "_bc->length " << _code->currentBytecode()->length() << endl;
 }
 
 
@@ -319,19 +318,31 @@ void TranslatorVisitor::visitPrintNode(PrintNode* node)
             case VT_INT:
             	_code->currentBytecode()->addInsn(BC_IPRINT);
             	varStack.pop();
+
+            	cout << "IPRINT" << endl;
+
         	    break;
             case VT_DOUBLE:
                 _code->currentBytecode()->addInsn(BC_DPRINT);
                 varStack.pop();
+
+                cout << "DPRINT" << endl;
+
         	    break;
             case VT_STRING:
                 _code->currentBytecode()->addInsn(BC_SPRINT);
                 varStack.pop();
+
+                cout << "SPRINT" << endl;
+
         	    break;
             default:
             	WR_ERROR("PRINTING INVALID TYPE");
             	break;
         }
+
+        cout << "_bc->length " << _code->currentBytecode()->length() << endl;
+
     }
 }
 
@@ -358,7 +369,8 @@ void TranslatorVisitor::storeVar(const AstVar* var) {
 
 	VarType type = var->type();
 
-    // somewhere get varId ???
+
+
     VarInfo* varInfo = _code->getVarInfoByName(var->name());
 
     if (!varInfo) {
@@ -482,7 +494,8 @@ void TranslatorVisitor::visitStringLiteralNode(StringLiteralNode* node)
 	_code->currentBytecode()->addUInt16(stringId);
     varStack.push(VT_STRING);
 
-    WR_DEBUG("visitStringLiteralNode: OK");
+    cout << "BC_SLOAD " << stringId << " // "<< _code->constantById(stringId) << endl;
+    cout << "_bc->length " << _code->currentBytecode()->length() << endl;
 }
 
 
@@ -524,8 +537,8 @@ void TranslatorVisitor::visitScopeVars(Scope* scope)
 
 void TranslatorVisitor::visitScopeFuns(Scope* scope)
 {
-    WR_DEBUG("");
-	WR_DEBUG("visitScopeFuns: START");
+    //WR_DEBUG("");
+	//WR_DEBUG("visitScopeFuns: START");
 
 	Scope::FunctionIterator fun_iter(scope);
     while (fun_iter.hasNext())

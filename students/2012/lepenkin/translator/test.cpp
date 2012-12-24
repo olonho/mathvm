@@ -66,6 +66,9 @@ int main(int argc, char** argv) {
     
     Code* bc = 0;
 
+    cout << sizeof(int) << sizeof(int64_t) << endl;
+
+
 
     TranslatorVisitor translator(&bc);
 
@@ -74,7 +77,9 @@ int main(int argc, char** argv) {
 
     Interpreter executor(cout);
 
+
     executor.execute(bc);
+
 
 
 
