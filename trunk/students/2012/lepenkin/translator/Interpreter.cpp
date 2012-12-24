@@ -13,67 +13,224 @@ Interpreter::Interpreter(ostream& out)
 }
 
 Interpreter::~Interpreter() {
-	// TODO Auto-generated destructor stub
-}
 
-void Interpreter::setLogger(ostream* log)
-{
-	_log = log;
 }
 
 
 void Interpreter::loadDouble() {
     StackVar var;
-    var.d = _bc->getDouble(_insPtr);
-
-    _insPtr += sizeof(double);
+    var.d = getNextDouble();
 
     _stack.push(var);
     _typeStack.push(VT_DOUBLE);
-
-    _out << "loadDouble" << endl;
 }
 
 void Interpreter::loadInt() {
     StackVar var;
-    var.i = _bc->getInt64(_insPtr);
-
-    _insPtr += sizeof(uint64_t);
+    var.i = getNextInt();
 
     _stack.push(var);
     _typeStack.push(VT_INT);
-
-    _out << "loadInt" << endl;
 }
 
 void Interpreter::loadString() {
     StackVar var;
-    var.strId = _bc->getUInt16(_insPtr);
-
-    _insPtr += 2;
+    var.strId = getNext2Bytes();
 
     _stack.push(var);
     _typeStack.push(VT_STRING);
+}
 
-    _out << "loadString" << endl;
+void Interpreter::printInt() {
+	int64_t i = _stack.top().i;
+
+	_stack.pop();
+	_typeStack.pop();
+
+	_out << i;
+}
+
+void Interpreter::printDouble() {
+	double d = _stack.top().d;
+
+	_stack.pop();
+	_typeStack.pop();
+
+	_out << d;
+}
+
+void Interpreter::printString() {
+    uint16_t id = _stack.top().strId;
+
+    _stack.pop();
+	_typeStack.pop();
+
+	_out << _code->constantById(id);
 }
 
 
+void Interpreter::storeCtxDouble() {
+    FunctionContext* ctx = topContext();
+    uint16_t ctxId = getNext2Bytes();
+    uint16_t id = getNext2Bytes();
+
+    StackVar var = _stack.top();
+    _stack.pop();
+    _typeStack.pop();
+
+    //cout << "CTX: " << ctxId << " ID: " << id << endl;
+    ctx->storeDouble(ctxId, id, var.d);
+}
+
+void Interpreter::storeCtxInt() {
+	FunctionContext* ctx = topContext();
+	uint16_t ctxId = getNext2Bytes();
+	uint16_t id = getNext2Bytes();
+
+	StackVar var = _stack.top();
+	_stack.pop();
+	_typeStack.pop();
+
+	//cout << "CTX: " << ctxId << " ID: " << id << endl;
+	ctx->storeInt(ctxId, id, var.i);
+}
+
+void Interpreter::pushInt(int64_t i)
+{
+    StackVar var;
+    var.i = i;
+
+    _stack.push(var);
+    _typeStack.push(VT_INT);
+}
+
+int64_t Interpreter::popInt() {
+    checkTypesTOS(VT_INT);
+    int64_t i = _stack.top().i;
+    popVar();
+    return i;
+}
+
+double Interpreter::popDouble() {
+	checkTypesTOS(VT_DOUBLE);
+	double d = _stack.top().d;
+	popVar();
+	return d;
+}
+
+void Interpreter::pushDouble(double d)
+{
+	StackVar var;
+    var.d = d;
+
+    _stack.push(var);
+    _typeStack.push(VT_DOUBLE);
+}
+
+
+void Interpreter::loadCtxInt() {
+	FunctionContext* ctx = topContext();
+    uint16_t ctxId = getNext2Bytes();
+	uint16_t id = getNext2Bytes();
+
+	pushInt(ctx->readInt(ctxId, id));
+}
+
+void Interpreter::loadCtxDouble() {
+	FunctionContext* ctx = topContext();
+	uint16_t ctxId = getNext2Bytes();
+	uint16_t id = getNext2Bytes();
+
+	pushDouble(ctx->readDouble(ctxId, id));
+}
+
+void Interpreter::swap() {
+    StackVar upVar = _stack.top();
+    VarType upType = _typeStack.top();
+
+    popVar();
+
+    StackVar downVar = _stack.top();
+    VarType downType = _typeStack.top();
+
+    pushVar(upType, upVar);
+    pushVar(downType, downVar);
+}
+
+void Interpreter::subInts() {
+    int64_t top = popInt();
+    int64_t down = popInt();
+    int64_t sub = top - down;
+
+    pushInt(sub);
+}
+
+void Interpreter::subDoubles() {
+	double top = popDouble();
+	double down = popDouble();
+
+	pushDouble(top - down);
+}
+
+
+void Interpreter::loadFunParamsInCtx(BytecodeFunction* fun) {
+    uint16_t n = fun->parametersNumber();
+    FunctionContext* ctx = this->topContext();
+    for (uint16_t i = 0; i < n; ++i) {
+        VarType type = fun->parameterType(i);
+        switch (type) {
+            case VT_INT:
+                ctx->storeInt(ctx->getId(), i, getNextInt());
+                break;
+            case VT_DOUBLE:
+            	ctx->storeDouble(ctx->getId(), i, getNextDouble());
+            	break;
+            default:
+            	assert(false);
+            	break;
+        }
+
+    }
+}
+
+
+void Interpreter::call() {
+    uint16_t funId = getNext2Bytes();
+
+    this->pushContext(funId);
+
+
+    BytecodeFunction* fun = (BytecodeFunction*) _code->functionById(funId);
+    loadFunParamsInCtx(fun);
+    uint32_t savedIp = _insPtr;
+
+    assert(false);
+
+    this->popContext();
+    _insPtr = savedIp;
+
+}
+
 void Interpreter::execute(Code* code)
 {
+	//cout << "\nlaunching..." << endl << endl;
 
-    _out << "EXECUTING: START" << endl;
+	_code = code;
 
-    _bc = ((BytecodeFunction*)code->functionById(0))->bytecode();
+	uint16_t top = 0;
+    _bc = ((BytecodeFunction*)code->functionById(top))->bytecode();
     _insPtr = 0;
 
+    pushContext(top);
 
     Instruction inst;
     while (true) {
 
 
-    	inst = _bc->getInsn(_insPtr);
-    	_out << "Current instruction " << inst << endl;
+    	inst = nextInsn();
+
+    	//cout << "Current instruction " << inst << endl;
+
 
 
         switch (inst) {
@@ -89,10 +246,8 @@ void Interpreter::execute(Code* code)
                 loadInt();
         		break;
         	case BC_SLOAD:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                loadString();
+        		break;
         	case BC_DLOAD0:
 
         		_out << inst << " Not implemented" << endl;
@@ -140,14 +295,11 @@ void Interpreter::execute(Code* code)
             	break;
         	case BC_DSUB:
 
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		subDoubles();
+        		break;
         	case BC_ISUB:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                subInts();
+        		break;
         	case BC_DMUL:
 
         		_out << inst << " Not implemented" << endl;
@@ -185,19 +337,17 @@ void Interpreter::execute(Code* code)
             	break;
         	case BC_IPRINT:
 
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		//_out << inst << " Not implemented" << endl;
+        		//exit(EXIT_FAILURE);
+
+        		printInt();
+        		break;
         	case BC_DPRINT:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                printDouble();
+        		break;
         	case BC_SPRINT:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		printString();
+        		break;
         	case BC_I2D:
 
         		_out << inst << " Not implemented" << endl;
@@ -214,10 +364,8 @@ void Interpreter::execute(Code* code)
                 exit(EXIT_FAILURE);
             	break;
         	case BC_SWAP:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                swap();
+        		break;
         	case BC_POP:
 
         		_out << inst << " Not implemented" << endl;
@@ -374,33 +522,24 @@ void Interpreter::execute(Code* code)
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADCTXDVAR:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                loadCtxDouble();
+        		break;
         	case BC_LOADCTXIVAR:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                loadCtxInt();
+        		break;
         	case BC_LOADCTXSVAR:
 
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STORECTXDVAR:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
+        		storeCtxDouble();
             	break;
         	case BC_STORECTXIVAR:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                storeCtxInt();
+        		break;
         	case BC_STORECTXSVAR:
-
-        		_out << inst << " Not implemented" << endl;
+        		_out << inst << " STORE STRING ? Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_DCMP:
@@ -456,10 +595,8 @@ void Interpreter::execute(Code* code)
         	case BC_STOP:
         		return;
         	case BC_CALL:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		call();
+        		break;
         	case BC_CALLNATIVE:
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
@@ -482,4 +619,129 @@ void Interpreter::execute(Code* code)
 
     }
 
+    this->popContext();
+}
+
+
+void Interpreter::movePtr2Bytes() {
+    _insPtr += 2;
+}
+
+
+
+void Interpreter::movePtrInsnDown() {
+    _insPtr += BytecodeConstants::insn_size;
+}
+
+void Interpreter::movePtrIntDown() {
+    _insPtr += BytecodeConstants::int_size;
+}
+
+void Interpreter::movePtrDoubleDown() {
+    _insPtr += BytecodeConstants::double_size;
+}
+
+
+Instruction Interpreter::nextInsn() {
+ 	Instruction insn = _bc->getInsn(_insPtr);
+    movePtrInsnDown();
+    return insn;
+}
+
+double Interpreter::getNextDouble() {
+    double d = _bc->getDouble(_insPtr);
+    movePtrDoubleDown();
+    return d;
+}
+
+int64_t Interpreter::getNextInt() {
+    int64_t i = _bc->getInt64(_insPtr);
+    movePtrIntDown();
+    return i;
+}
+
+uint16_t Interpreter::getNext2Bytes() {
+    uint16_t id = _bc->getUInt16(_insPtr);
+    movePtr2Bytes();
+    return id;
+}
+
+
+
+
+
+FunctionContext::FunctionContext(uint16_t functionId, FunctionContext* parent)
+	: _id(functionId)
+	, _parent(parent)
+{
+}
+
+int64_t FunctionContext::readInt(uint16_t context, uint16_t id) {
+    if (context == _id)
+        return readIntFromCurrCTX(id);
+    else if (_parent)
+        return _parent->readInt(context, id);
+    assert(false);
+}
+
+
+double FunctionContext::readDouble(uint16_t context, uint16_t id) {
+    if (context == _id)
+        return readDoubleFromCurrCTX(id);
+    else if (_parent)
+        return _parent->readDouble(context, id);
+    assert(false);
+}
+
+void FunctionContext::storeDouble(uint16_t context, uint16_t id, double value) {
+	if (context == _id)
+	{
+		storeDoubleInCurrCTX(id, value);
+		//cout << "Stored double in current" << endl;
+		return;
+	}
+    else if (_parent) {
+	    _parent->storeDouble(context, id, value);
+	    return;
+	}
+	assert(false);
+}
+
+void FunctionContext::storeInt(uint16_t context, uint16_t id, int64_t value) {
+	if (context == _id)
+	{
+	    storeIntInCurrCTX(id, value);
+	    //cout << "Stored int in current" << endl;
+	    return;
+	}
+	else if (_parent)
+	{
+	    _parent->storeInt(context, id, value);
+	    return;
+	}
+	assert(false);
+}
+
+int64_t FunctionContext::readIntFromCurrCTX(uint16_t id) {
+    return vars[id].i;
+}
+
+double FunctionContext::readDoubleFromCurrCTX(uint16_t id) {
+    return vars[id].d;
+}
+
+void FunctionContext::storeDoubleInCurrCTX(uint16_t id, double value) {
+    StackVar var;
+    var.d = value;
+  	vars[id] = var;
+}
+
+void FunctionContext::storeIntInCurrCTX(uint16_t id, int64_t value) {
+   StackVar var;
+   var.i = value;
+   vars[id] = var;
+}
+
+uint16_t FunctionContext::getId() {
+	return _id;
 }
