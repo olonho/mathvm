@@ -10,6 +10,12 @@
 
 namespace mathvm {
 
+void TypeCheckerVisitor::calculateTypes(AstFunction* top) {
+	FunctionNode* top_function = top->node();
+	_current_scope = top->owner();
+	top_function->visit(this);
+}
+
 void TypeCheckerVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 	AstNode* left = node->left();
 	AstNode* right = node->right();
@@ -26,14 +32,19 @@ void TypeCheckerVisitor::visitUnaryOpNode(UnaryOpNode* node) {
 
 void TypeCheckerVisitor::visitBlockNode(BlockNode* node) {
 	_current_scope = node->scope();
+	Scope::FunctionIterator funcIt(_current_scope);
+	while (funcIt.hasNext()) {
+		AstFunction* func = funcIt.next();
+		func->node()->visit(this);
+	}
 	int nodes_count = node->nodes();
-	VarType* commonType = NULL;
-	for (int i = 0; i < nodes_count; i++) {
+	VarType commonType = VT_VOID;
+	for (int i = 0; i != nodes_count; ++i) {
 		AstNode* currentNode = node->nodeAt(i);
 		currentNode->visit(this);
 		bool isBlockNode = currentNode->isForNode() || currentNode->isWhileNode() || currentNode->isIfNode();
-		VarType* currentNodeType = getNodeType(currentNode);
-		bool hasType = *currentNodeType != VT_VOID;
+		VarType currentNodeType = getNodeType(currentNode);
+		bool hasType = currentNodeType != VT_VOID;
 		if ((isBlockNode && hasType) || (i == nodes_count - 1)) {
 			commonType = getUpperCommonType(commonType, currentNodeType);
 		}
@@ -43,38 +54,38 @@ void TypeCheckerVisitor::visitBlockNode(BlockNode* node) {
 }
 
 void TypeCheckerVisitor::visitCallNode(CallNode* node) {
-	int params_count = node->parametersNumber();
-	FunctionNode* refFunc = _current_scope->lookupFunction(node->name(), true);
-	bool matchesRefedFunction = (refFunc!= NULL) && (refFunc->parametersNumber() != params_count);
-	for (int i = 0; i < params_count; i++) {
+	uint32_t params_count = node->parametersNumber();
+	AstFunction* refFunc = _current_scope->lookupFunction(node->name(), true);
+	bool matchesRefedFunction = (refFunc!= NULL) && (refFunc->parametersNumber() == params_count);
+	for (uint32_t i = 0; i < params_count; i++) {
 		AstNode* param = node->parameterAt(i);
 		param->visit(this);
-		if (matchesRefedFunction && !isAssignable(&(refFunc->parameterType(i)), getNodeType(param))) {
+		if (matchesRefedFunction && !isAssignable(refFunc->parameterType(i), getNodeType(param))) {
 			setErrorMessage(param, "Wrong type parameter");
 		}
 	}
 	if (matchesRefedFunction) {
-		setNodeType(node, &refFunc->returnType());
+		setNodeType(node, refFunc->returnType());
 	} else {
-		setNodeType(node, &VT_INVALID);
+		setNodeType(node, VT_INVALID);
 	}
 }
 
 void TypeCheckerVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
-	setNodeType(node, &VT_DOUBLE);
+	setNodeType(node, VT_DOUBLE);
 }
 
 void TypeCheckerVisitor::visitForNode(ForNode* node) {
 	// todo set in expr type
 	node->body()->visit(this);
-	node->inExpr()->visit(this);
+	//node->inExpr()->visit(this);
 	setNodeType(node, getNodeType(node->body()));
 }
 
 void TypeCheckerVisitor::visitFunctionNode(FunctionNode* node) {
 	node->body()->visit(this);
-	if (!isAssignable(&node->returnType(), getNodeType(node->body()))) {
-		setNodeType(node, &VT_INVALID);
+	if (!isAssignable(node->returnType(), getNodeType(node->body()))) {
+		setNodeType(node, VT_INVALID);
 	}
 }
 
@@ -83,16 +94,21 @@ void TypeCheckerVisitor::visitIfNode(IfNode* node) {
 	mathvm::BlockNode* thenBlock = node->thenBlock();
 	thenBlock->visit(this);
 	mathvm::BlockNode* elseBlock = node->elseBlock();
-	elseBlock->visit(this);
-	node->setInfo(new AstInfo(getUpperCommonType(getNodeType(thenBlock), getNodeType(elseBlock))));
+	if (elseBlock && elseBlock->nodes()) {
+		elseBlock->visit(this);
+		node->setInfo(new AstInfo(getUpperCommonType(getNodeType(thenBlock), getNodeType(elseBlock))));
+	} else {
+		node->setInfo(new AstInfo(getUpperCommonType(getNodeType(thenBlock), VT_VOID)));
+	}
+	
 }
 
 void TypeCheckerVisitor::visitIntLiteralNode(IntLiteralNode* node) {
-	setNodeType(node, &VT_INT);
+	setNodeType(node, VT_INT);
 }
 
 void TypeCheckerVisitor::visitLoadNode(LoadNode* node) {
-	setNodeType(node, &node->var()->type());
+	setNodeType(node, node->var()->type());
 }
 
 void TypeCheckerVisitor::visitNativeCallNode(NativeCallNode* node) {
@@ -101,84 +117,90 @@ void TypeCheckerVisitor::visitNativeCallNode(NativeCallNode* node) {
 
 void TypeCheckerVisitor::visitPrintNode(PrintNode* node) {
 	node->visitChildren(this);
-	setNodeType(node, &VT_VOID);
+	setNodeType(node, VT_VOID);
 }
 
 void TypeCheckerVisitor::visitReturnNode(ReturnNode* node) {
-	node->returnExpr()->visit(this);
-	setNodeType(node, getNodeType(node->returnExpr()));
+	if (node->returnExpr()) {
+		node->returnExpr()->visit(this);
+		setNodeType(node, getNodeType(node->returnExpr()));
+	} else {
+		setNodeType(node, VT_VOID);
+	}
 }
 
 void TypeCheckerVisitor::visitStoreNode(StoreNode* node) {
 	AstNode* value = node->value();
 	value->visit(this);
-	AstVar* var = node->var();
-	if (isAssignable(&var->type(), getNodeType(value))) {
-		setNodeType(node, &var->type());
+	const AstVar* var = node->var();
+	if (isAssignable(var->type(), getNodeType(value))) {
+		setNodeType(node, var->type());
 	} else {
 		setErrorMessage(node, "Bad type");
 	}
 }
 
 void TypeCheckerVisitor::visitStringLiteralNode(StringLiteralNode* node) {
-	setNodeType(node, &VT_STRING);
+	setNodeType(node, VT_STRING);
 }
 
 void TypeCheckerVisitor::visitWhileNode(WhileNode* node) {
 	node->whileExpr()->visit(this);
-	if (*getNodeType(node->whileExpr()) == VT_VOID) {
+	if (getNodeType(node->whileExpr()) == VT_VOID) {
 		setErrorMessage(node, "Should be not void");
 	}
 	node->loopBlock()->visit(this);
 	setNodeType(node, getNodeType(node->loopBlock()));
 }
 
-VarType* TypeCheckerVisitor::getOperationResultType(TokenKind tokenKind, AstNode* left, AstNode* right) {
-	VarType* result = &VT_INVALID;
-	VarType leftType = *getNodeType(left);
-	VarType rightType = *getNodeType(right);
+VarType TypeCheckerVisitor::getOperationResultType(TokenKind tokenKind, AstNode* left, AstNode* right) {
+	VarType result = VT_INVALID;
+	VarType leftType = getNodeType(left);
+	VarType rightType = getNodeType(right);
 	switch (tokenKind) {
 	case tOR: case tAND: case tEQ: case tNEQ:
 	case tGT: case tGE: case tLT: case tLE:
-		result = &VT_INT;
+		result = VT_INT;
 		break;
 	case tADD:
 		if (leftType == VT_STRING || rightType == VT_STRING) {
-			result = &VT_STRING;
+			result = VT_STRING;
 		} else if (leftType == VT_DOUBLE || rightType == VT_DOUBLE) {
-			result = &VT_DOUBLE;
-		} else if (leftType == VT_INT && rightType == VT_INT) {
-			result = &VT_INT;
-		}
-		break;
-	case tSUB: case tMUL: case tDIV: case tMOD:
-		if (leftType == VT_DOUBLE || rightType == VT_DOUBLE) {
-			result = &VT_DOUBLE;
-		} else if (leftType == VT_INT && rightType == VT_INT) {
-			result = &VT_INT;
-		}
-		break;
-	case tASSIGN:
-		if (!(isAssignable(&leftType, &rightType))) {
-			setErrorMessage(right, "bad type");
-		}
-		result = &leftType;
-		break;
-	case tDECRSET:
-		if (!(isAssignable(&leftType, &rightType)) || (leftType == VT_STRING)) {
-			setErrorMessage(right, "bad type");
-		}
-		result = &leftType;
-		break;
-	case tINCRSET:
-		if (leftType == VT_STRING) {
-			result = &VT_STRING;
-		} else if (leftType == VT_DOUBLE) {
-			result = &VT_DOUBLE;
+			result = VT_DOUBLE;
 		} else if (leftType == VT_INT && rightType == VT_INT) {
 			result = VT_INT;
 		}
 		break;
+	case tSUB: case tMUL: case tDIV: case tMOD:
+		if (leftType == VT_DOUBLE || rightType == VT_DOUBLE) {
+			result = VT_DOUBLE;
+		} else if (leftType == VT_INT && rightType == VT_INT) {
+			result = VT_INT;
+		}
+		break;
+	case tASSIGN:
+		if (!(isAssignable(leftType, rightType))) {
+			setErrorMessage(right, "bad type");
+		}
+		result = leftType;
+		break;
+	case tDECRSET:
+		if (!(isAssignable(leftType, rightType)) || (leftType == VT_STRING)) {
+			setErrorMessage(right, "bad type");
+		}
+		result = leftType;
+		break;
+	case tINCRSET:
+		if (leftType == VT_STRING) {
+			result = VT_STRING;
+		} else if (leftType == VT_DOUBLE) {
+			result = VT_DOUBLE;
+		} else if (leftType == VT_INT && rightType == VT_INT) {
+			result = VT_INT;
+		}
+		break;
+	default:
+		assert(0);
 	}
 	if (leftType == VT_VOID) {
 		setErrorMessage(left, "Should not be of type void");
@@ -189,31 +211,35 @@ VarType* TypeCheckerVisitor::getOperationResultType(TokenKind tokenKind, AstNode
 	return result;
 }
 
-bool TypeCheckerVisitor::isAssignable(VarType* to, VarType* from) {
-	if (*to == *from) {
+VarType TypeCheckerVisitor::getOperationResultType(TokenKind tokenKind, AstNode* operand) {
+	return getNodeType(operand);
+}
+
+bool TypeCheckerVisitor::isAssignable(VarType to, VarType from) {
+	if (to == from) {
 		return true;
 	}
-	if (*to == VT_DOUBLE && *from == VT_INT) {
+	if (to == VT_DOUBLE && from == VT_INT) {
 		return true;
 	}
 	return false;
 }
 
-VarType* TypeCheckerVisitor::getUpperCommonType(VarType* left, VarType* right) {
-	if (*left == *right) {
+VarType TypeCheckerVisitor::getUpperCommonType(VarType left, VarType right) {
+	if (left == right) {
 		return left;
 	}
-	if (*left == VT_VOID || right == VT_VOID) {
-		return &VT_VOID;
+	if (left == VT_VOID || right == VT_VOID) {
+		return VT_VOID;
 	}
-	if (*left == VT_STRING || *right == VT_STRING) {
-		return &VT_INVALID;
+	if (left == VT_STRING || right == VT_STRING) {
+		return VT_INVALID;
 	}
-	if (*left == VT_INVALID || right == VT_INVALID) {
-		return &VT_INVALID;
+	if (left == VT_INVALID || right == VT_INVALID) {
+		return VT_INVALID;
 	}
-	if (*left == VT_INT && *right == VT_INT) {
-		return &VT_INT;
+	if (left == VT_INT && right == VT_INT) {
+		return VT_INT;
 	}
 	return VT_DOUBLE;
 

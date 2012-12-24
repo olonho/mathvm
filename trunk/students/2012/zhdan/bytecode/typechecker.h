@@ -9,12 +9,16 @@
 #define TYPECHECKER_H_
 
 #include <stack>
+#include "ast.h"
+#include "mathvm.h"
 
 namespace mathvm {
 
 class TypeCheckerVisitor: public AstVisitor {
 
 public:
+	virtual void calculateTypes(AstFunction* top);
+	
 	virtual void visitBinaryOpNode(BinaryOpNode* node);
 	virtual void visitUnaryOpNode(UnaryOpNode* node);
 	virtual void visitStringLiteralNode(StringLiteralNode* node);
@@ -33,10 +37,10 @@ public:
 	virtual void visitPrintNode(PrintNode* node);
 
 private:
-	VarType* getOperationResultType(TokenKind tokenKind, AstNode* left, AstNode* right);
-	VarType* getOperationResultType(TokenKind tokenKind, AstNode* operand);
-	bool isAssignable(VarType* to, VarType* from);
-	VarType* getUpperCommonType(VarType* left, VarType* right);
+	VarType getOperationResultType(TokenKind tokenKind, AstNode* left, AstNode* right);
+	VarType getOperationResultType(TokenKind tokenKind, AstNode* operand);
+	bool isAssignable(VarType to, VarType from);
+	VarType getUpperCommonType(VarType left, VarType right);
 
 	Scope* _current_scope;
 
