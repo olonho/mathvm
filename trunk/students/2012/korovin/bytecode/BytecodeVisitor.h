@@ -31,7 +31,7 @@ class BytecodeVisitor : public AstVisitor {
 	Bytecode* bc() {
 		return functionsStack_.top()->bytecode();
 	}
-	void compare();
+	void compare(Instruction kind);
 public:
 	BytecodeVisitor(AstFunction* top, Code* code);
 	void visit();
@@ -42,6 +42,8 @@ public:
     virtual void visit##type(type* node);
 
     FOR_NODES(VISITOR_FUNCTION)
+       
+    void BytecodeVisitor::toBoolean();
 
 #undef VISITOR_FUNCTION
 };

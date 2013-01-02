@@ -32,8 +32,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    //code->disassemble();
-    //cout << "Looks good. Executing..." << endl;
+    code->disassemble();
+    cout << "Looks good. Executing..." << endl;
     std::vector<Var*> vars;
     code->execute(vars);
 
