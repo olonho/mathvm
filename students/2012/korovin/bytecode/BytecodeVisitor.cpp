@@ -7,8 +7,6 @@
 
 #include "BytecodeVisitor.h"
 
-#define PLACE_HOLDER 0
-
 namespace mathvm {
 
 BytecodeVisitor::BytecodeVisitor(AstFunction* top, Code* code)
@@ -21,27 +19,24 @@ BytecodeVisitor::BytecodeVisitor(AstFunction* top, Code* code)
 BytecodeVisitor::~BytecodeVisitor() {
 }
 
-void BytecodeVisitor::compare() {
-	uint32_t placeHolder1;
-	uint32_t placeHolder2;
-	uint32_t placeHolder3;
-	placeHolder1 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->addInsn(BC_JA);
-	placeHolder2 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->setInt16(placeHolder1, bc()->current() - placeHolder1);
-	bc()->addInsn(BC_POP);
-	bc()->addInsn(BC_POP);
-	bc()->addInsn(BC_ILOAD1);
-	bc()->addInsn(BC_JA);
-	placeHolder3 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->setInt16(placeHolder2, bc()->current() - placeHolder2);
-	bc()->addInsn(BC_POP);
-	bc()->addInsn(BC_POP);
-	bc()->addInsn(BC_ILOAD0);
-	bc()->setInt16(placeHolder3, bc()->current() - placeHolder3);
+void BytecodeVisitor::toBoolean() {
+    bc()->addInsn(BC_ILOAD0);
+    compare(BC_IFICMPNE);
+}
+
+void BytecodeVisitor::compare(Instruction kind) {
+    Label elseLabel(bc());
+    Label endIf(bc());
+    bc()->addBranch(kind, elseLabel);
+    bc()->addInsn(BC_POP);
+    bc()->addInsn(BC_POP);
+    bc()->addInsn(BC_ILOAD0);
+    bc()->addBranch(BC_JA, endIf);
+    elseLabel.bind(bc()->current(), bc());
+    bc()->addInsn(BC_POP);
+    bc()->addInsn(BC_POP);
+    bc()->addInsn(BC_ILOAD1);
+    endIf.bind(bc()->current(), bc());	
 }
 
 void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
@@ -109,51 +104,40 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 			bc()->addInsn(BC_IMOD);
 			break;
 		case tOR: case tAND:
-			bc()->addInsn(BC_STOREIVAR0);
-			bc()->addInsn(BC_ILOAD0);
-			bc()->addInsn(BC_IFICMPNE);
-			compare();
-			bc()->addInsn(BC_LOADIVAR0);
-			bc()->addInsn(BC_ILOAD0);
-			bc()->addInsn(BC_IFICMPNE);
-			compare();
-			break;
+			toBoolean();
+			bc()->addInsn(BC_SWAP);
+			toBoolean();
+			bc()->addInsn(BC_SWAP);
+            break;
 		case tEQ:
-			bc()->addInsn(BC_IFICMPE);
+			compare(BC_IFICMPE);
 			break;
 		case tNEQ:
-			bc()->addInsn(BC_IFICMPNE);
+			compare(BC_IFICMPNE);
 			break;
 		case tGT:
-			bc()->addInsn(BC_IFICMPG);
+			compare(BC_IFICMPG);
 			break;
 		case tGE:
-			bc()->addInsn(BC_IFICMPGE);
+			compare(BC_IFICMPGE);
 			break;
 		case tLT:
-			bc()->addInsn(BC_IFICMPL);
+			compare(BC_IFICMPL);
 			break;
 		case tLE:
-			bc()->addInsn(BC_IFICMPLE);
+			compare(BC_IFICMPLE);
 			break;
+        case tRANGE:
+            break;
 		default:
 			bc()->addInsn(BC_INVALID);
 			break;
 	}
 
 	switch(node->kind()) {
-		case tEQ: case tNEQ:
-		case tGT: case tGE:
-		case tLT: case tLE:
-			compare();
-		break;
-
 		case tOR:
 			bc()->addInsn(BC_IADD);
-			bc()->addInsn(BC_ILOAD);
-			bc()->addInt64(0);
-			bc()->addInsn(BC_IFICMPL);
-			compare();
+			toBoolean();
 			break;
 
 		case tAND:
@@ -170,8 +154,7 @@ void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode* node) {
 	switch(node->kind()) {
 	case tNOT:
 		bc()->addInsn(BC_ILOAD0);
-		bc()->addInsn(BC_IFICMPE);
-		compare();
+		compare(BC_IFICMPE);
 		break;
 	case tSUB:
         switch (typeOfTOS)
@@ -214,13 +197,13 @@ void BytecodeVisitor::visitLoadNode(LoadNode* node) {
     switch (node->var()->type())
     {
     case VT_INT:
-        bc()->addInsn(BC_LOADCTXIVAR);
+        bc()->addInsn(BC_LOADIVAR);
         break;
     case VT_DOUBLE:
-        bc()->addInsn(BC_LOADCTXDVAR);
+        bc()->addInsn(BC_LOADDVAR);
         break;
     case VT_STRING:
-        bc()->addInsn(BC_LOADCTXSVAR);
+        bc()->addInsn(BC_LOADSVAR);
         break;
     case VT_INVALID:
         break;
@@ -228,7 +211,6 @@ void BytecodeVisitor::visitLoadNode(LoadNode* node) {
         assert(false);
         break;
     }
-    bc()->addUInt16(vars_[node->var()].first);
 	bc()->addUInt16(vars_[node->var()].second);
     typeOfTOS = node->var()->type();
 }
@@ -237,19 +219,18 @@ void BytecodeVisitor::store(uint16_t functionId, uint16_t id, VarType type) {
     switch (type)
     {
     case VT_INT:
-        bc()->addInsn(BC_STORECTXIVAR);
+        bc()->addInsn(BC_STOREIVAR);
         break;
     case VT_DOUBLE:
-        bc()->addInsn(BC_STORECTXDVAR);
+        bc()->addInsn(BC_STOREDVAR);
         break;
     case VT_STRING:
-        bc()->addInsn(BC_STORECTXSVAR);
+        bc()->addInsn(BC_STORESVAR);
         break;
     default:
         assert(false);
         break;
     }
-    bc()->addUInt16(functionId);
     bc()->addUInt16(id);
 }
 
@@ -264,15 +245,13 @@ void BytecodeVisitor::visitStoreNode(StoreNode* node) {
         switch (typeOfTOS)
         {
         case VT_INT:
-            bc()->addInsn(BC_LOADCTXIVAR);
-            bc()->addUInt16(vars_[node->var()].first);
+            bc()->addInsn(BC_LOADIVAR);
             bc()->addUInt16(vars_[node->var()].second);
             bc()->addInsn(BC_IADD);
             store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
             break;
         case VT_DOUBLE:
-            bc()->addInsn(BC_LOADCTXDVAR);
-            bc()->addUInt16(vars_[node->var()].first);
+            bc()->addInsn(BC_LOADDVAR);
             bc()->addUInt16(vars_[node->var()].second);
             bc()->addInsn(BC_DADD);
             store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
@@ -286,15 +265,13 @@ void BytecodeVisitor::visitStoreNode(StoreNode* node) {
         switch (typeOfTOS)
         {
         case VT_INT:
-            bc()->addInsn(BC_LOADCTXIVAR);
-            bc()->addUInt16(vars_[node->var()].first);
+            bc()->addInsn(BC_LOADIVAR);
             bc()->addUInt16(vars_[node->var()].second);
             bc()->addInsn(BC_ISUB);
             store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
             break;
         case VT_DOUBLE:
-            bc()->addInsn(BC_LOADCTXDVAR);
-            bc()->addUInt16(vars_[node->var()].first);
+            bc()->addInsn(BC_LOADDVAR);
             bc()->addUInt16(vars_[node->var()].second);
             bc()->addInsn(BC_DSUB);
             store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
@@ -310,59 +287,50 @@ void BytecodeVisitor::visitStoreNode(StoreNode* node) {
 }
 
 void BytecodeVisitor::visitForNode(ForNode* node) {
-    //BinaryOpNode* range = node->inExpr()->asBinaryOpNode();
+    BinaryOpNode* range = node->inExpr()->asBinaryOpNode();
+    range->visit(this);
+    Label conditionLabel(bc(), bc()->current());
+    store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
+    node->body()->visit(this);
+    bc()->addInsn(BC_LOADIVAR);
+    bc()->addInt16(vars_[node->var()].second);
+    bc()->addInsn(BC_ILOAD1);
+    bc()->addInsn(BC_IADD);
+    bc()->addBranch(BC_IFICMPLE, conditionLabel);
 }
 
 void BytecodeVisitor::visitWhileNode(WhileNode* node) {
-	uint32_t placeHolder1;
-	uint32_t placeHolder2;
-	uint32_t placeHolder3;
-	placeHolder1 = bc()->current();
-	node->whileExpr()->visit(this);
+	Label conditionLabel(bc(), bc()->current());
+    Label endWhile(bc());
+    node->whileExpr()->visit(this);
 	bc()->addInsn(BC_ILOAD0);
-	bc()->addInsn(BC_IFICMPNE);
-	placeHolder2 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->addInsn(BC_JA);
-	placeHolder3 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->setInt16(placeHolder2, bc()->current() - placeHolder2);
+    bc()->addBranch(BC_IFICMPE, endWhile);
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_POP);
 	node->loopBlock()->visit(this);
-	bc()->addInsn(BC_JA);
-	bc()->addInt16(placeHolder1 - bc()->current());
-	bc()->setInt16(placeHolder3, bc()->current() - placeHolder3);
+	bc()->addBranch(BC_JA, conditionLabel);
+    endWhile.bind(bc()->current(), bc());
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_POP);
 }
 
 void BytecodeVisitor::visitIfNode(IfNode* node) {
-	node->ifExpr()->visit(this);
-	bc()->addInsn(BC_ILOAD0);
-	bc()->addInsn(BC_IFICMPNE);
-	uint32_t placeHolder1;
-	uint32_t placeHolder2;
-	uint32_t placeHolder3;
-	placeHolder1 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->addInsn(BC_JA);
-	placeHolder2 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->setInt16(placeHolder1, bc()->current() - placeHolder1);
+    node->ifExpr()->visit(this);
+    bc()->addInsn(BC_ILOAD0);
+    Label elseLabel(bc());
+    Label endIf(bc());
+    bc()->addBranch(BC_IFICMPE, elseLabel);
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_POP);
 	node->thenBlock()->visit(this);
-	bc()->addInsn(BC_JA);
-	placeHolder3 = bc()->current();
-	bc()->addInt16(PLACE_HOLDER);
-	bc()->setInt16(placeHolder2, bc()->current() - placeHolder2);
+	bc()->addBranch(BC_JA, endIf);
+    elseLabel.bind(bc()->current(), bc());
 	bc()->addInsn(BC_POP);
 	bc()->addInsn(BC_POP);
 	if (node->elseBlock()) {
 		node->elseBlock()->visit(this);
 	}
-	bc()->setInt16(placeHolder3, bc()->current() - placeHolder3);
+    endIf.bind(bc()->current(), bc());
 }
 
 void BytecodeVisitor::visitBlockNode(BlockNode* node) {

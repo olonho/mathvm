@@ -19,9 +19,6 @@ union value {
 };
 
 class BytecodeImpl: public Code {
-    map<pair<uint16_t, uint16_t>, uint64_t> storedIntsCustom_;
-    map<pair<uint16_t, uint16_t>, double> storedDoublesCustom_;
-    map<pair<uint16_t, uint16_t>, uint16_t> storedStringsCustom_;
     vector<value> stack_;
 
 public:
