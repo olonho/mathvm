@@ -9,13 +9,16 @@
 #define BYTECODEIMPL_H_
 
 #include "mathvm.h"
+#include <AsmJit/Assembler.h>
 
 namespace mathvm {
+
+using namespace AsmJit;
 
 union value {
     int64_t i;
     double d;
-    uint16_t sId;
+    const char* sPtr;
 };
 
 class BytecodeImpl: public Code {
@@ -24,9 +27,7 @@ class BytecodeImpl: public Code {
 public:
 	BytecodeImpl();
 	virtual ~BytecodeImpl();
-
 	virtual Status* execute(vector<Var*>& vars);
-
 	void executeFunction(BytecodeFunction* f);
 };
 

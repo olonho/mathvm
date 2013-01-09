@@ -11,8 +11,14 @@
 #include "ast.h"
 #include <stack>
 #include <map>
+#include <vector>
+#include <AsmJit/Assembler.h>
+#include <AsmJit/Logger.h>
+#include <dlfcn.h>
 
 namespace mathvm {
+
+using namespace AsmJit;
 
 class BytecodeVisitor : public AstVisitor {
 	AstFunction* top_;
@@ -24,6 +30,9 @@ class BytecodeVisitor : public AstVisitor {
 	stack<Scope*> scopesStack_;
 	map<AstFunction*, BytecodeFunction*> functions_;
 	map<const AstVar*, pair<uint16_t, uint16_t> > vars_;
+
+	vector<XMMReg> xmmRegisters_;
+	vector<GPReg> gpRegisters_;
 
 	void functionDeclarations( Scope* scope );
 	void variableDeclarations( Scope* scope );
@@ -43,7 +52,7 @@ public:
 
     FOR_NODES(VISITOR_FUNCTION)
        
-    void BytecodeVisitor::toBoolean();
+    void toBoolean();
 
 #undef VISITOR_FUNCTION
 };

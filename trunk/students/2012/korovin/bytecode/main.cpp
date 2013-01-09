@@ -16,6 +16,8 @@ int main(int argc, char** argv) {
         script = argv[1]; 
     }
 
+    bool showDisassemble = argc > 2;
+
     const char* expr = loadFile(script);
     if (expr == 0) {
         cerr << "Cannot read file:" << script << endl;
@@ -32,8 +34,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    code->disassemble();
-    cout << "Looks good. Executing..." << endl;
+    if (showDisassemble) {
+    	code->disassemble();
+    	cout << "Looks good. Executing..." << endl;
+    }
     std::vector<Var*> vars;
     code->execute(vars);
 
