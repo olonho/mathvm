@@ -21,8 +21,40 @@ union value {
     const char* sPtr;
 };
 
+class Context {
+	Context* parent_;
+	const BytecodeFunction* function_;
+	vector<value> storage_;
+
+	Context* contextById(int contextId) {
+		if (function_->id() == contextId)
+			return this;
+		else {
+			assert(parent_ != 0);
+			return parent_->contextById(contextId);
+		}
+	}
+public:
+	Context(Context* parent, const BytecodeFunction* function)
+		: parent_(parent)
+		, function_ (function)
+		, storage_(vector<value>())
+	{
+        storage_.resize(function_->parametersNumber() + function_->localsNumber());
+    }
+
+	vector<value>& vars() {
+		return storage_;
+	}
+
+	vector<value>& vars(int contextId) {
+		return contextById(contextId)->storage_;
+	}
+};
+
 class BytecodeImpl: public Code {
     vector<value> stack_;
+    Context* context_;
 
 public:
 	BytecodeImpl();
@@ -30,17 +62,6 @@ public:
 	virtual Status* execute(vector<Var*>& vars);
 	void executeFunction(BytecodeFunction* f);
 };
-
-template<typename T>
-uint64_t compare(T v1, T v2) {
-	if (v1 > v2)
-		return 1;
-	if (v1 == v2)
-		return 0;
-	if (v1 < v2)
-		return -1;
-	return 0;
-}
 
 } /* namespace mathvm */
 #endif /* BYTECODEIMPL_H_ */
