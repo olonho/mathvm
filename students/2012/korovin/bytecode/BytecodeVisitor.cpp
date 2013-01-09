@@ -14,7 +14,13 @@ BytecodeVisitor::BytecodeVisitor(AstFunction* top, Code* code)
 	, code_(code)
     , varId(0)
     , typeOfTOS(VT_INVALID)
-{}
+{
+	XMMReg xmmRegisters[] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
+	xmmRegisters_.assign(xmmRegisters, xmmRegisters + 8);
+
+	GPReg gpRegisters[] = {rdi, rsi, rdx, rcx, r8, r9};
+	gpRegisters_.assign(gpRegisters, gpRegisters + 6);
+}
 
 BytecodeVisitor::~BytecodeVisitor() {
 }
@@ -368,6 +374,80 @@ void BytecodeVisitor::visitCallNode(CallNode* node) {
 }
 
 void BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
+		Assembler _;
+	    //FileLogger logger(stdout);
+	    //_.setLogger(&logger);
+
+		// Callee prologue
+	    _.push(rbp);
+	    // Save caller's stack pointer
+	    _.mov(rbp, rsp);
+
+	    // If there are arguments
+	    if (node->nativeSignature().size() > 1)
+	    {
+	    	// rdi contains address of our buffer
+	        _.mov(r11, rdi);
+
+	        size_t gpCounter = 0;
+	        size_t xmmCounter = 0;
+	        size_t offset = 0;
+	        vector<Mem> miniStack;
+	        int ptrSize = sizeof(char *);
+	        for (size_t i = 1; i < node->nativeSignature().size(); ++i)
+	        {
+	        	switch(node->nativeSignature()[i].first) {
+	        	case VT_INT:
+	        		// If there are more than 6 gp variables - put all other on stack
+	        		if (gpCounter < 6) {
+	        			_.mov(gpRegisters_[gpCounter++], qword_ptr(r11, offset));
+	        		} else {
+	        			miniStack.push_back(qword_ptr(r11, offset));
+	        		}
+	        		break;
+
+	        	case VT_DOUBLE:
+	        		// For floating point arguments XMM0-XMM7 are used
+	        		if (xmmCounter < 8) {
+		                _.movsd(xmmRegisters_[xmmCounter++], qword_ptr(r11, offset));
+	        		} else {
+	        			miniStack.push_back(qword_ptr(r11, offset));
+	        		}
+	        		break;
+
+	        	case VT_STRING:
+	        		if (gpCounter < 6) {
+	        			_.mov(gpRegisters_[gpCounter++], qword_ptr(r11, offset));
+	        		} else {
+	        			miniStack.push_back(qword_ptr(r11, offset));
+	        		}
+	        		break;
+	        	default:
+	        		assert(false);
+	        		break;
+	        	}
+
+                offset += ptrSize;
+	        }
+
+	        vector<Mem>::reverse_iterator it = miniStack.rbegin();
+	        for(; it != miniStack.rend(); ++it) {
+	        	_.push(*it);
+	        }
+	    }
+
+	    void *native = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+	    _.call(imm((sysint_t)native));
+
+	    // Callee epilogue, return caller's stack pointer
+	    _.mov(rsp, rbp);
+	    _.pop(rbp);
+	    _.ret();
+
+		uint16_t id = code_->makeNativeFunction(node->nativeName(), node->nativeSignature(), _.make());
+		bc()->addInsn(BC_CALLNATIVE);
+		bc()->addInt16(id);
+		bc()->addInsn(BC_RETURN);
 }
 
 void BytecodeVisitor::visitPrintNode(PrintNode* node) {
@@ -398,22 +478,29 @@ void BytecodeVisitor::visit() {
 
 void BytecodeVisitor::functionDeclarations(Scope* scope)
 {
-    Scope::FunctionIterator fNative(scope);
-    vector<AstFunction*> delayedDeclarations;
-    while(fNative.hasNext()) {
-        AstFunction* func = fNative.next();
-        if (func->node()->body()->nodeAt(0)->isNativeCallNode())
-            func->node()->visit(this);
-        else
-            delayedDeclarations.push_back(func);
+    Scope::FunctionIterator fIterator(scope);
+
+    vector<pair<AstFunction*, BytecodeFunction*> > toVisit;
+
+    // Declarations & native visiting
+    while(fIterator.hasNext()) {
+        AstFunction* astFunction = fIterator.next();
+    	BytecodeFunction* bcFunction = new BytecodeFunction(astFunction);
+    	code_->addFunction(bcFunction);
+    	functions_.insert(make_pair(astFunction, bcFunction));
+    	if (astFunction->node()->body()->nodeAt(0)->isNativeCallNode()) {
+        	functionsStack_.push(bcFunction);
+    		astFunction->node()->body()->nodeAt(0)->visit(this);
+            functionsStack_.pop();
+    	} else {
+    		toVisit.push_back(make_pair(astFunction, bcFunction));
+    	}
     }
 
-    for(size_t i = 0; i < delayedDeclarations.size(); ++i) {
-    	BytecodeFunction* function = new BytecodeFunction(delayedDeclarations[i]);
-    	code_->addFunction(function);
-    	functions_.insert(make_pair(delayedDeclarations[i], function));
-    	functionsStack_.push(function);
-        delayedDeclarations[i]->node()->visit(this);
+    // All other visiting
+    for(size_t i = 0; i < toVisit.size(); ++i) {
+    	functionsStack_.push(toVisit[i].second);
+    	toVisit[i].first->node()->visit(this);
         functionsStack_.pop();
     }
 }

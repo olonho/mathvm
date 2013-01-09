@@ -8,7 +8,7 @@
 #include "BytecodeImpl.h"
 #include <stack>
 
-#define DEBUG
+//#define DEBUG
 
 using namespace std;
 namespace mathvm {
@@ -47,7 +47,7 @@ void BytecodeImpl::executeFunction(BytecodeFunction* f) {
 
 	map<uint16_t, uint64_t> storedInts;
     map<uint16_t, double> storedDouble;
-    map<uint16_t, uint16_t> storedStrings;
+    map<uint16_t, const char*> storedStrings;
 
 	for(uint32_t index = 0; index < code->length();) {
 		Instruction insn = code->getInsn(index);
@@ -80,7 +80,7 @@ void BytecodeImpl::executeFunction(BytecodeFunction* f) {
                 stack_.push_back(v);
                 break;
             case BC_SLOAD:
-                v.sId = code->getUInt16(index + 1);
+                v.sPtr = constantById(code->getUInt16(index + 1)).c_str();
                 #ifdef DEBUG
 				cerr << "BC_SLOAD " << constantById(v.sId) << endl;
 				#endif // DEBUG
@@ -246,7 +246,7 @@ void BytecodeImpl::executeFunction(BytecodeFunction* f) {
                 #ifdef DEBUG
 				cerr << "BC_SPRINT " << endl;
 				#endif // DEBUG
-                cout << constantById(v1.sId);
+                cout << v1.sPtr;
                 break;
 			case BC_SWAP:
 				v1 = stack_.back();
@@ -358,13 +358,13 @@ void BytecodeImpl::executeFunction(BytecodeFunction* f) {
             case BC_STORESVAR:
                 v = stack_.back();
                 stack_.pop_back();
-                storedStrings[code->getUInt16(index + 1)] = v.sId;
+                storedStrings[code->getUInt16(index + 1)] = v.sPtr;
                 #ifdef DEBUG
 				cerr << "BC_STORESVAR :" << code->getUInt16(index + 1) << " = " << v.sId << endl;
 				#endif // DEBUG
                 break;
             case BC_LOADSVAR:
-                v.sId = storedStrings[code->getUInt16(index + 1)];
+                v.sPtr = storedStrings[code->getUInt16(index + 1)];
                 stack_.push_back(v);
                 #ifdef DEBUG
 				cerr << "BC_LOADSVAR :" << code->getUInt16(index + 1) << " = " << v.sId << endl;
@@ -471,7 +471,7 @@ void BytecodeImpl::executeFunction(BytecodeFunction* f) {
 				#endif // DEBUG
 				if (v1.i <= v2.i) {
 					index += code->getInt16(index + 1) + 1;
-					#ifdef DEBUG
+				#ifdef DEBUG
 				cerr << "\tjumping to " << index << endl;
 				#endif // DEBUG
 					continue;
@@ -480,6 +480,72 @@ void BytecodeImpl::executeFunction(BytecodeFunction* f) {
 			case BC_CALL:
                 executeFunction((BytecodeFunction*)functionById(code->getUInt16(index + 1)));
 				break;
+			case BC_CALLNATIVE:
+			{
+				Signature const *signature;
+				void const *native = nativeById(code->getUInt16(index + 1), &signature);
+
+			    size_t offset = 0;
+				static char nativeArgs_[1024];
+				int ptrSize = sizeof(char *);
+			    for (size_t i = 1; i < signature->size(); ++i)
+			    {
+			    	value v = stack_.back();
+			    	stack_.pop_back();
+
+			    	switch (signature->at(i).first)
+			        {
+						case VT_INT:
+							memcpy(nativeArgs_ + offset, &v.i, ptrSize);
+							break;
+						case VT_DOUBLE:
+							memcpy(nativeArgs_ + offset, &v.d, ptrSize);
+							break;
+						case VT_STRING:
+							memcpy(nativeArgs_ + offset, &v.sPtr, ptrSize);
+							break;
+						default:
+							assert(false);
+							break;
+			        }
+
+					offset += ptrSize;
+			    }
+
+				switch (signature->at(0).first)
+				{
+					case VT_DOUBLE:
+					{
+						double (*returnsDouble)(char *) = function_cast<double (*)(char *)>(native);
+						res.d = (*returnsDouble)(nativeArgs_);
+						stack_.push_back(res);
+						break;
+					}
+					case VT_STRING:
+					{
+						const char* (*returnsCharPtr)(char *) = function_cast<const char* (*)(char *)>(native);
+						res.sPtr = (*returnsCharPtr)(nativeArgs_);
+						stack_.push_back(res);
+						break;
+					}
+					case VT_INT:
+					{
+						int (*returnsInt)(char*) = function_cast<int (*)(char*)>(native);
+						res.i = (*returnsInt)(nativeArgs_);
+						stack_.push_back(res);
+						break;
+					}
+					case VT_VOID:
+					{
+						void (*returns_void)(char*) = function_cast<void (*)(char*)>(native);
+						(*returns_void)(nativeArgs_);
+						break;
+					}
+					default:
+						break;
+				}
+				break;
+			}
             case BC_RETURN:
                 return;
                 break;
