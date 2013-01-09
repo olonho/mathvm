@@ -200,67 +200,84 @@ void BytecodeVisitor::visitIntLiteralNode(IntLiteralNode* node) {
 }
 
 void BytecodeVisitor::visitLoadNode(LoadNode* node) {
-    switch (node->var()->type())
-    {
-    case VT_INT:
-        bc()->addInsn(BC_LOADIVAR);
-        break;
-    case VT_DOUBLE:
-        bc()->addInsn(BC_LOADDVAR);
-        break;
-    case VT_STRING:
-        bc()->addInsn(BC_LOADSVAR);
-        break;
-    case VT_INVALID:
-        break;
-    default:
-        assert(false);
-        break;
-    }
-	bc()->addUInt16(vars_[node->var()].second);
+    load(node->var());
     typeOfTOS = node->var()->type();
 }
 
 void BytecodeVisitor::store(uint16_t functionId, uint16_t id, VarType type) {
+    bool local = (functionId == functionsStack_.top()->id());
+    
     switch (type)
     {
     case VT_INT:
-        bc()->addInsn(BC_STOREIVAR);
+        bc()->addInsn(local ? BC_STOREIVAR : BC_STORECTXIVAR);
         break;
     case VT_DOUBLE:
-        bc()->addInsn(BC_STOREDVAR);
+        bc()->addInsn(local ? BC_STOREDVAR : BC_STORECTXDVAR);
         break;
     case VT_STRING:
-        bc()->addInsn(BC_STORESVAR);
+        bc()->addInsn(local ? BC_STORESVAR : BC_STORECTXSVAR);
         break;
     default:
         assert(false);
         break;
     }
+    if (!local)
+        bc()->addUInt16(functionId);
     bc()->addUInt16(id);
 }
+
+void BytecodeVisitor::store(const AstVar* var) {
+	store(vars_[var].first, vars_[var].second, var->type());
+}
+
+void BytecodeVisitor::load(uint16_t functionId, uint16_t id, VarType type) {
+    bool local = (functionId == functionsStack_.top()->id());
+
+    switch (type)
+    {
+    case VT_INT:
+        bc()->addInsn(local ? BC_LOADIVAR : BC_LOADCTXIVAR);
+        break;                              
+    case VT_DOUBLE:                         
+        bc()->addInsn(local ? BC_LOADDVAR : BC_LOADCTXDVAR);
+        break;                              
+    case VT_STRING:                         
+        bc()->addInsn(local ? BC_LOADSVAR : BC_LOADCTXSVAR);
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    if (!local)
+        bc()->addUInt16(functionId);
+    bc()->addUInt16(id);
+}
+
+void BytecodeVisitor::load(const AstVar* var) {
+	load(vars_[var].first, vars_[var].second, var->type());
+}
+
 
 void BytecodeVisitor::visitStoreNode(StoreNode* node) {
 	node->visitChildren(this);
     switch (node->op())
     {
     case tASSIGN:
-        store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
+        store(node->var());
         break;
     case tINCRSET:
         switch (typeOfTOS)
         {
         case VT_INT:
-            bc()->addInsn(BC_LOADIVAR);
-            bc()->addUInt16(vars_[node->var()].second);
+        	load(node->var());
             bc()->addInsn(BC_IADD);
-            store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
+            store(node->var());
             break;
         case VT_DOUBLE:
-            bc()->addInsn(BC_LOADDVAR);
-            bc()->addUInt16(vars_[node->var()].second);
+        	load(node->var());
             bc()->addInsn(BC_DADD);
-            store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
+            store(node->var());
             break;
         default:
             assert(false);
@@ -271,16 +288,14 @@ void BytecodeVisitor::visitStoreNode(StoreNode* node) {
         switch (typeOfTOS)
         {
         case VT_INT:
-            bc()->addInsn(BC_LOADIVAR);
-            bc()->addUInt16(vars_[node->var()].second);
+        	load(node->var());
             bc()->addInsn(BC_ISUB);
-            store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
+            store(node->var());
             break;
         case VT_DOUBLE:
-            bc()->addInsn(BC_LOADDVAR);
-            bc()->addUInt16(vars_[node->var()].second);
+        	load(node->var());
             bc()->addInsn(BC_DSUB);
-            store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
+            store(node->var());
             break;
         default:
             assert(false);
@@ -296,10 +311,9 @@ void BytecodeVisitor::visitForNode(ForNode* node) {
     BinaryOpNode* range = node->inExpr()->asBinaryOpNode();
     range->visit(this);
     Label conditionLabel(bc(), bc()->current());
-    store(vars_[node->var()].first, vars_[node->var()].second, node->var()->type());
+    store(node->var());
     node->body()->visit(this);
-    bc()->addInsn(BC_LOADIVAR);
-    bc()->addInt16(vars_[node->var()].second);
+    load(node->var());
     bc()->addInsn(BC_ILOAD1);
     bc()->addInsn(BC_IADD);
     bc()->addBranch(BC_IFICMPLE, conditionLabel);
@@ -511,7 +525,9 @@ void BytecodeVisitor::variableDeclarations( Scope* scope )
 	while(vIter.hasNext()) {
         AstVar* variable = vIter.next();
         vars_[variable] = make_pair(functionsStack_.top()->id(), varId++);
+        functionsStack_.top()->setLocalsNumber(functionsStack_.top()->localsNumber() + 1);
     }
+    //
 }
 
 void BytecodeVisitor::blockContents(BlockNode* node)

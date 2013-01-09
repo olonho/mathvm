@@ -46,6 +46,9 @@ public:
 	void visit();
 	virtual ~BytecodeVisitor();
     void store(uint16_t functionId, uint16_t id, VarType type);
+    void store(const AstVar* var);
+    void load(uint16_t functionId, uint16_t id, VarType type);
+    void load(const AstVar* var);
 
 #define VISITOR_FUNCTION(type, name)            \
     virtual void visit##type(type* node);
