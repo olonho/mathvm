@@ -105,6 +105,8 @@ private:
 
         _stack.pop();
         _typeStack.pop();
+
+        //cout << "__VAR POPPED" << endl;
 	}
 
 	void pushVar(VarType type, StackVar var) {
@@ -145,11 +147,14 @@ private:
     void movePtrDoubleDown();
     void movePtr2Bytes();
 
+
     Instruction nextInsn();
     double getNextDouble();
     int64_t getNextInt();
     uint16_t getNext2Bytes();
+    int16_t getNext2SBytes();
 
+    void jump(int16_t offset);
 
 	void loadDouble();
 	void loadString();
@@ -158,6 +163,8 @@ private:
 	void printInt();
 	void printDouble();
 	void printString();
+
+    void printStack();
 
 
 	/*
@@ -180,9 +187,41 @@ private:
 	void subInts();
 	void subDoubles();
 
-	void loadFunParamsInCtx(BytecodeFunction* fun);
+	void addInts();
+	void addDoubles();
+
+	void divInts();
+	void divDoubles();
+
+	void compareInts();
+	void intsEqualJMP();
+	void intsNotEqualJMP();
+	void LEJump();
+	//void LJump();
+	void GJump();
+    void GEJump();
+
+
+    void dMul();
+    void iMul();
+
+    void iNeg() {
+    	int64_t top = popInt();
+    	pushInt(-top);
+    }
+    void dNeg() {
+    	double top = popDouble();
+    	pushDouble(-top);
+    }
+
+
+	void jumpAlways();
+
+
+	void loadFunParamsInCtx(uint16_t);
 	void call();
 
+	void executeFun(uint16_t);
 
 
 	void checkTypesTOS(VarType type) {

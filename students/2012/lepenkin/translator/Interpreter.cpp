@@ -18,53 +18,35 @@ Interpreter::~Interpreter() {
 
 
 void Interpreter::loadDouble() {
-    StackVar var;
-    var.d = getNextDouble();
-
-    _stack.push(var);
-    _typeStack.push(VT_DOUBLE);
+    pushDouble(getNextDouble());
 }
 
 void Interpreter::loadInt() {
-    StackVar var;
-    var.i = getNextInt();
-
-    _stack.push(var);
-    _typeStack.push(VT_INT);
+    pushInt(getNextInt());
 }
 
 void Interpreter::loadString() {
     StackVar var;
     var.strId = getNext2Bytes();
 
-    _stack.push(var);
-    _typeStack.push(VT_STRING);
+    pushVar(VT_STRING, var);
 }
 
 void Interpreter::printInt() {
 	int64_t i = _stack.top().i;
-
-	_stack.pop();
-	_typeStack.pop();
-
+	popVar();
 	_out << i;
 }
 
 void Interpreter::printDouble() {
 	double d = _stack.top().d;
-
-	_stack.pop();
-	_typeStack.pop();
-
+    popVar();
 	_out << d;
 }
 
 void Interpreter::printString() {
     uint16_t id = _stack.top().strId;
-
-    _stack.pop();
-	_typeStack.pop();
-
+    popVar();
 	_out << _code->constantById(id);
 }
 
@@ -73,12 +55,8 @@ void Interpreter::storeCtxDouble() {
     FunctionContext* ctx = topContext();
     uint16_t ctxId = getNext2Bytes();
     uint16_t id = getNext2Bytes();
-
     StackVar var = _stack.top();
-    _stack.pop();
-    _typeStack.pop();
-
-    //cout << "CTX: " << ctxId << " ID: " << id << endl;
+    popVar();
     ctx->storeDouble(ctxId, id, var.d);
 }
 
@@ -86,12 +64,8 @@ void Interpreter::storeCtxInt() {
 	FunctionContext* ctx = topContext();
 	uint16_t ctxId = getNext2Bytes();
 	uint16_t id = getNext2Bytes();
-
 	StackVar var = _stack.top();
-	_stack.pop();
-	_typeStack.pop();
-
-	//cout << "CTX: " << ctxId << " ID: " << id << endl;
+	popVar();
 	ctx->storeInt(ctxId, id, var.i);
 }
 
@@ -99,9 +73,8 @@ void Interpreter::pushInt(int64_t i)
 {
     StackVar var;
     var.i = i;
-
-    _stack.push(var);
-    _typeStack.push(VT_INT);
+    pushVar(VT_INT, var);
+    //cout << "__PUSHED INT" << i << endl;
 }
 
 int64_t Interpreter::popInt() {
@@ -122,9 +95,8 @@ void Interpreter::pushDouble(double d)
 {
 	StackVar var;
     var.d = d;
-
-    _stack.push(var);
-    _typeStack.push(VT_DOUBLE);
+    pushVar(VT_DOUBLE, var);
+    //cout << "__PUSHED DOUBLE" << d << endl;
 }
 
 
@@ -153,6 +125,8 @@ void Interpreter::swap() {
     StackVar downVar = _stack.top();
     VarType downType = _typeStack.top();
 
+    popVar();
+
     pushVar(upType, upVar);
     pushVar(downType, downVar);
 }
@@ -172,58 +146,274 @@ void Interpreter::subDoubles() {
 	pushDouble(top - down);
 }
 
+void Interpreter::addInts() {
+	int64_t top = popInt();
+	int64_t down = popInt();
+	int64_t sum = top + down;
+	pushInt(sum);
 
-void Interpreter::loadFunParamsInCtx(BytecodeFunction* fun) {
-    uint16_t n = fun->parametersNumber();
+	//cout << "adding ints" << endl;
+}
+
+void Interpreter::addDoubles() {
+	pushDouble(popDouble() + popDouble());
+}
+
+/*
+void Interpreter::addDoubles() {
+	double top = popDouble();
+	double down = popDouble();
+	pushDouble(top + down);
+}*/
+
+
+
+void Interpreter::loadFunParamsInCtx(uint16_t id) {
+    BytecodeFunction* fun = ((BytecodeFunction*)_code->functionById(id));
+	uint16_t n = fun->parametersNumber();
     FunctionContext* ctx = this->topContext();
+
+    //cout << "loading params: " << n << endl;
+    //cout << "stack size " << _stack.size() << endl;
+
+
     for (uint16_t i = 0; i < n; ++i) {
         VarType type = fun->parameterType(i);
         switch (type) {
             case VT_INT:
-                ctx->storeInt(ctx->getId(), i, getNextInt());
+                ctx->storeInt(ctx->getId(), i, popInt());
+                //cout << "int loaded from bc" << endl;
                 break;
             case VT_DOUBLE:
-            	ctx->storeDouble(ctx->getId(), i, getNextDouble());
+            	ctx->storeDouble(ctx->getId(), i, popDouble());
+            	//cout << "double loaded from bc" << endl;
             	break;
             default:
+            	//cout << "loading STRIG or INVALID from bc" << endl;
             	assert(false);
             	break;
         }
-
     }
+}
+
+
+void Interpreter::printStack() {
+	stack<StackVar> s2(_stack);
+	stack<VarType> t2(_typeStack);
+	//cout << "__PRINTING STACK" << endl;
+
+	while (s2.size() > 0) {
+	    VarType t = t2.top();
+	    t2.pop();
+
+	    //StackVar v = s2.top();
+	    s2.pop();
+
+	    switch (t) {
+	       case VT_INT:
+	        	//cout << "__" << v.i << endl;
+	        	break;
+	        case VT_DOUBLE:
+	        	//cout << "__" << v.d << endl;
+	        	break;
+	        case VT_STRING:
+	            //cout << "__" << v.strId << endl;
+	        	break;
+	        default:
+	        	//cout << "strange type" << endl;
+	        	assert(false);
+	        	break;
+	    }
+	}
 }
 
 
 void Interpreter::call() {
     uint16_t funId = getNext2Bytes();
 
-    this->pushContext(funId);
+    //cout << "BEFORE CALLING: " << endl;
+    //printStack();
 
+    pushContext(funId);
+    loadFunParamsInCtx(funId);
 
-    BytecodeFunction* fun = (BytecodeFunction*) _code->functionById(funId);
-    loadFunParamsInCtx(fun);
+    //printStack();
+
     uint32_t savedIp = _insPtr;
+    Bytecode* savedBc = _bc;
 
-    assert(false);
 
-    this->popContext();
+    //uint32_t before = _stack.size();
+    executeFun(funId);
+    //uint32_t after = _stack.size();
+
+
+
+    //cout << "__BEFORE_F_CALL " << before << endl;
+    //cout << "__AFTER_F_CALL " << after << endl;
+
+    popContext();
+
     _insPtr = savedIp;
-
+    _bc = savedBc;
 }
+
 
 void Interpreter::execute(Code* code)
 {
-	//cout << "\nlaunching..." << endl << endl;
+    //cout << "Executing.." << endl;
 
 	_code = code;
+    pushContext(0);
+    executeFun(0);
 
-	uint16_t top = 0;
-    _bc = ((BytecodeFunction*)code->functionById(top))->bytecode();
+    //cout << "Stack sizes: " << _stack.size() << " " << _typeStack.size() << endl;
+
+}
+
+void Interpreter::compareInts() {
+    //cout << "Comparing ";
+
+    int64_t top = popInt();
+    int64_t down = popInt();
+
+    //cout << down << " " << top << endl;
+
+    int64_t result = (down > top) ? 1 : (down == top) ? 0 : -1;
+
+    pushInt(result);
+}
+
+
+void Interpreter::intsEqualJMP() {
+	int64_t top = popInt();
+	int64_t down = popInt();
+
+	int16_t offset = getNext2SBytes();
+	if (top == down) {
+        jump(offset);
+	    //cout << "Jumping " << offset << endl;
+	}
+}
+
+void Interpreter::intsNotEqualJMP() {
+	int64_t top = popInt();
+	int64_t down = popInt();
+
+	int16_t offset = getNext2SBytes();
+	if (top != down) {
+        jump(offset);
+	    //cout << "Jumping " << offset << endl;
+	}
+}
+
+void Interpreter::jumpAlways() {
+    int16_t offset = getNext2SBytes();
+    jump(offset);
+    //cout << "Jumping " << offset << endl;
+}
+
+void Interpreter::LEJump() {
+	int64_t top = popInt();
+	int64_t down = popInt();
+
+	int16_t offset = getNext2SBytes();
+	if (down <= top) {
+	    jump(offset);
+	    //cout << "Jumping " << offset << endl;
+	}
+}
+
+/*
+void Interpreter::LJump() {
+	int64_t top = popInt();
+	int64_t down = popInt();
+
+	int16_t offset = getNext2SBytes();
+	if (down < top) {
+	    jump(offset);
+	    cout << "Jumping " << offset << endl;
+	}
+}
+*/
+
+void Interpreter::GEJump() {
+	int64_t top = popInt();
+	int64_t down = popInt();
+
+	int16_t offset = getNext2SBytes();
+	if (down >= top) {
+	    jump(offset);
+	    //cout << "Jumping " << offset << endl;
+	}
+}
+
+void Interpreter::GJump() {
+	int64_t top = popInt();
+	int64_t down = popInt();
+
+	int16_t offset = getNext2SBytes();
+	if (down > top) {
+	    jump(offset);
+	    //cout << "Jumping " << offset << endl;
+	}
+}
+
+
+/*
+void Interpreter::notEqualThenJump() {
+	int64_t top = popInt();
+	int64_t down = popInt();
+
+	int16_t offset = getNext2SBytes();
+	if (down != top) {
+	    jump(offset);
+	    cout << "Jumping " << offset << endl;
+	}
+}*/
+
+
+void Interpreter::dMul() {
+    double d1 = popDouble();
+    double d2 = popDouble();
+
+    pushDouble(d1*d2);
+}
+
+void Interpreter::iMul() {
+	int64_t i1 = popInt();
+	int64_t i2 = popInt();
+
+	//cout << "Multiplying " << i1 << " " << i2 << endl;
+    pushInt(i1*i2);
+}
+
+void Interpreter::divInts() {
+	int64_t right = popInt();
+	int64_t left = popInt();
+
+	//cout << "Dividing " << left << " " << right << endl;
+    pushInt(left / right);
+}
+
+void Interpreter::divDoubles() {
+	double right = popDouble();
+	double left = popDouble();
+
+	//cout << "Dividing " << left << " " << right << endl;
+    pushDouble(left / right);
+}
+
+
+
+
+void Interpreter::executeFun(uint16_t id)
+{
+
+	_bc = ((BytecodeFunction*)_code->functionById(id))->bytecode();
     _insPtr = 0;
 
-    pushContext(top);
-
-    Instruction inst;
+	Instruction inst;
     while (true) {
 
 
@@ -231,15 +421,18 @@ void Interpreter::execute(Code* code)
 
     	//cout << "Current instruction " << inst << endl;
 
+    	//cout << "__STACK:" << endl;
+        printStack();
 
 
         switch (inst) {
 
             case BC_INVALID:
                 _out << inst << " Invalid instruction" << endl;
-                exit(EXIT_FAILURE);
+                assert(false);
             	break;
         	case BC_DLOAD:
+
         		loadDouble();
         		break;
         	case BC_ILOAD:
@@ -251,13 +444,11 @@ void Interpreter::execute(Code* code)
         	case BC_DLOAD0:
 
         		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		assert(false);
+        		break;
         	case BC_ILOAD0:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+            	pushInt(0);
+        		break;
         	case BC_SLOAD0:
 
         		_out << inst << " Not implemented" << endl;
@@ -269,9 +460,7 @@ void Interpreter::execute(Code* code)
                 exit(EXIT_FAILURE);
             	break;
         	case BC_ILOAD1:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
+                pushInt(1);
             	break;
         	case BC_DLOADM1:
 
@@ -279,19 +468,13 @@ void Interpreter::execute(Code* code)
                 exit(EXIT_FAILURE);
             	break;
         	case BC_ILOADM1:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		pushInt(-1);
+        		break;
         	case BC_DADD:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		addDoubles();
+        		break;
         	case BC_IADD:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
+                addInts();
             	break;
         	case BC_DSUB:
 
@@ -301,45 +484,29 @@ void Interpreter::execute(Code* code)
                 subInts();
         		break;
         	case BC_DMUL:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                dMul();
+        		break;
         	case BC_IMUL:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                iMul();
+        		break;
         	case BC_DDIV:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		divDoubles();
+        		break;
         	case BC_IDIV:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		divInts();
+        		break;
         	case BC_IMOD:
 
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_DNEG:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		dNeg();
+        		break;
         	case BC_INEG:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		iNeg();
+        		break;
         	case BC_IPRINT:
-
-        		//_out << inst << " Not implemented" << endl;
-        		//exit(EXIT_FAILURE);
-
         		printInt();
         		break;
         	case BC_DPRINT:
@@ -349,17 +516,14 @@ void Interpreter::execute(Code* code)
         		printString();
         		break;
         	case BC_I2D:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_D2I:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_S2I:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
@@ -367,157 +531,126 @@ void Interpreter::execute(Code* code)
                 swap();
         		break;
         	case BC_POP:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADDVAR0:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADDVAR1:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADDVAR2:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADDVAR3:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADIVAR0:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADIVAR1:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADIVAR2:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADIVAR3:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADSVAR0:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADSVAR1:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADSVAR2:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADSVAR3:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREDVAR0:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREDVAR1:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREDVAR2:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREDVAR3:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREIVAR0:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREIVAR1:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREIVAR2:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREIVAR3:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STORESVAR0:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STORESVAR1:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STORESVAR2:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STORESVAR3:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADDVAR:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADIVAR:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_LOADSVAR:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREDVAR:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOREIVAR:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STORESVAR:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
@@ -528,7 +661,6 @@ void Interpreter::execute(Code* code)
                 loadCtxInt();
         		break;
         	case BC_LOADCTXSVAR:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
@@ -543,58 +675,43 @@ void Interpreter::execute(Code* code)
                 exit(EXIT_FAILURE);
             	break;
         	case BC_DCMP:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_ICMP:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                compareInts();
+        		break;
         	case BC_JA:
-
-        	    _out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                jumpAlways();
+        		break;
         	case BC_IFICMPNE:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		intsNotEqualJMP();
+        		break;
         	case BC_IFICMPE:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+                intsEqualJMP();
+        		break;
         	case BC_IFICMPG:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		GJump();
+        		break;
         	case BC_IFICMPGE:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		GEJump();
+        		break;
         	case BC_IFICMPL:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		//cout << "IFLESS" << endl;
+                assert(false);
+        		break;
         	case BC_IFICMPLE:
-
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        	    LEJump();
+        	    break;
         	case BC_DUMP:
-
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
             	break;
         	case BC_STOP:
+        		this->popContext();
         		return;
         	case BC_CALL:
+        		//cout << "CALLING. STACK SIZE: " << _stack.size() << endl;
         		call();
         		break;
         	case BC_CALLNATIVE:
@@ -602,9 +719,24 @@ void Interpreter::execute(Code* code)
                 exit(EXIT_FAILURE);
             	break;
         	case BC_RETURN:
-        		_out << inst << " Not implemented" << endl;
-                exit(EXIT_FAILURE);
-            	break;
+        		//cout << "RETURNING ";
+        		if (_typeStack.size() > 0)
+        		{
+        			switch (_typeStack.top()) {
+        		    	case VT_INT:
+        		    		//cout << _stack.top().i ;
+        		    		break;
+        		    	case VT_DOUBLE:
+        		    		//cout << _stack.top().d ;
+        		    		break;
+        		    	default:
+        		    		assert(false);
+        		    		break;
+        			}
+        		}
+        		//cout << "STACK SIZE: " << _stack.size() << endl;
+        		return;
+        		break;
         	case BC_BREAK:
         		_out << inst << " Not implemented" << endl;
                 exit(EXIT_FAILURE);
@@ -627,7 +759,9 @@ void Interpreter::movePtr2Bytes() {
     _insPtr += 2;
 }
 
-
+void Interpreter::jump(int16_t offset) {
+    _insPtr += offset;
+}
 
 void Interpreter::movePtrInsnDown() {
     _insPtr += BytecodeConstants::insn_size;
@@ -666,6 +800,12 @@ uint16_t Interpreter::getNext2Bytes() {
     return id;
 }
 
+int16_t Interpreter::getNext2SBytes() {
+    int16_t id = _bc->getInt16(_insPtr);
+    movePtr2Bytes();
+    return id;
+}
+
 
 
 
@@ -697,7 +837,7 @@ void FunctionContext::storeDouble(uint16_t context, uint16_t id, double value) {
 	if (context == _id)
 	{
 		storeDoubleInCurrCTX(id, value);
-		//cout << "Stored double in current" << endl;
+		//cout << "Stored double in current context: " << _id << endl;
 		return;
 	}
     else if (_parent) {
@@ -711,7 +851,7 @@ void FunctionContext::storeInt(uint16_t context, uint16_t id, int64_t value) {
 	if (context == _id)
 	{
 	    storeIntInCurrCTX(id, value);
-	    //cout << "Stored int in current" << endl;
+	    //cout << "Stored int in current context: " << _id  << endl;
 	    return;
 	}
 	else if (_parent)

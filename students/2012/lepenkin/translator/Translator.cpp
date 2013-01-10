@@ -14,7 +14,8 @@ TranslatorVisitor::TranslatorVisitor(Code** code)
     *code = _code;
 }
 
-TranslatorVisitor::~TranslatorVisitor() {
+TranslatorVisitor::~TranslatorVisitor()
+{
 }
 
 
@@ -22,7 +23,7 @@ TranslatorVisitor::~TranslatorVisitor() {
 
 void TranslatorVisitor::translate(AstFunction* top)
 {
-	cout << "Bytecode:" << endl << endl;
+	//cout << "Bytecode:" << endl << endl;
 
     _code->pushScope();
 
@@ -32,7 +33,7 @@ void TranslatorVisitor::translate(AstFunction* top)
     ((BytecodeFunction*)_code->functionById(0))->bytecode()->addInsn(BC_STOP);
     //_code->currentBytecode()->addInsn(BC_STOP);
 
-    cout << endl << "Translated." << endl << endl;
+    //cout << endl << "Translated." << endl;
 }
 
 string kindRepr(TokenKind kind) 
@@ -63,22 +64,61 @@ const string typeRepr(VarType type)
     }
 }
 
+void TranslatorVisitor::ifCondLoad1Else0()
+{
+	_code->currentBytecode()->addInt16(4);
+
+    _code->currentBytecode()->addInsn(BC_ILOAD0);
+    _code->currentBytecode()->addInsn(BC_JA);
+    _code->currentBytecode()->addInt16(1);
+
+    _code->currentBytecode()->addInsn(BC_ILOAD1);
+
+    varStack.push(VT_INT);
+}
+
 void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode* node)
 {
-    WR_DEBUG("visitBinaryOpNode: START");
-
-	node->left()->visit(this);
+    node->left()->visit(this);
     node->right()->visit(this);
-
 
 
     // i guess they pushed on stack
 
-    VarType widest = varStack.top();
+    VarType top = varStack.top();
+    varStack.pop();
+    VarType down = varStack.top();
+    varStack.pop();
 
+    VarType widest = (top == VT_DOUBLE || down == VT_DOUBLE) ? VT_DOUBLE : VT_INT;
+
+    //cout << "BINARY POPPED 2X. varStack: " << varStack.size() << endl;
 
 
     switch (node->kind()) {
+
+
+        case tAND:
+            _code->currentBytecode()->addInsn(BC_IADD);
+            varStack.push(VT_INT);
+            _code->currentBytecode()->addInsn(BC_ILOAD1);
+            _code->currentBytecode()->addInsn(BC_IFICMPG);
+            varStack.pop();
+
+            ifCondLoad1Else0();
+        	break;
+
+        case tOR:
+        	_code->currentBytecode()->addInsn(BC_IADD);
+        	varStack.push(VT_INT);
+
+        	_code->currentBytecode()->addInsn(BC_ILOAD1);
+        	_code->currentBytecode()->addInsn(BC_IFICMPGE);
+        	varStack.pop();
+
+        	ifCondLoad1Else0();
+        	break;
+
         case tSUB:
         	//TODO type check and conversion
         	_code->currentBytecode()->addInsn(BC_SWAP);
@@ -86,41 +126,227 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode* node)
         	{
         	    case VT_DOUBLE:
         	    	_code->currentBytecode()->addInsn(BC_DSUB);
+        	    	varStack.push(VT_DOUBLE);
         	    	break;
         	    case VT_INT:
         	    	_code->currentBytecode()->addInsn(BC_ISUB);
+        	    	varStack.push(VT_INT);
         	    	break;
        	        default:
-        	        WR_ERROR("STRING BINARY OPS NOT IMPLEMENTED");
-        	        break;
+        	        assert(false);
+       	        	break;
         	}
             break;
+
         case tADD:
         	switch (widest)
         	{
         	    case VT_DOUBLE:
         	    	_code->currentBytecode()->addInsn(BC_DADD);
-        	     	break;
+        	     	varStack.push(VT_DOUBLE);
+        	    	break;
         	    case VT_INT:
         	        _code->currentBytecode()->addInsn(BC_IADD);
-        	     	break;
+        	        varStack.push(VT_INT);
+        	        break;
         	    default:
-        	         WR_ERROR("STRING BINARY OPS NOT IMPLEMENTED");
-        	          break;
+        	        assert(false);
+        	    	break;
         	 }
         	break;
         case tMUL:
-        	WR_ERROR("OOPS BINARY OPS IMPLEMENTED POORLY");
-
-          	break;
+        	switch (widest)
+        	{
+        	    case VT_DOUBLE:
+        	    	_code->currentBytecode()->addInsn(BC_DMUL);
+        	     	varStack.push(VT_DOUBLE);
+        	    	break;
+        	    case VT_INT:
+        	        _code->currentBytecode()->addInsn(BC_IMUL);
+        	     	varStack.push(VT_INT);
+        	        break;
+        	    default:
+        	        assert(false);
+        	    	break;
+        	}
+        	break;
 
         case tDIV:
-        	WR_ERROR("OOPS BINARY OPS IMPLEMENTED POORLY");
+        	_code->currentBytecode()->addInsn(getDivInsn(widest));
+        	varStack.push(widest);
+        	break;
 
-         	break;
+
+        case tEQ:
+        	switch (widest) {
+        	    case VT_INT:
+        		    _code->currentBytecode()->addInsn(BC_ICMP);
+        		    break;
+        	    case VT_DOUBLE:
+        	    	_code->currentBytecode()->addInsn(BC_DCMP);
+        	    	break;
+        	    default:
+        	    	assert(false);
+        	    	break;
+        	}
+        	varStack.push(VT_INT);
+
+            _code->currentBytecode()->addInsn(BC_ILOAD0);
+            _code->currentBytecode()->addInsn(BC_IFICMPE);
+            varStack.pop();
+
+            ifCondLoad1Else0();
+            break;
+
+        case tGT:
+        	switch (widest) {
+                case VT_INT:
+                    _code->currentBytecode()->addInsn(BC_ICMP);
+                    break;
+                case VT_DOUBLE:
+                   	_code->currentBytecode()->addInsn(BC_DCMP);
+                   	 break;
+                default:
+                   	assert(false);
+                  	break;
+            }
+        	varStack.push(VT_INT);
+
+             _code->currentBytecode()->addInsn(BC_ILOAD1);
+             _code->currentBytecode()->addInsn(BC_IFICMPE);
+             varStack.pop();
+
+             ifCondLoad1Else0();
+             break;
+
+        case tLT:
+        	switch (widest) {
+                case VT_INT:
+                    _code->currentBytecode()->addInsn(BC_ICMP);
+                    varStack.push(VT_INT);
+                    break;
+                case VT_DOUBLE:
+                  	_code->currentBytecode()->addInsn(BC_DCMP);
+                    varStack.push(VT_DOUBLE);
+                  	break;
+                default:
+                   	assert(false);
+                   	break;
+            }
+        	varStack.push(VT_INT);
+             _code->currentBytecode()->addInsn(BC_ILOADM1);
+             _code->currentBytecode()->addInsn(BC_IFICMPE);
+             varStack.pop();
+             ifCondLoad1Else0();
+             break;
+
+        case tLE:
+            switch (widest) {
+                case VT_INT:
+                    _code->currentBytecode()->addInsn(BC_ICMP);
+                    break;
+                case VT_DOUBLE:
+                  	_code->currentBytecode()->addInsn(BC_DCMP);
+                    break;
+                default:
+                   	assert(false);
+                   	break;
+            }
+            varStack.push(VT_INT);
+             _code->currentBytecode()->addInsn(BC_ILOAD0);
+             _code->currentBytecode()->addInsn(BC_IFICMPLE);
+             varStack.pop();
+
+             ifCondLoad1Else0();
+             break;
+
+        case tGE:
+        	switch (widest) {
+                case VT_INT:
+                    _code->currentBytecode()->addInsn(BC_ICMP);
+                    break;
+                case VT_DOUBLE:
+                  	_code->currentBytecode()->addInsn(BC_DCMP);
+                    break;
+                default:
+                  	assert(false);
+                  	break;
+            }
+        	varStack.push(VT_INT);
+            _code->currentBytecode()->addInsn(BC_ILOAD0);
+            _code->currentBytecode()->addInsn(BC_IFICMPGE);
+            varStack.pop();
+            ifCondLoad1Else0();
+            break;
+
+        case tNEQ:
+        	switch (widest) {
+                case VT_INT:
+                    _code->currentBytecode()->addInsn(BC_ICMP);
+                    break;
+                case VT_DOUBLE:
+                  	_code->currentBytecode()->addInsn(BC_DCMP);
+                    break;
+                default:
+                   	assert(false);
+                   	break;
+            }
+        	varStack.push(VT_INT);
+             _code->currentBytecode()->addInsn(BC_ILOAD0);
+             _code->currentBytecode()->addInsn(BC_IFICMPNE);
+             varStack.pop();
+             ifCondLoad1Else0();
+             break;
+
+         case tRANGE:
+        	 assert(false);
+        	 _code->currentBytecode()->addInsn(BC_SWAP);
+        	 break;
+
+
+/*
+        case tLE:
+            switch (widest) {
+                case VT_INT:
+                    _code->currentBytecode()->addInsn(BC_ICMP);
+                    break;
+                case VT_DOUBLE:
+                  	_code->currentBytecode()->addInsn(BC_DCMP);
+                    break;
+                default:
+                   	assert(false);
+                   	break;
+             }
+
+             _code->currentBytecode()->addInsn(BC_ILOAD0);
+             _code->currentBytecode()->addInsn(BC_IFICMPLE);
+             ifCondLoad1Else0();
+             break;
+
+        case tLE:
+            switch (widest) {
+                case VT_INT:
+                    _code->currentBytecode()->addInsn(BC_ICMP);
+                    break;
+                case VT_DOUBLE:
+                  	_code->currentBytecode()->addInsn(BC_DCMP);
+                    break;
+                default:
+                   	assert(false);
+                   	break;
+             }
+
+             _code->currentBytecode()->addInsn(BC_ILOAD0);
+             _code->currentBytecode()->addInsn(BC_IFICMPLE);
+             ifCondLoad1Else0();
+             break;
+
+ */
+
 
         default:
-        	WR_ERROR("OOPS BINARY OPS IMPLEMENTED POORLY");
+        	//cout << "IN BIN_OPS SMTH NOT IMPLEMENTED" << endl;
+        	assert(false);
         	break;
     }
 
@@ -142,8 +368,8 @@ void TranslatorVisitor::visitBlockNode(BlockNode* node)
 {
     //WR_DEBUG("visitBlockNode: START");
     //cout << "Scope: " << node->scope() << endl;
-    visitScopeFuns(node->scope());
-    visitScopeVars(node->scope());
+	visitScopeVars(node->scope());
+	visitScopeFuns(node->scope());
 
 
 	_code->pushScope();
@@ -155,26 +381,32 @@ void TranslatorVisitor::visitBlockNode(BlockNode* node)
 
 void TranslatorVisitor::visitCallNode(CallNode* node)
 {
+	//cout << "varStack: " << varStack.size() << endl;
+	//cout << "______START_____CALL______NODE______" << endl;
 
 	FunInfo* info = _code->getFunIdByName(node->name());
     if (!info) {
-    	cout << "Function " << node->name() << " ";
-    	WR_ERROR("not found");
+    	//cout << "Function " << node->name() << " ";
+    	assert(false);
     }
 
+    //cout << "BEFORE LOADING PARAMS varStack: " << varStack.size() << endl;
+    uint32_t n = node->parametersNumber();
+    for (int i = n - 1; i >= 0; --i)
+    {
+      	//cout << "fun param pushed ?" << i << endl;
+       	node->parameterAt(i)->visit(this);
+        varStack.pop();
+    }
+    //cout << "AFTER LOADING PARAMS varStack: " << varStack.size() << endl;
 
     _code->currentBytecode()->addInsn(BC_CALL);
     _code->currentBytecode()->addUInt16(info->_id);
 
-    for (uint32_t i = 0; i < node->parametersNumber(); ++i)
-    {
-        node->parameterAt(i)->visit(this);
-        cout << "fun param pushed ?" << endl;
-    }
+    varStack.push(_code->functionById(info->_id)->returnType());
 
-
-
-
+    //cout << "______END_____CALL______NODE______" << endl;
+    //cout << "varStack: " << varStack.size() << endl;
 }
 
 void TranslatorVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node)
@@ -183,19 +415,39 @@ void TranslatorVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node)
     _code->currentBytecode()->addDouble(node->literal());
     varStack.push(VT_DOUBLE);
 
-    //WR_DEBUG("visitDoubleLiteralNode: OK");
+    //cout << "BC_DLOAD " << node->literal() << " varStack: " << varStack.size() << endl;
 }
 
 void TranslatorVisitor::visitForNode(ForNode* node)
 {
-	WR_ERROR("visitForNode NI");
 
+	const AstVar* var = node->var();
 
-	cout << endl << "for (";
-    cout << node->var()->name() << " in ";    
-    node->inExpr()->visit(this);
-    cout << ")";
+    node->inExpr()->asBinaryOpNode()->left()->visit(this);
+    varStack.push(var->type());
+    storeVar(var);
+
+    uint32_t check = _code->currentBytecode()->current();
+    loadVar(var);
+    node->inExpr()->asBinaryOpNode()->right()->visit(this);
+    varStack.push(var->type());
+    _code->currentBytecode()->addInsn(BC_IFICMPG);
+    varStack.pop();
+    varStack.pop();
+    uint32_t jumpToEnd = _code->currentBytecode()->current();
+    _code->currentBytecode()->addInt16(0);
     node->body()->visit(this);
+    loadVar(var);
+    _code->currentBytecode()->addInsn(getLoad1Insn(var->type()));
+    _code->currentBytecode()->addInsn(getPlusInsn(var->type()));
+    storeVar(var);
+    _code->currentBytecode()->addInsn(BC_JA);
+    uint32_t jumpToStart = _code->currentBytecode()->current();
+    _code->currentBytecode()->addInt16(0);
+    uint32_t end = _code->currentBytecode()->current();
+    _code->currentBytecode()->setInt16(jumpToStart, check - end);
+    _code->currentBytecode()->setInt16(jumpToEnd, end - jumpToEnd - 2);
+
 }
 
 void TranslatorVisitor::visitFunctionNode(FunctionNode* node)
@@ -215,9 +467,10 @@ void TranslatorVisitor::visitFunctionNode(FunctionNode* node)
     for (uint32_t i = 0; i < params; ++i) {
     	string name = node->parameterName(i);
         VarType type = node->parameterType(i);
-    	VarInfo* info = _code->declareVarInCurrentScope(new AstVar(name, type, 0));
-        cout << "Declared function param: " << typeRepr(type) << " " << name << endl;
-        cout << "               CTX: " << info->_context << " ID: " << info->_id << endl;
+    	//VarInfo* info =
+        _code->declareVarInCurrentScope(new AstVar(name, type, 0));
+        //cout << "Declared function param: " << typeRepr(type) << " " << name << endl;
+        //cout << "               CTX: " << info->_context << " ID: " << info->_id << endl;
      }
 
      // was visitScopeVars and Funs
@@ -236,37 +489,39 @@ void TranslatorVisitor::visitFunctionNode(FunctionNode* node)
 // load on TOS ?
 void TranslatorVisitor::visitLoadNode(LoadNode* node)
 {
-	//WR_DEBUG("visitLoadNode: START");
-
 	const AstVar* var = node->var();
 	VarInfo* info = _code->getVarInfoByName(var->name());
-    if (!info) {
-        WR_ERROR("Var not found");
-    }
+    assert(info);
 
 	Instruction ins;
 	switch (var->type()) {
 	    case VT_INT:
 		    ins = BC_LOADCTXIVAR;
+		    //cout << "LOADCTX INT ";
 		    break;
 	    case VT_DOUBLE:
 	    	ins = BC_LOADCTXDVAR;
+	    	//cout << "LOADCTX DOUBLE ";
 	    	break;
 	    case VT_STRING:
 	    	ins = BC_LOADCTXSVAR;
+	    	//cout << "LOADCTX STRING ";
 	        break;
 	    default:
-	    	WR_ERROR("Invalid loading type");
+	    	assert(false);
 	    	break;
 	}
 
+	//TODO UInt16
     _code->currentBytecode()->addInsn(ins);
     _code->currentBytecode()->addInt16(info->_context);
     _code->currentBytecode()->addInt16(info->_id);
 
+
+
     varStack.push(var->type());
 
-    WR_DEBUG("visitLoadNode: OK");
+    //cout << "varStack: " << varStack.size() << endl;
 }
 
 
@@ -274,17 +529,37 @@ void TranslatorVisitor::visitLoadNode(LoadNode* node)
 //TODO implement
 void TranslatorVisitor::visitIfNode(IfNode* node)
 {
-	WR_ERROR("visitIfNode NI");
+
+	node->ifExpr()->visit(this);
+
+	// on stack result of comparison
+	_code->currentBytecode()->addInsn(BC_ILOAD0);
+	varStack.push(VT_INT);
+	_code->currentBytecode()->addInsn(BC_IFICMPE);
+    varStack.pop();
+    varStack.pop();
+
+	uint32_t elsePointer = _code->currentBytecode()->current();
+	_code->currentBytecode()->addInt16(0);
+    uint32_t thenStartPtr = _code->currentBytecode()->current();
 
 
-	cout << "if ";
-    node->ifExpr()->visit(this);
-    node->thenBlock()->visit(this);
-    if (node->elseBlock())
-    {
-        cout << "else";
-        node->elseBlock()->visit(this);
-    }
+	node->thenBlock()->visit(this);
+    _code->currentBytecode()->addInsn(BC_JA);
+    uint32_t endPointer = _code->currentBytecode()->current();
+    _code->currentBytecode()->addInt16(0);
+    uint32_t elseStartPtr = _code->currentBytecode()->current();
+
+
+    _code->currentBytecode()->setInt16(elsePointer, elseStartPtr - thenStartPtr);
+
+	if (node->elseBlock())
+	{
+	    node->elseBlock()->visit(this);
+	}
+
+    uint32_t endOfIfBlock = _code->currentBytecode()->current();
+    _code->currentBytecode()->setInt16(endPointer, endOfIfBlock - elseStartPtr);
 }
 
 void TranslatorVisitor::visitIntLiteralNode(IntLiteralNode* node)
@@ -293,16 +568,14 @@ void TranslatorVisitor::visitIntLiteralNode(IntLiteralNode* node)
     _code->currentBytecode()->addInt64(node->literal());
     varStack.push(VT_INT);
 
-    cout << "BC_ILOAD " << node->literal() << endl;
-    cout << "_bc->length " << _code->currentBytecode()->length() << endl;
+    //cout << "BC_ILOAD " << node->literal() << " varStack: " << varStack.size() << endl;
 }
 
 
 //TODO implement
 void TranslatorVisitor::visitNativeCallNode(NativeCallNode* node)
 {
-	WR_ERROR("visitNativeCall NI");
-	cout << "native call node";
+	assert(false);
 }
 
 
@@ -312,36 +585,32 @@ void TranslatorVisitor::visitPrintNode(PrintNode* node)
     for (uint32_t i = 0; i < n; ++i)
     {
     	node->operandAt(i)->visit(this);
+    	//cout << "PRINT PARAM " << i << endl;
+    	assert(varStack.size() != 0);
     	VarType typeOnTop = varStack.top();
-        switch (typeOnTop)
+
+    	switch (typeOnTop)
         {
             case VT_INT:
             	_code->currentBytecode()->addInsn(BC_IPRINT);
-            	varStack.pop();
-
-            	cout << "IPRINT" << endl;
+            	//cout << "IPRINT" << endl;
 
         	    break;
             case VT_DOUBLE:
                 _code->currentBytecode()->addInsn(BC_DPRINT);
-                varStack.pop();
-
-                cout << "DPRINT" << endl;
+                //cout << "DPRINT" << endl;
 
         	    break;
             case VT_STRING:
                 _code->currentBytecode()->addInsn(BC_SPRINT);
-                varStack.pop();
-
-                cout << "SPRINT" << endl;
-
+                //cout << "SPRINT" << endl;
         	    break;
             default:
-            	WR_ERROR("PRINTING INVALID TYPE");
+            	assert(false);
             	break;
         }
-
-        cout << "_bc->length " << _code->currentBytecode()->length() << endl;
+        varStack.pop();
+        //cout << "_bc->length " << _code->currentBytecode()->length() << endl;
 
     }
 }
@@ -350,121 +619,119 @@ void TranslatorVisitor::visitPrintNode(PrintNode* node)
 
 void TranslatorVisitor::visitReturnNode(ReturnNode* node)
 {    
-
 	if (node->returnExpr())
     {
-		//WR_DEBUG("visitReturnNode NI");
-		cout << "return ";
-        node->returnExpr()->visit(this);
-        cout << ";" << endl;    
-    }        
-    //WR_DEBUG("visitReturnNode: OK");
+		node->returnExpr()->visit(this);
+        assert(varStack.size() != 0);
+		varStack.pop();
+    }
+	_code->currentBytecode()->addInsn(BC_RETURN);
+	//cout << "RETURN PUSHED" << endl;
 }
 
 
 
 //private
 void TranslatorVisitor::storeVar(const AstVar* var) {
-    WR_DEBUG("storeVar: START");
-
 	VarType type = var->type();
-
-
-
     VarInfo* varInfo = _code->getVarInfoByName(var->name());
-
     if (!varInfo) {
-    	WR_ERROR("VARIABLE NOT FOUND");
+    	//cout << "variable not found" << endl;
+    	assert(false);
     }
-
-
-
-
+    //cout << "STORED ";
     switch (type) {
         case VT_INT:
-
         	// TODO cast to INT
-
         	_code->currentBytecode()->addInsn(BC_STORECTXIVAR);
         	_code->currentBytecode()->addUInt16(varInfo->_context);
         	_code->currentBytecode()->addUInt16(varInfo->_id);
-
-        	varStack.pop();
-
-        	//variable poped
-
-        	WR_DEBUG("storeVar: INT : OK");
+        	//cout << "INT ";
         	break;
-
         case VT_DOUBLE:
-
-        	// TODO cast to DOUBLE
-
             _code->currentBytecode()->addInsn(BC_STORECTXDVAR);
             _code->currentBytecode()->addUInt16(varInfo->_context);
             _code->currentBytecode()->addUInt16(varInfo->_id);
-
-
-            varStack.pop();
-
-            WR_DEBUG("storeVar: DOUBLE : OK");
+            //cout << "DOUBLE ";
         	break;
         case VT_STRING:
-
-        	// TODO cast to STRING
-
         	_code->currentBytecode()->addInsn(BC_STORECTXSVAR);
             _code->currentBytecode()->addUInt16(varInfo->_context);
             _code->currentBytecode()->addUInt16(varInfo->_id);
-
-            varStack.pop();
-
-            WR_DEBUG("storeVar: STRING : OK");
+            //cout << "STRING ";
         	break;
         default:
-
-    	    WR_ERROR("storeVar: NOT OK");
-    	    break;
+        	assert(false);
+        	break;
     }
 
-
-
+    varStack.pop();
+    //cout << "POPPED. varStack: " << varStack.size() << endl;
 }
+
+void TranslatorVisitor::loadVar(const AstVar* var) {
+	VarType type = var->type();
+    VarInfo* varInfo = _code->getVarInfoByName(var->name());
+    assert(varInfo);
+    //cout << "LOADED ";
+    switch (type) {
+        case VT_INT:
+        	// TODO cast to INT
+        	_code->currentBytecode()->addInsn(BC_LOADCTXIVAR);
+        	_code->currentBytecode()->addUInt16(varInfo->_context);
+        	_code->currentBytecode()->addUInt16(varInfo->_id);
+        	//cout << "INT ";
+        	break;
+        case VT_DOUBLE:
+            _code->currentBytecode()->addInsn(BC_LOADCTXDVAR);
+            _code->currentBytecode()->addUInt16(varInfo->_context);
+            _code->currentBytecode()->addUInt16(varInfo->_id);
+            //cout << "DOUBLE ";
+        	break;
+        case VT_STRING:
+        	_code->currentBytecode()->addInsn(BC_LOADCTXSVAR);
+            _code->currentBytecode()->addUInt16(varInfo->_context);
+            _code->currentBytecode()->addUInt16(varInfo->_id);
+            //cout << "STRING ";
+        	break;
+        default:
+        	assert(false);
+        	break;
+    }
+    varStack.push(type);
+    //cout << "PUSHED. varStack: " << varStack.size() << endl;
+}
+
+
+
 
 
 void TranslatorVisitor::visitStoreNode(StoreNode* node)
 {
-	//WR_DEBUG("visitStoreNode: START");
-
-    TokenKind op = node->op();
+	TokenKind op = node->op();
     const AstVar* var = node->var();
 
+
     // TODO check types!
- 	//VarType typeOnLeft = node->var()->type();
-    //VarType typeOnRight =
-
-    //VarInfo* info = _code->getVarInfoByName(node->var()->name());
-
-
     node->value()->visit(this);
-
-
-
-    //TODO implements INCRSET and DECRSET
-
     switch (op) {
         case tINCRSET:
-            WR_ERROR("NOT IMPLEMENTED");
+        	loadVar(var);
+        	_code->currentBytecode()->addInsn(getPlusInsn(var->type()));
+        	varStack.pop();
+        	storeVar(var);
         	break;
         case tDECRSET:
-        	WR_ERROR("NOT IMPLEMENTED");
+        	loadVar(var);
+        	_code->currentBytecode()->addInsn(getMinusInsn(var->type()));
+        	storeVar(var);
         	break;
         case tASSIGN:
             storeVar(var);
             break;
         default:
-        	WR_ERROR("Bad storage operation");
-            break;
+        	assert(false);
+        	break;
     }
 }
 
@@ -472,50 +739,57 @@ void TranslatorVisitor::visitStoreNode(StoreNode* node)
 void TranslatorVisitor::visitStringLiteralNode(StringLiteralNode* node)
 {
 	uint16_t stringId = _code->makeStringConstant(node->literal());
-	/*
-	if (str.size() > 255)
-    	WR_ERROR("DON'T SUPPORT SUCH HUGE STRINGS");
-
-    const char* s = str.c_str();
-    const uint8_t len = str.size();
-
-    _code->currentBytecode()->addInsn(BC_SLOAD);
-    _code->currentBytecode()->addByte(len);
-
-
-    for (uint8_t i = 0; i < len; ++i)
-        _code->currentBytecode()->addByte(s[i]);
-
-    */
-
-
-
 	_code->currentBytecode()->addInsn(BC_SLOAD);
 	_code->currentBytecode()->addUInt16(stringId);
     varStack.push(VT_STRING);
 
-    cout << "BC_SLOAD " << stringId << " // "<< _code->constantById(stringId) << endl;
-    cout << "_bc->length " << _code->currentBytecode()->length() << endl;
+    //cout << "BC_SLOAD " << node->literal() << " varStack: " << varStack.size() << endl;
 }
 
 
 void TranslatorVisitor::visitUnaryOpNode(UnaryOpNode* node)
 {
-	WR_ERROR("visitUnaryOpNode NI");
-
-	cout << kindRepr(node->kind());
-    node->visitChildren(this);
+	node->visitChildren(this);
+	switch (node->kind()) {
+	    case tNOT:
+	    	_code->currentBytecode()->addInsn(BC_ILOAD0);
+            _code->currentBytecode()->addInsn(BC_IFICMPE);
+            varStack.pop();
+            ifCondLoad1Else0();
+            varStack.push(VT_INT);
+		    break;
+	    case tSUB:
+	    	_code->currentBytecode()->addInsn(getNegInsn(varStack.top()));
+	    	break;
+	    default:
+		    assert(false);
+		    break;
+	}
 }
 
 
 void TranslatorVisitor::visitWhileNode(WhileNode* node)
 {
-	WR_ERROR("visitWhileNode NI");
 
-	cout << endl <<"while (";
-    node->whileExpr()->visit(this);
-    cout << ")";
+	uint32_t start = _code->currentBytecode()->current();
+	node->whileExpr()->visit(this);
+
+	_code->currentBytecode()->addInsn(BC_ILOAD0);
+	varStack.push(VT_INT);
+	_code->currentBytecode()->addInsn(BC_IFICMPE);
+    varStack.pop();
+    varStack.pop();
+    uint32_t jumpToEnd = _code->currentBytecode()->current();
+   	_code->currentBytecode()->addInt16(0);
     node->loopBlock()->visit(this);
+    _code->currentBytecode()->addInsn(BC_JA);
+    uint32_t jumpToStart = _code->currentBytecode()->current();
+    _code->currentBytecode()->addInt16(0);
+	uint32_t end = _code->currentBytecode()->current();
+    _code->currentBytecode()->setInt16(jumpToStart, start - end);
+
+    _code->currentBytecode()->setInt16(jumpToEnd, end - jumpToEnd - 2);
+
 }
 
 
@@ -527,10 +801,11 @@ void TranslatorVisitor::visitScopeVars(Scope* scope)
 	while (var_iter.hasNext())
     {
         AstVar* curv = var_iter.next();
-        VarInfo* info = _code->declareVarInCurrentScope(curv); //, new VarInfo(context, id++));
+        //VarInfo* info =
+        _code->declareVarInCurrentScope(curv);
 
-        cout << "Declared scope var: " << typeRepr(curv->type()) << " " << curv->name() << endl;
-        cout << "     " << "CTX: " << info->_context << " ID: " << info->_id << endl;
+        //cout << "Declared scope var: " << typeRepr(curv->type()) << " " << curv->name() << endl;
+        //cout << "     " << "CTX: " << info->_context << " ID: " << info->_id << endl;
     }    
 }
 
@@ -561,13 +836,13 @@ void TranslatorVisitor::visitScopeAttr(Scope* scope)
 
 
 void WR_ERROR(const char* msg) {
-    cout << "ERROR: " << msg << endl;
+    //cout << "ERROR: " << msg << endl;
     exit(EXIT_FAILURE);
 }
 
 
 void WR_DEBUG(const char* msg) {
 	if (DEBUG_MODE) {
-        cout << msg << endl;
+        //cout << msg << endl;
 	}
 }
