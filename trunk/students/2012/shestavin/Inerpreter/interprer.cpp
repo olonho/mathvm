@@ -8,7 +8,8 @@ namespace mathvm {
 #undef ENUM_ELEM
         1
     };
-    
+
+
     Status* Interpreter::execute(vector<Var*> & vars){
         BytecodeFunction* functionToCall = (BytecodeFunction*) functionByName("<top>");
         funExec(functionToCall);
@@ -17,7 +18,9 @@ namespace mathvm {
     
     void Interpreter::funExec(BytecodeFunction* f) {
         size_t bci = 0;
+        size_t k = 0;
         while (bci < f->bytecode()->length()) {
+            ++k;
             Instruction insn = f->bytecode()->getInsn(bci);
             switch (insn) {
                 case BC_INVALID: {

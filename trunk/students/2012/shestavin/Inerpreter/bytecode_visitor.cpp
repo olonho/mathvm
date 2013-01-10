@@ -76,9 +76,9 @@ void BytecodeVisitor::processVariablesDeclarations(Scope* scope) {
 }
     
 void BytecodeVisitor::loadVar(const AstVar* var) {
-    if (varsMap.find(var) == varsMap.end()) {
-        initVar(var);
-    }
+    //if (varsMap.find(var) == varsMap.end()) {
+    //    initVar(var);
+    //}
     switch (var->type()) {
         case VT_INT: {
             getActualBytecode()->addInsn(BC_LOADIVAR);
@@ -445,17 +445,17 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode* node) {
 
             getActualBytecode()->addInsn(BC_ILOAD0);
             getActualBytecode()->addInsn(BC_IFICMPNE);
-            getActualBytecode()->addInt16(10);
+            getActualBytecode()->addInt16(13);
         
             getActualBytecode()->addInsn(BC_SWAP);
             getActualBytecode()->addInsn(BC_POP);
             getActualBytecode()->addInsn(BC_IFICMPNE);
-            getActualBytecode()->addInt16(6);
+            getActualBytecode()->addInt16(9);
         
             getActualBytecode()->addInsn(BC_SWAP);
             getActualBytecode()->addInsn(BC_POP);
             getActualBytecode()->addInsn(BC_JA);
-            getActualBytecode()->addInt16(4);
+            getActualBytecode()->addInt16(7);
         
             getActualBytecode()->addInsn(BC_POP);
 
@@ -779,10 +779,10 @@ void BytecodeVisitor::visitReturnNode(ReturnNode* node) {
 void BytecodeVisitor::visitCallNode( CallNode* node ) {
     const Signature& signature = code->functionByName(node->name())->signature();
     
+    AstFunction* functionToCall = currentScope->lookupFunction(node->name());
     vector<const AstVar*> params;
     if (node->parametersNumber() > 0) {
         for (signed int i = node->parametersNumber() - 1; i >= 0; --i) {
-            AstFunction* functionToCall = currentScope->lookupFunction(node->name());
             AstVar* variable = functionToCall->scope()->lookupVariable(signature[i + 1].second);
             params.push_back(variable);
         }
@@ -806,6 +806,7 @@ void BytecodeVisitor::visitCallNode( CallNode* node ) {
             std::cerr << "Function call type error!\n";
         }
     }
+    
     
     getActualBytecode()->addInsn(BC_CALL);
     getActualBytecode()->addInt16(code->functionByName(node->name())->id());
