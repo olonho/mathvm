@@ -13,7 +13,7 @@ OS     := $(shell uname -s)
 MATHVM = $(BIN)/mvm
 MATHVMTGZ = ../MathVM.tgz
 
-CXX        = g++
+CXX        ?= g++
 CFLAGS     += -Wall -Werror -D_REENTRANT -fPIC $(USER_CFLAGS)
 LIBS_ROOT = $(VM_ROOT)/libs
 ASMJIT_CFLAGS = -Wno-error
