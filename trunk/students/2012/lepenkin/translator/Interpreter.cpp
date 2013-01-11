@@ -415,16 +415,10 @@ void Interpreter::executeFun(uint16_t id)
 
 	Instruction inst;
     while (true) {
-
-
     	inst = nextInsn();
-
     	//cout << "Current instruction " << inst << endl;
-
     	//cout << "__STACK:" << endl;
-        printStack();
-
-
+        //printStack();
         switch (inst) {
 
             case BC_INVALID:

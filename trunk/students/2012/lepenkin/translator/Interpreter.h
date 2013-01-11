@@ -116,21 +116,21 @@ private:
 
 
 
-	stack<FunctionContext*> _contexts;
+	stack<FunctionContext> _contexts;
 
 
 	void pushContext(uint16_t id) {
-		FunctionContext* parent = (_contexts.size() > 0) ? _contexts.top() : 0;
-		_contexts.push(new FunctionContext(id, parent));
+		FunctionContext* parent = (_contexts.size() > 0) ? &_contexts.top() : 0;
+		_contexts.push(FunctionContext(id, parent));
 	}
 
 	void popContext() {
 		if (_contexts.size() == 0) {
 			assert(false);
 		}
-		FunctionContext* top = _contexts.top();
+		//FunctionContext* top = _contexts.top();
 		_contexts.pop();
-		delete top;
+		//delete top;
 		return;
 	}
 
@@ -138,7 +138,7 @@ private:
         if (_contexts.size() == 0) {
         	assert(false);
         }
-        return _contexts.top();
+        return &_contexts.top();
 	}
 
 

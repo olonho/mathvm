@@ -26,6 +26,7 @@ void TranslatorVisitor::translate(AstFunction* top)
 	//cout << "Bytecode:" << endl << endl;
 
     _code->pushScope();
+    _code->declareFunctionInCurrentScope(top->node());
 
     top->node()->visit(this);
 
@@ -384,11 +385,9 @@ void TranslatorVisitor::visitCallNode(CallNode* node)
 	//cout << "varStack: " << varStack.size() << endl;
 	//cout << "______START_____CALL______NODE______" << endl;
 
+
 	FunInfo* info = _code->getFunIdByName(node->name());
-    if (!info) {
-    	//cout << "Function " << node->name() << " ";
-    	assert(false);
-    }
+    assert(info);
 
     //cout << "BEFORE LOADING PARAMS varStack: " << varStack.size() << endl;
     uint32_t n = node->parametersNumber();
@@ -454,10 +453,16 @@ void TranslatorVisitor::visitFunctionNode(FunctionNode* node)
 {
     //WR_DEBUG("visitFunctionNode: START");
 
-	BytecodeFunction* fun = _code->declareFunctionInCurrentScope(node);
+	//BytecodeFunction* fun =a _code->declareFunctionInCurrentScope(node);
 
     //cout << "Added bytecode function. ID: " << fun->id() << " Name: " << fun->name() << endl;
     //cout << "Searching fun by name: " << _code->getFunIdByName(fun->name())->_id << endl;
+
+
+	FunInfo* funInfo = _code->getFunIdByName(node->name());
+	assert(funInfo);
+
+	BytecodeFunction* fun = (BytecodeFunction*) _code->functionById(funInfo->_id);
 
     _code->pushFunction(fun);
     _code->pushScope();
@@ -812,15 +817,22 @@ void TranslatorVisitor::visitScopeVars(Scope* scope)
 
 void TranslatorVisitor::visitScopeFuns(Scope* scope)
 {
-    //WR_DEBUG("");
-	//WR_DEBUG("visitScopeFuns: START");
+    Scope::FunctionIterator fun_iter(scope);
+    Scope::FunctionIterator decl_iter(scope);
 
-	Scope::FunctionIterator fun_iter(scope);
     while (fun_iter.hasNext())
     {
         AstFunction* curf = fun_iter.next();
+        _code->declareFunctionInCurrentScope(curf->node());
+    }
+
+    while (decl_iter.hasNext())
+    {
+        AstFunction* curf = decl_iter.next();
         visitFunctionNode(curf->node());
     }    
+
+
 }
 
 
