@@ -119,6 +119,19 @@ private:
 	stack<FunctionContext> _contexts;
 
 
+
+	struct CallInfo {
+		uint32_t _insPtr;
+		Bytecode* _bc;
+		CallInfo(Bytecode* bc, uint32_t insPtr)
+			: _insPtr(insPtr)
+			, _bc(bc)
+		{
+		}
+	};
+
+	stack<CallInfo> stackTrace;
+
 	void pushContext(uint16_t id) {
 		FunctionContext* parent = (_contexts.size() > 0) ? &_contexts.top() : 0;
 		_contexts.push(FunctionContext(id, parent));
@@ -220,6 +233,7 @@ private:
 
 	void loadFunParamsInCtx(uint16_t);
 	void call();
+	void doReturn();
 
 	void executeFun(uint16_t);
 
