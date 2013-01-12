@@ -231,31 +231,16 @@ void Interpreter::printStack() {
 void Interpreter::call() {
     uint16_t funId = getNext2Bytes();
 
-    //cout << "BEFORE CALLING: " << endl;
-    //printStack();
-
     pushContext(funId);
     loadFunParamsInCtx(funId);
 
-    //printStack();
+    stackTrace.push(CallInfo(_bc, _insPtr));
 
-    uint32_t savedIp = _insPtr;
-    Bytecode* savedBc = _bc;
+    _bc = ((BytecodeFunction*)_code->functionById(funId))->bytecode();
+    _insPtr = 0;
 
+//    popContext();
 
-    //uint32_t before = _stack.size();
-    executeFun(funId);
-    //uint32_t after = _stack.size();
-
-
-
-    //cout << "__BEFORE_F_CALL " << before << endl;
-    //cout << "__AFTER_F_CALL " << after << endl;
-
-    popContext();
-
-    _insPtr = savedIp;
-    _bc = savedBc;
 }
 
 
@@ -404,6 +389,14 @@ void Interpreter::divDoubles() {
     pushDouble(left / right);
 }
 
+void Interpreter::doReturn() {
+	popContext();
+    assert(stackTrace.size() > 0);
+    CallInfo ci = stackTrace.top();
+    stackTrace.pop();
+    _bc = ci._bc;
+    _insPtr = ci._insPtr;
+}
 
 
 
@@ -713,23 +706,7 @@ void Interpreter::executeFun(uint16_t id)
                 exit(EXIT_FAILURE);
             	break;
         	case BC_RETURN:
-        		//cout << "RETURNING ";
-        		if (_typeStack.size() > 0)
-        		{
-        			switch (_typeStack.top()) {
-        		    	case VT_INT:
-        		    		//cout << _stack.top().i ;
-        		    		break;
-        		    	case VT_DOUBLE:
-        		    		//cout << _stack.top().d ;
-        		    		break;
-        		    	default:
-        		    		assert(false);
-        		    		break;
-        			}
-        		}
-        		//cout << "STACK SIZE: " << _stack.size() << endl;
-        		return;
+        		doReturn();
         		break;
         	case BC_BREAK:
         		_out << inst << " Not implemented" << endl;
