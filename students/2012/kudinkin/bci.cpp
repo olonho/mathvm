@@ -6,29 +6,33 @@ namespace mathvm
 {
  
   const char * const BytecodeInterpreter::top_func_name_ = "<top>";
-  
-  
+
+  /**
+    * ...
+    */ 
   void BytecodeInterpreter::exec(BytecodeExecutable *bce) {
     
-    BytecodeInterpreter bi(bce, cerr, cerr);
+    BytecodeInterpreter bi(bce, cout, cerr);
     
     bi.exec();
     
   }
   
   
+  /**
+    *
+    */
   void BytecodeInterpreter::exec() {
     
     BytecodeFunction &top_func = *static_cast<BytecodeFunction *>(bce_->functionByName(top_func_name_));
-    
-    Bytecode &top_func_bcode = *top_func.bytecode();
     
     //
     // ...
     //
     
-    Bytecode *bcs = &top_func_bcode;
+    Bytecode *bcs   = top_func.bytecode();
     
+    data_t::id_t cfid = top_func.id(); 
 
     for (uint32_t ip=0; ip < bcs->length();)
     {
@@ -40,7 +44,17 @@ namespace mathvm
       //
       
       Instruction ni = bcs->getInsn(ip++);
-      
+    
+      //
+      // TRACING FACILITIES: FIXME
+      //
+
+      //std::cerr << bce_->functionById(cfid)->name() << ": " << ip << ", " << bcName(ni) << std::endl;
+      //for (auto i = ds_.begin(); i != ds_.end(); ++i)
+      //  std::cerr << i->val_.d_ << ", ";
+      //std::cerr << std::endl;      
+
+
       switch(ni)
       {
         
@@ -61,9 +75,6 @@ namespace mathvm
           */
         case BC_DLOAD:
           
-//          ds_.emplace();
-//          ds_.top().val_.d_ = bcs->getDouble(ip);
-
           push<data_t::double_t>(bcs->getDouble(ip));
           
           ip += sizeof(data_t::double_t);
@@ -75,9 +86,6 @@ namespace mathvm
           */
         case BC_ILOAD:
           
-//          ds_.emplace();
-//          ds_.top().val_.i_ = bcs->getInt64(ip);
-
           push<data_t::int_t>(bcs->getInt64(ip));
 
           ip += sizeof(data_t::int_t);
@@ -89,9 +97,6 @@ namespace mathvm
          */
         case BC_SLOAD:
           
-//          ds_.emplace();
-//          ds_.top().val_.id_ = bcs->getUInt16(ip);
-
           push<data_t::id_t>(bcs->getUInt16(ip));
           
           ip += sizeof(data_t::id_t);
@@ -103,9 +108,6 @@ namespace mathvm
          */
         case BC_DLOAD0:
           
-//          ds_.emplace();
-//          ds_.top().val_.d_ = 0.0;
-        
           push<data_t::double_t>(0.0);
           
           break;
@@ -115,9 +117,6 @@ namespace mathvm
          */
         case BC_ILOAD0:
           
-//          ds_.emplace();
-//          ds_.top().val_.i_ = 0;
-
           push<data_t::int_t>(0);
           
           break;
@@ -127,9 +126,6 @@ namespace mathvm
          */
         case BC_SLOAD0:
           
-//          ds_.emplace();
-//          ds_.top().val_.id_ = 0;
-
           push<data_t::id_t>(0);
           
           break;
@@ -139,9 +135,6 @@ namespace mathvm
          */
         case BC_DLOAD1:
           
-//          ds_.emplace();
-//          ds_.top().val_.d_ = 1.0;
-
           push<data_t::double_t>(1.0);
 
           break;
@@ -151,9 +144,6 @@ namespace mathvm
          */
         case BC_ILOAD1:
           
-//          ds_.emplace();
-//          ds_.top().val_.i_ = 1;
-
           push<data_t::int_t>(1);
           
           break;
@@ -163,9 +153,6 @@ namespace mathvm
          */
         case BC_DLOADM1:
           
-//          ds_.emplace();
-//          ds_.top().val_.d_ = -1.0;
-
           push<data_t::double_t>(-1.0);
           
           break;
@@ -174,9 +161,6 @@ namespace mathvm
          * Loads INTEGER NEGATED UNIT (-1) on TOS
          */
         case BC_ILOADM1:
-          
-//          ds_.emplace();
-//          ds_.top().val_.i_ = -1;
           
           push<data_t::int_t>(-1);
 
@@ -188,12 +172,6 @@ namespace mathvm
         case BC_DADD:
         {
           data_t::double_t lop, rop;
-
-//          lop = ds_.top().val_.d_; ds_.pop();
-//          rop = ds_.top().val_.d_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.d_ = lop + rop;
 
           lop = pop<data_t::double_t>();
           rop = pop<data_t::double_t>();
@@ -210,12 +188,6 @@ namespace mathvm
         {
           data_t::int_t lop, rop;
 
-//          lop = ds_.top().val_.i_; ds_.pop();
-//          rop = ds_.top().val_.i_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.i_ = lop + rop;
-
           lop = pop<data_t::int_t>();
           rop = pop<data_t::int_t>();
         
@@ -231,12 +203,6 @@ namespace mathvm
         {
           data_t::double_t lop, rop;
           
-//          lop = ds_.top().val_.d_; ds_.pop();
-//          rop = ds_.top().val_.d_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.d_ = lop - rop;
-
           lop = pop<data_t::double_t>();
           rop = pop<data_t::double_t>();
         
@@ -252,12 +218,6 @@ namespace mathvm
         {
           data_t::int_t lop, rop;
           
-//          lop = ds_.top().val_.i_; ds_.pop();
-//          rop = ds_.top().val_.i_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.i_ = lop - rop;
-
           lop = pop<data_t::int_t>();
           rop = pop<data_t::int_t>();
         
@@ -273,12 +233,6 @@ namespace mathvm
         {
           data_t::double_t lop, rop;
           
-//          lop = ds_.top().val_.d_; ds_.pop();
-//          rop = ds_.top().val_.d_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.d_ = lop * rop;
-
           lop = pop<data_t::double_t>();
           rop = pop<data_t::double_t>();
         
@@ -294,12 +248,6 @@ namespace mathvm
         {
           data_t::int_t lop, rop;
           
-//          lop = ds_.top().val_.i_; ds_.pop();
-//          rop = ds_.top().val_.i_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.i_ = lop * rop;
-
           lop = pop<data_t::int_t>();
           rop = pop<data_t::int_t>();
         
@@ -315,12 +263,6 @@ namespace mathvm
         {
           data_t::double_t lop, rop;
           
-//          lop = ds_.top().val_.d_; ds_.pop();
-//          rop = ds_.top().val_.d_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.d_ = lop / rop;
-
           lop = pop<data_t::double_t>();
           rop = pop<data_t::double_t>();
         
@@ -336,12 +278,6 @@ namespace mathvm
         {
           data_t::int_t lop, rop;
           
-//          lop = ds_.top().val_.i_; ds_.pop();
-//          rop = ds_.top().val_.i_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.i_ = lop / rop;
-
           lop = pop<data_t::int_t>();
           rop = pop<data_t::int_t>();
         
@@ -358,12 +294,6 @@ namespace mathvm
         {
           data_t::int_t lop, rop;
           
-//          lop = ds_.top().val_.i_; ds_.pop();
-//          rop = ds_.top().val_.i_; ds_.pop();
-//          
-//          ds_.emplace();
-//          ds_.top().val_.i_ = lop % rop;
-
           lop = pop<data_t::int_t>();
           rop = pop<data_t::int_t>();
         
@@ -446,8 +376,8 @@ namespace mathvm
           lop = pop();
           rop = pop();
           
-          ds_.push(lop);
-          ds_.push(rop);
+          push(lop);
+          push(rop);
           
           break;
         }
@@ -669,42 +599,33 @@ namespace mathvm
         
         case BC_LOADDVAR:
         {
-          data_t::double_t *vref;
           data_t::id_t vid = bcs->getUInt16(ip);
           
           ip += sizeof(data_t::id_t);
-
-          var<data_t::double_t>(&vref, vid);
           
-          push<data_t::double_t>(*vref);
+          push<data_t::double_t>(var<data_t::double_t>(vid));
           
           break;
         }
         
         case BC_LOADIVAR:
         {
-          data_t::int_t *vref;
           data_t::id_t vid = bcs->getUInt16(ip);
           
           ip += sizeof(data_t::id_t);
-          
-          var<data_t::int_t>(&vref, vid);
-          
-          push<data_t::int_t>(*vref);
+
+          push<data_t::int_t>(var<data_t::int_t>(vid));
           
           break;
         }
           
         case BC_LOADSVAR:
         {
-          data_t::id_t *vref;
           data_t::id_t vid = bcs->getUInt16(ip);
           
           ip += sizeof(data_t::id_t);
           
-          var<data_t::id_t>(&vref, vid);
-          
-          push<data_t::id_t>(*vref);
+          push<data_t::id_t>(var<data_t::id_t>(vid));
           
           break;
         }
@@ -712,42 +633,33 @@ namespace mathvm
           
         case BC_STOREDVAR:
         {
-          data_t::double_t *vref;
           data_t::id_t vid = bcs->getUInt16(ip);
           
           ip += sizeof(data_t::id_t);
           
-          var<data_t::double_t>(&vref, vid);
-          
-          *vref = pop<data_t::double_t>();
+          var<data_t::double_t>(vid) = pop<data_t::double_t>();
           
           break;
         }
           
         case BC_STOREIVAR:
         {
-          data_t::int_t *vref;
           data_t::id_t vid = bcs->getUInt16(ip);
           
           ip += sizeof(data_t::id_t);
-          
-          var<data_t::int_t>(&vref, vid);
 
-          *vref = pop<data_t::int_t>();
-          
+          var<data_t::int_t>(vid) = pop<data_t::int_t>();
+
           break;
         }
           
         case BC_STORESVAR:
         {
-          data_t::id_t *vref;
           data_t::id_t vid = bcs->getUInt16(ip);
           
           ip += sizeof(data_t::id_t);
           
-          var<data_t::id_t>(&vref, vid);
-          
-          *vref = pop<data_t::id_t>();
+          var<data_t::id_t>(vid) = pop<data_t::id_t>();
           
           break;
         }
@@ -759,84 +671,60 @@ namespace mathvm
           
         case BC_LOADCTXDVAR:
         {
-          data_t::double_t  *vref;
-          
           data_t::id_t  ctxid = bcs->getUInt16(ip); ip += sizeof(data_t::id_t);
           data_t::id_t  vid   = bcs->getUInt16(ip); ip += sizeof(data_t::id_t);
           
-          var<data_t::double_t>(&vref, vid, ctxid);
-          
-          push<data_t::double_t>(*vref);
+          push<data_t::double_t>(cvar<data_t::double_t>(vid, ctxid));
           
           break;
         }
           
         case BC_LOADCTXIVAR:
         {
-          data_t::int_t *vref;
-
           data_t::id_t  ctxid = bcs->getUInt16(ip); ip += sizeof(data_t::id_t);
           data_t::id_t  vid   = bcs->getUInt16(ip); ip += sizeof(data_t::id_t);
           
-          var<data_t::int_t>(&vref, vid, ctxid);
-          
-          push<data_t::int_t>(*vref);
+          push<data_t::int_t>(cvar<data_t::int_t>(vid, ctxid));
           
           break;
         }
           
         case BC_LOADCTXSVAR:
         {
-          data_t::id_t  *vref;
-          
           data_t::id_t  ctxid = bcs->getUInt16(ip); ip += sizeof(data_t::id_t);
           data_t::id_t  vid   = bcs->getUInt16(ip); ip += sizeof(data_t::id_t);
           
-          var<data_t::id_t>(&vref, vid, ctxid);
-          
-          push<data_t::id_t>(*vref);
+          push<data_t::id_t>(cvar<data_t::id_t>(vid, ctxid));
           
           break;
         }
           
         case BC_STORECTXDVAR:
         {
-          data_t::double_t  *vref;
-          
           data_t::id_t  ctxid = bcs->getUInt16(ip);  ip += sizeof(data_t::id_t);
           data_t::id_t  vid   = bcs->getUInt16(ip);  ip += sizeof(data_t::id_t);
           
-          var<data_t::double_t>(&vref, vid, ctxid);
-          
-          *vref = pop<data_t::double_t>();
+          cvar<data_t::double_t>(vid, ctxid) = pop<data_t::double_t>();
           
           break;
         }
           
         case BC_STORECTXIVAR:
         {
-          data_t::int_t *vref;
-          
           data_t::id_t  ctxid = bcs->getUInt16(ip);  ip += sizeof(data_t::id_t);
           data_t::id_t  vid   = bcs->getUInt16(ip);  ip += sizeof(data_t::id_t);
           
-          var<data_t::int_t>(&vref, vid, ctxid);
-          
-          *vref = pop<data_t::int_t>();
+          cvar<data_t::int_t>(vid, ctxid) = pop<data_t::int_t>();
           
           break;
         }
           
         case BC_STORECTXSVAR:
         {
-          data_t::id_t  *vref;
-          
           data_t::id_t  ctxid = bcs->getUInt16(ip);  ip += sizeof(data_t::id_t);
           data_t::id_t  vid   = bcs->getUInt16(ip);  ip += sizeof(data_t::id_t);
           
-          var<data_t::id_t>(&vref, vid, ctxid);
-          
-          *vref = pop<data_t::id_t>();
+          cvar<data_t::id_t>(vid, ctxid) = pop<data_t::id_t>();
           
           break;
         }
@@ -852,53 +740,104 @@ namespace mathvm
 
           ip += sizeof(data_t::id_t);
 
-          
           BytecodeFunction *callee = static_cast<BytecodeFunction *>(bce_->functionById(fid));
           
           //
           // PUSH OLD CONTEXT AND CREATE NEW ONE
           //
 
-          cfs_.push(make_tuple(bcs, ip, sp_));
+          int argc = callee->parametersNumber();
+      
+          assert(argc >= 0);
+          assert(sp_ - argc >= 0);
 
-          ctx_.emplace_back(ctx_t(3));
+          cfs_.push_back(
+            make_tuple(bcs, ip, sp_ - argc, cfid)
+          );
+
+          // FIXME : current-function-id stored to facilitate tracing procedure
+          cfid = fid;
+
+          ctx_.emplace_back(ctx_t(4));
 
           lctx_ = &ctx_.back();
 
-          // ...
+          // Check whether pointer at this particular context 
+          // being established previously
           
+          if (fid != ctx_p_.back().first)   // Create new pointer
+            ctx_p_.push_back(make_pair(fid, ctx_.size() - 1));
+          else                              // Advance pointer
+            ctx_p_.back().second = ctx_.size() - 1;
+
+          // ...
+
           bcs = callee->bytecode();
           
           ip = 0;
           
           break;
         }
-          
-        case BC_RETURN:
-        {
 
-          //
-          // RESTORE OLD CONTEXT AND DISPOSE NEW ONE
-          //
+        case BC_RETURN:
+        case BC_IRETURN:
+        case BC_DRETURN:
+        {
+          data_t pret_val;
+
+          // POP return-value if any
+
+          switch(ni) {
+            case BC_IRETURN:
+            case BC_DRETURN:
+              pret_val = pop();
+            default: ; 
+          }
+
+          // Dispose context
 
           ctx_.pop_back();
 
           lctx_ = &ctx_.back();
 
-          tie(bcs, ip, sp_) = cfs_.top();
+          // FIXME
 
-          cfs_.pop();
+          data_t::id_t r_cfid = cfid;
 
-          // EXPERIMENTAL
+          int psp = sp_;
+      
+          tie(bcs, ip, sp_, cfid) = cfs_.back();
 
-          // Now, invokation outcome being delivered through register-like facility (!)
-          
-          //unwind(sp_);
+          assert(psp >= sp_);
+
+
+          if (r_cfid != cfid)   // Prune pointers
+            ctx_p_.pop_back();
+          else                  // Shift pointer
+            ctx_p_.back().second = ctx_.size() - 1;
+
+  
+          cfs_.pop_back();
+
+          // Transition stack into "intouched" state
+
+          unwind_until(sp_);
+
+
+          // And PUSH it back
+
+          switch(ni) {
+            case BC_IRETURN:
+            case BC_DRETURN:
+              push(pret_val);
+            default: ;
+          }
 
           break;
 
         }
-          
+
+
         default:
           assert(false);
           

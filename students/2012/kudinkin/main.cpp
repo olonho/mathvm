@@ -30,17 +30,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-//    const char* expr = "double x; double y;"
-//                        "x += 8.0; y = 2.0;"
-//                        //"print('Hello, x=',x,' y=',y,'\n');"
-//                        "int i;"
-//                        "for(i in 1 .. 10)"
-//                        "{ if ((i % 2) == 0) "
-//                        "  { int z = 0; print(i, '\n'); } }";
-
     bool isDefaultExpr = true;
   
-    const char * expr;
+    const char * expr = 0;
 
     if (script != NULL) {
         expr = loadFile(script);
@@ -60,11 +52,6 @@ int main(int argc, char** argv) {
       delete translateStatus;
       return -1;
     }
-  
-    //std::cout << disassemble(code).str();
-    code->disassemble(std::cout);
-  
-    std::cout << "Execution:\n";
   
     BytecodeInterpreter::exec(static_cast<BytecodeExecutable *>(code));
   
