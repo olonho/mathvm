@@ -780,19 +780,27 @@ namespace mathvm
         }
 
         case BC_RETURN:
-        case BC_IRETURN:
-        case BC_DRETURN:
+//        case BC_IRETURN:
+//        case BC_DRETURN:
         {
           data_t pret_val;
 
           // POP return-value if any
 
-          switch(ni) {
-            case BC_IRETURN:
-            case BC_DRETURN:
+          // FIXME
+          data_t::id_t r_cfid = cfid;
+
+          if (bce_->functionById(r_cfid)->returnType() != VT_VOID) 
+          {
               pret_val = pop();
-            default: ; 
           }
+
+//          switch(ni) {
+//            case BC_IRETURN:
+//            case BC_DRETURN:
+//              pret_val = pop();
+//            default: ; 
+//          }
 
           // Dispose context
 
@@ -800,9 +808,6 @@ namespace mathvm
 
           lctx_ = &ctx_.back();
 
-          // FIXME
-
-          data_t::id_t r_cfid = cfid;
 
           int psp = sp_;
       
@@ -826,12 +831,18 @@ namespace mathvm
 
           // And PUSH it back
 
-          switch(ni) {
-            case BC_IRETURN:
-            case BC_DRETURN:
+          if (bce_->functionById(r_cfid)->returnType() != VT_VOID) 
+          {
               push(pret_val);
-            default: ;
           }
+
+
+//          switch(ni) {
+//            case BC_IRETURN:
+//            case BC_DRETURN:
+//              push(pret_val);
+//            default: ;
+//          }
 
           break;
 
