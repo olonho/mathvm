@@ -666,6 +666,8 @@ namespace mathvm {
         // Derive variable id
         ctx_id_t ctxid  = get_ctx_id(own_ctx);
         var_id_t vid    = own_ctx.get_vid(node->var()->name());
+
+        assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
         
         switch(node->var()->type()) {
           case VT_DOUBLE: load_i = BC_LOADCTXDVAR; break;
@@ -751,8 +753,6 @@ namespace mathvm {
       else
       {
         lctx_t &own_ctx = map(own_scp);
-
-        assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
       
         ctxid  = get_ctx_id(own_ctx);
         vid    = own_ctx.get_vid(node->var()->name());
@@ -889,6 +889,8 @@ namespace mathvm {
       }
       else
       {
+        assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
+
         cur_fbcs().addUInt16(ctxid);
         cur_fbcs().addUInt16(vid);
       }
@@ -908,6 +910,8 @@ namespace mathvm {
       }
       else
       {
+        assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
+
         cur_fbcs().addUInt16(ctxid);
         cur_fbcs().addUInt16(vid);
       }
@@ -929,6 +933,8 @@ namespace mathvm {
       }
       else
       {
+        assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
+
         cur_fbcs().addUInt16(ctxid);
         cur_fbcs().addUInt16(vid);
       }
@@ -944,6 +950,8 @@ namespace mathvm {
       }
       else
       {
+        assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
+
         cur_fbcs().addUInt16(ctxid);
         cur_fbcs().addUInt16(vid);
       }
@@ -1133,22 +1141,24 @@ namespace mathvm {
             cur_fbcs().addInsn(BC_D2I);
         }
 
-        switch(exp_ret_expr_type) {
-          case VT_DOUBLE:
-            cur_fbcs().addInsn(BC_DRETURN);
-            break;
-          case VT_INT:
-            cur_fbcs().addInsn(BC_IRETURN);
-            break;
-          default:
-            assert(false);    // FIXME
-        }
+//        switch(exp_ret_expr_type) {
+//          case VT_DOUBLE:
+//            cur_fbcs().addInsn(BC_DRETURN);
+//            break;
+//          case VT_INT:
+//            cur_fbcs().addInsn(BC_IRETURN);
+//            break;
+//          default:
+//            assert(false);    // FIXME
+//        }
 
       }
-      else 
-      {
+//      else 
+//      {
+
         cur_fbcs().addInsn(BC_RETURN);
-      }
+
+//      }
     
   }
   
