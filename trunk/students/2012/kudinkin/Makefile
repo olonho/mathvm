@@ -15,22 +15,29 @@ USER_OBJ = \
    $(OBJ)/bci$(OBJ_SUFF) 
 #   $(OBJ)/bda$(OBJ_SUFF)
 
-#OPT = yes
+OPT = yes
 CXX = g++
-USER_CFLAGS =  -std=c++11 -fno-inline-functions
+USER_CFLAGS = -std=c++11 -fno-inline-functions
+
+NOP=@touch -c
 
 include $(VM_ROOT)/common.mk
 
 
 INCLUDE += -I$(ROOT)/include -I/usr/lib/c++/v1
 
+
 $(OBJ)/%$(OBJ_SUFF): 	$(ROOT)/%.cpp		\
-			$(OBJ)/.dir			\
-			$(ROOT)/include/bcg.h	\
-			$(ROOT)/include/bci.h	\
-			$(ROOT)/include/bda.h	\
-			$(ROOT)/include/be.h
+			$(OBJ)/.dir	        \
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
+
+$(ROOT)/bcg.cpp:        $(ROOT)/include/bcg.h   \
+			$(ROOT)/include/be.h
+		$(NOP) $@
+
+$(ROOT)/bci.cpp:        $(ROOT)/include/bci.h	\
+			$(ROOT)/include/be.h
+		$(NOP) $@
 
 MATHVM = $(BIN)/mvm
 

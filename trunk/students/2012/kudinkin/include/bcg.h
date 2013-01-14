@@ -79,20 +79,17 @@ namespace mathvm
         static const uint16_t VARIABLE_ID_SEED = 0x03;
         
         typedef Scope           scope_t;
-        typedef uint16_t        var_id_t;
-        typedef uint16_t        ctx_id_t;
+        typedef uint16_t        var_id_t; static const var_id_t INVALID_VAR_ID = (var_id_t) -1;
+        typedef uint16_t        ctx_id_t; static const ctx_id_t INVALID_CTX_ID = (ctx_id_t) -1;
 
         typedef vector<scope_t*>::difference_type  off_t;
 
         typedef Signature signature_t;
 
-        
-        //LocalContext(Scope *s, var_id_t seed = VARIABLE_ID_SEED) : scope_(s), vid_(seed) {};
-        LocalContext(var_id_t seed = VARIABLE_ID_SEED) : vid_(seed) {};
-        
-        
-        //Scope*    scope() const { return scope_; }
 
+        LocalContext(ctx_id_t id, var_id_t seed = VARIABLE_ID_SEED) : ctx_id_(id), vid_(seed) {};
+        
+        
         off_t     get_scp_id(scope_t *scp) const { 
                     return scp_stack_.cend() - find(scp_stack_.cbegin(), scp_stack_.cend(), scp);
                   }
@@ -110,6 +107,7 @@ namespace mathvm
         
         var_id_t  get_vid(const string &vname) { return ctx_.find(vname) != ctx_.end() ? ctx_.at(vname) : ctx_[vname] = vid_++; }
 
+        ctx_id_t  get_id() const { return ctx_id_; }
 
        private:
         
@@ -117,7 +115,12 @@ namespace mathvm
           * Scopes corresponding to the current context
           */
         vector<scope_t *> scp_stack_;
-        
+
+        /**
+          * Unique context-id
+          */
+        ctx_id_t ctx_id_;        
+
         /**
           * Pointer to the next non-bound (yet) variable-id
           */
@@ -151,9 +154,9 @@ namespace mathvm
       typedef Bytecode            bcode_t;
       typedef BytecodeExecutable  bcode_exec_t;
 
-      typedef LocalContext::var_id_t  var_id_t;
-      typedef LocalContext::ctx_id_t  ctx_id_t;
-      
+      typedef LocalContext        loc_ctx_t;
+      typedef loc_ctx_t::var_id_t var_id_t; 
+      typedef loc_ctx_t::ctx_id_t ctx_id_t;
       
       bcode_exec_t* dump() { return bce_.release(); };
 

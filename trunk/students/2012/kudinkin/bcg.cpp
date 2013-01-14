@@ -563,7 +563,7 @@ namespace mathvm {
           cur_fbcs().addInsn(BC_ILOAD1);
           cur_fbcs().addInsn(BC_IADD);
           cur_fbcs().addInsn(BC_ILOAD);
-          cur_fbcs().addInt16(2);
+          cur_fbcs().addInt64(2);
           cur_fbcs().addInsn(BC_SWAP);
           cur_fbcs().addInsn(BC_IMOD);
           break;
@@ -578,6 +578,8 @@ namespace mathvm {
               cur_fbcs().addInsn(BC_ILOADM1);
               cur_fbcs().addInsn(BC_IMUL);
               break;
+            default:
+              assert(false);
           }
           break;
           
@@ -627,10 +629,13 @@ namespace mathvm {
       //
       
       Instruction load_i;
-      
+
+
       scope_t *own_scp = node->var()->owner();
-      
-      if (cur_ctx().contains(own_scp))    // Check whether referenced variable is local to the current scope
+
+      bool local = cur_ctx().contains(own_scp);
+
+      if (local)    // Check whether referenced variable is local to the current scope
       {
          switch(node->var()->type()) {
             case VT_DOUBLE: load_i = BC_LOADDVAR; break;
@@ -662,9 +667,6 @@ namespace mathvm {
         ctx_id_t ctxid  = get_ctx_id(own_ctx);
         var_id_t vid    = own_ctx.get_vid(node->var()->name());
         
-        assert(ctxid  != 0xDEADBEEF);
-        assert(vid    != 0xDEADBEEF);
-
         switch(node->var()->type()) {
           case VT_DOUBLE: load_i = BC_LOADCTXDVAR; break;
           case VT_INT:    load_i = BC_LOADCTXIVAR; break;
@@ -679,6 +681,7 @@ namespace mathvm {
       
     }
 
+
   void BytecodeTranslator::BytecodeTranslatingVisitor::
     visitStoreNode(StoreNode *node) {
 
@@ -691,11 +694,10 @@ namespace mathvm {
 
       Instruction load_i, store_i, sum_i, sub_i;
       
+      
       scope_t *own_scp = node->var()->owner();
-      lctx_t  &own_ctx = map(own_scp);
-      
-      bool local = own_ctx.get_om_scp() == cur_ctx().get_om_scp();
-      
+
+      bool local = cur_ctx().contains(own_scp);
 
       switch(node->var()->type()) {
 
@@ -728,13 +730,38 @@ namespace mathvm {
 
       }
 
-      // Bind variable name with id 
-      var_id_t vid = own_ctx.get_vid(node->var()->name());
-      ctx_id_t ctxid  = get_ctx_id(own_ctx);
+
+      // Identify VAR given owning scope and context references
+
+      // Derive variable-/context-id
+
+      ctx_id_t ctxid = loc_ctx_t::INVALID_CTX_ID;
+      var_id_t vid;
+
+      if (local)    // Check whether referenced variable is local to the current scope
+      {
+        if (own_scp == cur_ctx().get_om_scp())
+        {
+          vid = cur_ctx().get_vid(node->var()->name());
+        } else 
+        {
+          vid = cur_ctx().get_vid(node->var()->name() + "_" + to_string(cur_ctx().get_scp_id(own_scp)));
+        }
+      }
+      else
+      {
+        lctx_t &own_ctx = map(own_scp);
+
+        assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
       
+        ctxid  = get_ctx_id(own_ctx);
+        vid    = own_ctx.get_vid(node->var()->name());
+      }
+
+      // Branch upon particular operation flavour
+
       if (node->op() != tASSIGN)
       {
-        
         cur_fbcs().addInsn(load_i);
 
         if (local)
@@ -743,11 +770,12 @@ namespace mathvm {
         }
         else
         {
+          assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
+
           cur_fbcs().addUInt16(ctxid);
           cur_fbcs().addUInt16(vid);
         }
         
-        // Branch upon particular type of the operation requested
         // Execution result of the expression to be stored should be already loaded on TOS
         
         if (node->op() == tINCRSET)
@@ -775,6 +803,8 @@ namespace mathvm {
       }
       else
       {
+        assert(ctxid != loc_ctx_t::INVALID_CTX_ID);
+
         cur_fbcs().addUInt16(ctxid);
         cur_fbcs().addUInt16(vid);
       }
@@ -938,11 +968,11 @@ namespace mathvm {
       
       // Evaluate ``while-expression''
       
+      cur_fbcs().bind(while_bs_l);
+
       node->whileExpr()->visit(this);
       
       cur_fbcs().addInsn(BC_ILOAD1);
-      
-      cur_fbcs().bind(while_bs_l);
       
       cur_fbcs().addBranch(BC_IFICMPNE, while_be_l); // if WE != TRUE jump to while-block-end label
       
@@ -997,8 +1027,6 @@ namespace mathvm {
     visitBlockNode(BlockNode *node) {
 
       // Fold outer context and (possibly) create new one
-
-      bool inhabitant = node->scope()->variablesCount() > 0;
       
       // Enter innermost scope
       push_scp(node->scope());
@@ -1007,11 +1035,10 @@ namespace mathvm {
       for (Scope::FunctionIterator f(node->scope()); f.hasNext();)
       {
         AstFunction *func = f.next();
-        std::cerr << func->node()->name() << std::endl;
         bce_->addFunction(new BytecodeFunction(func));
       }
 
-      // Translate all functions declared in scope
+      // Translate all functions declared in scope and elisted already
       for (Scope::FunctionIterator f(node->scope()); f.hasNext();)
       {
         f.next()->node()->visit(this);
@@ -1035,34 +1062,26 @@ namespace mathvm {
       BytecodeFunction *func = 
         static_cast<BytecodeFunction *>(bce_->functionByName(node->name()));      
 
-      // FIXME
-//      if (node->name() == "<top>") 
-//      {
-//        new_func_p = static_cast<BytecodeFunction *>(bce_->functionByName("<top>"));
-//      }
-//      else 
-//      {
-//        new_func_p = new BytecodeFunction(cur_scp().lookupFunction(node->name()));
-//        bce_->addFunction(new_func_p);
-//      }
-    
       // Create new BC-section and push previous one 
       bcs_stack_.push(make_pair(func->bytecode(), func->name()));
 
-      //
-      // EXPERIMENTAL
-      //
-
       // Push new local-context on top of stack thereof
-      ctx_stack_.emplace_back();
+
+      ctx_id_t nctx_id = bce_->functionByName(func->name())->id();  // Use function-id as 
+                                                                    // unique context-id
+      ctx_stack_.emplace_back(lctx_t(nctx_id));
+
 
       // Bind formal parameters with corresponding values pushed on stack
+      // NOTE:
+      //    Arguments for formal parameters are supplied in the "natural" order,
+      //    therefere, should be retrieved in the reverse of that one
 
-      for (size_t i=0; i < node->parametersNumber(); ++i) 
+      for (size_t i=0, argc = node->parametersNumber(); i < argc; ++i) 
       {
         Instruction store_i;
         
-        switch(node->parameterType(i)) {
+        switch(node->parameterType(argc - i - 1)) {
           case VT_DOUBLE: store_i = BC_STOREDVAR; break;
           case VT_INT:    store_i = BC_STOREIVAR; break;
           case VT_STRING: store_i = BC_STORESVAR; break;
@@ -1072,7 +1091,7 @@ namespace mathvm {
         // Derive variable id
         var_id_t vid;
 
-        vid = cur_ctx().get_vid(node->parameterName(i));
+        vid = cur_ctx().get_vid(node->parameterName(argc - i - 1));
 
         cur_fbcs().addInsn(store_i);
         cur_fbcs().addUInt16(vid);
@@ -1114,23 +1133,22 @@ namespace mathvm {
             cur_fbcs().addInsn(BC_D2I);
         }
 
-        // Deliver invokation through register-like facility
-        switch(exp_ret_expr_type) 
-        {
+        switch(exp_ret_expr_type) {
           case VT_DOUBLE:
-            cur_fbcs().addInsn(BC_STORECTXDVAR);
+            cur_fbcs().addInsn(BC_DRETURN);
             break;
           case VT_INT:
-            cur_fbcs().addInsn(BC_STORECTXIVAR);
+            cur_fbcs().addInsn(BC_IRETURN);
             break;
           default:
-            assert(false);  // FIXME
-        } 
-        cur_fbcs().addUInt16(1); // Deliver it to VAR0 of the EMBRACING context (CTXVAR @1,0)
-        cur_fbcs().addUInt16(0);
+            assert(false);    // FIXME
+        }
+
       }
-      
-      cur_fbcs().addInsn(BC_RETURN);
+      else 
+      {
+        cur_fbcs().addInsn(BC_RETURN);
+      }
     
   }
   
@@ -1147,20 +1165,6 @@ namespace mathvm {
       {
         cur_fbcs().addInsn(BC_CALL);
         cur_fbcs().addUInt16(bce_->functionByName(node->name())->id());
-
-        // Check out invokation outcome at the VAR0 and push it to the stack
-        switch(bce_->functionByName(node->name())->signature()[0].first) {
-          case VT_DOUBLE:
-            cur_fbcs().addInsn(BC_LOADDVAR0);
-            break;
-          case VT_INT:
-            cur_fbcs().addInsn(BC_LOADIVAR0);
-            break;
-          case VT_VOID:
-            break;
-          default:
-            assert(false);
-        }
       }
       else
       {
@@ -1222,12 +1226,7 @@ namespace mathvm {
     BytecodeTranslator::BytecodeTranslatingVisitor::
       get_ctx_id(const lctx_t &ctx)
   {
-    for (vector<lctx_t>::const_reverse_iterator i = ctx_stack_.rbegin(); i != ctx_stack_.rend(); ++i)
-    {
-      if (ctx.get_om_scp() == i->get_om_scp())
-        return static_cast<ctx_id_t>(i - ctx_stack_.rbegin());
-    }
-    return 0xDEADBEEF;
+    return ctx.get_id();
   }
   
   void BytecodeTranslator::BytecodeTranslatingVisitor::
