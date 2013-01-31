@@ -2,6 +2,7 @@
 #include <map>
 #include <sstream>
 #include <fstream>
+#include <sstream>
 
 #include "parser.h"
 #include "visitors.h"
@@ -91,7 +92,11 @@ void BytecodeGenerator::convert(const VarType& from, const VarType& to) {
     fBC->addInsn(BC_S2I);
     TOSType = VT_INT;
   } else {
-  	throw BCGenerationException("Unsupported conversation");
+  	std::stringstream ss;
+  	ss << "Unsupported conversation from: " << from << " to " << to  << 
+  		" in function " << currentFun << endl;
+  	code->functionById(currentFun)->disassemble(ss);
+  	throw BCGenerationException(ss.str());
   }
 }
 
@@ -414,7 +419,8 @@ void BytecodeGenerator::visitFunctionNode(FunctionNode * node) {
 
 void BytecodeGenerator::visitReturnNode(ReturnNode * node) {
 	node->visitChildren(this);
-  convert(TOSType, returnType);
+	if (returnType != VT_VOID)
+  	convert(TOSType, returnType);
   fBC->addInsn(BC_RETURN);
 }
 
