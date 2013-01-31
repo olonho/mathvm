@@ -1,0 +1,14 @@
+int i;
+
+i = 1233;
+string s = '432';
+
+print ('int i = 1233\n');
+print ('string s = 432\n');
+print ('i+s=', i+s, '\n');
+
+i = '5'+'23';
+int j = '0'+'a' - '-1' + '-2';
+
+print(i, '\n');
+print(j);
