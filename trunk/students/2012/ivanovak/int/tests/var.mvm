@@ -1,0 +1,5 @@
+double d;
+int x;
+
+x = 5;
+d = 2.0;
