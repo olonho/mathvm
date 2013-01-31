@@ -331,13 +331,57 @@ void BytecodeGenerator::visitStoreNode(StoreNode * node) {
 
 /*****************************************************************************/
 
-void BytecodeGenerator::visitForNode(ForNode * node) {}
+void BytecodeGenerator::visitForNode(ForNode * node) {
+	Label for_entry(fBC);
+	Label end(fBC);
+	//Label lesseq_ok(fBC);
+	//Label greq_ok(fBC);
+#ifdef DEBUG
+	 // cerr << "====BEFORE=====" << endl;
+  //  code->functionById(currentFun)->disassemble(cerr);
+  //  cerr << "===============" << endl;
+#endif
+	node->inExpr()->visit(this); // leftop and rightop on TOS (Range)
+#ifdef DEBUG
+ // cerr << "====AFTER=====" << endl;
+ // code->functionById(currentFun)->disassemble(cerr);
+ // cerr << "===============" << endl;
+#endif
+	fBC->addInsn(BC_SWAP);
+	const AstVar * var = node->var();
+	storeVar(var);
+	/*NOTE THAT STOP IS FOR DUPLICATION TOS VALUE*/
+	fBC->addInsn(BC_STOP);
+	loadVar(var);								
+	fBC->bind(for_entry);
+  fBC->addBranch(BC_IFICMPG, end);
+  node->body()->visit(this);
+	loadVar(var);
+	fBC->addInsn(BC_ILOAD1);
+	fBC->addInsn(BC_IADD);
+	storeVar(var);
+  fBC->addInsn(BC_STOP);
+	loadVar(var);
+	fBC->addBranch(BC_JA, for_entry);
+	fBC->bind(end);
+
+}
 
 /*****************************************************************************/
 
-void BytecodeGenerator::visitWhileNode(WhileNode * node) {}
-
-/*****************************************************************************/
+void BytecodeGenerator::visitWhileNode(WhileNode * node) {
+	Label while_entry(fBC);
+	fBC->bind(while_entry);
+	node->whileExpr()->visit(this);
+  fBC->addInsn(BC_DUMP);
+	Label end(fBC);
+	fBC->addInsn(BC_ILOAD1);
+	fBC->addBranch(BC_IFICMPNE, end);
+	if (node->loopBlock())
+		node->loopBlock()->visit(this);
+	fBC->addBranch(BC_JA, while_entry);
+	fBC->bind(end);
+}
 
 void BytecodeGenerator::visitIfNode(IfNode * node) {
 	node->ifExpr()->visit(this);
@@ -354,8 +398,6 @@ void BytecodeGenerator::visitIfNode(IfNode * node) {
 	fBC->bind(end);
 }
 
-/*****************************************************************************/
-
 void BytecodeGenerator::visitBlockNode(BlockNode * node) {
   Scope::VarIterator iter(node->scope());
 
@@ -370,7 +412,10 @@ void BytecodeGenerator::visitBlockNode(BlockNode * node) {
 
 /*****************************************************************************/
 
-void BytecodeGenerator::visitFunctionNode(FunctionNode * node) {}
+void BytecodeGenerator::visitFunctionNode(FunctionNode * node) {
+    // We don't add function node into AST.
+	  // @see parser.cpp
+}
 
 /*****************************************************************************/
 

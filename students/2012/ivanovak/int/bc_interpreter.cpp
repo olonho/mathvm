@@ -294,6 +294,7 @@ void BytecodeInterpretator::callById(int id) {
         continue;
       }
       break;
+
     case BC_CALLNATIVE:
       // TODO: 
       break;
@@ -301,9 +302,15 @@ void BytecodeInterpretator::callById(int id) {
     /** I will use DUMP to convert values on TOS to boolean */
     case BC_DUMP:
       push<int64_t>(pop<int64_t>() == 0 ? 0 : 1);
+      break;
+    /** I will use STOP to duplicate TOS value */
+    case BC_STOP:
+      push<int64_t>(top<int64_t>());
+      break;
     default:
       break;
     }
+
 
     position += lengths[instr];
   }
