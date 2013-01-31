@@ -10,7 +10,7 @@
 
 /**
   Interpreter witch not corresponds to the given codes standart
-  for DUMP function.
+  for DUMP and STOP function.
 */
 class BytecodeInterpretator : public mathvm::Code {
 public:
