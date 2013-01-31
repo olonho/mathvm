@@ -22,7 +22,7 @@ struct BCGenerationException : public exception {
 /** Main ast-traversing method that generates Code */
 void BytecodeGenerator::generate(const char * source, Code * acode) {
   if (parser.parseProgram(source) != 0) {
-    cout << "Parsing Error occurred!" << endl;
+    cerr << "Parsing Error occurred!" << endl;
     return;
   }
   
@@ -329,8 +329,6 @@ void BytecodeGenerator::visitStoreNode(StoreNode * node) {
   
  }
 
-/*****************************************************************************/
-
 void BytecodeGenerator::visitForNode(ForNode * node) {
 	Label for_entry(fBC);
 	Label end(fBC);
@@ -366,8 +364,6 @@ void BytecodeGenerator::visitForNode(ForNode * node) {
 	fBC->bind(end);
 
 }
-
-/*****************************************************************************/
 
 void BytecodeGenerator::visitWhileNode(WhileNode * node) {
 	Label while_entry(fBC);
@@ -410,27 +406,23 @@ void BytecodeGenerator::visitBlockNode(BlockNode * node) {
   node->visitChildren(this);
 }
 
-/*****************************************************************************/
-
 void BytecodeGenerator::visitFunctionNode(FunctionNode * node) {
     // We don't add function node into AST.
 	  // @see parser.cpp
 }
 
-/*****************************************************************************/
-
 void BytecodeGenerator::visitReturnNode(ReturnNode * node) {
-
+	node->visitChildren(this);
+  convert(TOSType, returnType);
+  fBC->addInsn(BC_RETURN);
 }
-
-/*****************************************************************************/
 
 void BytecodeGenerator::visitCallNode(CallNode * node) {
   size_t n = node->parametersNumber();
   TranslatedFunction * fun = code->functionByName(node->name());
   for (size_t i = 0; i < n; ++i) {
-    node->parameterAt(n + i - 1)->visit(this);
-    convert(TOSType, fun->parameterType(n + i - 1));
+    node->parameterAt(n - i - 1)->visit(this);
+    convert(TOSType, fun->parameterType(n - i - 1));
   }
   fBC->addInsn(BC_CALL);
   fBC->addInt16(fun->id());

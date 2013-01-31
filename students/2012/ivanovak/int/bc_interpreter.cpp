@@ -44,6 +44,7 @@ Status* BytecodeInterpretator::execute(vector<Var*> & vars) {
   } catch(const InvalidBCException& e) {
     delete context;
     context = 0;
+    cerr << e.what() << endl;
     return new Status(e.what(), 0);
   }
   delete context;
@@ -298,7 +299,7 @@ void BytecodeInterpretator::callById(int id) {
     case BC_CALLNATIVE:
       // TODO: 
       break;
-    
+
     /** I will use DUMP to convert values on TOS to boolean */
     case BC_DUMP:
       push<int64_t>(pop<int64_t>() == 0 ? 0 : 1);
@@ -310,7 +311,6 @@ void BytecodeInterpretator::callById(int id) {
     default:
       break;
     }
-
 
     position += lengths[instr];
   }
