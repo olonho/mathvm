@@ -41,13 +41,18 @@ def buildOptions():
   result.add_option('-d', '--doublerun',
                     default=False, action='store_true',
                     help='run twice, and compare results')
-
+  result.add_option('-f', '--ferrortrace',
+                    default=False, action='store_true',
+                    help='full error output')
+  result.add_option('-s', '--spectest',
+                    action='store', type='string',
+                    help='one file testing')
   return result
 
 
 diff = '/usr/bin/diff'
 
-def runTest(mvm, root, test, doublerun):
+def runTest(mvm, root, test, doublerun, ferrortrace):
     try:
         expectFile = None
         testFile = os.path.join(root, test+'.mvm')
@@ -62,19 +67,20 @@ def runTest(mvm, root, test, doublerun):
         expect = readFile(expectFile)
         if expect == result:
             print 'Test "'+test+'" has PASSED'
-        else:
+        else:    
             print 'Test "'+test+'" has FAILED'
-            print 'Expected: '
-            print '**************************'
-            print expect
-            print 'Result: '
-            print '**************************'
-            print result
-            print '**************************'
-            pipe = subprocess.Popen([diff, '-u', '-b', expectFile, '-'],
-                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            (out, err) = pipe.communicate(result)
-            print out
+            if ferrortrace: 
+                print 'Expected: '
+                print '**************************'
+                print expect
+                print 'Result: '
+                print '**************************'
+                print result
+                print '**************************'
+                pipe = subprocess.Popen([diff, '-u', '-b', expectFile, '-'],
+                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                (out, err) = pipe.communicate(result)
+                print out
     except:
         print "Failed to execute the test " + test
 
@@ -101,7 +107,8 @@ def main(argv):
     if m is None:
       continue
     t = m.group(1)
-    runTest(mvm, testdir, t, options.doublerun)
+    if (options.spectest is None or options.spectest == t):
+       runTest(mvm, testdir, t, options.doublerun, options.ferrortrace)
 
 if __name__ == '__main__':
     main(sys.argv)

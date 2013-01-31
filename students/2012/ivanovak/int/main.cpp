@@ -28,9 +28,13 @@ int main(int argc, char **argv) {
   
   BytecodeInterpretator interpretator;
   BytecodeGenerator generator;
-  generator.generate(source, &interpretator);
-  std::vector<mathvm::Var*> v;
-  interpretator.execute(v);
-  //}
+  try {
+    generator.generate(source, &interpretator);
+    std::vector<mathvm::Var*> v;
+    interpretator.execute(v);
+  } catch(const std::exception& e) {
+    std::cerr << e.what() << std::endl;
+    return 1;
+  }
   return 0;
 }
