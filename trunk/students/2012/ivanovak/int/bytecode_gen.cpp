@@ -345,23 +345,24 @@ void BytecodeGenerator::visitForNode(ForNode * node) {
  // code->functionById(currentFun)->disassemble(cerr);
  // cerr << "===============" << endl;
 #endif
-	fBC->addInsn(BC_SWAP);
+	fBC->addInsn(BC_SWAP); // 2
 	const AstVar * var = node->var();
-	storeVar(var);
+	storeVar(var); // 1
 	/*NOTE THAT STOP IS FOR DUPLICATION TOS VALUE*/
-	fBC->addInsn(BC_STOP);
-	loadVar(var);								
+	fBC->addInsn(BC_STOP); // 2
+	loadVar(var); // 3								
 	fBC->bind(for_entry);
-  fBC->addBranch(BC_IFICMPG, end);
-  node->body()->visit(this);
-	loadVar(var);
-	fBC->addInsn(BC_ILOAD1);
-	fBC->addInsn(BC_IADD);
-	storeVar(var);
-  fBC->addInsn(BC_STOP);
-	loadVar(var);
+  fBC->addBranch(BC_IFICMPG, end); // 1
+  node->body()->visit(this); // 
+	loadVar(var); // 2
+	fBC->addInsn(BC_ILOAD1); // 3
+	fBC->addInsn(BC_IADD); // 2
+	storeVar(var); // 1
+  fBC->addInsn(BC_STOP); // 2
+	loadVar(var); // 3
 	fBC->addBranch(BC_JA, for_entry);
 	fBC->bind(end);
+	fBC->addInsn(BC_POP);
 
 }
 
