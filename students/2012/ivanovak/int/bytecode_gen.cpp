@@ -331,20 +331,27 @@ void BytecodeGenerator::visitStoreNode(StoreNode * node) {
 
 /*****************************************************************************/
 
-void BytecodeGenerator::visitForNode(ForNode * node) {
-
-}
+void BytecodeGenerator::visitForNode(ForNode * node) {}
 
 /*****************************************************************************/
 
-void BytecodeGenerator::visitWhileNode(WhileNode * node) {
-
-}
+void BytecodeGenerator::visitWhileNode(WhileNode * node) {}
 
 /*****************************************************************************/
 
 void BytecodeGenerator::visitIfNode(IfNode * node) {
-
+	node->ifExpr()->visit(this);
+	fBC->addInsn(BC_DUMP);
+	Label else_body(fBC);
+	Label end(fBC);
+	fBC->addInsn(BC_ILOAD1);
+	fBC->addBranch(BC_IFICMPNE, else_body);
+	node->thenBlock()->visit(this);
+	fBC->addBranch(BC_JA, end);
+	fBC->bind(else_body);
+	if (node->elseBlock())
+		node->elseBlock()->visit(this);	
+	fBC->bind(end);
 }
 
 /*****************************************************************************/
@@ -363,9 +370,7 @@ void BytecodeGenerator::visitBlockNode(BlockNode * node) {
 
 /*****************************************************************************/
 
-void BytecodeGenerator::visitFunctionNode(FunctionNode * node) {
-
-}
+void BytecodeGenerator::visitFunctionNode(FunctionNode * node) {}
 
 /*****************************************************************************/
 

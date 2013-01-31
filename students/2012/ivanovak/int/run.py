@@ -4,6 +4,7 @@ import subprocess
 import sys
 import os
 import optparse
+#from termcolor import colored
 
 options = None
 
@@ -66,9 +67,9 @@ def runTest(mvm, root, test, doublerun, ferrortrace):
             result = runProg(mvm, testFile)
         expect = readFile(expectFile)
         if expect == result:
-            print 'Test "'+test+'" has PASSED'
+            print 'Test "'+test+'" has \033[92m PASSED \033[0m'
         else:    
-            print 'Test "'+test+'" has FAILED'
+            print 'Test "'+test+'" has \033[91m FAILED \033[0m'
             if ferrortrace: 
                 print 'Expected: '
                 print '**************************'
