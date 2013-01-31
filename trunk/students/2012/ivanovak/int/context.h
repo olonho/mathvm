@@ -23,7 +23,7 @@ class Context {
 public:
   Context() : curSize(0) {}
   
-  void addFun(mathvm::BytecodeFunction * f) {
+  void addFun(mathvm::BytecodeFunction *f) {
     resizeOnDemand(f->id());
     bc_functions[f->id()] = f;
     localsNumber[f->id()] = f->localsNumber();
@@ -43,7 +43,7 @@ public:
     fun_variables[index].resize(oldSize + localsNumber[index]);
   }
   
-  mathvm::BytecodeFunction * getFunById(int16_t funIndex) {
+  mathvm::BytecodeFunction* getFunById(int16_t funIndex) {
     return bc_functions[funIndex];
   }
 

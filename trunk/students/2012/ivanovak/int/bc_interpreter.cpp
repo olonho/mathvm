@@ -20,18 +20,6 @@ BytecodeInterpretator::BytecodeInterpretator() {
   initLengths();
 }
 
-//BytecodeInterpretator::BytecodeInterpretator(mathvm::Code& acode) 
-//  : code(acode) 
-//{
-//}
-
-//void BytecodeInterpretator::setContext(int id, Context * context) {
-//  if (id >= contexts.size()) {
-//    contexts.resize(id + 1);
-//  }
-//  contexts[id] = context;
-//}
-
 Status* BytecodeInterpretator::execute(vector<Var*> & vars) {
   context = new Context;
   FunctionIterator iter(this);
@@ -170,6 +158,10 @@ void BytecodeInterpretator::callById(int id) {
       push(d);
       break;
     case BC_S2I:
+    // zero states both for error in conversation and "0" string conversation
+#ifdef DEBUG
+    //cerr << "String id: " << top<int16_t>() << endl;
+#endif
       i64 = atoi(this->constantById(pop<int16_t>()).c_str());
       push<int64_t>(i64);
     break;
@@ -305,6 +297,10 @@ void BytecodeInterpretator::callById(int id) {
     case BC_CALLNATIVE:
       // TODO: 
       break;
+    
+    /** I will use DUMP to convert values on TOS to boolean */
+    case BC_DUMP:
+      push<int64_t>(pop<int64_t>() == 0 ? 0 : 1);
     default:
       break;
     }
@@ -314,8 +310,3 @@ void BytecodeInterpretator::callById(int id) {
   
   context->dropStackFrame(id);
 }
-
-//void BytecodeInterpretator::processInsn(Instruction instr, 
-//   const int& position, const Bytecode * bytecode) {
-//
-//}
