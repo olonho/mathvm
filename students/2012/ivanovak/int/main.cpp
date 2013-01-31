@@ -33,7 +33,10 @@ int main(int argc, char **argv) {
     std::vector<mathvm::Var*> v;
     interpretator.execute(v);
   } catch(const std::exception& e) {
+    std::cerr << "==============================================" << std::endl;
+    std::cerr << "Error occured: " << std::endl;
     std::cerr << e.what() << std::endl;
+    std::cerr << "==============================================" << std::endl;
     return 1;
   }
   return 0;
