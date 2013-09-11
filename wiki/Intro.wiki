@@ -19,4 +19,4 @@ Build shall be pretty straightforward, just type 'make' in command line (known t
 
 = Commits=
 
-Commit your work under 'students/2012/Your.Name'. 
+Commit your work under 'students/2013/Your.Name'. 
