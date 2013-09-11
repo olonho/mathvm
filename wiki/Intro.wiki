@@ -2,7 +2,7 @@
 
 = Introduction =
 
-MVM implements simple language (MVM language) with basic computational functionality and flow control.
+MVM implements simple language ([MVMLanguage]) with basic computational functionality and flow control.
 
 = Details =
 
