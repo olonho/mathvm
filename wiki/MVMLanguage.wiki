@@ -16,4 +16,4 @@ will print
  Hello, i=1
 }}}
 
-For other constructs, you may consult samples in tests/*.mvm.
+For other constructs, you may consult samples in _tests/_ subdirectory.
