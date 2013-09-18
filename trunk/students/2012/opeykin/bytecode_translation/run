@@ -1,3 +1,0 @@
-#!/bin/bash
-
-./build/debug/bytecode_translation $PWD/code_sample.mvm 1

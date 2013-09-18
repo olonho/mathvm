@@ -1,9 +1,0 @@
-#!/bin/bash
-TEST_DIR=./tests
-INPUT_DIR=$TEST_DIR/input
-OUTPUT_DIR=$TEST_DIR/output
-EXPECT_DIR=$TEST_DIR/expect
-
-for FNAME in $(ls $INPUT_DIR) ; do
-	cp $OUTPUT_DIR/$FNAME $EXPECT_DIR
-done

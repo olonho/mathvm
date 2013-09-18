@@ -1,7 +1,0 @@
-CONSTANTS:
-
-function [0] void <top>()
-function [1] void outer()
-0: RETURN
-function [2] void inner()
-0: RETURN

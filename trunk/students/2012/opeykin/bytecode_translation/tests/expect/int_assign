@@ -1,8 +1,0 @@
-function [0] void <top>()
-0: ILOAD 0
-9: STOREIVAR0
-10: ILOAD 1
-19: STOREIVAR0
-20: ILOAD 2
-29: STOREIVAR0
-30: STOP
