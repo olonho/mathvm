@@ -1,9 +1,0 @@
-function [0] void <top>()
-0: ILOAD 1
-9: ILOAD 1
-18: ILOAD 0
-27: ILOAD 2
-36: JA 48
-39: ILOAD 3
-48: ILOAD 4
-57: STOP

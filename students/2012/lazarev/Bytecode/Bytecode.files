@@ -1,6 +1,0 @@
-BytecodeGenerationVisitor.cpp
-BytecodeGenerationVisitor.h
-BytecodeTranslatorImpl.cpp
-InterpreterCodeImpl.cpp
-InterpreterCodeImpl.h
-main.cpp

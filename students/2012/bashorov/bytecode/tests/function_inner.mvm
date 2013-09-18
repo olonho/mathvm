@@ -1,4 +1,0 @@
-function void outer() {
-	function void inner() {
-	}
-};

@@ -1,9 +1,0 @@
-function int f(int i) {
-	if (i) {
-		return f(i-1) + i;
-	} else {
-		return 0;
-	}
-}
-
-print(f(100));
