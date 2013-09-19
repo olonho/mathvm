@@ -8,11 +8,10 @@ namespace mathvm {
 
 class CodePrinter : public AstVisitor {
   ostream& _out;
-  BlockNode* blockHook; //TODO: bad
 
   void visitBlockNodeWOBraces(BlockNode* node);
   void printVariableDeclaration(AstVar* var);
-  void printFunctionStmt(AstFunction* astFunction);
+  void printFunctionDeclaration(AstFunction* astFunction);
 public:
   CodePrinter(ostream& out) : _out(out) {}
 
