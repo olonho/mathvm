@@ -17,9 +17,9 @@ void CodePrinter::visitPrintNode(PrintNode *node) {
   _out << "print(";
   for(uint32_t i = 0; i != node->operands(); ++i) {
     node->operandAt(i)->visit(this);
-    _out << ((i+1) == node->operands() ? ");" : ",");
+    _out << ((i+1) == node->operands() ? "" : ",");
   }
-  _out << endl;
+  _out << ");" << endl;
 }
 
 void CodePrinter::visitBinaryOpNode(BinaryOpNode *node) {
@@ -81,9 +81,9 @@ void CodePrinter::visitLoadNode(LoadNode *node) {
 }
 
 void CodePrinter::visitIfNode(IfNode *node) {
-  _out << "if " ;
+  _out << "if (" ;
   node->ifExpr()->visit(this);
-  _out << endl;
+  _out << ')' << endl;
   node->thenBlock()->visit(this);
   if (node->elseBlock() != 0) {
     _out << "else";
@@ -113,9 +113,9 @@ void CodePrinter::visitStringLiteralNode(StringLiteralNode *node) {
 }
 
 void CodePrinter::visitWhileNode(WhileNode *node) {
-  _out << "while";
+  _out << "while (";
   node->whileExpr()->visit(this);
-  _out << endl;
+  _out << ')' << endl;
   node->loopBlock()->visit(this);
 
 }
@@ -125,8 +125,9 @@ void CodePrinter::visitIntLiteralNode(IntLiteralNode *node) {
 }
 
 void CodePrinter::visitUnaryOpNode(UnaryOpNode *node) {
-  _out << tokenOp(node->kind());
+  _out << '(' << tokenOp(node->kind());
   node->operand()->visit(this);
+  _out << ')';
 }
 
 void CodePrinter::visitReturnNode(ReturnNode *node) {
@@ -144,9 +145,9 @@ void CodePrinter::printFunctionDeclaration(AstFunction *astFunction) {
   for(uint32_t i = 0; i != node->parametersNumber(); ++i) {
     _out << typeToName(node->parameterType(i)) << " "
         << node->parameterName(i)
-        << ((i+1) == node->parametersNumber() ? ")" : ",");
+        << ((i+1) == node->parametersNumber() ? "" : ",");
   }
-
+  _out << ')';
   BlockNode* block = node->body();
   if (block->nodeAt(0)->isNativeCallNode()) {
     _out << " native " << "'" + block->nodeAt(0)->asNativeCallNode()->nativeName() + "'" << ";" << endl;
