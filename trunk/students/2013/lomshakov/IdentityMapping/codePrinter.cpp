@@ -37,13 +37,13 @@ void CodePrinter::visitBlockNodeWOBraces(BlockNode* node)
   }
 
   for (Scope::FunctionIterator i(node->scope()); i.hasNext();) {
-    printFunctionStmt(i.next());
+    printFunctionDeclaration(i.next());
   }
 
-  blockHook = node;
+//  blockHook = node;
   for (uint32_t i = 0; i != node->nodes(); ++i) {
     node->nodeAt(i)->visit(this);
-    blockHook = node;
+//    blockHook = node;
   }
 
 }
@@ -62,22 +62,17 @@ void CodePrinter::visitCallNode(CallNode *node) {
     node->parameterAt(i)->visit(this);
     _out << ((i+1) == node->parametersNumber() ? "" : ",");
   }
-  _out << ")";
-
-  assert(blockHook != 0);
-//  for_each(blockHook->nodeAt(0), blockHook->nodeAt(0) + blockHook->nodes(), [&](AstNode& n)
-//  {
-//    if (&n == node) _out << ";" << endl;
-//  });
+  _out << ") ";
 }
 
 void CodePrinter::visitDoubleLiteralNode(DoubleLiteralNode *node) {
-  _out /*<< fixed */<< node->literal();
+  _out << fixed << node->literal();
 }
 
 void CodePrinter::visitForNode(ForNode *node) {
-  _out << "for(" << node->var() << " in ";
+  _out << "for(" << node->var()->name() << " in ";
   node->inExpr()->visit(this);
+  _out << ")";
   node->body()->visit(this);
 }
 
@@ -90,8 +85,10 @@ void CodePrinter::visitIfNode(IfNode *node) {
   node->ifExpr()->visit(this);
   _out << endl;
   node->thenBlock()->visit(this);
-  _out << "else";
-  node->elseBlock()->visit(this);
+  if (node->elseBlock() != 0) {
+    _out << "else";
+    node->elseBlock()->visit(this);
+  }
 }
 
 void CodePrinter::visitStoreNode(StoreNode *node) {
@@ -132,19 +129,14 @@ void CodePrinter::visitUnaryOpNode(UnaryOpNode *node) {
   node->operand()->visit(this);
 }
 
-void CodePrinter::visitNativeCallNode(NativeCallNode *node) {
-
-}
-
 void CodePrinter::visitReturnNode(ReturnNode *node) {
-  if (node->returnExpr() != 0) {
-    _out << "return ";
+  _out << "return ";
+  if (node->returnExpr() != 0)
     node->returnExpr()->visit(this);
-    _out << ";" << endl;
-  }
+  _out << ";" << endl;
 }
 
-void CodePrinter::printFunctionStmt(AstFunction *astFunction) {
+void CodePrinter::printFunctionDeclaration(AstFunction *astFunction) {
   FunctionNode* node = astFunction->node();
 
   _out << "function " << typeToName(node->returnType())
@@ -168,5 +160,8 @@ void CodePrinter::visitFunctionNode(FunctionNode *node) {
 
 }
 
+void CodePrinter::visitNativeCallNode(NativeCallNode *node) {
+
+}
 
 }

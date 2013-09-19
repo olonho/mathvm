@@ -270,7 +270,7 @@ FunctionNode* Parser::parseFunction() {
         const string& parameterTypeName = currentTokenValue();
         VarType parameterType = nameToType(parameterTypeName);
         if (parameterType == VT_INVALID) {
-            error("wrong parameter type");
+            error(("wrong parameter type" + parameterTypeName).c_str());
         }
         consumeToken();
         const string& parameterName = currentTokenValue();
