@@ -60,6 +60,8 @@ def runTest(mvm, root, test, doublerun):
             expectFile = os.path.join(root, test+'.expect')
             result = runProg(mvm, testFile)
         expect = readFile(expectFile)
+
+       
         if expect == result:
             print 'Test "'+test+'" has PASSED'
         else:
