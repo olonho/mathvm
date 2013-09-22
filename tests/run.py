@@ -66,7 +66,7 @@ def runTest(mvm, root, test, doublerun):
             print 'Test "'+test+'" has PASSED'
         else:
             print 'Test "'+test+'" has FAILED'
-            print 'Expected: '
+            print 'Expected: '           
             print '**************************'
             print expect
             print 'Result: '
