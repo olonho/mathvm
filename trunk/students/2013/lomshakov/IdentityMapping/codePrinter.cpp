@@ -99,15 +99,15 @@ void CodePrinter::visitStoreNode(StoreNode *node) {
 
 void CodePrinter::visitStringLiteralNode(StringLiteralNode *node) {
   string rawString;
-  for_each(node->literal().begin(), node->literal().end(), [&](char it) {
-    if (it == '\n' )
+  for(string::const_iterator it = node->literal().begin(); it != node->literal().end(); ++it) {
+    if (*it == '\n' )
       rawString.append("\\n");
-    else if (it == '\t')
+    else if (*it == '\t')
       rawString.append("\\t");
     //TODO: add other escape sequence
     else
-      rawString.push_back(it);
-  });
+      rawString.push_back(*it);
+  }
   _out << "'" << rawString << "'";
 
 }
