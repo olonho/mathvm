@@ -13,7 +13,7 @@ USER_OBJ = \
    $(OBJ)/translator$(OBJ_SUFF) \
    $(OBJ)/codePrinter$(OBJ_SUFF)
 
-USER_CFLAGS = -std=c++11
+USER_CFLAGS =
 
 include $(VM_ROOT)/common.mk
 
