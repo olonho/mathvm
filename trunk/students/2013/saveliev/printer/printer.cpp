@@ -5,22 +5,6 @@ using namespace mathvm;
 
 namespace mathvm {
 
-string escape(const string & str) {
-    string escaped;
-
-    for (string::const_iterator it = str.begin(); it != str.end(); ++it) {
-        switch (*it) {
-            case '\n': escaped += "\\n"; break;
-            case '\t': escaped += "\\n"; break;
-            case '\b': escaped += "\\n"; break;
-            case '\r': escaped += "\\n"; break;
-            case '\\': escaped += "\\n"; break;
-            default:   escaped += *it;   break;
-        }
-    }
-    return escaped;
-}
-
 void Printer::visitBinaryOpNode(BinaryOpNode* node) {
     out << "(";
     node->left()->visit(this);
@@ -35,7 +19,19 @@ void Printer::visitUnaryOpNode(UnaryOpNode* node) {
 }
 
 void Printer::visitStringLiteralNode(StringLiteralNode* node) {
-    out << "'" << escape(node->literal()) << "'";
+    out << "'";
+    for (string::const_iterator it = node->literal().begin(); 
+            it != node->literal().end(); ++it) {
+        switch (*it) {
+            case '\n': out << "\\n"; break;
+            case '\t': out << "\\n"; break;
+            case '\b': out << "\\n"; break;
+            case '\r': out << "\\n"; break;
+            case '\\': out << "\\n"; break;
+            default:   out << *it;   break;
+        }
+    }
+    out << "'";
 }
 
 void Printer::visitDoubleLiteralNode(DoubleLiteralNode* node) {
@@ -87,18 +83,22 @@ void Printer::visitIfNode(IfNode* node) {
 }
 
 void Printer::visitBlockNode(BlockNode* node) {
-    out << "{\n";
-    
+    if (level >= 0)
+        out << "{\n";
+        
     level++;
-    printBlockContents(node);  
+    blockNodeVariableDeclarations(node);
+    blockNodeFunctionDeclarations(node);
+    blockNodeInnerNodes(node);    
     level--;
     
-    indent();
-    out << "}";
+    if (level >= 0) {
+        indent(); 
+        out << "}";
+    }
 }
 
-void Printer::printBlockContents(BlockNode* node) {  
-    // variables declarations
+void Printer::blockNodeVariableDeclarations(BlockNode* node) {
     bool need_an_empty_line_after = false;
     
     Scope::VarIterator varIt(node->scope());
@@ -110,12 +110,13 @@ void Printer::printBlockContents(BlockNode* node) {
             << " " << var->name() << ";\n";
 
         need_an_empty_line_after = true;
-    }    
+    }
     if (need_an_empty_line_after)
         out << '\n';        
     need_an_empty_line_after = false;  
-    
-    // functions declarations
+}
+
+void Printer::blockNodeFunctionDeclarations(BlockNode* node) {
     Scope::FunctionIterator funIt(node->scope());
     while (funIt.hasNext()) {
         AstFunction* fun = funIt.next();
@@ -123,9 +124,10 @@ void Printer::printBlockContents(BlockNode* node) {
         indent();        
         fun->node()->visit(this);
         out << '\n';
-    }  
+    }
+}
 
-    // inner nodes
+void Printer::blockNodeInnerNodes(BlockNode* node) {
     for (size_t i = 0; i < node->nodes(); ++i) { 
         indent();       
         AstNode* subNode = node->nodeAt(i);
@@ -142,7 +144,8 @@ void Printer::printBlockContents(BlockNode* node) {
 void Printer::visitFunctionNode(FunctionNode* node) {
     out << "function " << typeToName(node->returnType()) 
         << " " << node->name() << "(";
-       // parameters
+    
+    // parameters
     for (size_t i = 0; i < node->parametersNumber(); ++i) {
         out << typeToName(node->parameterType(i)) << " " 
             << node->parameterName(i);
@@ -194,5 +197,4 @@ void Printer::visitPrintNode(PrintNode* node) {
     out << ")";
 }
 
-} // namespace mathvm
-
+}
