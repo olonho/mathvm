@@ -18,17 +18,34 @@ class PrinterVisitor : public AstVisitor {
 private:
    ostream & os;
    uint indent;
+   int last_precedence;
 
-   #define WRAP_BRACKETS(DO)  \
-      os << "{";              \
-      os << endl;             \
-      DO                      \
-      printIndent();          \
-      os << "}";              \
+   #define WRAP_BRACKETS(DO)                       \
+      os << "{";                                   \
+      os << endl;                                  \
+      last_precedence = tokenPrecedence(tEOF);     \
+      DO                                           \
+      last_precedence = tokenPrecedence(tUNDEF);   \
+      printIndent();                               \
+      os << "}";                                   \
       os << endl;
 
-   #define VISIT(NODE)        \
+   #define VISIT(NODE)                             \
       NODE->visit(this);
+
+   #define VISIT_STATEMENT(DO)                     \
+      last_precedence = tokenPrecedence(tEOF);     \
+         VISIT(                                    \
+            DO                                     \
+         )                                         \
+      last_precedence = tokenPrecedence(tUNDEF);
+
+   #define WRAP_PRECEDENCE(KIND, DO)               \
+      bool __parens =                              \
+         tokenPrecedence(KIND) < last_precedence;  \
+      if(__parens) os << "(";                      \
+      DO                                           \
+      if(__parens) os << ")";
 
    void printIndent() {
       for (uint i = 1; i < indent; ++i) {
@@ -36,28 +53,42 @@ private:
       }
    }
 
+   TokenKind VarType2TokenKind(VarType type) {
+      switch(type) {
+         case VT_DOUBLE:  return tDOUBLE; break;
+         case VT_INT:     return tINT; break;
+         case VT_STRING:  return tSTRING; break;
+         case VT_VOID:
+         case VT_INVALID:
+         default:
+            return tUNDEF;
+      }
+   }
+
 public:
-   PrinterVisitor(ostream & os) : os(os), indent(0) {}
+   PrinterVisitor(ostream & os) : os(os), indent(0), last_precedence(tokenPrecedence(tEOF)) {}
 
    void run(AstFunction* top) {
       VISIT( top->node()->body() );
    }
 
    virtual void visitBinaryOpNode(BinaryOpNode* node) {
-      os << "(";
-      VISIT( node->left() );
-      os << ")";
-      os << tokenOp(node->kind());
-      os << "(";
-      VISIT( node->right() );
-      os << ")";
+      WRAP_PRECEDENCE ( node->kind(),
+         last_precedence = tokenPrecedence(node->kind());
+         VISIT( node->left() );
+         os << tokenOp(node->kind());
+         last_precedence = tokenPrecedence(node->kind());
+         VISIT( node->right() );
+         last_precedence = tokenPrecedence(tUNDEF);
+      )
    }
 
    virtual void visitUnaryOpNode(UnaryOpNode* node) {
-      os << tokenOp(node->kind());
-      os << "(";
-      VISIT( node->operand() );
-      os << ")";
+      WRAP_PRECEDENCE ( node->kind(),
+         os << tokenOp(node->kind());
+         last_precedence = tokenPrecedence(node->kind());
+         VISIT( node->operand() );
+      )
    }
 
    virtual void visitStringLiteralNode(StringLiteralNode* node) {
@@ -75,18 +106,22 @@ public:
          }
       }
       os << "'";
+      last_precedence = tokenPrecedence(tSTRING);
    }
 
    virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
       os << node->literal();
+      last_precedence = tokenPrecedence(tDOUBLE);
    }
 
    virtual void visitIntLiteralNode(IntLiteralNode* node) {
       os << node->literal();
+      last_precedence = tokenPrecedence(tINT);
    }
 
    virtual void visitLoadNode(LoadNode* node) {
       os << node->var()->name();
+      last_precedence = tokenPrecedence(VarType2TokenKind(node->var()->type()));
    }
 
    virtual void visitStoreNode(StoreNode* node) {
@@ -94,14 +129,14 @@ public:
       os << " ";
       os << tokenOp(node->op());
       os << " ";
-      VISIT( node->value() );
+      VISIT_STATEMENT( node->value() );
    }
 
    virtual void visitForNode(ForNode* node) {
       os << "for (";
       os << node->var()->name();
       os << " in ";
-      VISIT( node->inExpr() );
+      VISIT_STATEMENT( node->inExpr() );
       os << ") ";
 
       WRAP_BRACKETS(
@@ -111,7 +146,7 @@ public:
 
    virtual void visitWhileNode(WhileNode* node) {
       os << "while (";
-      VISIT( node->whileExpr() );
+      VISIT_STATEMENT( node->whileExpr() );
       os << ") ";
       WRAP_BRACKETS(
          VISIT( node->loopBlock() );
@@ -120,7 +155,7 @@ public:
 
    virtual void visitIfNode(IfNode* node) {
       os << "if (";
-      VISIT( node->ifExpr() );
+      VISIT_STATEMENT( node->ifExpr() );
       os << ") ";
       WRAP_BRACKETS(
          VISIT( node->thenBlock() );
@@ -165,7 +200,7 @@ public:
 
       for (uint i = 0; i < node->nodes(); ++i) {
          printIndent();
-         VISIT( node->nodeAt(i) );
+         VISIT_STATEMENT( node->nodeAt(i) );
 
          if(!node->nodeAt(i)->isForNode()   &&
             !node->nodeAt(i)->isWhileNode() &&
@@ -210,7 +245,7 @@ public:
       os << "return";
       if (node->returnExpr()) {
          os << " ";
-         VISIT( node->returnExpr() );
+         VISIT_STATEMENT( node->returnExpr() );
       }
    }
 
@@ -218,10 +253,10 @@ public:
       os << node->name();
       os << "(";
       if (node->parametersNumber() > 0) {
-         VISIT( node->parameterAt(0) );
+         VISIT_STATEMENT( node->parameterAt(0) );
          for (uint i = 1; i < node->parametersNumber(); ++i) {
             os << ", ";
-            VISIT( node->parameterAt(i) );
+            VISIT_STATEMENT( node->parameterAt(i) );
          }
       }
       os << ")";
@@ -236,10 +271,10 @@ public:
    virtual void visitPrintNode(PrintNode* node) {
       os << "print (";
          if (node->operands() > 0) {
-         VISIT( node->operandAt(0) );
+         VISIT_STATEMENT( node->operandAt(0) );
          for (uint i = 1; i < node->operands(); ++i) {
             os << ", ";
-            VISIT( node->operandAt(i) );
+            VISIT_STATEMENT( node->operandAt(i) );
          }
       }
       os << ")";
