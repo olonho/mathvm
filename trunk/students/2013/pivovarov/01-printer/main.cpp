@@ -30,17 +30,17 @@ private:
    #define VISIT(NODE)        \
       NODE->visit(this);
 
+   void printIndent() {
+      for (uint i = 1; i < indent; ++i) {
+         os << "  ";
+      }
+   }
+
 public:
    PrinterVisitor(ostream & os) : os(os), indent(0) {}
 
    void run(AstFunction* top) {
       VISIT( top->node()->body() );
-   }
-
-   void printIndent() {
-      for (uint i = 1; i < indent; ++i) {
-         os << "  ";
-      }
    }
 
    virtual void visitBinaryOpNode(BinaryOpNode* node) {
@@ -98,16 +98,11 @@ public:
    }
 
    virtual void visitForNode(ForNode* node) {
-      os << "for";
-      os << " ";
-      os << "(";
+      os << "for (";
       os << node->var()->name();
-      os << " ";
-      os << "in";
-      os << " ";
+      os << " in ";
       VISIT( node->inExpr() );
-      os << ")";
-      os << " ";
+      os << ") ";
 
       WRAP_BRACKETS(
          VISIT( node->body() );
@@ -115,31 +110,23 @@ public:
    }
 
    virtual void visitWhileNode(WhileNode* node) {
-      os << "while";
-      os << " ";
-      os << "(";
+      os << "while (";
       VISIT( node->whileExpr() );
-      os << ")";
-      os << " ";
+      os << ") ";
       WRAP_BRACKETS(
          VISIT( node->loopBlock() );
       )
    }
 
    virtual void visitIfNode(IfNode* node) {
-      os << "if";
-      os << " ";
-      os << "(";
+      os << "if (";
       VISIT( node->ifExpr() );
-      os << ")";
-      os << " ";
+      os << ") ";
       WRAP_BRACKETS(
          VISIT( node->thenBlock() );
       )
       if (node->elseBlock()) {
-         os << " ";
-         os << "else";
-         os << " ";
+         os << " else ";
          WRAP_BRACKETS(
             VISIT( node->elseBlock() );
          )
@@ -149,7 +136,9 @@ public:
    virtual void visitBlockNode(BlockNode* node) {
       indent++;
 
-      Scope::VarIterator v(node->scope());
+      Scope* scope = node->scope();
+
+      Scope::VarIterator v(scope);
       while(v.hasNext()) {
          printIndent();
          AstVar* var = v.next();
@@ -159,11 +148,18 @@ public:
          os << ";";
          os << endl;
       }
-      Scope::FunctionIterator f(node->scope());
+      if (scope->variablesCount() > 0) {
+         os << endl;
+      }
+
+      Scope::FunctionIterator f(scope);
       while(f.hasNext()) {
          printIndent();
          AstFunction* fun = f.next();
          VISIT( fun->node() );
+         os << endl;
+      }
+      if (scope->functionsCount() > 0) {
          os << endl;
       }
 
@@ -171,7 +167,7 @@ public:
          printIndent();
          VISIT( node->nodeAt(i) );
 
-         if(!node->nodeAt(i)->isForNode() &&
+         if(!node->nodeAt(i)->isForNode()   &&
             !node->nodeAt(i)->isWhileNode() &&
             !node->nodeAt(i)->isIfNode()) {
                os << ";";
@@ -183,8 +179,7 @@ public:
    }
 
    virtual void visitFunctionNode(FunctionNode* node) {
-      os << "function";
-      os << " ";
+      os << "function ";
       os << typeToName(node->returnType());
       os << " ";
       os << node->name();
@@ -200,11 +195,15 @@ public:
             os << node->parameterName(i);
          }
       }
-      os << ")";
-      os << " ";
-      WRAP_BRACKETS(
-         VISIT( node->body() );
-      )
+      os << ") ";
+      bool isNative = node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode();
+      if (isNative) {
+         VISIT( node->body()->nodeAt(0) );
+      } else {
+         WRAP_BRACKETS(
+            VISIT( node->body() );
+         )
+      }
    }
 
    virtual void visitReturnNode(ReturnNode* node) {
@@ -213,11 +212,11 @@ public:
          os << " ";
          VISIT( node->returnExpr() );
       }
-      os << ";";
    }
 
    virtual void visitCallNode(CallNode* node) {
-      os << node->name() << "(";
+      os << node->name();
+      os << "(";
       if (node->parametersNumber() > 0) {
          VISIT( node->parameterAt(0) );
          for (uint i = 1; i < node->parametersNumber(); ++i) {
@@ -229,15 +228,13 @@ public:
    }
 
    virtual void visitNativeCallNode(NativeCallNode* node) {
-      os << "native";
-      os << "'";
+      os << "native '";
       os << node->nativeName();
       os << "'";
    }
 
    virtual void visitPrintNode(PrintNode* node) {
-      os << "print";
-      os << "(";
+      os << "print (";
          if (node->operands() > 0) {
          VISIT( node->operandAt(0) );
          for (uint i = 1; i < node->operands(); ++i) {
