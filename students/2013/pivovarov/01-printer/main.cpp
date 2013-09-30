@@ -23,22 +23,14 @@ private:
    #define SET_PRECEDENCE(KIND)                    \
       last_precedence = tokenPrecedence(KIND);
 
-   #define WRAP_BRACKETS(DO)                       \
-      os << "{";                                   \
-      os << endl;                                  \
+   #define VISIT_STATEMENT(NODE)                   \
       SET_PRECEDENCE(tEOF);                        \
-      DO                                           \
-      SET_PRECEDENCE(tUNDEF);                      \
-      printIndent();                               \
-      os << "}";                                   \
-      os << endl;
+      NODE->visit(this);                           \
+      SET_PRECEDENCE(tUNDEF);
 
-   #define VISIT(NODE)                             \
-      NODE->visit(this);
-
-   #define VISIT_STATEMENT(DO)                     \
-      SET_PRECEDENCE(tEOF);                        \
-      VISIT( DO );                                 \
+   #define VISIT_EQUATION(KIND, NODE)              \
+      SET_PRECEDENCE(KIND);                        \
+      NODE->visit(this);                           \
       SET_PRECEDENCE(tUNDEF);
 
    #define WRAP_PRECEDENCE(KIND, DO)               \
@@ -47,6 +39,15 @@ private:
       if(__parens) os << "(";                      \
       DO                                           \
       if(__parens) os << ")";
+
+   void wrap_in_brackets(AstNode* node) {
+      os << "{";
+      os << endl;
+      VISIT_STATEMENT( node )
+      printIndent();
+      os << "}";
+      os << endl;
+   }
 
    void printIndent() {
       for (uint i = 1; i < indent; ++i) {
@@ -75,21 +76,16 @@ public:
 
    virtual void visitBinaryOpNode(BinaryOpNode* node) {
       WRAP_PRECEDENCE ( node->kind(),
-         SET_PRECEDENCE(node->kind());
-         VISIT( node->left() );
+         VISIT_EQUATION( node->kind(), node->left() );
          os << tokenOp(node->kind());
-         SET_PRECEDENCE(node->kind());
-         VISIT( node->right() );
-         SET_PRECEDENCE(tUNDEF);
+         VISIT_EQUATION( node->kind(), node->right() );
       )
    }
 
    virtual void visitUnaryOpNode(UnaryOpNode* node) {
       WRAP_PRECEDENCE ( node->kind(),
          os << tokenOp(node->kind());
-         SET_PRECEDENCE(node->kind());
-         VISIT( node->operand() );
-         SET_PRECEDENCE(tUNDEF);
+         VISIT_EQUATION( node->kind(), node->operand() );
       )
    }
 
@@ -141,32 +137,24 @@ public:
       VISIT_STATEMENT( node->inExpr() );
       os << ") ";
 
-      WRAP_BRACKETS(
-         VISIT( node->body() );
-      )
+      wrap_in_brackets( node->body() );
    }
 
    virtual void visitWhileNode(WhileNode* node) {
       os << "while (";
       VISIT_STATEMENT( node->whileExpr() );
       os << ") ";
-      WRAP_BRACKETS(
-         VISIT( node->loopBlock() );
-      )
+      wrap_in_brackets( node->loopBlock() );
    }
 
    virtual void visitIfNode(IfNode* node) {
       os << "if (";
       VISIT_STATEMENT( node->ifExpr() );
       os << ") ";
-      WRAP_BRACKETS(
-         VISIT( node->thenBlock() );
-      )
+      wrap_in_brackets( node->thenBlock() );
       if (node->elseBlock()) {
          os << " else ";
-         WRAP_BRACKETS(
-            VISIT( node->elseBlock() );
-         )
+         wrap_in_brackets( node->elseBlock() );
       }
    }
 
@@ -193,7 +181,7 @@ public:
       while(f.hasNext()) {
          printIndent();
          AstFunction* fun = f.next();
-         VISIT( fun->node() );
+         VISIT_STATEMENT( fun->node() );
          os << endl;
       }
       if (scope->functionsCount() > 0) {
@@ -235,11 +223,9 @@ public:
       os << ") ";
       bool isNative = node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode();
       if (isNative) {
-         VISIT( node->body()->nodeAt(0) );
+         VISIT_STATEMENT( node->body()->nodeAt(0) );
       } else {
-         WRAP_BRACKETS(
-            VISIT( node->body() );
-         )
+         wrap_in_brackets( node->body() );
       }
    }
 
