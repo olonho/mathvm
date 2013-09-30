@@ -20,12 +20,15 @@ private:
    uint indent;
    int last_precedence;
 
+   #define SET_PRECEDENCE(KIND)                    \
+      last_precedence = tokenPrecedence(KIND);
+
    #define WRAP_BRACKETS(DO)                       \
       os << "{";                                   \
       os << endl;                                  \
-      last_precedence = tokenPrecedence(tEOF);     \
+      SET_PRECEDENCE(tEOF);                        \
       DO                                           \
-      last_precedence = tokenPrecedence(tUNDEF);   \
+      SET_PRECEDENCE(tUNDEF);                      \
       printIndent();                               \
       os << "}";                                   \
       os << endl;
@@ -34,11 +37,9 @@ private:
       NODE->visit(this);
 
    #define VISIT_STATEMENT(DO)                     \
-      last_precedence = tokenPrecedence(tEOF);     \
-         VISIT(                                    \
-            DO                                     \
-         )                                         \
-      last_precedence = tokenPrecedence(tUNDEF);
+      SET_PRECEDENCE(tEOF);                        \
+      VISIT( DO );                                 \
+      SET_PRECEDENCE(tUNDEF);
 
    #define WRAP_PRECEDENCE(KIND, DO)               \
       bool __parens =                              \
@@ -66,28 +67,29 @@ private:
    }
 
 public:
-   PrinterVisitor(ostream & os) : os(os), indent(0), last_precedence(tokenPrecedence(tEOF)) {}
+   PrinterVisitor(ostream & os) : os(os), indent(0) {}
 
    void run(AstFunction* top) {
-      VISIT( top->node()->body() );
+      VISIT_STATEMENT( top->node()->body() );
    }
 
    virtual void visitBinaryOpNode(BinaryOpNode* node) {
       WRAP_PRECEDENCE ( node->kind(),
-         last_precedence = tokenPrecedence(node->kind());
+         SET_PRECEDENCE(node->kind());
          VISIT( node->left() );
          os << tokenOp(node->kind());
-         last_precedence = tokenPrecedence(node->kind());
+         SET_PRECEDENCE(node->kind());
          VISIT( node->right() );
-         last_precedence = tokenPrecedence(tUNDEF);
+         SET_PRECEDENCE(tUNDEF);
       )
    }
 
    virtual void visitUnaryOpNode(UnaryOpNode* node) {
       WRAP_PRECEDENCE ( node->kind(),
          os << tokenOp(node->kind());
-         last_precedence = tokenPrecedence(node->kind());
+         SET_PRECEDENCE(node->kind());
          VISIT( node->operand() );
+         SET_PRECEDENCE(tUNDEF);
       )
    }
 
@@ -106,22 +108,22 @@ public:
          }
       }
       os << "'";
-      last_precedence = tokenPrecedence(tSTRING);
+      SET_PRECEDENCE(tSTRING);
    }
 
    virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
       os << node->literal();
-      last_precedence = tokenPrecedence(tDOUBLE);
+      SET_PRECEDENCE(tDOUBLE);
    }
 
    virtual void visitIntLiteralNode(IntLiteralNode* node) {
       os << node->literal();
-      last_precedence = tokenPrecedence(tINT);
+      SET_PRECEDENCE(tINT);
    }
 
    virtual void visitLoadNode(LoadNode* node) {
       os << node->var()->name();
-      last_precedence = tokenPrecedence(VarType2TokenKind(node->var()->type()));
+      SET_PRECEDENCE(VarType2TokenKind(node->var()->type()));
    }
 
    virtual void visitStoreNode(StoreNode* node) {
