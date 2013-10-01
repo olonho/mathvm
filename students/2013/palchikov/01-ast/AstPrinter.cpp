@@ -55,6 +55,7 @@ void AstPrinter::printVarDecl(mathvm::AstVar* var)
 
 void AstPrinter::printFunc(mathvm::AstFunction* fn)
 {
+	printIndent();
 }
 
 void AstPrinter::visitBinaryOpNode(mathvm::BinaryOpNode* node)
