@@ -29,6 +29,8 @@ namespace mathvm {
     std::string indent() const {
       return std::string(2 * myIndentLevel, ' ');
     }
+
+    void visitBlockNodeInternal(BlockNode *, bool);
 	private:
     int myIndentLevel;	
   };

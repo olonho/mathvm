@@ -94,32 +94,50 @@ void AstPrinter::visitIfNode(IfNode * ifNode) {
   }
 }
 
-void AstPrinter::visitBlockNode(BlockNode * blockNode) {
-  std::cout << indent() << "{" << std::endl;
-  increaseIndent();
+void AstPrinter::visitBlockNodeInternal(BlockNode * blockNode, bool needIndentation) {
+  if (needIndentation) {
+    std::cout << indent() << "{" << std::endl;
+    increaseIndent();
+  }
+  for(Scope::VarIterator varIterator(blockNode->scope()); varIterator.hasNext(); ) {
+    if (needIndentation) std::cout << indent();
+    AstVar * var = varIterator.next();
+    std::cout << typeToName(var->type()) << " " << var->name()
+              << ";" << std::endl;
+  }
+  std::cout << std::endl;
   for (uint32_t i = 0; i < blockNode->nodes(); ++i) {
-    std::cout << indent();
+    if (needIndentation) std::cout << indent();
     blockNode->nodeAt(i)->visit(this);
     std::cout << ";" << std::endl;
   }
-  decreaseIndent();
-  std::cout << indent() << "}" << std::endl;
+  if (needIndentation) {
+    decreaseIndent();
+    std::cout << indent() << "}" << std::endl;
+  }
+}
+
+void AstPrinter::visitBlockNode(BlockNode * blockNode) {
+  visitBlockNodeInternal(blockNode, true);
 }
 
 void AstPrinter::visitFunctionNode(FunctionNode * functionNode) {
-  std::cout << indent() << "function "
-            << typeToName(functionNode->returnType())
-            << " " << functionNode->name() << "(";
+  bool topNode = functionNode->position() == 0;
+  if (!topNode) {
+    std::cout << indent() << "function "
+              << typeToName(functionNode->returnType())
+              << " " << functionNode->name() << "(";
+  }
   for (uint32_t i = 0; i != functionNode->parametersNumber(); ++i) {
     std::cout << typeToName(functionNode->parameterType(i))
               << " "
               << functionNode->parameterName(i);
-    if (i != functionNode->parametersNumber() - 1) {
+    if (!topNode && i != functionNode->parametersNumber() - 1) {
       std::cout << ", ";
     }
   }
-  std::cout << ")" << std::endl;
-  visitBlockNode(functionNode->body());
+  if (!topNode) std::cout << ")" << std::endl;
+  visitBlockNodeInternal(functionNode->body(), !topNode);
 }
 
 void AstPrinter::visitReturnNode(ReturnNode * returnNode) {
