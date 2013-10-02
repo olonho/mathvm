@@ -8,7 +8,7 @@ public:
 	AstPrinter(std::ostream& out);
 	virtual ~AstPrinter() {}
 
-	void printAst(mathvm::AstFunction* topfn);
+	void printBlockContent(mathvm::BlockNode* node);
 
 #define VISITOR_FUNCTION(type, name) \
 	virtual void visit##type(mathvm::type* node);
@@ -19,8 +19,9 @@ public:
 private:
 	void printIndent();
 	void printVarType(mathvm::VarType type);
-	void printVarDecl(mathvm::AstVar* var);
-	void printFunc(mathvm::AstFunction* fn);
+
+	void escape(std::string& s);
+	void replaceAll(std::string& s, const std::string& x, const std::string& y);
 
 	int indent;
 	std::ostream& out;

@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
 	if (s) delete s;
 
 	AstPrinter printer(std::cout);
-	printer.printAst(parser.top());
+	printer.printBlockContent(parser.top()->node()->body());
 
 	return 0;
 }
