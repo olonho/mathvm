@@ -7,7 +7,7 @@ namespace mathvm {
 
   class AstPrinter : public AstBaseVisitor {
   public:
-    AstPrinter() {}
+    AstPrinter() : myIndentLevel(0) {}
     virtual ~AstPrinter() {}
 
 #define VISITOR_FUNCTION(type, name) \
@@ -15,7 +15,22 @@ namespace mathvm {
  
     FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
-		
+  private:
+    void increaseIndent() {
+      ++myIndentLevel;
+    }
+
+    void decreaseIndent() {
+      if (myIndentLevel != 0) {
+        --myIndentLevel;
+      }
+    }
+
+    std::string indent() const {
+      return std::string(2 * myIndentLevel, ' ');
+    }
+	private:
+    int myIndentLevel;	
   };
 
 }
