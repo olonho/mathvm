@@ -177,7 +177,7 @@ public:
         if (size) {
             if (node->body()->nodeAt(0)->isNativeCallNode()) {
                 _out << " native '"
-                     << node->name()
+                     << node->body()->nodeAt(0)->asNativeCallNode()->nativeName()
                      << "';"
                      << std::endl;
             } else {
