@@ -104,9 +104,11 @@ public:
         node->ifExpr()->visit(this);
         _out << ")" << std::endl;
         node->thenBlock()->visit(this);
-        makeIndent();
-        _out << "else\n";
-        node->elseBlock()->visit(this);
+        if (node->elseBlock()) {
+            makeIndent();
+            _out << "else\n";
+            node->elseBlock()->visit(this);
+        }
     }
 
     virtual void visitBlockNode(BlockNode* node) {
@@ -135,7 +137,16 @@ public:
             func->node()->visit(this);
         }
 
-        node->visitChildren(this);
+        uint32_t size = node->nodes();
+        for(uint32_t index = 0; index < size; ++index) {
+            if (isPrimitiveExpr(node->nodeAt(index))) {
+                makeIndent();
+                node->nodeAt(index)->visit(this);
+                _out << ";" << std::endl;
+            } else {
+                node->nodeAt(index)->visit(this);
+            }
+        }
 
         --_indent;
         makeIndent();
@@ -179,9 +190,9 @@ public:
     }
 
     virtual void visitReturnNode(ReturnNode* node) {
-        makeIndent();
         AstNode* expr = node->returnExpr();
         if (expr) {
+            makeIndent();
             _out << "return ";
             expr->visit(this);
             _out << ";" << std::endl;
@@ -189,7 +200,6 @@ public:
     }
 
     virtual void visitCallNode(CallNode* node) {
-        makeIndent();
         _out << node->name() << "(";
         uint32_t size = node->parametersNumber();
         for (uint32_t index = 0; index < size; ++index) {
@@ -198,7 +208,7 @@ public:
                 _out << ", ";
             }
         }
-        _out << ")" << std::endl;
+        _out << ")";
     }
 
     virtual void visitPrintNode(PrintNode* node) {
@@ -211,13 +221,27 @@ public:
                 _out << ", ";
             }
         }
-        _out << ")" << std::endl;
+        _out << ");" << std::endl;
     }
 
     void makeIndent() {
         for (int i = 0; i < _indent; ++i) {
             _out << "    ";
         }
+    }
+
+    bool isPrimitiveExpr(AstNode* node) {
+        if (node->isLoadNode() || 
+            node->isIntLiteralNode() ||
+            node->isDoubleLiteralNode() ||
+            node->isStringLiteralNode() ||
+            node->isBinaryOpNode() ||
+            node->isUnaryOpNode() ||
+            node->isCallNode()) {
+
+            return true;
+        }
+        return false;
     }
 
     void run(AstFunction* func) {
