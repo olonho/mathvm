@@ -35,14 +35,14 @@ int main(int argc, char** argv) {
     
     
     mathvm::Parser parser;
-    std::unique_ptr<mathvm::Status> status(parser.parseProgram(text));
+    mathvm::Status* status = parser.parseProgram(text);
     
-    if(status != 0 && status.get() -> isError()) {
-        std::cerr << "Parser Error: " << status.get() -> getError() << std::endl;
+    if(status != 0 && status -> isError()) {
+        std::cerr << "Parser Error: " << status-> getError() << std::endl;
         exit(1);
     }
     
-    std::unique_ptr<mathvm::PrintVisitor> printVisitor(new mathvm::PrintVisitor(std::cout));
-    printVisitor.get() -> visitBlockNodeInside(parser.top() -> node() -> body());
+    mathvm::PrintVisitor printVisitor(std::cout);
+    printVisitor.visitBlockNodeInside(parser.top() -> node() -> body());
 }
 
