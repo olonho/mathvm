@@ -33,10 +33,7 @@ namespace mathvm {
         if(currentOperator == tRANGE) {
             return true;
         }
-//        UnaryOpNode* uOp = dynamic_cast<UnaryOpNode*>(expr);
-//        if(uOp != 0) {
-//            return tokenPrecedence(currentOperator) > tokenPrecedence(uOp -> kind());
-//        }
+        
         BinaryOpNode* bOp = dynamic_cast<BinaryOpNode*>(expr);
         if(bOp != 0) {
             return tokenPrecedence(currentOperator) > tokenPrecedence(bOp -> kind());
@@ -63,7 +60,8 @@ namespace mathvm {
     
     void PrintVisitor::visitStringLiteralNode(StringLiteralNode * node) {
         out << "'";
-        for(auto c : node -> literal()) {
+        for(std::string::const_iterator it = node -> literal().begin(); it != node->literal().end(); ++it) {
+            char c = *it;
             switch(c) {
                 case '\n':
                     out << "\\n";
