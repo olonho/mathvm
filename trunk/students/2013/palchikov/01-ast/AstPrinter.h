@@ -20,6 +20,8 @@ private:
 	void printIndent();
 	void printVarType(mathvm::VarType type);
 
+	int getPriority(mathvm::TokenKind);
+
 	void escape(std::string& s);
 	void replaceAll(std::string& s, const std::string& x, const std::string& y);
 
