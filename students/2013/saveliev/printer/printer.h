@@ -34,9 +34,9 @@ private:
     virtual void visitWhileNode(WhileNode* node);
     virtual void visitIfNode(IfNode* node);  
     virtual void visitBlockNode(BlockNode* node);
-    void blockNodeVariableDeclarations(BlockNode* node);
-    void blockNodeFunctionDeclarations(BlockNode* node);
-    void blockNodeInnerNodes(BlockNode* node);
+    void processVariableDeclarations(BlockNode* node);
+    void processFunctionDeclarations(BlockNode* node);
+    void processInnerNodes(BlockNode* node);
     virtual void visitFunctionNode(FunctionNode* node);
     virtual void visitReturnNode(ReturnNode* node);
     virtual void visitCallNode(CallNode* node);
