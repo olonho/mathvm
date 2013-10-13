@@ -28,15 +28,33 @@ void AstPrinter::printVarType(mathvm::VarType type) {
 	}
 }
 
+int AstPrinter::getPriority(mathvm::TokenKind op)
+{
+	switch (op) {
+#define OP_CASE(token, str, prior) \
+	case mathvm::token: \
+		return prior;
+	
+	FOR_TOKENS(OP_CASE)
+#undef OP_CASE
+	default:
+		// TODO: error handling
+		return 0;
+	}
+}
+
 void AstPrinter::visitBinaryOpNode(mathvm::BinaryOpNode* node)
 {
 	mathvm::AstNode* left = node->left();
-	mathvm::AstNode* rigth = node->right();
+	mathvm::AstNode* right = node->right();
 	mathvm::TokenKind op = node->kind();
+	int prior = getPriority(op);
 
-	out << "(";
+	bool needBraces = left->isBinaryOpNode()
+	                  && (prior > getPriority(left->asBinaryOpNode()->kind()));
+	if (needBraces) out << "(";
 	left->visit(this);
-	out << ") ";
+	if (needBraces) out << ")";
 
 	switch (op) {
 #define OP_CASE(token, str, prior) \
@@ -51,9 +69,11 @@ void AstPrinter::visitBinaryOpNode(mathvm::BinaryOpNode* node)
 		out << "fixme! unknown binary operation";
 	}
 
-	out << " (";
-	rigth->visit(this);
-	out << ")";
+	needBraces = right->isBinaryOpNode()
+	             && (prior > getPriority(right->asBinaryOpNode()->kind()));
+	if (needBraces) out << "(";
+	right->visit(this);
+	if (needBraces) out << ")";
 }
 
 void AstPrinter::visitUnaryOpNode(mathvm::UnaryOpNode* node)
