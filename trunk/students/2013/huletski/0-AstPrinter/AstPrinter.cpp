@@ -9,10 +9,10 @@
 #include "AstPrinter.h"
 
 void AstPrinter::visitBlockNode(BlockNode* node) {
-	bool blockIsNotOuter = _exprDepthPerBlock.size();
+	bool blockIsNotOuter = _exprDepthPerBlock.size() > 0;
 	if (blockIsNotOuter) {
 		log("{", true);
-		_padding.push_back('\t'); //indent w tabs is lame but easier to impl
+		_padding.push_back('\t'); //indent with tabs is lame but easier to impl
 	}
 	_exprDepthPerBlock.push(0);
 	

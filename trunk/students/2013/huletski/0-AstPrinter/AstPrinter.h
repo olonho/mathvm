@@ -23,7 +23,7 @@ public:
 	
 	AstPrinter(std::ostream& ostream = std::cout):
 		_padding(""), _ostream(ostream) {}
-       	virtual ~AstPrinter() {}
+	virtual ~AstPrinter() {}
 	
 	inline void print(AstNode *node) { node->visit(this); }
 	
@@ -52,7 +52,6 @@ private: // methods
 	
 #pragma mark - Common Helpers
 	
-	//TODO: deny cp ctor and assignement oprator
 	void enterStatementNode();
 	void leaveStatementNode(bool separatorIsRequired = true);
 	
@@ -63,6 +62,11 @@ private: // methods
 	void log(string const & msg, bool withLE = false);
 	void log(const char * msg, bool withLE = false);
 
+#pragma mark - Misc
+	
+	AstPrinter(AstPrinter const & astPrinter);
+	AstPrinter & operator=(AstPrinter const & astPrinter);
+	
 private: // variables
 	std::string _padding;
 	std::ostream& _ostream;
