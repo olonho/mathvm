@@ -87,9 +87,9 @@ void Printer::visitBlockNode(BlockNode* node) {
         out << "{\n";
         
     level++;
-    blockNodeVariableDeclarations(node);
-    blockNodeFunctionDeclarations(node);
-    blockNodeInnerNodes(node);    
+    processVariableDeclarations(node);
+    processFunctionDeclarations(node);
+    processInnerNodes(node);    
     level--;
     
     if (level >= 0) {
@@ -98,7 +98,7 @@ void Printer::visitBlockNode(BlockNode* node) {
     }
 }
 
-void Printer::blockNodeVariableDeclarations(BlockNode* node) {
+void Printer::processVariableDeclarations(BlockNode* node) {
     bool need_an_empty_line_after = false;
     
     Scope::VarIterator varIt(node->scope());
@@ -112,11 +112,10 @@ void Printer::blockNodeVariableDeclarations(BlockNode* node) {
         need_an_empty_line_after = true;
     }
     if (need_an_empty_line_after)
-        out << '\n';        
-    need_an_empty_line_after = false;  
+        out << '\n';
 }
 
-void Printer::blockNodeFunctionDeclarations(BlockNode* node) {
+void Printer::processFunctionDeclarations(BlockNode* node) {
     Scope::FunctionIterator funIt(node->scope());
     while (funIt.hasNext()) {
         AstFunction* fun = funIt.next();
@@ -127,7 +126,7 @@ void Printer::blockNodeFunctionDeclarations(BlockNode* node) {
     }
 }
 
-void Printer::blockNodeInnerNodes(BlockNode* node) {
+void Printer::processInnerNodes(BlockNode* node) {
     for (size_t i = 0; i < node->nodes(); ++i) { 
         indent();       
         AstNode* subNode = node->nodeAt(i);
