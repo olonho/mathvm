@@ -42,7 +42,7 @@ void TokenList::dump() {
 
 bool Scanner::isLetter(char ch) {
     return (('A' <= ch) && (ch <= 'Z')) ||
-            (('a' <= ch) && (ch <= 'z')) || 
+            (('a' <= ch) && (ch <= 'z')) ||
             (ch == '_');
 }
 
@@ -107,7 +107,7 @@ void Scanner::scanNumber() {
         }
         break;
     }
-    
+
     while (isDigit(_ch) ||
            (_ch == '.' && isDigit(lookAhead())) ||
            (_ch == 'e' && (isDigit(lookAhead()) || lookAhead() == '-' || lookAhead() == '+'))
@@ -133,7 +133,7 @@ char Scanner::unescape(char ch) {
     case 't':
         return '\t';
     default:
-        error("Unknown escape sequence \\%c", ch); 
+        error("Unknown escape sequence \\%c", ch);
         return '\0';
     }
 }
@@ -217,7 +217,7 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
                 readChar();
                 kind = tOR;
             } else {
-                return new Status("Invalid token");
+                kind = tAOR;
             }
             break;
         case '&':
@@ -225,8 +225,11 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
                 readChar();
                 kind = tAND;
             } else {
-                return new Status("Invalid token");
+                kind = tAAND;
             }
+            break;
+        case '^':
+            kind = tAXOR;
             break;
         case '<':
             if (lookAhead(1) == '=') {
@@ -318,7 +321,7 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
 void Scanner::error(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    verror(_position, format, args);        
+    verror(_position, format, args);
 }
 
 }
