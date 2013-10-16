@@ -78,7 +78,7 @@ void  Parser::ensureKeyword(const string& keyword) {
 void Parser::error(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    verror(tokenIndexToOffset(_currentTokenIndex), format, args);        
+    verror(tokenIndexToOffset(_currentTokenIndex), format, args);
 }
 
 uint32_t Parser::tokenIndexToOffset(uint32_t tokenIndex) const {
@@ -433,7 +433,6 @@ AstNode* Parser::parseDeclaration(VarType type) {
     if (lookaheadToken(1) == tASSIGN) {
         return parseAssignment();
     }
-
     ensureToken(tIDENT);
     ensureToken(tSEMICOLON);
     return 0;
@@ -447,7 +446,8 @@ static inline bool isBinaryOp(TokenKind token) {
     return (token >= tADD && token <= tMOD) ||
            (token == tRANGE) ||
            (token >= tEQ && token <= tLE) ||
-           (token == tAND || token <= tOR);
+           (token == tAND  || token == tOR ||
+            token == tAAND || token == tAOR || token == tAXOR);
 }
 
 AstNode* Parser::parseUnary() {

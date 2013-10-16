@@ -16,6 +16,9 @@ namespace mathvm {
     DO(tASSIGN, "=", 2)                         \
     DO(tOR, "||", 4)                            \
     DO(tAND, "&&", 5)                           \
+    DO(tAOR, "|", 4)                            \
+    DO(tAAND, "&", 5)                           \
+    DO(tAXOR, "^", 5)                           \
     DO(tNOT, "!", 0)                            \
     DO(tEQ,     "==", 9)                        \
     DO(tNEQ,    "!=", 9)                        \
@@ -89,7 +92,7 @@ FOR_NODES(FORWARD_DECLARATION)
 
 class Scope;
 
-class CustomDataHolder {    
+class CustomDataHolder {
     void* _info;
   public:
     void* info() const { return _info; }

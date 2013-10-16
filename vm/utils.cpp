@@ -84,6 +84,27 @@ VarType nameToType(const string& typeName) {
 	return VT_INVALID;
 }
 
+const char* bytecodeName(Instruction insn, size_t* length) {
+    static const struct {
+        const char* name;
+        Instruction insn;
+        size_t length;
+    } names[] = {
+#define BC_NAME(b, d, l) {#b, BC_##b, l},
+        FOR_BYTECODES(BC_NAME)
+    };
+
+    if (insn >= BC_INVALID && insn < BC_LAST) {
+        if (length != 0) {
+            *length = names[insn].length;
+        }
+        return names[insn].name;
+    }
+
+    assert(false);
+    return 0;
+}
+
 extern "C" void unsafe_setMem(void* base, int64_t offset, int64_t value, int64_t width) {
 	uint8_t* ptr = (uint8_t*)base + offset;
 	switch(width) {

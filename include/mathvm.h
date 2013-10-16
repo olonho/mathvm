@@ -38,6 +38,9 @@ using namespace std;
         DO(IMOD, "Modulo operation on 2 ints on TOS (upper to lower), push value back.", 1) \
         DO(DNEG, "Negate double on TOS.", 1)                            \
         DO(INEG, "Negate int on TOS.", 1)                               \
+        DO(IAOR, "Arithmetic OR of 2 ints on TOS, push value back.", 1) \
+        DO(IAAND, "Arithmetic AND of 2 ints on TOS, push value back.", 1)  \
+        DO(IAXOR, "Arithmetic XOR of 2 ints on TOS, push value back.", 1)  \
         DO(IPRINT, "Pop and print integer TOS.", 1)                     \
         DO(DPRINT, "Pop and print double TOS.", 1)                      \
         DO(SPRINT, "Pop and print string TOS.", 1)                      \
@@ -490,7 +493,8 @@ public:
                                 const void* code);
     const string& constantById(uint16_t id) const;
     const void* nativeById(uint16_t id,
-                           const Signature** signature) const;
+                           const Signature** signature,
+                           const string** name) const;
 
     /**
      * Execute this code with passed parameters, and update vars
@@ -613,6 +617,7 @@ void positionToLineOffset(const string& text,
                           uint32_t position, uint32_t& line, uint32_t& offset);
 const char* typeToName(VarType type);
 VarType nameToType(const string& typeName);
+const char* bytecodeName(Instruction insn, size_t* length = 0);
 
 }
 #endif // _MATHVM_H

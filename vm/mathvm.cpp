@@ -30,31 +30,12 @@ void Label::bind(uint32_t address, Bytecode* code) {
     _relocations.clear();
 }
 
-static const char* bcName(Instruction insn, size_t& length) {
-    static const struct {
-        const char* name;
-        Instruction insn;
-        size_t length;
-    } names[] = {
-#define BC_NAME(b, d, l) {#b, BC_##b, l},
-        FOR_BYTECODES(BC_NAME)
-    };
-
-    if (insn >= BC_INVALID && insn < BC_LAST) {
-        length = names[insn].length;
-        return names[insn].name;
-    }
-
-    assert(false);
-    return 0;
-}
-
 void Bytecode::dump(ostream& out) const {
     for (size_t bci = 0; bci < length();) {
         size_t length;
         Instruction insn = getInsn(bci);
         out << bci << ": ";
-        const char* name = bcName(insn, length);
+        const char* name = bytecodeName(insn, &length);
         switch (insn) {
             case BC_DLOAD:
                 out << name << " " << getDouble(bci + 1);
@@ -213,11 +194,13 @@ const string& Code::constantById(uint16_t id) const {
 }
 
 const void* Code::nativeById(uint16_t id,
-                             const Signature** signature) const {
+                             const Signature** signature,
+                             const string** name) const {
     if (id >= _natives.size()) {
         return 0;
     }
     const NativeFunctionDescriptor& nfd = _natives[id];
+    *name = &nfd.name();
     *signature = &nfd.signature();
     return nfd.code();
 }
