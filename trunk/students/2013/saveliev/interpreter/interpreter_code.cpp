@@ -7,57 +7,6 @@ using std::cout;
 using std::endl;
 using std::string;
 
-void printInsn(Bytecode* bc, size_t bci, ostream& out, int indent) {
-    Instruction insn = bc->getInsn(bci);
-    const char* name = insnName(insn); 
-    out << string(indent, ' ') << bci << ": ";   
-    switch (insn) {
-      case BC_DLOAD:
-          out << name << " " << bc->getDouble(bci + 1);
-          break;
-      case BC_ILOAD:
-          out << name << " " << bc->getInt64(bci + 1);
-          break;
-      case BC_SLOAD:
-          out << name << " @" << bc->getUInt16(bci + 1);
-          break;
-      case BC_CALL:
-      case BC_CALLNATIVE:
-          out << name << " *" << bc->getUInt16(bci + 1);
-          break;
-      case BC_LOADDVAR:
-      case BC_STOREDVAR:
-      case BC_LOADIVAR:
-      case BC_STOREIVAR:
-      case BC_LOADSVAR:
-      case BC_STORESVAR:
-          out << name << "!!!" << " @" << bc->getUInt16(bci + 1);
-          break;
-      case BC_LOADCTXDVAR:
-      case BC_STORECTXDVAR:
-      case BC_LOADCTXIVAR:
-      case BC_STORECTXIVAR:
-      case BC_LOADCTXSVAR:
-      case BC_STORECTXSVAR:
-          out << name << " @" << bc->getUInt16(bci + 1)
-              << ":" << bc->getUInt16(bci + 3);
-          break;
-      case BC_IFICMPNE:
-      case BC_IFICMPE:
-      case BC_IFICMPG:
-      case BC_IFICMPGE:
-      case BC_IFICMPL:
-      case BC_IFICMPLE:
-      case BC_JA:
-          out << name << " " << bc->getInt16(bci + 1) + bci + 1;
-          break;
-      default:
-          out << name;
-          break;
-    }
-    out << std::endl;
-}
-
 
 Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) { 
     INFO("EXECUTION");
@@ -106,6 +55,10 @@ Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) {
             
             case BC_DNEG: pushDouble(-popDouble()); break;
             case BC_INEG: pushInt(-popInt()); break;
+            
+            case BC_IAOR: BIN_I(|); break;
+            case BC_IAAND: BIN_I(&); break;
+            case BC_IAXOR: BIN_I(^); break;
 
             case BC_IPRINT: cout << popInt(); break;
             case BC_DPRINT: cout << popDouble(); break;            
@@ -261,6 +214,57 @@ void InterpreterCodeImpl::return_() {
         _bc = _context->bc();
         _bci = _context->bci();
     }
+}
+
+void printInsn(Bytecode* bc, size_t bci, ostream& out, int indent) {
+    Instruction insn = bc->getInsn(bci);
+    const char* name = insnName(insn); 
+    out << string(indent, ' ') << bci << ": ";   
+    switch (insn) {
+      case BC_DLOAD:
+          out << name << " " << bc->getDouble(bci + 1);
+          break;
+      case BC_ILOAD:
+          out << name << " " << bc->getInt64(bci + 1);
+          break;
+      case BC_SLOAD:
+          out << name << " @" << bc->getUInt16(bci + 1);
+          break;
+      case BC_CALL:
+      case BC_CALLNATIVE:
+          out << name << " *" << bc->getUInt16(bci + 1);
+          break;
+      case BC_LOADDVAR:
+      case BC_STOREDVAR:
+      case BC_LOADIVAR:
+      case BC_STOREIVAR:
+      case BC_LOADSVAR:
+      case BC_STORESVAR:
+          out << name << "!!!" << " @" << bc->getUInt16(bci + 1);
+          break;
+      case BC_LOADCTXDVAR:
+      case BC_STORECTXDVAR:
+      case BC_LOADCTXIVAR:
+      case BC_STORECTXIVAR:
+      case BC_LOADCTXSVAR:
+      case BC_STORECTXSVAR:
+          out << name << " @" << bc->getUInt16(bci + 1)
+              << ":" << bc->getUInt16(bci + 3);
+          break;
+      case BC_IFICMPNE:
+      case BC_IFICMPE:
+      case BC_IFICMPG:
+      case BC_IFICMPGE:
+      case BC_IFICMPL:
+      case BC_IFICMPLE:
+      case BC_JA:
+          out << name << " " << bc->getInt16(bci + 1) + bci + 1;
+          break;
+      default:
+          out << name;
+          break;
+    }
+    out << std::endl;
 }
 
 }

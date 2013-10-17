@@ -41,17 +41,6 @@ Status* BytecodeTranslator::translate(const string& program, Code** codePtr) {
 }
 
 
-string typeToStr(VarType type) {
-    switch (type) {
-        case VT_VOID: return "Void"; break;
-        case VT_DOUBLE: return "Double"; break;
-        case VT_INT: return "Int"; break;
-        case VT_STRING: return "String"; break;
-        default: return "Invalid";
-    }
-}
-
-
 #define MK_INSN(left, type, right) \
         (type == VT_INT? left##I##right : \
         (type == VT_DOUBLE? left##D##right : \
@@ -99,9 +88,9 @@ void BytecodeTranslator::storing(const AstVar* var) {
     }
 }
 
-static inline void checkLogicType(VarType type) {
+void checkLogicType(VarType type) {
     if (type != VT_INT) {
-        throw string("Cannot use logic operations on ") + typeToStr(type);
+        throw string("Cannot use logic operations on ") + typeToName(type);
     }
 }
 
@@ -116,26 +105,31 @@ void BytecodeTranslator::visitBinaryOpNode(BinaryOpNode* node) {
         case tOR: case tAND: {
             checkLogicType(leftType);
             checkLogicType(rightType);
-            binaryLogic(op);
+            logic(op);
             break;
         }
         case tEQ: case tNEQ: case tGT: case tGE: case tLT: case tLE: {
             VarType type = typeCastForComparison(leftType, rightType);
-            binaryComparison(type, op);
+            comparison(type, op);
             break;
-        }        
+        }
         case tADD: case tSUB: case tMUL: case tDIV: case tMOD: {
             VarType type = typeCastForArithmetics(leftType, rightType);
-            binaryArithmetics(type, op);
+            arithmetics(type, op);
             break;
-        }        
+        }     
+        case tAOR: case tAAND: case tAXOR: {
+            VarType type = typeCastForBitwise(leftType, rightType);
+            bitwise(type, op);
+            break;
+        }
         default:
             throw string("Incorrect binary operation: ") + tokenOp(op);
             break;
     }
 }
 
-void BytecodeTranslator::binaryLogic(TokenKind op) {
+void BytecodeTranslator::logic(TokenKind op) {
     switch (op) {
         case tOR: addInsn(BC_IADD); break;
         case tAND: addInsn(BC_IMUL); break;
@@ -146,9 +140,8 @@ void BytecodeTranslator::binaryLogic(TokenKind op) {
 
 VarType BytecodeTranslator::typeCastForComparison(VarType leftType,
                                                   VarType rightType) {  
-    // Accepts Int only
-    // Doubles get casted to Int
-    
+    /* Accepts only ints, doubles get casted to ints
+     */
     if (leftType == VT_DOUBLE) {
         addInsn(BC_D2I); // the left value is above the right value on stack
         leftType = VT_INT;
@@ -161,13 +154,13 @@ VarType BytecodeTranslator::typeCastForComparison(VarType leftType,
     }
     if (rightType != VT_INT || leftType != VT_INT) {
         throw string("Wrong types of arguments of comparison: ") +
-              typeToStr(leftType) + " and " + typeToStr(rightType);
+              typeToName(leftType) + " and " + typeToName(rightType);
     }    
     return VT_INT;
 }
 
-void BytecodeTranslator::binaryComparison(VarType t, TokenKind op) {
-    assert(t == VT_INT);
+void BytecodeTranslator::comparison(VarType type, TokenKind op) {
+    assert(type == VT_INT);
     
     Label loadTrue(bc());
     Label keepFalse(bc());
@@ -189,14 +182,14 @@ void BytecodeTranslator::binaryComparison(VarType t, TokenKind op) {
     addInsn(BC_ILOAD1);
     bc()->bind(keepFalse);
     
-    _tosType = t;
+    _tosType = type;
 }
 
 VarType BytecodeTranslator::typeCastForArithmetics(VarType leftType,
                                                    VarType rightType) {
-    // Accepts Int and Double
-    // If types do not agree, Int always gets casted to Double
-    
+    /* Accepts ints and doubles.
+     * If types do not agree, int gets casted to double.
+     */    
     if (leftType == VT_INT && rightType == VT_DOUBLE) {
         addInsn(BC_I2D); // the left value is above the right value on stack
         return VT_DOUBLE;
@@ -215,21 +208,40 @@ VarType BytecodeTranslator::typeCastForArithmetics(VarType leftType,
 
     } else {
         throw string("Wrong types of arguments for an arithmetic operation: ") +
-                     typeToStr(leftType) + " and " + typeToStr(rightType);
+                     typeToName(leftType) + " and " + typeToName(rightType);
     }         
 }
 
-void BytecodeTranslator::binaryArithmetics(VarType t, TokenKind op) {
-    assert(t == VT_INT || t == VT_DOUBLE);
+void BytecodeTranslator::arithmetics(VarType type, TokenKind op) {
+    assert(type == VT_INT || type == VT_DOUBLE);
+    
     switch (op) { 
-        case tADD: addInsn(MK_INSN_DI(BC_, t, ADD)); break; 
-        case tSUB: addInsn(MK_INSN_DI(BC_, t, SUB)); break; 
-        case tMUL: addInsn(MK_INSN_DI(BC_, t, MUL)); break; 
-        case tDIV: addInsn(MK_INSN_DI(BC_, t, DIV)); break; 
-        case tMOD: assert(t == VT_INT); addInsn(BC_IMOD); break; 
+        case tADD: addInsn(MK_INSN_DI(BC_, type, ADD)); break; 
+        case tSUB: addInsn(MK_INSN_DI(BC_, type, SUB)); break; 
+        case tMUL: addInsn(MK_INSN_DI(BC_, type, MUL)); break; 
+        case tDIV: addInsn(MK_INSN_DI(BC_, type, DIV)); break; 
+        case tMOD: assert(type == VT_INT); addInsn(BC_IMOD); break; 
         default: assert(false); break;
     } 
-    _tosType = t;
+    _tosType = type;
+}
+
+VarType BytecodeTranslator::typeCastForBitwise(VarType leftType, VarType rightType) {
+    if (leftType != VT_INT || rightType != VT_INT) {
+        throw string("Bitwise operations require ints");
+    }
+    return VT_INT;
+}
+
+void BytecodeTranslator::bitwise(VarType type, TokenKind op) {
+    assert(type == VT_INT);
+    
+    switch (op) {
+        case tAOR: addInsn(BC_IAOR); break;
+        case tAAND: addInsn(BC_IAAND); break;
+        case tAXOR: addInsn(BC_IAXOR); break;
+        default: assert(false); break;
+    }
 }
 
 void BytecodeTranslator::visitUnaryOpNode(UnaryOpNode* node) {
@@ -238,7 +250,7 @@ void BytecodeTranslator::visitUnaryOpNode(UnaryOpNode* node) {
     switch (node->kind()) {
         case tSUB: 
             if (_tosType != VT_INT && _tosType != VT_DOUBLE) {
-                throw string("Cannot negate ") + typeToStr(_tosType);
+                throw string("Cannot negate ") + typeToName(_tosType);
             }        
             addInsn(MK_INSN_DI(BC_, _tosType, NEG)); 
             break;
@@ -464,8 +476,8 @@ void BytecodeTranslator::conversion(VarType foundType, VarType expectedType) {
         addInsn(BC_I2D);
     } else {
         throw string("Incorrect type cast: ") +
-              typeToStr(foundType) + " found, " +
-              typeToStr(expectedType) + " expected.";
+              typeToName(foundType) + " found, " +
+              typeToName(expectedType) + " expected.";
     }    
 }
 

@@ -111,11 +111,13 @@ private:
         
     virtual void visitUnaryOpNode(UnaryOpNode* node);    
     virtual void visitBinaryOpNode(BinaryOpNode* node);        
-    void binaryLogic(TokenKind op);
-    void binaryComparison(VarType type, TokenKind op);
-    void binaryArithmetics(VarType type, TokenKind op);
+    void logic(TokenKind op);
+    void comparison(VarType type, TokenKind op);
+    void arithmetics(VarType type, TokenKind op);
+    void bitwise(VarType type, TokenKind op);
     VarType typeCastForComparison(VarType leftType, VarType rightType);
     VarType typeCastForArithmetics(VarType leftType, VarType rightType);
+    VarType typeCastForBitwise(VarType leftType, VarType rightType);
     
     virtual void visitStringLiteralNode(StringLiteralNode* node);
     virtual void visitDoubleLiteralNode(DoubleLiteralNode* node);
