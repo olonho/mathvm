@@ -77,8 +77,9 @@ def runTest(mvm, root, test, doublerun):
                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE)
             (out, err) = pipe.communicate(result)
             print out
-    except:
+    except Exception, e:
         print "Failed to execute the test " + test
+        print e
 
 def main(argv):
   global options
