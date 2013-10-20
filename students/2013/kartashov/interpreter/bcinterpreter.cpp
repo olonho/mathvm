@@ -63,17 +63,20 @@ void InterpreterCodeImpl::callNative(uint16_t id) {
         case VT_DOUBLE:
             argv.push_back(AsmJitVar(t, new XMMVar(c.newXMM(VARIABLE_TYPE_XMM_1D)))); //doubles should be in XMM vars
             builder.addArgument<double>();
+//            double val = currentScope->vars[j].getDouble();
             c.movq(*argv[j].xmm, ptr_abs(currentScope->vars[j].getDoublePtr()));
             break;
         case VT_STRING:
             argv.push_back(AsmJitVar(t, new GPVar(c.newGP())));
             builder.addArgument<int64_t>();
+//            char * val = currentScope->vars[j].getStringPtr();
 //            c.mov(*argv[j].gp, AsmJit::imm((size_t)currentScope->vars[i - 1].getStringPtr()->data()));
             c.mov(*argv[j].gp, imm((size_t)currentScope->vars[j].getStringPtr()));
             break;
         default:
             argv.push_back(AsmJitVar(t, new GPVar(c.newGP())));
             builder.addArgument<int64_t>();
+//            int64_t val = currentScope->vars[j].getInt();
             c.mov(*argv[j].gp, imm(currentScope->vars[j].getInt()));
             break;
         }
