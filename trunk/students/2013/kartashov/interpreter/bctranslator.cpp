@@ -133,10 +133,8 @@ void BCTranslator::visitBlockNode(BlockNode *node) {
     funcs = Scope::FunctionIterator(node->scope());
     while(funcs.hasNext()) translateFunction(funcs.next());
 
-    for(uint32_t i = 0; i < node->nodes(); ++i) {
-        //fucking tailrec?
-        node->nodeAt(i)->visit(this);
-    }
+    for(uint32_t i = 0; i < node->nodes(); ++i) node->nodeAt(i)->visit(this);
+
 }
 
 void BCTranslator::visitCallNode(CallNode *node) {
@@ -250,7 +248,6 @@ void BCTranslator::visitBinaryOpNode(BinaryOpNode *node) {
 
     switch(node->kind()) {
     case tOR:
-//        if(rtype != VT_INT || ltype != VT_INT) throw TError::logicTypeError(node->position());
         convertTOSToBool();
         currentBC()->addInsn(BC_SWAP);
         convertTOSToBool();
@@ -259,7 +256,6 @@ void BCTranslator::visitBinaryOpNode(BinaryOpNode *node) {
         convertTOSToBool();
         break;
     case tAND:
-//        if(rtype != VT_INT || ltype != VT_INT) throw TError::logicTypeError(node->position());
         convertTOSToBool();
         currentBC()->addInsn(BC_SWAP);
         convertTOSToBool();
