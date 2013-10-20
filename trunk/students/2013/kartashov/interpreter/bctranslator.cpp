@@ -73,9 +73,9 @@ void BCTranslator::translateFunction(AstFunction *f) {
     }
     enterScope(bcf);
 
-    Scope::VarIterator vi(f->scope());
-    while(vi.hasNext()) {
-        AstVar *v = vi.next();
+    //store vars in signature order
+    for(Signature::const_iterator i = bcf->signature().begin() + 1; i != bcf->signature().end(); ++i) {
+        AstVar *v = f->scope()->lookupVariable(i->second);
         currentScope->addVar(v);
         storeVar(v);
     }
@@ -95,13 +95,6 @@ void BCTranslator::convertTOSType(VarType to) {
     else {
         throw TError(std::string(typeToName(tosType)) + " to " + typeToName(to) + " type conversion is not supported");
     }
-}
-
-void BCTranslator::convertTOSType2(VarType to) {
-    convertTOSType(to);
-    currentBC()->addInsn(BC_SWAP);
-    convertTOSType(to);
-    currentBC()->addInsn(BC_SWAP);
 }
 
 void BCTranslator::convertTOSToBool() {

@@ -20,7 +20,6 @@ private:
 
     void translateFunction(AstFunction *f);
     void convertTOSType(VarType to);
-    void convertTOSType2(VarType to);
     void convertTOSToBool();
 
     //------------------------------------------------------------
