@@ -3,7 +3,7 @@
 #include <dlfcn.h>
 
 #include "AsmJit/Compiler.h"
-#include "AsmJit/Logger.h"
+#include "AsmJit/MemoryManager.h"
 
 using namespace mathvm;
 
@@ -63,20 +63,16 @@ void InterpreterCodeImpl::callNative(uint16_t id) {
         case VT_DOUBLE:
             argv.push_back(AsmJitVar(t, new XMMVar(c.newXMM(VARIABLE_TYPE_XMM_1D)))); //doubles should be in XMM vars
             builder.addArgument<double>();
-//            double val = currentScope->vars[j].getDouble();
             c.movq(*argv[j].xmm, ptr_abs(currentScope->vars[j].getDoublePtr()));
             break;
         case VT_STRING:
             argv.push_back(AsmJitVar(t, new GPVar(c.newGP())));
             builder.addArgument<int64_t>();
-//            char * val = currentScope->vars[j].getStringPtr();
-//            c.mov(*argv[j].gp, AsmJit::imm((size_t)currentScope->vars[i - 1].getStringPtr()->data()));
             c.mov(*argv[j].gp, imm((size_t)currentScope->vars[j].getStringPtr()));
             break;
         default:
             argv.push_back(AsmJitVar(t, new GPVar(c.newGP())));
             builder.addArgument<int64_t>();
-//            int64_t val = currentScope->vars[j].getInt();
             c.mov(*argv[j].gp, imm(currentScope->vars[j].getInt()));
             break;
         }
@@ -127,12 +123,28 @@ void InterpreterCodeImpl::callNative(uint16_t id) {
 
     c.endFunction();
 
-    switch(res.type) {
-    case VT_DOUBLE: pstack.push(((NFD)c.make())()); break;
-    case VT_STRING: pstack.push(((NFS)c.make())()); break;
-    case VT_VOID: ((NFV)c.make())(); break;
-    default: pstack.push(((NFI)c.make())());
+#define EXECUTE_NATIVE(t, o) {\
+    t fn = (t)c.make(); \
+    pstack.push(fn()); \
+    o = (void*)fn; \
     }
+
+    void *fnp = 0;
+    switch(res.type) {
+    case VT_VOID: {
+        NFV fn = (NFV)c.make();
+        fn();
+        fnp = (void*)fn;
+        break;
+    }
+    case VT_DOUBLE: EXECUTE_NATIVE(NFD, fnp); break;
+    case VT_STRING: EXECUTE_NATIVE(NFS, fnp); break;
+    default: EXECUTE_NATIVE(NFI, fnp); break;
+    }
+#undef EXECUTE_NATIVE
+
+    MemoryManager::getGlobal()->free(fnp);
+
 }
 
 //----------------------------------------------------------------
@@ -212,8 +224,7 @@ Status *InterpreterCodeImpl::execute(vector<Var *> &vars) {
         case BC_IFICMPGE: CMP_OP(>=); break;
         case BC_IFICMPLE: CMP_OP(<=); break;
 
-//        case BC_DUMP: std::cout << pstack.top().getDouble() << std::endl; break;
-        case BC_DUMP: throw std::string("Unsupported operation: BC_DUMP");  //tos type unknown
+        case BC_DUMP: std::cout << "BC_DUMP is not implemented" << std::endl;  //tos type unknown
         case BC_STOP: return 0;
         case BC_CALL: callFunction(getUInt16()); break;
         case BC_CALLNATIVE: callNative(getUInt16()); break;
