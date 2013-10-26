@@ -197,10 +197,34 @@ class TranslatorVisitor : AstVisitor {
 
     void updateFunScope(Scope * ascope) {
         Scope::FunctionIterator fit(ascope);
+        vector<TranslatorVisitor*> funs;
 
         while(fit.hasNext()) {
-            AstFunction * fun = fit.next();
-            VISIT(fun->node());
+            FunctionNode * node = fit.next()->node();
+
+            TranslatorVisitor * visitor = new TranslatorVisitor(code, node);
+            funs.push_back(visitor);
+
+            BytecodeFunction * result = visitor->function();
+            fun_scope->addFun(result->id(), result->name(), result->signature());
+        }
+
+        for (uint16_t i = 0; i < funs.size(); ++i) {
+            funs[i]->run(fun_scope, var_scope);
+            delete funs[i];
+        }
+    }
+
+    void processBlockNode(BlockNode * node) {
+        for (uint16_t i = 0; i < node->nodes(); ++i) {
+              VISIT(node->nodeAt(i));
+            if (node->nodeAt(i)->isCallNode()) {
+                Fun fun = fun_scope->findFun(node->nodeAt(i)->asCallNode()->name());
+                if (fun.signature[0].first != VT_VOID) {
+                      ADD_INSN(POP);
+                    pop();
+                }
+            }
         }
     }
 
@@ -213,23 +237,25 @@ class TranslatorVisitor : AstVisitor {
 
 public:
     TranslatorVisitor(Code * code, FunctionNode * root)
-        : code(code), root(root) {}
+        : code(code), root(root) {
+            result = new BytecodeFunction(root->name(), root->signature());
+            code->addFunction(result);
+        }
 
     virtual ~TranslatorVisitor() {
         delete fun_scope;
     }
 
-    BytecodeFunction * run(FunScope * fun_parent = NULL, VarScope * var_parent = NULL) {
-        result = new BytecodeFunction(root->name(), root->signature());
+    BytecodeFunction * function() {
+        return result;
+    }
 
-        uint16_t id = code->addFunction(result);
-
-        fun_scope = new FunScope(fun_parent, id);
+    void run(FunScope * fun_parent = NULL, VarScope * var_parent = NULL) {
+        fun_scope = new FunScope(fun_parent, result->id());
         var_scope = var_parent;
 
         BlockNode * node = root->body();
         initVarScope(node->scope());
-        updateFunScope(node->scope());
 
         for (uint16_t i = 0; i < root->parametersNumber(); ++i) {
             var_scope->addVar(root->parameterName(i), root->parameterType(i));
@@ -238,17 +264,15 @@ public:
             assertSame(var.type, root->parameterType(i));
               STORE_VAR(var);
         }
-        fun_scope->addFun(id, root->name(), root->signature());
 
-        for (uint16_t i = 0; i < node->nodes(); ++i) {
-              VISIT(node->nodeAt(i));
-        }
+        fun_scope->addFun(result->id(), root->name(), root->signature());
+        updateFunScope(node->scope());
+
+        processBlockNode(node);
 
         VarScope * var_old = var_scope;
         var_scope = var_scope->parent;
         delete var_old;
-
-        return result;
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode * node) {
@@ -491,9 +515,7 @@ public:
         initVarScope(node->scope());
         updateFunScope(node->scope());
 
-        for (uint16_t i = 0; i < node->nodes(); ++i) {
-              VISIT(node->nodeAt(i));
-        }
+        processBlockNode(node);
 
         VarScope * var_old = var_scope;
         var_scope = var_scope->parent;
@@ -527,9 +549,7 @@ public:
         pop(var.type);
           ADD_BRANCH(G, end);
 
-        for (uint16_t i = 0; i < node->nodes(); ++i) {
-              VISIT(node->nodeAt(i));
-        }
+        processBlockNode(node);
 
           LOAD_VAR(var);
           ADD_INSN(ILOAD1);
@@ -550,14 +570,12 @@ public:
             pop(root->signature()[0].first);
         }
           ADD_INSN(RETURN);
+
         assertEmptyStack();
     }
 
     virtual void visitFunctionNode(FunctionNode * node) {
-        TranslatorVisitor visitor(code, node);
-        BytecodeFunction * result = visitor.run(fun_scope, var_scope);
-
-        fun_scope->addFun(result->id(), result->name(), result->signature());
+        throw logic_error("Visited Function node");
     }
 
     virtual void visitCallNode(CallNode * node) {
