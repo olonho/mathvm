@@ -175,6 +175,9 @@ class TranslatorVisitor : AstVisitor {
         }
 
         void addVar(string const & name, VarType const & type) {
+            if (vars.find(name) != vars.end()) {
+                throw logic_error("Duplicated var: " + name);
+            }
             uint16_t id = fun->addVar();
             vars.insert(make_pair(name, Var(fun->id, id, type)));
         }
@@ -229,10 +232,13 @@ public:
         updateFunScope(node->scope());
 
         for (uint16_t i = 0; i < root->parametersNumber(); ++i) {
+            var_scope->addVar(root->parameterName(i), root->parameterType(i));
+
             Var var = var_scope->findVar(root->parameterName(i));
             assertSame(var.type, root->parameterType(i));
               STORE_VAR(var);
         }
+        fun_scope->addFun(id, root->name(), root->signature());
 
         for (uint16_t i = 0; i < node->nodes(); ++i) {
               VISIT(node->nodeAt(i));
