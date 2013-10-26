@@ -2,6 +2,7 @@
 
 #include "CodeImpl.h"
 
+#include <sstream>
 #include <string>
 #include <vector>
 #include <map>
@@ -17,68 +18,91 @@ namespace mathvm {
 
 const uint16_t MAX_INDEX = 65535;
 
+string type2str(VarType type) {
+    switch(type) {
+        case VT_INVALID:
+            return "VT_INVALID";
+        case VT_VOID:
+            return "VT_VOID";
+        case VT_DOUBLE:
+            return "VT_DOUBLE";
+        case VT_INT:
+            return "VT_INT";
+        case VT_STRING:
+            return "VT_STRING";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+string int2str(int val) {
+    std::stringstream ss;
+    ss << val;
+    return ss.str();
+}
+
 class TranslatorVisitor : AstVisitor {
-    #define GET_INSN_IDS(PREFIX, SUFFIX, TYPE)          \
-        (TYPE == VT_INT? BC_##PREFIX##I##SUFFIX :       \
-        (TYPE == VT_DOUBLE? BC_##PREFIX##D##SUFFIX :    \
-        (TYPE == VT_STRING? BC_##PREFIX##S##SUFFIX :    \
-        throw logic_error("GET_INSN_IDS") )))
+    #define GET_INSN_IDS(PREFIX, SUFFIX, TYPE)                      \
+        (TYPE == VT_INT? BC_##PREFIX##I##SUFFIX :                   \
+        (TYPE == VT_DOUBLE? BC_##PREFIX##D##SUFFIX :                \
+        (TYPE == VT_STRING? BC_##PREFIX##S##SUFFIX :                \
+        throw logic_error("GET_INSN_IDS: " + type2str(TYPE)) )))
 
-    #define GET_INSN_ID(PREFIX, SUFFIX, TYPE)           \
-        (TYPE == VT_INT? BC_##PREFIX##I##SUFFIX :       \
-        (TYPE == VT_DOUBLE? BC_##PREFIX##D##SUFFIX :    \
-        throw logic_error("GET_INSN_ID") ))
+    #define GET_INSN_ID(PREFIX, SUFFIX, TYPE)                       \
+        (TYPE == VT_INT? BC_##PREFIX##I##SUFFIX :                   \
+        (TYPE == VT_DOUBLE? BC_##PREFIX##D##SUFFIX :                \
+        throw logic_error("GET_INSN_ID: " + type2str(TYPE)) ))
 
-    #define GET_INSN(INSN)                              \
+    #define GET_INSN(INSN)                                          \
         BC_##INSN
 
-    #define ADD_INSN_IDS(PREFIX, SUFFIX, TYPE)          \
+    #define ADD_INSN_IDS(PREFIX, SUFFIX, TYPE)                      \
         bc()->addInsn(GET_INSN_IDS(PREFIX, SUFFIX, TYPE))
 
-    #define ADD_INSN_ID(PREFIX, SUFFIX, TYPE)           \
+    #define ADD_INSN_ID(PREFIX, SUFFIX, TYPE)                       \
         bc()->addInsn(GET_INSN_ID(PREFIX, SUFFIX, TYPE))
 
-    #define ADD_INSN(INSN)                              \
+    #define ADD_INSN(INSN)                                          \
         bc()->addInsn(GET_INSN(INSN))
 
-    #define ADD_U16(INT)                                \
+    #define ADD_U16(INT)                                            \
         bc()->addInt16(INT)
 
-    #define ADD_U64(INT)                                \
+    #define ADD_U64(INT)                                            \
         bc()->addInt64(INT)
 
-    #define ADD_DOUBLE(DOUBLE)                          \
+    #define ADD_DOUBLE(DOUBLE)                                      \
         bc()->addDouble(DOUBLE)
 
-    #define ADD_BRANCH(TYPE, LABEL)                     \
+    #define ADD_BRANCH(TYPE, LABEL)                                 \
         bc()->addBranch(BC_IFICMP##TYPE, LABEL)
 
-    #define ADD_BRANCH_JA(LABEL)                        \
+    #define ADD_BRANCH_JA(LABEL)                                    \
         bc()->addBranch(BC_JA, LABEL)
 
-    #define BIND(LABEL)                                 \
+    #define BIND(LABEL)                                             \
         bc()->bind(LABEL)
 
-    #define VISIT(NODE)                                 \
+    #define VISIT(NODE)                                             \
         NODE->visit(this)
 
-    #define LOAD_VAR(V)                                 \
-        ADD_INSN_IDS(LOADCTX, VAR, V.type);             \
-        ADD_U16(V.fun);                                 \
+    #define LOAD_VAR(V)                                             \
+        ADD_INSN_IDS(LOADCTX, VAR, V.type);                         \
+        ADD_U16(V.fun);                                             \
         ADD_U16(V.num)
 
-    #define STORE_VAR(V)                                \
-        ADD_INSN_IDS(STORECTX, VAR, V.type);            \
-        ADD_U16(V.fun);                                 \
+    #define STORE_VAR(V)                                            \
+        ADD_INSN_IDS(STORECTX, VAR, V.type);                        \
+        ADD_U16(V.fun);                                             \
         ADD_U16(V.num)
 
     struct Var {
-        Var(uint16_t fun, uint16_t num, VarType const & type)
-            : fun(fun), num(num), type(type) {}
+        Var(uint16_t fun, uint16_t num, VarType type)
+        : fun(fun), num(num), type(type) {}
 
         uint16_t fun;
         uint16_t num;
-        VarType const & type;
+        VarType type;
     };
 
     struct Fun {
@@ -119,11 +143,11 @@ class TranslatorVisitor : AstVisitor {
             funs.insert(make_pair(name, Fun(id, signature)));
         }
 
-        void addVar() {
+        uint16_t addVar() {
             if (vars_count == MAX_INDEX) {
                 throw logic_error("Too much local variables");
             }
-            vars_count++;
+            return vars_count++;
         }
     };
 
@@ -150,15 +174,32 @@ class TranslatorVisitor : AstVisitor {
             throw logic_error("Var not found: " + name);
         }
 
-        uint16_t addVar(string const & name, VarType const & type) {
-            if (vars.size() == MAX_INDEX) {
-                throw logic_error("Too much local variables");
-            }
-            vars.insert(make_pair(name, Var(fun->id, vars.size(), type)));
-            fun->addVar();
-            return vars.size() - 1;
+        void addVar(string const & name, VarType const & type) {
+            uint16_t id = fun->addVar();
+            vars.insert(make_pair(name, Var(fun->id, id, type)));
         }
     };
+
+    void initVarScope(Scope * ascope) {
+        VarScope * scope = new VarScope(fun_scope, var_scope);
+        Scope::VarIterator vit(ascope);
+
+        while(vit.hasNext()) {
+            AstVar * var = vit.next();
+            scope->addVar(var->name(), var->type());
+        }
+
+        var_scope = scope;
+    }
+
+    void updateFunScope(Scope * ascope) {
+        Scope::FunctionIterator fit(ascope);
+
+        while(fit.hasNext()) {
+            AstFunction * fun = fit.next();
+            VISIT(fun->node());
+        }
+    }
 
     Code * code;
     FunctionNode * root;
@@ -173,18 +214,15 @@ public:
 
     virtual ~TranslatorVisitor() {
         delete fun_scope;
-        delete var_scope;
     }
 
     BytecodeFunction * run(FunScope * fun_parent = NULL, VarScope * var_parent = NULL) {
-        AstFunction dummy(root, NULL);
-        result = new BytecodeFunction(&dummy); // god damn constructor
+        result = new BytecodeFunction(root->name(), root->signature());
 
         uint16_t id = code->addFunction(result);
-        result->assignId(id);
 
         fun_scope = new FunScope(fun_parent, id);
-        var_scope = new VarScope(fun_scope, var_parent);
+        var_scope = var_parent;
 
         BlockNode * node = root->body();
         initVarScope(node->scope());
@@ -328,17 +366,15 @@ public:
                 push(type);
                 return;
             default:
-                throw logic_error("BinaryOp: unknown kind");
+                throw logic_error("BinaryOp: unknown kind " + int2str(node->kind()));
         }
-
-        throw logic_error("BinaryOp: illegal state");
     }
 
     virtual void visitUnaryOpNode(UnaryOpNode * node) {
-        node->operand()->visit(this);
-
         Label yes(bc());
         Label end(bc());
+
+          VISIT (node->operand());
 
         VarType type = top();
         pop();
@@ -361,10 +397,8 @@ public:
                 push(type);
                 return;
             default:
-                throw logic_error("UnaryOp: unknown kind");
+                throw logic_error("UnaryOp: unknown kind " + int2str(node->kind()));
         }
-
-        throw logic_error("UnaryOp: illegal state");
     }
 
     virtual void visitStringLiteralNode(StringLiteralNode * node) {
@@ -397,6 +431,7 @@ public:
     virtual void visitStoreNode(StoreNode * node) {
         AstVar const * avar = node->var();
         Var var = var_scope->findVar(avar->name());
+
         assertSame(var.type, avar->type());
 
           VISIT(node->value());
@@ -410,14 +445,16 @@ public:
 
         if (!node->elseBlock()) {
               VISIT(node->ifExpr());
-            assertInt(pop());
+            assertInt(top());
+            pop();
               ADD_INSN(ILOAD0);
               ADD_BRANCH(E, end);
               VISIT(node->thenBlock());
             BIND(end);
         } else {
               VISIT(node->ifExpr());
-            assertInt(pop());
+            assertInt(top());
+            pop();
               ADD_INSN(ILOAD0);
               ADD_BRANCH(E, els);
               VISIT(node->thenBlock());
@@ -434,34 +471,14 @@ public:
 
         BIND(begin);
           VISIT(node->whileExpr());
-        assertInt(pop());
+        assertInt(top());
+        pop();
           ADD_INSN(ILOAD0);
           ADD_BRANCH(E, end);
           VISIT(node->loopBlock());
           ADD_BRANCH_JA(begin);
 
         BIND(end);
-    }
-
-    void initVarScope(Scope * ascope) {
-        VarScope * scope = new VarScope(fun_scope, var_scope);
-        Scope::VarIterator vit(ascope);
-
-        while(vit.hasNext()) {
-            AstVar * var = vit.next();
-            scope->addVar(var->name(), var->type());
-        }
-
-        var_scope = scope;
-    }
-
-    void updateFunScope(Scope * ascope) {
-        Scope::FunctionIterator fit(ascope);
-
-        while(fit.hasNext()) {
-            AstFunction * fun = fit.next();
-            VISIT(fun->node());
-        }
     }
 
     virtual void visitBlockNode(BlockNode * node) {
@@ -493,7 +510,6 @@ public:
         }
 
         Var var = var_scope->findVar(avar->name());
-        assertSame(var.type, avar->type());
         assertInt(var.type);
 
           VISIT(expr->left());
@@ -522,13 +538,6 @@ public:
         delete var_old;
     }
 
-    virtual void visitFunctionNode(FunctionNode * node) { // TODO
-        TranslatorVisitor visitor(code, node);
-        BytecodeFunction * result = visitor.run(fun_scope, var_scope);
-
-        fun_scope->addFun(result->id(), result->name(), result->signature());
-    }
-
     virtual void visitReturnNode(ReturnNode * node) {
         if (node->returnExpr()) {
               VISIT(node->returnExpr());
@@ -536,30 +545,32 @@ public:
         }
           ADD_INSN(RETURN);
         assertEmptyStack();
+    }
 
-        VarScope * var_old = var_scope;
-        FunScope * fun_old = fun_scope;
-        var_scope = var_scope->parent;
-        fun_scope = fun_scope->parent;
-        delete var_old;
-        delete fun_old;
+    virtual void visitFunctionNode(FunctionNode * node) {
+        TranslatorVisitor visitor(code, node);
+        BytecodeFunction * result = visitor.run(fun_scope, var_scope);
+
+        fun_scope->addFun(result->id(), result->name(), result->signature());
     }
 
     virtual void visitCallNode(CallNode * node) {
         Fun fun = fun_scope->findFun(node->name());
 
         if (fun.signature.size() != 1 + node->parametersNumber()) {
-            throw logic_error("Call: invalid signature");
+            throw logic_error("Call: invalid function signature");
         }
 
         for (uint16_t i = 0; i < node->parametersNumber(); ++i) {
               VISIT(node->parameterAt(i));
-            assertSame(top(), fun.signature[i+1].first);
-            pop(); // eated by called function
+            pop(fun.signature[i+1].first); // eaten by called function
         }
 
           ADD_INSN(CALL);
           ADD_U16(fun.id);
+        if (fun.signature[0].first != VT_VOID) {
+            push(fun.signature[0].first);
+        }
     }
 
     virtual void visitNativeCallNode(NativeCallNode * node) { // TODO LATER
@@ -569,7 +580,8 @@ public:
     virtual void visitPrintNode(PrintNode * node) {
         for (uint32_t i = 0; i < node->operands(); ++i) {
               VISIT(node->operandAt(i));
-              ADD_INSN_IDS(, PRINT, pop());
+              ADD_INSN_IDS(, PRINT, top());
+              pop();
         }
     }
 
@@ -579,18 +591,16 @@ private: // --------------------------------------------- //
         return result->bytecode();
     }
 
-    VarType pop() {
+    void pop() {
         if (fun_scope->stack.size() == 0) {
             throw logic_error("Stack underflow");
         }
-        VarType ret = fun_scope->stack.back();
         fun_scope->stack.pop_back();
-        return ret;
     }
 
-    VarType pop(VarType type) {
+    void pop(VarType type) {
         assertSame(type, top());
-        return pop();
+        pop();
     }
 
     void push(VarType type) {
@@ -625,25 +635,19 @@ private: // --------------------------------------------- //
 
     void assertInt(VarType type) {
         if (type != VT_INT) {
-            throw logic_error("assertInt");
+            throw logic_error("assertInt: " + type2str(type));
         }
     }
 
     void assertArithmetic(VarType type) {
         if (type != VT_INT && type != VT_DOUBLE) {
-            throw logic_error("assertArithmetic");
-        }
-    }
-
-    void assertInvalid(VarType type) {
-        if (type != VT_INVALID) {
-            throw logic_error("assertInvalid");
+            throw logic_error("assertArithmetic: " + type2str(type));
         }
     }
 
     void assertSame(VarType left, VarType right) {
         if (left != right) {
-            throw logic_error("assertSame");
+            throw logic_error("assertSame: " + type2str(left) + " " + type2str(right));
         }
     }
 
@@ -668,10 +672,13 @@ Status* BytecodeTranslator::translate(string const & program, Code ** code) {
         *code = new CodeImpl();
         AstFunction * root = parser.top();
         TranslatorVisitor visitor(*code, root->node());
-        visitor.run();
-        return NULL;
+        try {
+            visitor.run();
+        } catch(logic_error & e) {
+            return new Status(e.what());
+        }
+        return new Status();
     }
-
 }
 
 }
