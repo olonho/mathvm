@@ -243,7 +243,7 @@ class TranslatorVisitor : AstVisitor {
     }
 
     void processBlockNode(BlockNode * node) {
-        for (uint16_t i = 0; i < node->nodes(); ++i) {
+        for (uint32_t i = 0; i < node->nodes(); ++i) {
               VISIT(node->nodeAt(i));
 
             // clear stack after function call without StoreNode. ex: "<...>; sum(1,2);"
@@ -256,6 +256,7 @@ class TranslatorVisitor : AstVisitor {
                 }
             }
         }
+        cerr << "__________________________________" << endl;
     }
 
     void processLogicOperator(TokenKind const & token, VarType const & type) {
@@ -644,12 +645,12 @@ private: // --------------------------------------------- //
         fun_scope->stack.pop_back();
     }
 
-    void pop(VarType type) {
+    void pop(VarType const & type) {
         assertSame(type, top());
         pop();
     }
 
-    void push(VarType type) {
+    void push(VarType const & type) {
         fun_scope->stack.push_back(type);
     }
 
@@ -665,7 +666,7 @@ private: // --------------------------------------------- //
         return fun_scope->stack[index];
     }
 
-    Var findVar(string const & name, VarType type) {
+    Var findVar(string const & name, VarType const & type) {
         Var var = var_scope->findVar(name);
         assertSame(var.type, type);
         return var;
