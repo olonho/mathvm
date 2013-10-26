@@ -146,10 +146,10 @@ class TranslatorVisitor : AstVisitor {
 
         vector<VarType> stack;
         map<string, Fun> funs;
-        FunScope * parent;
+        shared_ptr<FunScope> parent;
         uint16_t vars_count;
 
-        FunScope(FunScope * parent, uint16_t id)
+        FunScope(shared_ptr<FunScope> parent, uint16_t id)
             : id(id), parent(parent), vars_count(0) {}
 
         Fun findFun(string const & name) const {
@@ -183,10 +183,10 @@ class TranslatorVisitor : AstVisitor {
 
     struct VarScope {
         map<string, Var> vars;
-        FunScope * fun;
-        VarScope * parent;
+        shared_ptr<FunScope> fun;
+        shared_ptr<VarScope> parent;
 
-        VarScope(FunScope * fun, VarScope * parent)
+        VarScope(shared_ptr<FunScope> fun, shared_ptr<VarScope> parent)
             : fun(fun), parent(parent) {}
 
         Var findVar(string const & name) const {
@@ -212,7 +212,7 @@ class TranslatorVisitor : AstVisitor {
         }
     };
 
-    VarScope * initVarScope(Scope * ascope) {
+    shared_ptr<VarScope> initVarScope(Scope * ascope) {
         VarScope * scope = new VarScope(fun_scope, var_scope);
         Scope::VarIterator vit(ascope);
 
@@ -221,7 +221,7 @@ class TranslatorVisitor : AstVisitor {
             scope->addVar(var->name(), var->type());
         }
 
-        return scope;
+        return shared_ptr<VarScope>(scope);
     }
 
     void updateFunScope(Scope * ascope) {
@@ -256,7 +256,6 @@ class TranslatorVisitor : AstVisitor {
                 }
             }
         }
-        cerr << "__________________________________" << endl;
     }
 
     void processLogicOperator(TokenKind const & token, VarType const & type) {
@@ -295,8 +294,8 @@ class TranslatorVisitor : AstVisitor {
     FunctionNode * root;
 
     BytecodeFunction * result;
-    VarScope * var_scope;
-    FunScope * fun_scope;
+    shared_ptr<VarScope> var_scope;
+    shared_ptr<FunScope> fun_scope;
 
 public:
     TranslatorVisitor(Code * code, FunctionNode * root)
@@ -305,16 +304,14 @@ public:
             code->addFunction(result);
         }
 
-    virtual ~TranslatorVisitor() {
-        delete fun_scope;
-    }
+    virtual ~TranslatorVisitor() {}
 
     BytecodeFunction * function() {
         return result;
     }
 
-    void run(FunScope * fun_parent = NULL, VarScope * var_parent = NULL) {
-        fun_scope = new FunScope(fun_parent, result->id());
+    void run(shared_ptr<FunScope> fun_parent = shared_ptr<FunScope>(), shared_ptr<VarScope> var_parent = shared_ptr<VarScope>()) {
+        fun_scope = shared_ptr<FunScope>(new FunScope(fun_parent, result->id()));
         var_scope = var_parent;
 
         BlockNode * node = root->body();
@@ -333,9 +330,7 @@ public:
 
         processBlockNode(node);
 
-        VarScope * var_old = var_scope;
         var_scope = var_scope->parent;
-        delete var_old;
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode * node) {
@@ -541,9 +536,7 @@ public:
 
         processBlockNode(node);
 
-        VarScope * var_old = var_scope;
         var_scope = var_scope->parent;
-        delete var_old;
     }
 
     virtual void visitForNode(ForNode * fnode) {
@@ -582,9 +575,7 @@ public:
           ADD_BRANCH_JA(begin);
         BIND(end);
 
-        VarScope * var_old = var_scope;
         var_scope = var_scope->parent;
-        delete var_old;
     }
 
     virtual void visitReturnNode(ReturnNode * node) {
