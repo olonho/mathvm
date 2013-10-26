@@ -11,6 +11,8 @@ using std::vector;
 using std::map;
 using std::pair;
 using std::make_pair;
+#include <tr1/memory>
+using std::tr1::shared_ptr;
 
 #include <stdexcept>
 
@@ -18,7 +20,7 @@ namespace mathvm {
 
 const uint16_t MAX_INDEX = 65535;
 
-string type2str(VarType type) {
+const string type2str(VarType const & type) {
     switch(type) {
         case VT_INVALID:
             return "VT_INVALID";
@@ -35,10 +37,36 @@ string type2str(VarType type) {
     }
 }
 
-string int2str(int val) {
+const string int2str(long val) {
     std::stringstream ss;
     ss << val;
     return ss.str();
+}
+
+bool isIntType(VarType const & type) {
+    return type == VT_INT;
+}
+
+bool isArithmeticType(VarType const & type) {
+    return type == VT_INT || type == VT_DOUBLE;
+}
+
+void assertInt(VarType const & type) {
+    if (type != VT_INT) {
+        throw logic_error("assertInt: " + type2str(type));
+    }
+}
+
+void assertArithmetic(VarType const & type) {
+    if (type != VT_INT && type != VT_DOUBLE) {
+        throw logic_error("assertArithmetic: " + type2str(type));
+    }
+}
+
+void assertSame(VarType const & left, VarType const & right) {
+    if (left != right) {
+        throw logic_error("assertSame: " + type2str(left) + " " + type2str(right));
+    }
 }
 
 class TranslatorVisitor : AstVisitor {
@@ -97,7 +125,7 @@ class TranslatorVisitor : AstVisitor {
         ADD_U16(V.num)
 
     struct Var {
-        Var(uint16_t fun, uint16_t num, VarType type)
+        Var(uint16_t fun, uint16_t num, VarType const & type)
         : fun(fun), num(num), type(type) {}
 
         uint16_t fun;
@@ -124,15 +152,15 @@ class TranslatorVisitor : AstVisitor {
         FunScope(FunScope * parent, uint16_t id)
             : id(id), parent(parent), vars_count(0) {}
 
-        Fun findFun(string const & name) {
-            map<string, Fun>::iterator it;
+        Fun findFun(string const & name) const {
+            map<string, Fun>::const_iterator it;
             it = funs.find(name);
 
             if ( it != funs.end() ) {
                 return it->second;
             }
 
-            if ( parent != NULL) {
+            if ( parent != NULL ) {
                 return parent->findFun(name);
             }
 
@@ -140,7 +168,9 @@ class TranslatorVisitor : AstVisitor {
         }
 
         void addFun(uint16_t id, string const & name, Signature const & signature) {
-            funs.insert(make_pair(name, Fun(id, signature)));
+            if ( !funs.insert(make_pair(name, Fun(id, signature))).second ) {
+                throw logic_error("Duplicated fun: " + name);
+            }
         }
 
         uint16_t addVar() {
@@ -159,15 +189,15 @@ class TranslatorVisitor : AstVisitor {
         VarScope(FunScope * fun, VarScope * parent)
             : fun(fun), parent(parent) {}
 
-        Var findVar(string const & name) {
-            map<string, Var>::iterator it;
+        Var findVar(string const & name) const {
+            map<string, Var>::const_iterator it;
             it = vars.find(name);
 
             if ( it != vars.end() ) {
                 return it->second;
             }
 
-            if ( parent != NULL) {
+            if ( parent != NULL ) {
                 return parent->findVar(name);
             }
 
@@ -175,15 +205,14 @@ class TranslatorVisitor : AstVisitor {
         }
 
         void addVar(string const & name, VarType const & type) {
-            if (vars.find(name) != vars.end()) {
+            uint16_t id = fun->addVar();
+            if ( !vars.insert(make_pair(name, Var(fun->id, id, type))).second ) {
                 throw logic_error("Duplicated var: " + name);
             }
-            uint16_t id = fun->addVar();
-            vars.insert(make_pair(name, Var(fun->id, id, type)));
         }
     };
 
-    void initVarScope(Scope * ascope) {
+    VarScope * initVarScope(Scope * ascope) {
         VarScope * scope = new VarScope(fun_scope, var_scope);
         Scope::VarIterator vit(ascope);
 
@@ -192,40 +221,73 @@ class TranslatorVisitor : AstVisitor {
             scope->addVar(var->name(), var->type());
         }
 
-        var_scope = scope;
+        return scope;
     }
 
     void updateFunScope(Scope * ascope) {
         Scope::FunctionIterator fit(ascope);
-        vector<TranslatorVisitor*> funs;
+        vector<shared_ptr<TranslatorVisitor> > funs;
 
         while(fit.hasNext()) {
             FunctionNode * node = fit.next()->node();
 
-            TranslatorVisitor * visitor = new TranslatorVisitor(code, node);
-            funs.push_back(visitor);
+            funs.push_back(shared_ptr<TranslatorVisitor>(new TranslatorVisitor(code, node)));
 
-            BytecodeFunction * result = visitor->function();
+            BytecodeFunction * result = funs.back()->function();
             fun_scope->addFun(result->id(), result->name(), result->signature());
         }
 
         for (uint16_t i = 0; i < funs.size(); ++i) {
             funs[i]->run(fun_scope, var_scope);
-            delete funs[i];
         }
     }
 
     void processBlockNode(BlockNode * node) {
         for (uint16_t i = 0; i < node->nodes(); ++i) {
               VISIT(node->nodeAt(i));
-            if (node->nodeAt(i)->isCallNode()) {
-                Fun fun = fun_scope->findFun(node->nodeAt(i)->asCallNode()->name());
+
+            // clear stack after function call without StoreNode. ex: "<...>; sum(1,2);"
+            CallNode * cnode = node->nodeAt(i)->asCallNode();
+            if (cnode != NULL) {
+                Fun fun = fun_scope->findFun(cnode->name());
                 if (fun.signature[0].first != VT_VOID) {
                       ADD_INSN(POP);
                     pop();
                 }
             }
         }
+    }
+
+    void processLogicOperator(TokenKind const & token, VarType const & type) {
+        Label end(bc());
+        Label no(bc());
+
+          ADD_INSN_ID(, CMP, type);
+          ADD_INSN(ILOAD0);
+
+        switch(token) {
+            case tEQ:
+                  ADD_BRANCH(E, no); break;
+            case tNEQ:
+                  ADD_BRANCH(NE, no); break;
+            case tGT:
+                  ADD_BRANCH(G, no); break;
+            case tGE:
+                  ADD_BRANCH(GE, no); break;
+            case tLT:
+                  ADD_BRANCH(L, no); break;
+            case tLE:
+                  ADD_BRANCH(LE, no); break;
+            default: throw logic_error("Unknown Logic token: " + int2str(token));
+        }
+
+          ADD_INSN(ILOAD1);
+          ADD_BRANCH_JA(end);
+        BIND(no);
+          ADD_INSN(ILOAD0);
+        BIND(end);
+        push(VT_INT);
+        return;
     }
 
     Code * code;
@@ -255,13 +317,13 @@ public:
         var_scope = var_parent;
 
         BlockNode * node = root->body();
-        initVarScope(node->scope());
+        var_scope = initVarScope(node->scope());
 
-        for (uint16_t i = 0; i < root->parametersNumber(); ++i) {
+        // load parameters from stack
+        for (uint16_t i = root->parametersNumber(); i-- > 0;) { //reverse loop
             var_scope->addVar(root->parameterName(i), root->parameterType(i));
 
-            Var var = var_scope->findVar(root->parameterName(i));
-            assertSame(var.type, root->parameterType(i));
+            Var var = findVar(root->parameterName(i), root->parameterType(i));
               STORE_VAR(var);
         }
 
@@ -276,9 +338,6 @@ public:
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode * node) {
-        Label yes(bc());
-        Label end(bc());
-
         VISIT(node->right());
         VISIT(node->left());
 
@@ -315,65 +374,17 @@ public:
                   ADD_INSN(IAXOR);
                 push(VT_INT);
                 return;
-            case tEQ:       //"=="
-                  ADD_INSN_ID(, CMP, type);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH(E, yes);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH_JA(end);
-                BIND(yes);
-                  ADD_INSN(ILOAD1);
-                BIND(end);
-                push(VT_INT);
-                return;
             case tNEQ:      //"!="
                   ADD_INSN_ID(, CMP, type);
                 push(VT_INT);
                 return;
+            case tEQ:       //"=="
             case tGT:       //">"
-                  ADD_INSN_ID(, CMP, type);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH(L, yes);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH_JA(end);
-                BIND(yes);
-                  ADD_INSN(ILOAD1);
-                BIND(end);
-                push(VT_INT);
-                return;
             case tGE:       //">="
-                  ADD_INSN_ID(, CMP, type);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH(LE, yes);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH_JA(end);
-                BIND(yes);
-                  ADD_INSN(ILOAD1);
-                BIND(end);
-                push(VT_INT);
-                return;
             case tLT:       //"<"
-                  ADD_INSN_ID(, CMP, type);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH(G, yes);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH_JA(end);
-                BIND(yes);
-                  ADD_INSN(ILOAD1);
-                BIND(end);
-                push(VT_INT);
-                return;
             case tLE:       //"<="
-                  ADD_INSN_ID(, CMP, type);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH(GE, yes);
-                  ADD_INSN(ILOAD0);
-                  ADD_BRANCH_JA(end);
-                BIND(yes);
-                  ADD_INSN(ILOAD1);
-                BIND(end);
-                push(VT_INT);
-                return;
+                  processLogicOperator(node->kind(), type);
+                  return;
             case tADD:      //"+"
                   ADD_INSN_ID(, ADD, type);
                 push(type);
@@ -451,8 +462,7 @@ public:
 
     virtual void visitLoadNode(LoadNode * node) {
         AstVar const * avar = node->var();
-        Var var = var_scope->findVar(avar->name());
-        assertSame(var.type, avar->type());
+        Var var = findVar(avar->name(), avar->type());
 
           LOAD_VAR(var);
         push(var.type);
@@ -460,11 +470,24 @@ public:
 
     virtual void visitStoreNode(StoreNode * node) {
         AstVar const * avar = node->var();
-        Var var = var_scope->findVar(avar->name());
-
-        assertSame(var.type, avar->type());
+        Var var = findVar(avar->name(), avar->type());
 
           VISIT(node->value());
+
+        switch(node->op()) {
+            case tASSIGN:
+                break;
+            case tINCRSET:
+                LOAD_VAR(var);
+                ADD_INSN_ID(, ADD, var.type);
+                break;
+            case tDECRSET:
+                LOAD_VAR(var);
+                ADD_INSN_ID(, SUB, var.type);
+                break;
+            default: throw logic_error("StoreNode: unknown op");
+        }
+
           STORE_VAR(var);
         pop(var.type);
     }
@@ -512,7 +535,7 @@ public:
     }
 
     virtual void visitBlockNode(BlockNode * node) {
-        initVarScope(node->scope());
+        var_scope = initVarScope(node->scope());
         updateFunScope(node->scope());
 
         processBlockNode(node);
@@ -527,7 +550,7 @@ public:
         Label begin(bc());
         Label end(bc());
 
-        initVarScope(node->scope());
+        var_scope = initVarScope(node->scope());
         updateFunScope(node->scope());
 
         AstVar const * avar = fnode->var();
@@ -537,8 +560,7 @@ public:
             throw logic_error("Bad For loop expression");
         }
 
-        Var var = var_scope->findVar(avar->name());
-        assertInt(var.type);
+        Var var = findVar(avar->name(), VT_INT);
 
           VISIT(expr->left());
           STORE_VAR(var);
@@ -643,35 +665,15 @@ private: // --------------------------------------------- //
         return fun_scope->stack[index];
     }
 
+    Var findVar(string const & name, VarType type) {
+        Var var = var_scope->findVar(name);
+        assertSame(var.type, type);
+        return var;
+    }
+
     void assertEmptyStack() {
         if (fun_scope->stack.size() > 0) {
-            throw logic_error("Stack overflow");
-        }
-    }
-
-    bool isIntType(VarType type) {
-        return type == VT_INT;
-    }
-
-    bool isArithmeticType(VarType type) {
-        return type == VT_INT || type == VT_DOUBLE;
-    }
-
-    void assertInt(VarType type) {
-        if (type != VT_INT) {
-            throw logic_error("assertInt: " + type2str(type));
-        }
-    }
-
-    void assertArithmetic(VarType type) {
-        if (type != VT_INT && type != VT_DOUBLE) {
-            throw logic_error("assertArithmetic: " + type2str(type));
-        }
-    }
-
-    void assertSame(VarType left, VarType right) {
-        if (left != right) {
-            throw logic_error("assertSame: " + type2str(left) + " " + type2str(right));
+            throw logic_error("Stack leak");
         }
     }
 
