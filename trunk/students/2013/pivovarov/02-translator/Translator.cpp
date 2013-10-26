@@ -33,31 +33,31 @@ class TranslatorVisitor : AstVisitor {
         BC_##INSN
 
     #define ADD_INSN_IDS(PREFIX, SUFFIX, TYPE)          \
-        bc->addInsn(GET_INSN_IDS(PREFIX, SUFFIX, TYPE))
+        bc()->addInsn(GET_INSN_IDS(PREFIX, SUFFIX, TYPE))
 
     #define ADD_INSN_ID(PREFIX, SUFFIX, TYPE)           \
-        bc->addInsn(GET_INSN_ID(PREFIX, SUFFIX, TYPE))
+        bc()->addInsn(GET_INSN_ID(PREFIX, SUFFIX, TYPE))
 
     #define ADD_INSN(INSN)                              \
-        bc->addInsn(GET_INSN(INSN))
+        bc()->addInsn(GET_INSN(INSN))
 
     #define ADD_U16(INT)                                \
-        bc->addInt16(INT)
+        bc()->addInt16(INT)
 
     #define ADD_U64(INT)                                \
-        bc->addInt64(INT)
+        bc()->addInt64(INT)
 
     #define ADD_DOUBLE(DOUBLE)                          \
-        bc->addDouble(DOUBLE)
+        bc()->addDouble(DOUBLE)
 
     #define ADD_BRANCH(TYPE, LABEL)                     \
-        bc->addBranch(BC_IFICMP##TYPE, LABEL)
+        bc()->addBranch(BC_IFICMP##TYPE, LABEL)
 
     #define ADD_BRANCH_JA(LABEL)                        \
-        bc->addBranch(BC_JA, LABEL)
+        bc()->addBranch(BC_JA, LABEL)
 
     #define BIND(LABEL)                                 \
-        bc->bind(LABEL)
+        bc()->bind(LABEL)
 
     #define VISIT(NODE)                                 \
         NODE->visit(this)
@@ -91,16 +91,14 @@ class TranslatorVisitor : AstVisitor {
 
     struct FunScope {
         uint16_t id;
-        string const & name;
-        Signature const & signature;
 
         vector<VarType> stack;
         map<string, Fun> funs;
         FunScope * parent;
         uint16_t vars_count;
 
-        FunScope(FunScope * parent, uint16_t id, string const & name, Signature const & signature)
-            : id(id), name(name), signature(signature), parent(parent), vars_count(0) {}
+        FunScope(FunScope * parent, uint16_t id)
+            : id(id), parent(parent), vars_count(0) {}
 
         Fun findFun(string const & name) {
             map<string, Fun>::iterator it;
@@ -117,7 +115,7 @@ class TranslatorVisitor : AstVisitor {
             throw logic_error("Fun not found: " + name);
         }
 
-        void addFun(uint16_t id, Signature const & signature) {
+        void addFun(uint16_t id, string const & name, Signature const & signature) {
             funs.insert(make_pair(name, Fun(id, signature)));
         }
 
@@ -163,23 +161,55 @@ class TranslatorVisitor : AstVisitor {
     };
 
     Code * code;
-    Bytecode * bc;
+    FunctionNode * root;
 
+    BytecodeFunction * result;
     VarScope * var_scope;
     FunScope * fun_scope;
 
 public:
-    TranslatorVisitor(Code * code)
-        : code(code) {}
-    virtual ~TranslatorVisitor() {}
+    TranslatorVisitor(Code * code, FunctionNode * root)
+        : code(code), root(root) {}
 
-    void run(AstFunction* top) {
-        VISIT(top->node());
+    virtual ~TranslatorVisitor() {
+        delete fun_scope;
+        delete var_scope;
+    }
+
+    BytecodeFunction * run(FunScope * fun_parent = NULL, VarScope * var_parent = NULL) {
+        AstFunction dummy(root, NULL);
+        result = new BytecodeFunction(&dummy); // god damn constructor
+
+        uint16_t id = code->addFunction(result);
+        result->assignId(id);
+
+        fun_scope = new FunScope(fun_parent, id);
+        var_scope = new VarScope(fun_scope, var_parent);
+
+        BlockNode * node = root->body();
+        initVarScope(node->scope());
+        updateFunScope(node->scope());
+
+        for (uint16_t i = 0; i < root->parametersNumber(); ++i) {
+            Var var = var_scope->findVar(root->parameterName(i));
+            assertSame(var.type, root->parameterType(i));
+              STORE_VAR(var);
+        }
+
+        for (uint16_t i = 0; i < node->nodes(); ++i) {
+              VISIT(node->nodeAt(i));
+        }
+
+        VarScope * var_old = var_scope;
+        var_scope = var_scope->parent;
+        delete var_old;
+
+        return result;
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode * node) {
-        Label yes(bc);
-        Label end(bc);
+        Label yes(bc());
+        Label end(bc());
 
         VISIT(node->right());
         VISIT(node->left());
@@ -307,8 +337,8 @@ public:
     virtual void visitUnaryOpNode(UnaryOpNode * node) {
         node->operand()->visit(this);
 
-        Label yes(bc);
-        Label end(bc);
+        Label yes(bc());
+        Label end(bc());
 
         VarType type = top();
         pop();
@@ -375,8 +405,8 @@ public:
     }
 
     virtual void visitIfNode(IfNode * node) {
-        Label els(bc);
-        Label end(bc);
+        Label els(bc());
+        Label end(bc());
 
         if (!node->elseBlock()) {
               VISIT(node->ifExpr());
@@ -399,8 +429,8 @@ public:
     }
 
     virtual void visitWhileNode(WhileNode * node) {
-        Label begin(bc);
-        Label end(bc);
+        Label begin(bc());
+        Label end(bc());
 
         BIND(begin);
           VISIT(node->whileExpr());
@@ -413,67 +443,33 @@ public:
         BIND(end);
     }
 
-    virtual void visitForNode(ForNode * node) {
-        this->visitBlockNode(node->body(), node);
-    }
-
-    virtual void visitBlockNode(BlockNode * node, ForNode * fnode = NULL) { // TODO
-        Label begin(bc);
-        Label end(bc);
-
+    void initVarScope(Scope * ascope) {
         VarScope * scope = new VarScope(fun_scope, var_scope);
-        var_scope = scope;
-
-        Scope * ascope = node->scope();
         Scope::VarIterator vit(ascope);
-        Scope::FunctionIterator fit(ascope);
 
         while(vit.hasNext()) {
             AstVar * var = vit.next();
-            var_scope->addVar(var->name(), var->type());
+            scope->addVar(var->name(), var->type());
         }
+
+        var_scope = scope;
+    }
+
+    void updateFunScope(Scope * ascope) {
+        Scope::FunctionIterator fit(ascope);
+
         while(fit.hasNext()) {
-            // AstFunction * fun = fit.next();
-            throw 0; // TODO
+            AstFunction * fun = fit.next();
+            VISIT(fun->node());
         }
+    }
 
-        if (fnode != NULL) {
-            AstVar const * avar = fnode->var();
-            assertInt(avar->type());
-            BinaryOpNode * expr = fnode->inExpr()->asBinaryOpNode();
-            if (expr == NULL || expr->kind() != tRANGE) {
-                throw logic_error("Bad For loop expression");
-            }
-
-            Var var = var_scope->findVar(avar->name());
-            assertSame(var.type, avar->type());
-            assertInt(var.type);
-
-              VISIT(expr->left());
-              STORE_VAR(var);
-            pop(var.type);
-            BIND(begin);
-              VISIT(expr->right());
-              LOAD_VAR(var);
-            pop(var.type);
-              ADD_BRANCH(G, end);
-        }
+    virtual void visitBlockNode(BlockNode * node) {
+        initVarScope(node->scope());
+        updateFunScope(node->scope());
 
         for (uint16_t i = 0; i < node->nodes(); ++i) {
               VISIT(node->nodeAt(i));
-        }
-
-        if (fnode != NULL) {
-            AstVar const * avar = fnode->var();
-            Var var = var_scope->findVar(avar->name());
-
-              LOAD_VAR(var);
-              ADD_INSN(ILOAD1);
-              ADD_INSN_ID(, ADD, VT_INT);
-              STORE_VAR(var);
-
-              ADD_BRANCH_JA(begin);
-            BIND(end);
         }
 
         VarScope * var_old = var_scope;
@@ -481,14 +477,62 @@ public:
         delete var_old;
     }
 
-    virtual void visitFunctionNode(FunctionNode * node) { // TODO
+    virtual void visitForNode(ForNode * fnode) {
+        BlockNode * node = fnode->body();
+        Label begin(bc());
+        Label end(bc());
 
+        initVarScope(node->scope());
+        updateFunScope(node->scope());
+
+        AstVar const * avar = fnode->var();
+        assertInt(avar->type());
+        BinaryOpNode * expr = fnode->inExpr()->asBinaryOpNode();
+        if (expr == NULL || expr->kind() != tRANGE) {
+            throw logic_error("Bad For loop expression");
+        }
+
+        Var var = var_scope->findVar(avar->name());
+        assertSame(var.type, avar->type());
+        assertInt(var.type);
+
+          VISIT(expr->left());
+          STORE_VAR(var);
+        pop(var.type);
+        BIND(begin);
+          VISIT(expr->right());
+          LOAD_VAR(var);
+        pop(var.type);
+          ADD_BRANCH(G, end);
+
+        for (uint16_t i = 0; i < node->nodes(); ++i) {
+              VISIT(node->nodeAt(i));
+        }
+
+          LOAD_VAR(var);
+          ADD_INSN(ILOAD1);
+          ADD_INSN_ID(, ADD, VT_INT);
+          STORE_VAR(var);
+
+          ADD_BRANCH_JA(begin);
+        BIND(end);
+
+        VarScope * var_old = var_scope;
+        var_scope = var_scope->parent;
+        delete var_old;
+    }
+
+    virtual void visitFunctionNode(FunctionNode * node) { // TODO
+        TranslatorVisitor visitor(code, node);
+        BytecodeFunction * result = visitor.run(fun_scope, var_scope);
+
+        fun_scope->addFun(result->id(), result->name(), result->signature());
     }
 
     virtual void visitReturnNode(ReturnNode * node) {
         if (node->returnExpr()) {
               VISIT(node->returnExpr());
-            pop(fun_scope->signature[0].first);
+            pop(root->signature()[0].first);
         }
           ADD_INSN(RETURN);
         assertEmptyStack();
@@ -530,6 +574,10 @@ public:
     }
 
 private: // --------------------------------------------- //
+
+    Bytecode * bc() {
+        return result->bytecode();
+    }
 
     VarType pop() {
         if (fun_scope->stack.size() == 0) {
@@ -619,8 +667,8 @@ Status* BytecodeTranslator::translate(string const & program, Code ** code) {
     } else {
         *code = new CodeImpl();
         AstFunction * root = parser.top();
-        TranslatorVisitor visitor(*code);
-        visitor.run(root);
+        TranslatorVisitor visitor(*code, root->node());
+        visitor.run();
         return NULL;
     }
 
