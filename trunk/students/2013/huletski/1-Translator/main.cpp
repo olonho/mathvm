@@ -28,12 +28,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   
-  const char* expr = "function int ack(int m, int n) { \
-    if (m == 0) { return n + 1; } \
-    if (n == 0) { return ack(m - 1, 1); } \
-    return ack(m - 1, ack(m, n - 1)); \
-    }\
-    print(ack(3, 10), '\n');";
+  const char* expr = "int i; i = 'oe';";
 
 
  /* const char*expr = "int x1; int y; int z;"

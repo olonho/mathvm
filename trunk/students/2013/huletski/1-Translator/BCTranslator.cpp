@@ -11,7 +11,6 @@
 
 using namespace mathvm;
 
-
 Status* BCTranslator::translate(const string& program, Code* *code) {
   Status* status = m_parser.parseProgram(program);
   if (status && status->isError()) { return status; }
@@ -21,5 +20,5 @@ Status* BCTranslator::translate(const string& program, Code* *code) {
   *code = converter.code();
   
   
-  return NULL;
+  return converter.errorStatus();
 }

@@ -25,7 +25,7 @@ using namespace mathvm;
 class StackIsaGenerator {
 public: // methods
 
-  StackIsaGenerator() { fillInstrMap(); }
+  StackIsaGenerator():m_error_status(NULL) { fillInstrMap(); }
   
   void setBC(Bytecode *bc) { m_bc = bc; }
   Bytecode *bc() { return m_bc; }
@@ -49,7 +49,7 @@ public: // methods
       addInsn(req_cnv);
     }
     
-    assert(0); // TODO: throw exception
+    logError(("Unable to convert " + t2s(from) + " to " + t2s(to)).c_str());
   }
   
   inline VarType toBroader(VarType top, VarType next) {
@@ -239,6 +239,8 @@ public: // methods
     m_bc->bind(loop_end);
   }
   
+  inline Status* errorStatus() { return m_error_status; }
+  
 private: // methods
   
   inline void addInsn(Instruction insn) { m_bc->addInsn(insn); }
@@ -256,8 +258,9 @@ private: // methods
       case VT_STRING: return "S";
         
       default:
-        assert(0); //TODO: throw excptn
+        logError("Unable to convert type id to str");
     }
+    return "";
   }
 
   inline void addInsn(string const &name) { m_bc->addInsn(toIns(name)); }
@@ -298,10 +301,15 @@ private: // methods
     m_bc->bind(eos_lbl);
   }
   
+  inline void logError(const char *error) {
+    if (m_error_status) {  return; }
+    m_error_status = new Status(error);
+  }
   
 private: //fields
   map<string, Instruction> m_name_to_instr;
   Bytecode *m_bc;
+  Status *m_error_status;
 };
 
 #endif
