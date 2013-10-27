@@ -170,7 +170,26 @@ void AstToBCTranslator::visitBinaryOpNode(BinaryOpNode* node) {
       }
       break;
     }
-
+      
+    case tINCRSET: case tDECRSET: {
+      new_tos_type = m_isa.toBroader(l_type, r_type);
+      op == tINCRSET ? m_isa.add(new_tos_type) : m_isa.sub(new_tos_type);
+      
+      if (!node->left()->isLoadNode()) {
+        logError("Unexpected left value in binary assignement");
+        return;
+      }
+      
+      const AstVar *var = node->left()->asLoadNode()->var();
+      VarInfo *v_i = (VarInfo *)var->info();
+      uint16_t scope_id = m_curr_funcs.top()->scopeId();
+      
+      m_isa.store(v_i, scope_id);
+      m_isa.load(v_i, scope_id); //need to load since it's is part of expression
+      break;
+    }
+      
+     
     case tRANGE:break; // FIXME: ignore, handle it during for node visiting
     default: logError("Unknown binary instruction"); break;
   }

@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   
-  const char* expr = "int i; i = 'oe';";
+  const char* expr = "int i;int j; j=1; i=3; i += j += 3; print(i, j);";
 
 
  /* const char*expr = "int x1; int y; int z;"
