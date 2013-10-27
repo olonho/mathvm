@@ -38,15 +38,12 @@ public: //methods
   AstToBCTranslator():m_code(new FenrirInterpreter()), m_active_assigments(0) {}
   FenrirInterpreter *code() { return m_code; }
   
-  
-  
 private: //methods
 #define VISITOR_FUNCTION(type, name) virtual void visit##type(type* node);
   FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
   void generateTrueTest(Label *label);
   void handle_function_definition(AstFunction *func);
-  Bytecode* curr_bc();
   inline VarType tos_type() {
     return m_tos_types.size() ? m_tos_types.top() : VT_INVALID;
   }
