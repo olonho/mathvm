@@ -30,7 +30,11 @@ int main(int argc, char *argv[]) {
     }
 
     std::vector<Var*> v;
-    outCode->execute(v);
+    try {
+        outCode->execute(v);
+    } catch(std::string msg) {
+        std::cout << "Interpretation error: " << msg << std::endl;
+    }
 
     return 0;
 }

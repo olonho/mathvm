@@ -29,15 +29,15 @@ public:
 
 class TError {
 public:
-    TError(const std::string &msg, uint32_t pos = -1) : msg(msg), pos(pos) {}
+    TError(const std::string &msg, uint32_t pos = 0) : msg(msg), pos(pos) {}
 
-    static TError logicTypeError(uint32_t p = -1)      { return TError("Unsupported type for logic operation", p); }
-    static TError mathTypeError(uint32_t p = -1)       { return TError("Unsupported type for math operation", p); }
-    static TError forVarError(uint32_t p = -1)         { return TError("Non integer variable in for expression", p); }
-    static TError forNotRangeError(uint32_t p = -1)    { return TError("Non-range type in for expression", p); }
-    static TError forRangeTypeError(uint32_t p = -1)   { return TError("Non-integer range in for expression", p); }
-    static TError mathOpWithNANs(uint32_t p = -1)      { return TError("Math operation with NANs", p); }
-    static TError unsupportedOperation(uint32_t p = -1) { return TError("Unsupported operation", p);
+    static TError logicTypeError(uint32_t p = 0)      { return TError("Unsupported type for logic operation", p); }
+    static TError mathTypeError(uint32_t p = 0)       { return TError("Unsupported type for math operation", p); }
+    static TError forVarError(uint32_t p = 0)         { return TError("Non integer variable in for expression", p); }
+    static TError forNotRangeError(uint32_t p = 0)    { return TError("Non-range type in for expression", p); }
+    static TError forRangeTypeError(uint32_t p = 0)   { return TError("Non-integer range in for expression", p); }
+    static TError mathOpWithNANs(uint32_t p = 0)      { return TError("Math operation with NANs", p); }
+    static TError unsupportedOperation(uint32_t p = 0) { return TError("Unsupported operation", p);
     }
 
     std::string msg;
@@ -65,7 +65,6 @@ Status *BCTranslator::translate(const string &program, Code **code) {
 }
 
 void BCTranslator::translateFunction(AstFunction *f) {
-//    BytecodeFunction *bcf = new BytecodeFunction(f);
     BytecodeFunction *bcf = (BytecodeFunction*)code->functionByName(f->name());
     if(!bcf) {
         bcf = new BytecodeFunction(f);
@@ -77,6 +76,8 @@ void BCTranslator::translateFunction(AstFunction *f) {
     for(Signature::const_iterator i = bcf->signature().begin() + 1; i != bcf->signature().end(); ++i) {
         AstVar *v = f->scope()->lookupVariable(i->second);
         currentScope->addVar(v);
+        //we should check stack types here, but we can't as we don't have type stack
+        //so test /additional/fail/function-cast.mvm prints string pointer as int
         storeVar(v);
     }
 
@@ -360,6 +361,7 @@ void BCTranslator::visitWhileNode(WhileNode *node) {
 void BCTranslator::processVar(const AstVar *var, bool loading) {
     std::pair<uint16_t, TScope*> scopeVar = currentScope->getVar(var);
 
+//    if(!loading && tosType != var->type()) convertTOSType(var->type());
     if(SCOPEVAR_CTX(scopeVar) == currentScope->function->id()) {
         switch(SCOPEVAR_ID(scopeVar)) {
         case 0: currentBC()->addInsn(MAKE_INSN_SEL(loading, BC_LOAD, BC_STORE, var->type(), VAR0)); break;

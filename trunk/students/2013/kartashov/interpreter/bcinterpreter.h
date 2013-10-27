@@ -124,6 +124,7 @@ private:
     //------------------------------------------------------------
 
     Any popStack() {
+        if(pstack.empty()) throw std::string("Empty stack detected");
         Any res = pstack.top();
         pstack.pop();
         return res;

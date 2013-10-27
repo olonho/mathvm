@@ -16,5 +16,5 @@ all: $(MVM) printer
 $(MVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)
 	
-printer: $(MATHVM_OBJ) $(USER_OBJ)
+printer: bcprinter.cpp $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $(OBJ)/bcprinter $(INCLUDE) bcprinter.cpp $(MATHVM_OBJ) $(OBJ)/bctranslator$(OBJ_SUFF) $(OBJ)/bcinterpreter$(OBJ_SUFF) $(LIBS)
