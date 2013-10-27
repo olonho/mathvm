@@ -38,7 +38,7 @@ void AstToBCTranslator::handle_function_definition(AstFunction *func) {
   
   func->node()->visit(this);
   
-  ///curr_bc()->dump(std::cout);
+  //curr_bc()->dump(std::cout);
   m_curr_funcs.pop();
   m_isa.setBC(m_curr_funcs.size() ? m_curr_funcs.top()->bytecode() : NULL);
   
@@ -50,7 +50,7 @@ void AstToBCTranslator::visitBlockNode(BlockNode* node) {
   uint16_t scope_id = m_curr_funcs.top()->scopeId();
   uint16_t assigned_locals = m_curr_funcs.top()->localsNumber();
   Scope::VarIterator vi(node->scope());
-	while (vi.hasNext()) {
+  while (vi.hasNext()) {
     //assign to each variable a unique location
     AstVar *var = vi.next();
 
@@ -60,10 +60,9 @@ void AstToBCTranslator::visitBlockNode(BlockNode* node) {
 
   // NB: function processing should be done after vars since funcs may use vars
   Scope::FunctionIterator fi(node->scope());
-	while (fi.hasNext()) { handle_function_definition(fi.next()); }
+  while (fi.hasNext()) { handle_function_definition(fi.next()); }
 
-  
-	AstBaseVisitor::visitBlockNode(node);
+  AstBaseVisitor::visitBlockNode(node);
 }
 
 void AstToBCTranslator::visitFunctionNode(FunctionNode *node) {
@@ -218,71 +217,72 @@ void AstToBCTranslator::visitIntLiteralNode(IntLiteralNode* node) {
 #pragma mark - Control Structures Translation
 
 void AstToBCTranslator::visitIfNode(IfNode* node) {
-  Label else_lbl(curr_bc());
+  Bytecode cond_blk;
+  Bytecode then_blk;
+  Bytecode else_blk;
+  Bytecode *tmp_bc = m_isa.bc();
   
   ++m_active_assigments;
+  m_isa.setBC(&cond_blk);
   node->ifExpr()->visit(this);
+  VarType cond_tos_type = tos_type();
   --m_active_assigments;
   
-  m_isa.tosToInt(tos_type());
-  m_isa.tosTrueCheck(&else_lbl);
+  m_isa.setBC(&then_blk);
   node->thenBlock()->visit(this);
   
   if (node->elseBlock()) {
-    Label eos_lbl(curr_bc()); // end of statement label
-    curr_bc()->addBranch(BC_JA, eos_lbl);
-    curr_bc()->bind(else_lbl);
+    m_isa.setBC(&else_blk);
     node->elseBlock()->visit(this);
-    curr_bc()->bind(eos_lbl);
-  } else {
-    curr_bc()->bind(else_lbl);
   }
+  
+  m_isa.setBC(tmp_bc);
+  m_isa.ifStmnt(cond_tos_type, &cond_blk, &then_blk, &else_blk);
 }
 
 void AstToBCTranslator::visitWhileNode(WhileNode* node) {
-  Label loop_end(curr_bc());
-  Label loop_start = curr_bc()->currentLabel();
+  Bytecode cond_blk;
+  Bytecode body_blk;
+  Bytecode *tmp_bc = m_isa.bc();
   
   ++m_active_assigments;
+  m_isa.setBC(&cond_blk);
   node->whileExpr()->visit(this);
+  VarType cond_tos_type = tos_type();
   --m_active_assigments;
   
-  m_isa.tosToInt(tos_type());
-  m_isa.tosTrueCheck(&loop_end);
+  m_isa.setBC(&body_blk);
   node->loopBlock()->visit(this);
-  curr_bc()->addInsn(BC_JA);
-  curr_bc()->addInt16(loop_start.offsetOf(curr_bc()->current()));
-  curr_bc()->bind(loop_end);
+  
+  m_isa.setBC(tmp_bc);
+  m_isa.whileStmnt(cond_tos_type, &cond_blk, &body_blk);
 }
 
 void AstToBCTranslator::visitForNode(ForNode* node) {
   assert (node->inExpr()->isBinaryOpNode() &&
           node->inExpr()->asBinaryOpNode()->kind() == tRANGE);
+ 
+  Bytecode init_val;
+  Bytecode last_val;
+  Bytecode body_blk;
+  Bytecode *tmp_bc = m_isa.bc();
+  
   BinaryOpNode *bon = node->inExpr()->asBinaryOpNode();
   
   ++m_active_assigments;
+  m_isa.setBC(&init_val);
   bon->left()->visit(this);
-  m_isa.store((VarInfo *)node->var()->info(), m_curr_funcs.top()->scopeId());
-
-  Label loop_start = curr_bc()->currentLabel();
-  Label loop_end(curr_bc());
-  m_isa.load((VarInfo *)node->var()->info(), m_curr_funcs.top()->scopeId());
+  m_isa.setBC(&last_val);
   bon->right()->visit(this);
-  m_isa.pushInt(1);
-  m_isa.add(VT_INT);
+  --m_active_assigments;
   
-  m_isa.cmp(node->var()->type());
-  m_isa.tosTrueCheck(&loop_end);
+  m_isa.setBC(&body_blk);
   node->body()->visit(this);
   
-  m_isa.load((VarInfo *)node->var()->info(), m_curr_funcs.top()->scopeId());
-  m_isa.pushInt(1);
-  m_isa.add(VT_INT);
-  m_isa.store((VarInfo *)node->var()->info(), m_curr_funcs.top()->scopeId());
-  
-  curr_bc()->addInsn(BC_JA);
-  curr_bc()->addInt16(loop_start.offsetOf(curr_bc()->current()));
-  curr_bc()->bind(loop_end);
+  m_isa.setBC(tmp_bc);
+  m_isa.forStmnt((VarInfo *)node->var()->info(),
+                 m_curr_funcs.top()->scopeId(),
+                 &init_val, &last_val, &body_blk);
 }
 
 #pragma mark - Func Calls Translation

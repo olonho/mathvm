@@ -28,6 +28,7 @@ public: // methods
   StackIsaGenerator() { fillInstrMap(); }
   
   void setBC(Bytecode *bc) { m_bc = bc; }
+  Bytecode *bc() { return m_bc; }
 
   inline void print(VarType const &type) {
     m_bc->addInsn(toIns(t2s(type) + "PRINT"));
@@ -106,7 +107,6 @@ public: // methods
     m_bc->addInt64(val);
   }
 
-  
   inline void add(VarType type) { addInsn(t2s(type) + "ADD"); }
   inline void sub(VarType type) { addInsn(t2s(type) + "SUB"); }
   inline void mul(VarType type) { addInsn(t2s(type) + "MUL"); }
@@ -171,7 +171,83 @@ public: // methods
   inline void addInsn(Instruction insn) { m_bc->addInsn(insn); }
   inline void addUInt16(uint16_t offset) { m_bc->addUInt16(offset); }
   
+  inline void ifStmnt(VarType cond_tos, Bytecode *cond,
+                      Bytecode *then_blk, Bytecode *else_blk) {
+    
+    Label else_lbl(m_bc);
+    
+    addBytecodeToCurrent(cond);
+    
+    tosToInt(cond_tos);
+    tosTrueCheck(&else_lbl);
+
+    addBytecodeToCurrent(then_blk);
+    
+    if (else_blk) {
+      Label eos_lbl(m_bc); // end of statement label
+      m_bc->addBranch(BC_JA, eos_lbl);
+      m_bc->bind(else_lbl);
+      addBytecodeToCurrent(else_blk);
+      m_bc->bind(eos_lbl);
+    } else {
+      m_bc->bind(else_lbl);
+    }
+  }
+  
+  
+  inline void whileStmnt(VarType cond_tos, Bytecode *cond, Bytecode *body) {
+    Label loop_end(m_bc);
+    Label loop_start = m_bc->currentLabel();
+    
+    addBytecodeToCurrent(cond);
+    
+    tosToInt(cond_tos);
+    tosTrueCheck(&loop_end);
+    
+    addBytecodeToCurrent(body);
+    
+    m_bc->addInsn(BC_JA);
+    m_bc->addInt16(loop_start.offsetOf(m_bc->current()));
+    m_bc->bind(loop_end);
+  }
+  
+  inline void forStmnt(VarInfo *ind_var_info, uint16_t fn_sc_id,
+                       Bytecode *init_val, Bytecode *last_val,
+                       Bytecode *body_blk) {
+
+    addBytecodeToCurrent(init_val);
+    store(ind_var_info, fn_sc_id);
+    
+    Label loop_start = m_bc->currentLabel();
+    Label loop_end(m_bc);
+    load(ind_var_info, fn_sc_id);
+    addBytecodeToCurrent(last_val);
+    
+    pushInt(1);
+    add(VT_INT);
+    
+    cmp(ind_var_info->type);
+    tosTrueCheck(&loop_end);
+    addBytecodeToCurrent(body_blk);
+    
+    load(ind_var_info, fn_sc_id);
+    pushInt(1);
+    add(VT_INT);
+    store(ind_var_info, fn_sc_id);
+    
+    addInsn(BC_JA);
+    m_bc->addInt16(loop_start.offsetOf(m_bc->current()));
+    m_bc->bind(loop_end);
+  }
+  
 private: // methods
+  
+  void addBytecodeToCurrent(Bytecode *bc) {
+    for (uint32_t i = 0; i < bc->length(); i += 1) {
+      m_bc->add(bc->getByte(i));
+    }
+  }
+  
   string t2s(VarType const & type) {
     switch (type) {
       case VT_DOUBLE: return "D";

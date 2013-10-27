@@ -13,7 +13,7 @@ using namespace mathvm;
 
 
 Status* BCTranslator::translate(const string& program, Code* *code) {
-	Status* status = m_parser.parseProgram(program);
+  Status* status = m_parser.parseProgram(program);
   if (status && status->isError()) { return status; }
   AstToBCTranslator converter;
   converter.convert(m_parser.top());
