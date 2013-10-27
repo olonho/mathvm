@@ -29,14 +29,17 @@ class AstToBCTranslator: public AstBaseVisitor {
 
 public: //methods
   Status *convert(AstFunction *main) {
+    m_err_status = NULL;
+    
     handle_function_definition(main);
-  
     m_code->prepareForExec(m_scopes.size());
-    return NULL; // TODO: impl proper status
+    
+    return m_err_status; // TODO: impl proper status
   }
   
   AstToBCTranslator():m_code(new FenrirInterpreter()), m_active_assigments(0) {}
   FenrirInterpreter *code() { return m_code; }
+  inline Status* errorStatus() { return m_err_status; }
   
 private: //methods
 #define VISITOR_FUNCTION(type, name) virtual void visit##type(type* node);
@@ -56,11 +59,16 @@ private: //methods
     return m_funcAddr2Id[func_key];
   }
   
+  inline void logError(const char *error) {
+    if (m_err_status) {  return; }
+    m_err_status = new Status(error);
+  }
   
 private: //fields
   FenrirInterpreter *m_code;
   StackIsaGenerator m_isa;
   unsigned m_active_assigments;
+  Status *m_err_status;
   
   std::stack<VarType> m_tos_types;
   std::stack<BytecodeFunction *> m_curr_funcs;

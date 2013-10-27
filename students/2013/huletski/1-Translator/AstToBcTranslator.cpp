@@ -42,6 +42,9 @@ void AstToBCTranslator::handle_function_definition(AstFunction *func) {
   m_curr_funcs.pop();
   m_isa.setBC(m_curr_funcs.size() ? m_curr_funcs.top()->bytecode() : NULL);
   
+  if (!m_err_status && m_isa.errorStatus()) {
+    m_err_status = m_isa.errorStatus();
+  }
 }
 
 void AstToBCTranslator::visitBlockNode(BlockNode* node) {
@@ -83,7 +86,7 @@ void AstToBCTranslator::visitLoadNode(LoadNode* node) {
   VarInfo *v_i = (VarInfo *)node->var()->info();
   VarType v_type = node->var()->type();
   
-  assert(v_i->scope_id <= m_curr_funcs.top()->scopeId());
+  //assert(v_i->scope_id <= m_curr_funcs.top()->scopeId()); // programmer error
   m_isa.load(v_i, m_curr_funcs.top()->scopeId());
   m_tos_types.push(v_type);
 }
@@ -98,8 +101,8 @@ void AstToBCTranslator::visitStoreNode(StoreNode* node) {
   VarType v_type = node->var()->type();
   uint16_t scope_id = m_curr_funcs.top()->scopeId();
   
+  m_isa.convert(tos_type(), v_type);
   if (node->op() != tASSIGN) {
-    m_isa.convert(tos_type(), v_type);
     m_isa.load(v_i, scope_id);
     node->op() == tINCRSET ? m_isa.add(v_type) : m_isa.sub(v_type);
   }
@@ -142,7 +145,7 @@ void AstToBCTranslator::visitBinaryOpNode(BinaryOpNode* node) {
         case tAAND: m_isa.aand(); break;
         case tAXOR: m_isa.axor(); break;
           
-        default: assert(0); // missed case
+        default: assert(0); //programmer error
       }
       break;
     }
@@ -163,13 +166,13 @@ void AstToBCTranslator::visitBinaryOpNode(BinaryOpNode* node) {
         case tMUL: m_isa.mul(new_tos_type); break;
         case tDIV: m_isa.div(new_tos_type); break;
 
-        default: assert(0); // missed case
+        default: assert(0); //programmer error
       }
       break;
     }
 
     case tRANGE:break; // FIXME: ignore, handle it during for node visiting
-    default: ;//TODO: err
+    default: logError("Unknown binary instruction"); break;
   }
   
   m_tos_types.pop();
@@ -257,8 +260,11 @@ void AstToBCTranslator::visitWhileNode(WhileNode* node) {
 }
 
 void AstToBCTranslator::visitForNode(ForNode* node) {
-  assert (node->inExpr()->isBinaryOpNode() &&
-          node->inExpr()->asBinaryOpNode()->kind() == tRANGE);
+  if (!node->inExpr()->isBinaryOpNode() ||
+      node->inExpr()->asBinaryOpNode()->kind() != tRANGE) {
+    logError("For node have unexpected structure");
+    return;
+  }
  
   Bytecode init_val;
   Bytecode last_val;
@@ -302,5 +308,5 @@ void AstToBCTranslator::visitCallNode(CallNode* node) {
 }
 
 void AstToBCTranslator::visitNativeCallNode(NativeCallNode* node) {
-  //TODO: implement me
+  //TODO: implement me!
 }
