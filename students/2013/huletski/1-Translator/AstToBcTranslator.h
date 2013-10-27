@@ -35,7 +35,7 @@ public: //methods
     return NULL; // TODO: impl proper status
   }
   
-  AstToBCTranslator():m_active_assigments(0), m_code(new FenrirInterpreter()) {}
+  AstToBCTranslator():m_code(new FenrirInterpreter()), m_active_assigments(0) {}
   FenrirInterpreter *code() { return m_code; }
   
   
@@ -61,17 +61,15 @@ private: //methods
   
   
 private: //fields
+  FenrirInterpreter *m_code;
   StackIsaGenerator m_isa;
   unsigned m_active_assigments;
-  FenrirInterpreter *m_code;  
-
+  
   std::stack<VarType> m_tos_types;
   std::stack<BytecodeFunction *> m_curr_funcs;
   std::vector<Scope *> m_scopes;
   
   std::map<uint64_t, uint16_t> m_funcAddr2Id;
 };
-
-
 
 #endif /* defined(__VM_2__AstToBCConverter__) */
