@@ -114,10 +114,11 @@ public: // methods
   inline void mod(VarType type) { addInsn(t2s(type) + "MOD"); }
   inline void neg(VarType type) { addInsn(t2s(type) + "NEG"); }
   inline void cmp(VarType type) { addInsn(t2s(type) + "CMP"); }
-  
+
+  inline void rtrn() { addInsn(BC_RETURN); }
+  inline void call() { addInsn(BC_CALL); }
   inline void aand() { addInsn(BC_IAAND); }
   inline void aor() { addInsn(BC_IAOR); }
-
   inline void axor() { addInsn(BC_IAXOR); }
 
   
@@ -167,8 +168,6 @@ public: // methods
     m_bc->addBranch(BC_IFICMPE, *check_fail_code);
   }
   
-  
-  inline void addInsn(Instruction insn) { m_bc->addInsn(insn); }
   inline void addUInt16(uint16_t offset) { m_bc->addUInt16(offset); }
   
   inline void ifStmnt(VarType cond_tos, Bytecode *cond,
@@ -241,6 +240,8 @@ public: // methods
   }
   
 private: // methods
+  
+  inline void addInsn(Instruction insn) { m_bc->addInsn(insn); }
   
   void addBytecodeToCurrent(Bytecode *bc) {
     for (uint32_t i = 0; i < bc->length(); i += 1) {

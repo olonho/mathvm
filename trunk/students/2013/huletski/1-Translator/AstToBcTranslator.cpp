@@ -44,8 +44,6 @@ void AstToBCTranslator::handle_function_definition(AstFunction *func) {
   
 }
 
-Bytecode* AstToBCTranslator::curr_bc() { return m_curr_funcs.top()->bytecode(); }
-
 void AstToBCTranslator::visitBlockNode(BlockNode* node) {
   uint16_t scope_id = m_curr_funcs.top()->scopeId();
   uint16_t assigned_locals = m_curr_funcs.top()->localsNumber();
@@ -116,7 +114,7 @@ void AstToBCTranslator::visitReturnNode(ReturnNode* node) {
     --m_active_assigments;
   }
   
-  m_isa.addInsn(BC_RETURN);
+  m_isa.rtrn();
 }
 
 void AstToBCTranslator::visitBinaryOpNode(BinaryOpNode* node) {
@@ -296,9 +294,7 @@ void AstToBCTranslator::visitCallNode(CallNode* node) {
   }
   --m_active_assigments;
   
-  
-  //TODO: move to ISA
-  m_isa.addInsn(BC_CALL);
+  m_isa.call();
   
   Scope *nearest_scope = m_scopes[m_curr_funcs.top()->scopeId()];
   uint64_t func_addr = (uint64_t)nearest_scope->lookupFunction(node->name());
@@ -307,5 +303,4 @@ void AstToBCTranslator::visitCallNode(CallNode* node) {
 
 void AstToBCTranslator::visitNativeCallNode(NativeCallNode* node) {
   //TODO: implement me
-  //m_code.makeNativeFunction(node->nativeName(), node->nativeSignature(), ;)
 }
