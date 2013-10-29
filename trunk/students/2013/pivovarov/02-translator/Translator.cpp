@@ -396,7 +396,7 @@ public:
             case tAAND:     // &
             case tAOR:      // |
             case tAXOR:     // ^
-                processIntOperator(node->kind(), type);
+                  processIntOperator(node->kind(), type);
                 return;
             case tNEQ:      // !=
             case tEQ:       // ==
@@ -405,13 +405,13 @@ public:
             case tLT:       // <
             case tLE:       // <=
                   processLogicOperator(node->kind(), type);
-                  return;
+                return;
             case tADD:      // +
             case tSUB:      // -
             case tMUL:      // *
             case tDIV:      // /
             case tMOD:      // %
-                processArithmeticOperator(node->kind(), type);
+                  processArithmeticOperator(node->kind(), type);
                 return;
             default:
                 throw logic_error("BinaryOp: unknown kind " + int2str(node->kind()));
