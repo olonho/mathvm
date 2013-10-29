@@ -259,6 +259,14 @@ class TranslatorVisitor : AstVisitor {
     }
 
     void processLogicOperator(TokenKind const & token, VarType const & type) {
+        assertArithmetic(type);
+
+        if (token == tNEQ) {
+              ADD_INSN_ID(, CMP, type);
+            push(VT_INT);
+            return;
+        }
+
         Label end(bc());
         Label no(bc());
 
@@ -266,19 +274,17 @@ class TranslatorVisitor : AstVisitor {
           ADD_INSN(ILOAD0);
 
         switch(token) {
-            case tEQ:
+            case tEQ:   // ==
                   ADD_BRANCH(E, no); break;
-            case tNEQ:
-                  ADD_BRANCH(NE, no); break;
-            case tGT:
+            case tGT:   // >
                   ADD_BRANCH(G, no); break;
-            case tGE:
+            case tGE:   // >=
                   ADD_BRANCH(GE, no); break;
-            case tLT:
+            case tLT:   // <
                   ADD_BRANCH(L, no); break;
-            case tLE:
+            case tLE:   // <=
                   ADD_BRANCH(LE, no); break;
-            default: throw logic_error("Unknown Logic token: " + int2str(token));
+            default: throw logic_error("Unknown logic token: " + int2str(token));
         }
 
           ADD_INSN(ILOAD1);
@@ -286,8 +292,49 @@ class TranslatorVisitor : AstVisitor {
         BIND(no);
           ADD_INSN(ILOAD0);
         BIND(end);
+
         push(VT_INT);
-        return;
+    }
+
+    void processIntOperator(TokenKind const & token, VarType const & type) {
+        assertInt(type);
+
+        switch(token) {
+            case tOR:    // ||
+                  ADD_INSN(IAOR); break;
+            case tAND:   // &&
+                  ADD_INSN(IMUL); break;
+            case tAAND:  // &
+                  ADD_INSN(IAAND); break;
+            case tAOR:   // |
+                  ADD_INSN(IAOR); break;
+            case tAXOR:  // ^
+                  ADD_INSN(IAXOR); break;
+            default: throw logic_error("Bad int token: " + int2str(token));
+        }
+
+        push(VT_INT);
+    }
+
+    void processArithmeticOperator(TokenKind const & token, VarType const & type) {
+        assertArithmetic(type);
+
+        switch(token) {
+            case tADD:      // +
+                  ADD_INSN_ID(, ADD, type); break;
+            case tSUB:      // -
+                  ADD_INSN_ID(, SUB, type); break;
+            case tMUL:      // *
+                  ADD_INSN_ID(, MUL, type); break;
+            case tDIV:      // /
+                  ADD_INSN_ID(, DIV, type); break;
+            case tMOD:      // %
+                assertInt(type);
+                  ADD_INSN(IMOD); break;
+            default: throw logic_error("Bad arithmetic token: " + int2str(token));
+        }
+
+        push(type);
     }
 
     Code * code;
@@ -338,69 +385,33 @@ public:
         VISIT(node->left());
 
         assertSame(top(0), top(1));
-        assertArithmetic(top());
 
         VarType type = top();
         pop();
         pop();
 
         switch(node->kind()) {
-            case tOR:       //"||"
-                assertInt(type);
-                  ADD_INSN(IAOR);
-                push(VT_INT);
+            case tOR:       // ||
+            case tAND:      // &&
+            case tAAND:     // &
+            case tAOR:      // |
+            case tAXOR:     // ^
+                processIntOperator(node->kind(), type);
                 return;
-            case tAND:      //"&&"
-                assertInt(type);
-                  ADD_INSN(IMUL);
-                push(VT_INT);
-                return;
-            case tAAND:     //"&"
-                assertInt(type);
-                  ADD_INSN(IAAND);
-                push(VT_INT);
-                return;
-            case tAOR:      //"|"
-                assertInt(type);
-                  ADD_INSN(IAOR);
-                push(VT_INT);
-                return;
-            case tAXOR:     //"^"
-                assertInt(type);
-                  ADD_INSN(IAXOR);
-                push(VT_INT);
-                return;
-            case tNEQ:      //"!="
-                  ADD_INSN_ID(, CMP, type);
-                push(VT_INT);
-                return;
-            case tEQ:       //"=="
-            case tGT:       //">"
-            case tGE:       //">="
-            case tLT:       //"<"
-            case tLE:       //"<="
+            case tNEQ:      // !=
+            case tEQ:       // ==
+            case tGT:       // >
+            case tGE:       // >=
+            case tLT:       // <
+            case tLE:       // <=
                   processLogicOperator(node->kind(), type);
                   return;
-            case tADD:      //"+"
-                  ADD_INSN_ID(, ADD, type);
-                push(type);
-                return;
-            case tSUB:      //"-"
-                  ADD_INSN_ID(, SUB, type);
-                push(type);
-                return;
-            case tMUL:      //"*"
-                  ADD_INSN_ID(, MUL, type);
-                push(type);
-                return;
-            case tDIV:      //"/"
-                  ADD_INSN_ID(, DIV, type);
-                push(type);
-                return;
-            case tMOD:      //"%"
-                assertInt(type);
-                  ADD_INSN(IMOD);
-                push(type);
+            case tADD:      // +
+            case tSUB:      // -
+            case tMUL:      // *
+            case tDIV:      // /
+            case tMOD:      // %
+                processArithmeticOperator(node->kind(), type);
                 return;
             default:
                 throw logic_error("BinaryOp: unknown kind " + int2str(node->kind()));
@@ -474,12 +485,12 @@ public:
             case tASSIGN:
                 break;
             case tINCRSET:
-                LOAD_VAR(var);
-                ADD_INSN_ID(, ADD, var.type);
+                  LOAD_VAR(var);
+                  ADD_INSN_ID(, ADD, var.type);
                 break;
             case tDECRSET:
-                LOAD_VAR(var);
-                ADD_INSN_ID(, SUB, var.type);
+                  LOAD_VAR(var);
+                  ADD_INSN_ID(, SUB, var.type);
                 break;
             default: throw logic_error("StoreNode: unknown op");
         }
