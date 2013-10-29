@@ -51,6 +51,12 @@ bool isArithmeticType(VarType const & type) {
     return type == VT_INT || type == VT_DOUBLE;
 }
 
+void assertVoid(VarType const & type) {
+    if (type != VT_VOID) {
+        throw logic_error("assertVoid: " + type2str(type));
+    }
+}
+
 void assertInt(VarType const & type) {
     if (type != VT_INT) {
         throw logic_error("assertInt: " + type2str(type));
@@ -231,14 +237,14 @@ class TranslatorVisitor : AstVisitor {
         while(fit.hasNext()) {
             FunctionNode * node = fit.next()->node();
 
-            funs.push_back(shared_ptr<TranslatorVisitor>(new TranslatorVisitor(code, node)));
+            funs.push_back(shared_ptr<TranslatorVisitor>(new TranslatorVisitor(this, node)));
 
             BytecodeFunction * result = funs.back()->function();
             fun_scope->addFun(result->id(), result->name(), result->signature());
         }
 
         for (uint16_t i = 0; i < funs.size(); ++i) {
-            funs[i]->run(fun_scope, var_scope);
+            funs[i]->run();
         }
     }
 
@@ -354,11 +360,24 @@ class TranslatorVisitor : AstVisitor {
     shared_ptr<VarScope> var_scope;
     shared_ptr<FunScope> fun_scope;
 
+    bool isRoot;
 public:
     TranslatorVisitor(Code * code, FunctionNode * root)
-        : code(code), root(root) {
+        : code(code), root(root), isRoot(true) {
             result = new BytecodeFunction(root->name(), root->signature());
             code->addFunction(result);
+
+            fun_scope = shared_ptr<FunScope>(new FunScope(shared_ptr<FunScope>(), result->id()));
+            var_scope = shared_ptr<VarScope>();
+        }
+
+    TranslatorVisitor(TranslatorVisitor * parent, FunctionNode * root)
+        : code(parent->code), root(root), isRoot(false) {
+            result = new BytecodeFunction(root->name(), root->signature());
+            code->addFunction(result);
+
+            fun_scope = shared_ptr<FunScope>(new FunScope(parent->fun_scope, result->id()));
+            var_scope = parent->var_scope;
         }
 
     virtual ~TranslatorVisitor() {}
@@ -367,10 +386,7 @@ public:
         return result;
     }
 
-    void run(shared_ptr<FunScope> fun_parent = shared_ptr<FunScope>(), shared_ptr<VarScope> var_parent = shared_ptr<VarScope>()) {
-        fun_scope = shared_ptr<FunScope>(new FunScope(fun_parent, result->id()));
-        var_scope = var_parent;
-
+    void run() {
         BlockNode * node = root->body();
         var_scope = initVarScope(node->scope());
 
@@ -386,6 +402,9 @@ public:
         updateFunScope(node->scope());
 
         processBlockNode(node);
+        if (isRoot) {
+              ADD_INSN(STOP);
+        }
 
         var_scope = var_scope->parent;
     }
@@ -617,7 +636,12 @@ public:
               VISIT(node->returnExpr());
             pop(root->signature()[0].first);
         }
-          ADD_INSN(RETURN);
+        if (isRoot) {
+            assertVoid(root->signature()[0].first);
+              ADD_INSN(STOP);
+        } else {
+              ADD_INSN(RETURN);
+        }
 
         assertEmptyStack();
     }
