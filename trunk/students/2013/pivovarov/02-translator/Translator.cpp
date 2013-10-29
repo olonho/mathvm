@@ -376,7 +376,7 @@ public:
             result = new BytecodeFunction(root->name(), root->signature());
             code->addFunction(result);
 
-            fun_scope = shared_ptr<FunScope>(new FunScope(parent->fun_scope, result->id()));
+            fun_scope = shared_ptr<FunScope>(new FunScope(parent->funsk_scope, result->id()));
             var_scope = parent->var_scope;
         }
 
@@ -733,10 +733,15 @@ private: // --------------------------------------------- //
     #undef ADD_INSN_IDS
     #undef ADD_INSN_ID
     #undef ADD_INSN
+    #undef ADD_U16
+    #undef ADD_U64
+    #undef ADD_DOUBLE
     #undef ADD_BRANCH
     #undef ADD_BRANCH_JA
     #undef BIND
     #undef VISIT
+    #undef LOAD_VAR
+    #undef STORE_VAR
 };
 
 Status* BytecodeTranslator::translate(string const & program, Code ** code) {
