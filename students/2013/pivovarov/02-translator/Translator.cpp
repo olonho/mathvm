@@ -353,7 +353,7 @@ class TranslatorVisitor : AstVisitor {
         push(type);
     }
 
-    Code * code;
+    CodeImpl * code;
     FunctionNode * root;
 
     BytecodeFunction * result;
@@ -362,7 +362,7 @@ class TranslatorVisitor : AstVisitor {
 
     bool isRoot;
 public:
-    TranslatorVisitor(Code * code, FunctionNode * root)
+    TranslatorVisitor(CodeImpl * code, FunctionNode * root)
         : code(code), root(root), isRoot(true) {
             result = new BytecodeFunction(root->name(), root->signature());
             code->addFunction(result);
@@ -376,7 +376,7 @@ public:
             result = new BytecodeFunction(root->name(), root->signature());
             code->addFunction(result);
 
-            fun_scope = shared_ptr<FunScope>(new FunScope(parent->funsk_scope, result->id()));
+            fun_scope = shared_ptr<FunScope>(new FunScope(parent->fun_scope, result->id()));
             var_scope = parent->var_scope;
         }
 
@@ -407,6 +407,7 @@ public:
         }
 
         var_scope = var_scope->parent;
+        code->addFunctionData(fun_scope->id, FunctionData(fun_scope->vars_count));
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode * node) {
@@ -750,14 +751,16 @@ Status* BytecodeTranslator::translate(string const & program, Code ** code) {
     if (status && status->isError()) {
         return status;
     } else {
-        *code = new CodeImpl();
+        CodeImpl * codeImpl = new CodeImpl();
         AstFunction * root = parser.top();
-        TranslatorVisitor visitor(*code, root->node());
+        TranslatorVisitor visitor(codeImpl, root->node());
         try {
             visitor.run();
         } catch(logic_error & e) {
+            delete codeImpl;
             return new Status(e.what());
         }
+        *code = codeImpl;
         return new Status();
     }
 }
