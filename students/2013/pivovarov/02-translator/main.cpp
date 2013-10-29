@@ -6,7 +6,6 @@
 #include <sys/stat.h>
 
 #include <iostream>
-#include "Translator.h"
 
 using namespace mathvm;
 using namespace std;
@@ -23,8 +22,8 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	Code* code;
-	BytecodeTranslator translator;
+	Code * code;
+	BytecodeTranslatorImpl translator;
 
 	Status * status = translator.translate(program, &code);
 	if (status->isError()) {

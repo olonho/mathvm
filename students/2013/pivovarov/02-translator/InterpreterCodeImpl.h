@@ -15,19 +15,11 @@ struct FunctionData {
     uint16_t stack_size;
 };
 
-class CodeImpl : public Code {
+class InterpreterCodeImpl : public Code {
     map<uint16_t, FunctionData> funsData;
 public:
-    CodeImpl() {}
-    virtual ~CodeImpl() {}
-
-    /**
-     * Execute this code with passed parameters, and update vars
-     * in array with new values from topmost scope, if code says so.
-     */
-    Status * execute(vector<Var*> & vars) {
-        return NULL;
-    }
+    InterpreterCodeImpl() {}
+    virtual ~InterpreterCodeImpl() {}
 
     void addFunctionData(uint16_t id, FunctionData data) {
         if ( !funsData.insert(make_pair(id, data)).second ) {
@@ -45,6 +37,12 @@ public:
 
         throw logic_error("FunctionData not found: " + id);
     }
+
+    /**
+     * Execute this code with passed parameters, and update vars
+     * in array with new values from topmost scope, if code says so.
+     */
+    Status * execute(vector<Var*> & vars);
 };
 
 }

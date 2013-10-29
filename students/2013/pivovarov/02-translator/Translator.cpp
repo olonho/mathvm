@@ -1,6 +1,9 @@
-#include "Translator.h"
+#include "InterpreterCodeImpl.h"
 
-#include "CodeImpl.h"
+#include "ast.h"
+#include "mathvm.h"
+#include "visitors.h"
+#include "parser.h"
 
 #include <sstream>
 #include <string>
@@ -353,7 +356,7 @@ class TranslatorVisitor : AstVisitor {
         push(type);
     }
 
-    CodeImpl * code;
+    InterpreterCodeImpl * code;
     FunctionNode * root;
 
     BytecodeFunction * result;
@@ -362,7 +365,7 @@ class TranslatorVisitor : AstVisitor {
 
     bool isRoot;
 public:
-    TranslatorVisitor(CodeImpl * code, FunctionNode * root)
+    TranslatorVisitor(InterpreterCodeImpl * code, FunctionNode * root)
         : code(code), root(root), isRoot(true) {
             result = new BytecodeFunction(root->name(), root->signature());
             code->addFunction(result);
@@ -745,24 +748,27 @@ private: // --------------------------------------------- //
     #undef STORE_VAR
 };
 
-Status* BytecodeTranslator::translate(string const & program, Code ** code) {
+Status * BytecodeTranslatorImpl::translateBytecode(string const & program, InterpreterCodeImpl ** code) {
     Parser parser;
     Status * status = parser.parseProgram(program);
     if (status && status->isError()) {
         return status;
     } else {
-        CodeImpl * codeImpl = new CodeImpl();
+        *code = new InterpreterCodeImpl();
         AstFunction * root = parser.top();
-        TranslatorVisitor visitor(codeImpl, root->node());
+        TranslatorVisitor visitor(*code, root->node());
         try {
             visitor.run();
         } catch(logic_error & e) {
-            delete codeImpl;
+            delete *code;
             return new Status(e.what());
         }
-        *code = codeImpl;
         return new Status();
     }
+}
+
+Status * BytecodeTranslatorImpl::translate(string const & program, Code ** code) {
+    return translateBytecode(program, (InterpreterCodeImpl**)code);
 }
 
 }
