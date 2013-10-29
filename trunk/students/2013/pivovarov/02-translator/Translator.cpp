@@ -270,8 +270,10 @@ class TranslatorVisitor : AstVisitor {
         Label end(bc());
         Label no(bc());
 
+        if (type != VT_INT) {
           ADD_INSN_ID(, CMP, type);
           ADD_INSN(ILOAD0);
+        }
 
         switch(token) {
             case tEQ:   // ==
@@ -287,11 +289,19 @@ class TranslatorVisitor : AstVisitor {
             default: throw logic_error("Unknown logic token: " + int2str(token));
         }
 
-          ADD_INSN(ILOAD1);
-          ADD_BRANCH_JA(end);
-        BIND(no);
-          ADD_INSN(ILOAD0);
-        BIND(end);
+        if (type == VT_INT) {
+              ADD_INSN(ILOAD0);
+              ADD_BRANCH_JA(end);
+            BIND(no);
+              ADD_INSN(ILOAD1);
+            BIND(end);
+        } else { // invert order after 'cmp 0 (cmp x y)'
+              ADD_INSN(ILOAD1);
+              ADD_BRANCH_JA(end);
+            BIND(no);
+              ADD_INSN(ILOAD0);
+            BIND(end);
+        }
 
         push(VT_INT);
     }
@@ -456,14 +466,27 @@ public:
     }
 
     virtual void visitDoubleLiteralNode(DoubleLiteralNode * node) {
-          ADD_INSN(DLOAD);
-          ADD_DOUBLE(node->literal());
+        if (node->literal() == 0) {
+              ADD_INSN(DLOAD0);
+        } else {
+              ADD_INSN(DLOAD);
+              ADD_DOUBLE(node->literal());
+        }
         push(VT_DOUBLE);
     }
 
     virtual void visitIntLiteralNode(IntLiteralNode * node) {
-          ADD_INSN(ILOAD);
-          ADD_U64(node->literal());
+        switch(node->literal()) {
+            case 0:
+                  ADD_INSN(ILOAD0); break;
+            case 1:
+                  ADD_INSN(ILOAD1); break;
+            case -1:
+                  ADD_INSN(ILOADM1); break;
+            default:
+                  ADD_INSN(ILOAD);
+                  ADD_U64(node->literal());
+        }
         push(VT_INT);
     }
 
