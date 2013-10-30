@@ -1,5 +1,4 @@
 #include "codePrinter.h"
-#include <algorithm>
 
 namespace mathvm {
 
