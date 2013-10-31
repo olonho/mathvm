@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <exception>
+#include <dlfcn.h>
 
 using std::cout;
 using std::cin;
@@ -390,7 +391,7 @@ void BytecodeTranslator::visitBlockNode(BlockNode* node) {
     while (funs.hasNext()) {
         functionDefinition(funs.next());
     }
-
+    
     for (uint32_t i = 0; i < node->nodes(); i++) { 
         /* Tail recursion if this situation:
          * i:   CALL recursively
@@ -521,7 +522,16 @@ void BytecodeTranslator::visitCallNode(CallNode* node) {
 }
 
 void BytecodeTranslator::visitNativeCallNode(NativeCallNode* node) {
-    throw string("Native call is not implemented.");
+    void* initializer = dlsym(0, node->nativeName().c_str());
+    if (initializer == 0) { 
+        throw string("Native function ") + node->nativeName() + " not found.";
+    }  
+    uint16_t nativeFunId = _code->makeNativeFunction(
+            node->nativeName(), node->nativeSignature(), initializer);
+    
+    addInsn(BC_CALLNATIVE);
+    bc()->addUInt16(nativeFunId);
+    _tosType = node->nativeSignature()[0].first;
 }
 
 void BytecodeTranslator::visitPrintNode(PrintNode* node) {    
