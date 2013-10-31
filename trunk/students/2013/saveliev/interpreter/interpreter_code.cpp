@@ -153,7 +153,7 @@ Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) {
                 
             case BC_CALL: call(readUInt16()); break;     
           
-            case BC_CALLNATIVE: DEBUG(insnName(insn) << " is not yet implemented."); break;
+            case BC_CALLNATIVE: callNative(readUInt16()); break;
             
             case BC_RETURN: return_(); break;
             
@@ -213,6 +213,58 @@ void InterpreterCodeImpl::return_() {
     if (_context) {
         _bc = _context->bc();
         _bci = _context->bci();
+    }
+}
+
+void InterpreterCodeImpl::callNative(uint16_t funcId) {
+    const Signature* signature;
+    const string* name;
+    const void* initializer = nativeById(funcId, &signature, &name);
+
+    VarType retType = (*signature)[0].first;
+    
+    size_t paramNum = signature->size() - 1;
+    vector<val_t> params(paramNum);
+    while (paramNum-->0)
+        params.push_back(pop());
+        
+    switch (paramNum) {
+        case 0: {
+            if (retType == VT_VOID) {
+                typedef void (*func_t)(void);  
+                union { func_t func; const void* obj; } alias;
+                alias.obj = initializer;
+                func_t f = alias.func;
+                f();              
+            } else {
+                typedef val_t (*func_t)(void);  
+                union { func_t func; const void* obj; } alias;
+                alias.obj = initializer;
+                func_t f = alias.func;
+                pushTyped(f());
+            }            
+            break;
+        }
+        case 1: {
+            if (retType == VT_VOID) {
+                typedef void (*func_t)(val_t);  
+                union { func_t func; const void* obj; } alias;
+                alias.obj = initializer;
+                func_t f = alias.func;
+                f(params[0]);              
+            } else {
+                typedef val_t (*func_t)(val_t);  
+                union { func_t func; const void* obj; } alias;
+                alias.obj = initializer;
+                func_t f = alias.func;
+                pushTyped(f(params[0]));
+            }            
+            break;
+        }
+//        case 2: pushTyped(initializer(params[1], params[0])); break;
+//        case 3: pushTyped(nativeFunc(params[2], params[1], params[0])); break;
+//        case 4: pushTyped(nativeFunc(params[3], params[2], params[1], params[0])); break;
+        default: throw string("Native calls with this number of params are not implemented."); break;
     }
 }
 

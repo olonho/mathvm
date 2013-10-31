@@ -121,7 +121,7 @@ private:
     void pushInt(int64_t v) { pushTyped(v); }
     void pushDouble(double v) { pushTyped(v); }
     void pushUInt16(uint16_t v) { pushTyped(v); }
-
+       
     val_t pop() { 
         assert(!_stack.empty());
         val_t v = _stack.top();
@@ -165,9 +165,10 @@ private:
     void storeVar(uint16_t varId);
     void loadVar(uint16_t varId, Context* context);
     void storeVar(uint16_t varId, Context* context);
-    
+
     void call(uint16_t funcId);
     void return_();
+    void callNative(uint16_t funcId);    
 };
 
 }
