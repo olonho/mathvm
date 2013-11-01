@@ -31,13 +31,13 @@ int main(int argc, char** argv) {
 	if (status->isError()) {
 		cout << status->getError() << endl;
 	} else {
-		// code->disassemble();
-		delete status;
+		code->disassemble();
+		// delete status;
 
-		status = ((InterpreterCodeImpl*)code)->execute();
-		if (status->isError()) {
-			cout << status->getError() << endl;
-		}
+		// status = ((InterpreterCodeImpl*)code)->execute();
+		// if (status->isError()) {
+		// 	cout << status->getError() << endl;
+		// }
 	}
 
 	delete code;
