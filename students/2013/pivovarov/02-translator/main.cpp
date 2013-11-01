@@ -1,5 +1,7 @@
 #include "mathvm.h"
 
+#include "InterpreterCodeImpl.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -29,7 +31,13 @@ int main(int argc, char** argv) {
 	if (status->isError()) {
 		cout << status->getError() << endl;
 	} else {
-		code->disassemble();
+		// code->disassemble();
+		delete status;
+
+		status = ((InterpreterCodeImpl*)code)->execute();
+		if (status->isError()) {
+			cout << status->getError() << endl;
+		}
 	}
 
 	delete code;

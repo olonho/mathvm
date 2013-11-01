@@ -242,7 +242,7 @@ class TranslatorVisitor : AstVisitor {
 
             funs.push_back(shared_ptr<TranslatorVisitor>(new TranslatorVisitor(this, node)));
 
-            BytecodeFunction * result = funs.back()->function();
+            BytecodeFunction_ * result = funs.back()->function();
             fun_scope->addFun(result->id(), result->name(), result->signature());
         }
 
@@ -359,7 +359,7 @@ class TranslatorVisitor : AstVisitor {
     InterpreterCodeImpl * code;
     FunctionNode * root;
 
-    BytecodeFunction * result;
+    BytecodeFunction_ * result;
     shared_ptr<VarScope> var_scope;
     shared_ptr<FunScope> fun_scope;
 
@@ -367,7 +367,7 @@ class TranslatorVisitor : AstVisitor {
 public:
     TranslatorVisitor(InterpreterCodeImpl * code, FunctionNode * root)
         : code(code), root(root), isRoot(true) {
-            result = new BytecodeFunction(root->name(), root->signature());
+            result = new BytecodeFunction_(root->name(), root->signature());
             code->addFunction(result);
 
             fun_scope = shared_ptr<FunScope>(new FunScope(shared_ptr<FunScope>(), result->id()));
@@ -376,7 +376,7 @@ public:
 
     TranslatorVisitor(TranslatorVisitor * parent, FunctionNode * root)
         : code(parent->code), root(root), isRoot(false) {
-            result = new BytecodeFunction(root->name(), root->signature());
+            result = new BytecodeFunction_(root->name(), root->signature());
             code->addFunction(result);
 
             fun_scope = shared_ptr<FunScope>(new FunScope(parent->fun_scope, result->id()));
@@ -385,7 +385,7 @@ public:
 
     virtual ~TranslatorVisitor() {}
 
-    BytecodeFunction * function() {
+    BytecodeFunction_ * function() {
         return result;
     }
 
@@ -408,9 +408,10 @@ public:
         if (isRoot) {
               ADD_INSN(STOP);
         }
+        ADD_INSN(INVALID);
 
         var_scope = var_scope->parent;
-        code->addFunctionData(fun_scope->id, FunctionData(fun_scope->vars_count));
+        code->addFunctionData(fun_scope->id, FunctionData(fun_scope->vars_count, result));
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode * node) {
