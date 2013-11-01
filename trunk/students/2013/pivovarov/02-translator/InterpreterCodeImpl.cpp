@@ -17,14 +17,13 @@ FunctionData const & InterpreterCodeImpl::getFunctionData(uint16_t id) {
     return funsData[id];
 }
 
-
 union Data {
     Data() {}
-    Data(uint64_t i) : i(i) {}
+    Data(int64_t i) : i(i) {}
     Data(double d) : d(d) {}
     Data(uint16_t s) : s(s) {}
 
-    uint64_t i;
+    int64_t i;
     double d;
     uint16_t s;
 };
@@ -32,7 +31,7 @@ union Data {
 struct CallData {
     CallData() {}
     CallData(uint16_t id, uint16_t last_stack, uint16_t stack_size)
-        : id(id), last_stack(0), stack_size(stack_size), index(0) {}
+        : id(id), last_stack(last_stack), stack_size(stack_size), index(0) {}
 
     uint16_t id;
     uint16_t last_stack;
@@ -60,10 +59,10 @@ inline T pop(vector<T> & v) {
 #define GET_DATA_32()                       \
     *(uint32_t*)(data + INC_32(index))
 #define GET_DATA_64()                       \
-    *(uint64_t*)(data + INC_64(index))
+    *(int64_t*)(data + INC_64(index))
 
-#define PEEK_DATA_16()                      \
-    *(uint16_t*)(data + index)
+#define PEEK_DATA_S16()                     \
+    *(int16_t*)(data + index)
 
 #define GET_DATA_D()                        \
     GET_DATA_64()
@@ -74,19 +73,13 @@ inline T pop(vector<T> & v) {
 
 #define GET_INSN()                          \
     *(uint8_t*)(data + INC_8(index))
-#define GET_DOUBLE()                        \
-    *(double*)(data + INC_64(index))
-#define GET_INT()                           \
-    *(uint64_t*)(data + INC_64(index))
-#define GET_STRING()                        \
-    *(uint16_t*)(data + INC_16(index))
 
 #define PUSH(V)                             \
     stack.push_back( V )
 #define PUSH_D(V)                           \
     PUSH((double)V)
 #define PUSH_I(V)                           \
-    PUSH((uint64_t)V)
+    PUSH((int64_t)V)
 #define PUSH_S(V)                           \
     PUSH((uint16_t)V)
 
@@ -267,7 +260,7 @@ Status * InterpreterCodeImpl::execute() {
         PUSH(v1);
         NEXT;
     POP:
-        v1 = POP();
+        POP();
         NEXT;
     LOADDVAR0:
     LOADIVAR0:
@@ -352,65 +345,65 @@ Status * InterpreterCodeImpl::execute() {
         PUSH_I(v1.i - v2.i);
         NEXT;
     JA:
-        index = PEEK_DATA_16();
+        index += PEEK_DATA_S16();
         NEXT;
     IFICMPNE:
         v1 = POP();
         v2 = POP();
         if (v1.i != v2.i) {
-            index = PEEK_DATA_16();
+            index += PEEK_DATA_S16();
         } else {
-            index += 4;
+            index += 2;
         }
         NEXT;
     IFICMPE:
         v1 = POP();
         v2 = POP();
         if (v1.i == v2.i) {
-            index = PEEK_DATA_16();
+            index += PEEK_DATA_S16();
         } else {
-            index += 4;
+            index += 2;
         }
         NEXT;
     IFICMPG:
         v1 = POP();
         v2 = POP();
         if (v1.i > v2.i) {
-            index = PEEK_DATA_16();
+            index += PEEK_DATA_S16();
         } else {
-            index += 4;
+            index += 2;
         }
         NEXT;
     IFICMPGE:
         v1 = POP();
         v2 = POP();
         if (v1.i >= v2.i) {
-            index = PEEK_DATA_16();
+            index += PEEK_DATA_S16();
         } else {
-            index += 4;
+            index += 2;
         }
         NEXT;
     IFICMPL:
         v1 = POP();
         v2 = POP();
         if (v1.i < v2.i) {
-            index = PEEK_DATA_16();
+            index += PEEK_DATA_S16();
         } else {
-            index += 4;
+            index += 2;
         }
         NEXT;
     IFICMPLE:
         v1 = POP();
         v2 = POP();
         if (v1.i <= v2.i) {
-            index = PEEK_DATA_16();
+            index += PEEK_DATA_S16();
         } else {
-            index += 4;
+            index += 2;
         }
         NEXT;
     DUMP:
         v1 = TOP();
-        cout << v1.i << " " << v1.d << " " << v1.s << endl;
+        cout << "DUMP: " << v1.i << " " << v1.d << " " << v1.s << endl;
         NEXT;
     STOP:
         return new Status();
@@ -430,7 +423,7 @@ Status * InterpreterCodeImpl::execute() {
         call_data = pop<CallData>(call_stack);
         context_stack.resize(context_stack.size() - call_data.stack_size);
         index = call_stack.back().index;
-        fun_context[fun_id] = call_data.last_stack;
+        fun_context[call_data.id] = call_data.last_stack;
         data = getFunctionData( call_stack.back().id ).fun->bytecode()->getData();
         NEXT;
     BREAK:
