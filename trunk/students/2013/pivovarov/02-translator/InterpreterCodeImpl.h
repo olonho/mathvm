@@ -1,48 +1,63 @@
 #include "mathvm.h"
 
-#include <map>
-using std::map;
 #include <string>
+#include <vector>
 using std::string;
+using std::vector;
+
 #include <stdexcept>
 
 namespace mathvm {
 
+class Bytecode_ : public Bytecode {
+public:
+    uint8_t* getData() {
+        return _data.data();
+    }
+};
+
+class BytecodeFunction_ : public TranslatedFunction {
+    Bytecode_ _bytecode;
+
+public:
+    BytecodeFunction_(AstFunction* function) :
+        TranslatedFunction(function) {
+    }
+
+    BytecodeFunction_(const string& name, const Signature& signature) :
+        TranslatedFunction(name, signature) {
+    }
+
+    Bytecode_* bytecode() {
+        return &_bytecode;
+    }
+
+    virtual void disassemble(ostream& out) const {
+        _bytecode.dump(out);
+    }
+};
+
 struct FunctionData {
-    FunctionData(uint16_t stack_size)
-        : stack_size(stack_size) {}
+    FunctionData() {}
+    FunctionData(uint16_t stack_size, BytecodeFunction_ * fun)
+        : stack_size(stack_size), fun(fun) {}
 
     uint16_t stack_size;
+    BytecodeFunction_ * fun;
 };
 
 class InterpreterCodeImpl : public Code {
-    map<uint16_t, FunctionData> funsData;
+    vector<FunctionData> funsData;
 public:
     InterpreterCodeImpl() {}
     virtual ~InterpreterCodeImpl() {}
 
-    void addFunctionData(uint16_t id, FunctionData data) {
-        if ( !funsData.insert(make_pair(id, data)).second ) {
-            throw logic_error("Duplicated FunctionData: " + id);
-        }
-    }
+    void addFunctionData(uint16_t id, FunctionData data);
+    FunctionData const & getFunctionData(uint16_t id);
 
-    FunctionData getFunctionData(uint16_t id) {
-        map<uint16_t, FunctionData>::const_iterator it;
-        it = funsData.find(id);
-
-        if ( it != funsData.end() ) {
-            return it->second;
-        }
-
-        throw logic_error("FunctionData not found: " + id);
-    }
-
-    /**
-     * Execute this code with passed parameters, and update vars
-     * in array with new values from topmost scope, if code says so.
-     */
     Status * execute(vector<Var*> & vars);
+
+    Status * execute();
 };
 
 }
