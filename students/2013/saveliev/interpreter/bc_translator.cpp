@@ -1,13 +1,18 @@
 #include "bc_translator.h"
+#include "printer.h"
 
 #include <iostream>
 #include <exception>
 #include <dlfcn.h>
+#include <AsmJit/AsmJit.h>
+#include <memory.h>
 
 using std::cout;
 using std::cin;
 using std::exception;
 using std::string;
+
+using namespace AsmJit;
 
 namespace mathvm {
 
@@ -22,23 +27,24 @@ Status* BytecodeTranslator::translate(const string& program, Code** codePtr) {
     }
 
 #if DEB
-        mathvm::Printer printer(std::cout);
-        printer.print(parser.top());
-        INFO(std::endl);
-        INFO(std::endl);
+    mathvm::Printer printer(std::cout);
+    printer.print(parser.top());
+    INFO(std::endl);
+    INFO(std::endl);
 #endif
     DEBUG("TRANSLATION");
     
     _code = new InterpreterCodeImpl;
     *codePtr = _code;        
     try {
-        functionDefinition(parser.top());
+        declareFunction(parser.top());
+        defineFunction(parser.top());
 
     } catch (const string& e) {
         return new Status(e);
     }            
     DEBUG(std::endl);    
-    return new Status;
+    return new Status;  
 }
 
 
@@ -89,10 +95,12 @@ void BytecodeTranslator::storing(const AstVar* var) {
     }
 }
 
-void checkLogicType(VarType type) {
-    if (type != VT_INT) {
-        throw string("Cannot use logic operations on ") + typeToName(type);
-    }
+VarType BytecodeTranslator::typeCastForLogic(VarType type) {
+    if (type == VT_DOUBLE) 
+        addInsn(BC_D2I);
+    if (type == VT_STRING)
+        addInsn(BC_S2I);
+    return VT_INT;
 }
 
 void BytecodeTranslator::visitBinaryOpNode(BinaryOpNode* node) {    
@@ -104,8 +112,8 @@ void BytecodeTranslator::visitBinaryOpNode(BinaryOpNode* node) {
     TokenKind op = node->kind();
     switch (op) {
         case tOR: case tAND: {
-            checkLogicType(leftType);
-            checkLogicType(rightType);
+            typeCastForLogic(leftType);
+            typeCastForLogic(rightType);
             logic(op);
             break;
         }
@@ -257,7 +265,7 @@ void BytecodeTranslator::visitUnaryOpNode(UnaryOpNode* node) {
             break;
         
         case tNOT: {
-            checkLogicType(_tosType);
+            typeCastForLogic(_tosType);
             
             Label put1(bc());
             Label end(bc());
@@ -383,13 +391,19 @@ void BytecodeTranslator::visitBlockNode(BlockNode* node) {
     addCurrentLocals(node->scope()->variablesCount());
     
     Scope::VarIterator vars(node->scope());
-    while (vars.hasNext()) {        
-        varDeclaration(vars.next());
-    };
-
-    Scope::FunctionIterator funs(node->scope());
-    while (funs.hasNext()) {
-        functionDefinition(funs.next());
+    while (vars.hasNext()) {       
+        declareVar(vars.next());
+    }
+    
+    Scope::FunctionIterator funs1(node->scope());
+    while (funs1.hasNext()) {
+        AstFunction* fun = funs1.next();
+        declareFunction(fun);
+    }    
+    Scope::FunctionIterator funs2(node->scope());
+    while (funs2.hasNext()) {
+        AstFunction* fun = funs2.next();
+        defineFunction(fun);
     }
     
     for (uint32_t i = 0; i < node->nodes(); i++) { 
@@ -430,9 +444,13 @@ void BytecodeTranslator::tailRecursion(CallNode* node) {
     addBranch(BC_JA, funcBeginning);
 }
 
-void BytecodeTranslator::functionDefinition(AstFunction* astFunc) {
+void BytecodeTranslator::declareFunction(AstFunction* astFunc) {
     BytecodeFunction* func = new BytecodeFunction(astFunc);
     _code->addFunction(func);    
+}
+
+void BytecodeTranslator::defineFunction(AstFunction* astFunc) {
+    BytecodeFunction* func = (BytecodeFunction*) _code->functionByName(astFunc->name());
     pushContext(func);
 
 #if DEB
@@ -444,18 +462,18 @@ void BytecodeTranslator::functionDefinition(AstFunction* astFunc) {
     Scope::VarIterator args(astFunc->scope());
     while (args.hasNext()) {
         AstVar* var = args.next();
-        varDeclaration(var);        
+        declareVar(var);        
         storing(var);
     }
     
     astFunc->node()->visit(this);
     
-    if (currentlyTopFunc()) {
+    if (currentlyTopFunc())
         addInsn(BC_STOP);
-    }
 
 #if DEB
-    level--;    
+    level--;   
+    cerr << endl; 
     if (DEB) {
         for (size_t bci = 0; bci < bc()->length();) {
             printInsn(bc(), bci, cerr, level * 4);
@@ -463,7 +481,7 @@ void BytecodeTranslator::functionDefinition(AstFunction* astFunc) {
         }
     }
 #endif
-        
+    
     popContext(); 
 }
 
@@ -510,9 +528,8 @@ void BytecodeTranslator::visitReturnNode(ReturnNode* node) {
 
 void BytecodeTranslator::visitCallNode(CallNode* node) {
     TranslatedFunction* func = _code->functionByName(node->name());
-    if (!func) {
+    if (!func)
         throw string("Function " + node->name() + " is not defined");
-    }
     
     processCallParameters(node, func);
     
@@ -522,10 +539,12 @@ void BytecodeTranslator::visitCallNode(CallNode* node) {
 }
 
 void BytecodeTranslator::visitNativeCallNode(NativeCallNode* node) {
-    void* initializer = dlsym(0, node->nativeName().c_str());
-    if (initializer == 0) { 
+    void* initializer = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+    if (initializer == 0) 
         throw string("Native function ") + node->nativeName() + " not found.";
-    }  
+    
+    DEBUG("Native function " << node->nativeName() << " found.");
+        
     uint16_t nativeFunId = _code->makeNativeFunction(
             node->nativeName(), node->nativeSignature(), initializer);
     
@@ -539,6 +558,10 @@ void BytecodeTranslator::visitPrintNode(PrintNode* node) {
         node->operandAt(i)->visit(this);
         addInsn(MK_INSN(BC_, _tosType, PRINT));
     }
+}
+
+BytecodeTranslator::~BytecodeTranslator() {
+    
 }
 
 }

@@ -11,11 +11,15 @@
 
 namespace mathvm {
 
+int strlen1(const char* str);
+
+
+
 class BytecodeTranslator: public Translator, AstVisitor {
 public:
     BytecodeTranslator(): _context(0) {}
 
-    virtual ~BytecodeTranslator() {}
+    virtual ~BytecodeTranslator();
 
     virtual Status* translate(const string& program, Code** codePtr);
     
@@ -68,7 +72,7 @@ private:
         delete oldContext;
     }    
     
-    uint16_t varDeclaration(AstVar* var) {
+    uint16_t declareVar(AstVar* var) {
         return _context->putVar(var);
     }
     
@@ -115,6 +119,7 @@ private:
     void comparison(VarType type, TokenKind op);
     void arithmetics(VarType type, TokenKind op);
     void bitwise(VarType type, TokenKind op);
+    VarType typeCastForLogic(VarType type);
     VarType typeCastForComparison(VarType leftType, VarType rightType);
     VarType typeCastForArithmetics(VarType leftType, VarType rightType);
     VarType typeCastForBitwise(VarType leftType, VarType rightType);
@@ -134,7 +139,8 @@ private:
     
     virtual void visitBlockNode(BlockNode* node);
     virtual void visitFunctionNode(FunctionNode* node);
-    void functionDefinition(AstFunction* astFunc);
+    void defineFunction(AstFunction* astFunc);
+    void declareFunction(AstFunction* astFunc);
     
     void conversion(VarType foundType, VarType expectedType);
     bool checkTailRecCall(AstNode* node);
