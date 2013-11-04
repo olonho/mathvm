@@ -1,6 +1,8 @@
 ROOT   = .
 VM_ROOT = ./../../../..
 
+# OPT = true
+
 USER_OBJ = \
 	$(OBJ)/main$(OBJ_SUFF) \
 	$(OBJ)/Translator$(OBJ_SUFF) \

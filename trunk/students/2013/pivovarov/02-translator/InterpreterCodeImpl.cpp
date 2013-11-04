@@ -30,13 +30,13 @@ union Data {
 
 struct CallData {
     CallData() {}
-    CallData(uint16_t id, uint16_t last_stack, uint16_t stack_size)
+    CallData(uint16_t id, uint32_t last_stack, uint16_t stack_size)
         : id(id), last_stack(last_stack), stack_size(stack_size), index(0) {}
 
     uint16_t id;
-    uint16_t last_stack;
+    uint32_t last_stack;
     uint16_t stack_size;
-    uint16_t index;
+    uint32_t index;
 };
 
 template<class T>
@@ -95,11 +95,11 @@ inline T pop(vector<T> & v) {
     goto *(labels[GET_INSN()])
 
 Status * InterpreterCodeImpl::execute() {
-    uint16_t index;
+    uint32_t index;
     uint8_t * data;
 
     vector<CallData> call_stack;
-    vector<uint16_t> fun_context;
+    vector<uint32_t> fun_context;
     vector<Data> context_stack;
     vector<Data> stack;
 
