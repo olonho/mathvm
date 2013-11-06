@@ -4,18 +4,13 @@
 #include <iostream>
 #include <exception>
 #include <dlfcn.h>
-#include <AsmJit/AsmJit.h>
-#include <memory.h>
 
 using std::cout;
 using std::cin;
 using std::exception;
 using std::string;
 
-using namespace AsmJit;
-
 namespace mathvm {
-
 
 Status* BytecodeTranslator::translate(const string& program, Code** codePtr) {
     Parser parser;

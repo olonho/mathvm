@@ -11,10 +11,6 @@
 
 namespace mathvm {
 
-int strlen1(const char* str);
-
-
-
 class BytecodeTranslator: public Translator, AstVisitor {
 public:
     BytecodeTranslator(): _context(0) {}
