@@ -275,10 +275,13 @@ void InterpreterCodeImpl::callNative(uint16_t funcId) {
                 
             default: assert(false); break;
         }
+        intIdx++;
+        doubleIdx++;
     };
     
     double doubleRet;
     int64_t intRet;
+    
     asm ("mov %0, %%rdi;"::"r"(intArgs[0]));
     asm ("mov %0, %%rsi;"::"r"(intArgs[1]));
     asm ("mov %0, %%rdx;"::"r"(intArgs[2]));
@@ -292,6 +295,7 @@ void InterpreterCodeImpl::callNative(uint16_t funcId) {
     asm ("movsd %0, %%xmm4;"::"m"(doubleArgs[4]));
     asm ("movsd %0, %%xmm5;"::"m"(doubleArgs[5]));
     asm ("movsd %0, %%xmm5;"::"m"(doubleArgs[6]));
+    
     asm ("call *%[fun];"
          "mov %%rax, %[iRet];"
          "movsd %%xmm0, %[dRet];"
