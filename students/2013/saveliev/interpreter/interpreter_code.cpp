@@ -240,14 +240,9 @@ void InterpreterCodeImpl::return_() {
 //    return applyVariadic<sizeof...(Args)>::call(func, v);
 //}
 
-union NativeArg {
-    int64_t int_;
-    char* string;
-    double double_;
-};
-
 void InterpreterCodeImpl::callNative(uint16_t funcId) {
-    int MAX_ARGS = 6;
+    size_t MAX_INT_ARGS = 6;
+    size_t MAX_DOUBLE_ARGS = 7;
     
     const Signature* signature;
     const string* name;
@@ -255,18 +250,28 @@ void InterpreterCodeImpl::callNative(uint16_t funcId) {
     INFO("  Calling native '" << *name << "' with args:");
     
     VarType retType = (*signature)[0].first; 
-    uint16_t paramNum = signature->size() - 1;
-    NativeArg args[MAX_ARGS];   
+    size_t paramNum = signature->size() - 1;
     
-    for (uint16_t i = 0; i < paramNum && i < MAX_ARGS; ++i) {
+    int64_t intArgs[MAX_INT_ARGS];   
+    double doubleArgs[MAX_DOUBLE_ARGS];
+    size_t intIdx = 0;
+    size_t doubleIdx = 0;
+    
+    for (size_t i = 0; i < paramNum; ++i) {
+        if (intIdx >= MAX_INT_ARGS)
+            throw string("Too many int argmunets, maximum 6 argmunets are supported");
+        if (doubleIdx >= MAX_DOUBLE_ARGS)
+            throw string("Too many double argmunets, maximum 7 argmunets are supported");
+        
         Val val = *_context->getVar(i);        
         VarType type = (*signature)[i + 1].first;
+                
         switch (type) {
-            case VT_INT: args[i].int_ = val.int64; break;
+            case VT_INT: intArgs[intIdx] = val.int64; break;
                 
-            case VT_STRING: args[i].string = constantById(val.uint16); break;
+            case VT_STRING: intArgs[intIdx] = (int64_t) (constantById(val.uint16)); break;
                 
-            case VT_DOUBLE: args[i].double_ = val.double_; break;
+            case VT_DOUBLE: doubleArgs[doubleIdx] = val.double_; break;
                 
             default: assert(false); break;
         }
@@ -274,18 +279,19 @@ void InterpreterCodeImpl::callNative(uint16_t funcId) {
     
     double doubleRet;
     int64_t intRet;
-    asm ("mov %0, %%rdi;"::"r"(args[0].int_));
-    asm ("mov %0, %%rsi;"::"r"(args[1].int_));
-    asm ("mov %0, %%rdx;"::"r"(args[2].int_));
-    asm ("mov %0, %%rcx;"::"r"(args[3].int_));
-    asm ("mov %0, %%r8;"::"r"(args[4].int_));
-    asm ("mov %0, %%r9;"::"r"(args[5].int_));
-    asm ("movsd %0, %%xmm0;"::"m"(args[0].double_));
-    asm ("movsd %0, %%xmm1;"::"m"(args[1].double_));
-    asm ("movsd %0, %%xmm2;"::"m"(args[2].double_));
-    asm ("movsd %0, %%xmm3;"::"m"(args[3].double_));
-    asm ("movsd %0, %%xmm4;"::"m"(args[4].double_));
-    asm ("movsd %0, %%xmm5;"::"m"(args[5].double_));
+    asm ("mov %0, %%rdi;"::"r"(intArgs[0]));
+    asm ("mov %0, %%rsi;"::"r"(intArgs[1]));
+    asm ("mov %0, %%rdx;"::"r"(intArgs[2]));
+    asm ("mov %0, %%rcx;"::"r"(intArgs[3]));
+    asm ("mov %0, %%r8;"::"r"(intArgs[4]));
+    asm ("mov %0, %%r9;"::"r"(intArgs[5]));
+    asm ("movsd %0, %%xmm0;"::"m"(doubleArgs[0]));
+    asm ("movsd %0, %%xmm1;"::"m"(doubleArgs[1]));
+    asm ("movsd %0, %%xmm2;"::"m"(doubleArgs[2]));
+    asm ("movsd %0, %%xmm3;"::"m"(doubleArgs[3]));
+    asm ("movsd %0, %%xmm4;"::"m"(doubleArgs[4]));
+    asm ("movsd %0, %%xmm5;"::"m"(doubleArgs[5]));
+    asm ("movsd %0, %%xmm5;"::"m"(doubleArgs[6]));
     asm ("call *%[fun];"
          "mov %%rax, %[iRet];"
          "movsd %%xmm0, %[dRet];"
