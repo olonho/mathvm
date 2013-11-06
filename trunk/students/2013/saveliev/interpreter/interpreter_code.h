@@ -5,9 +5,13 @@
 #include "ast.h"
 
 #include <vector>
+#include <map>
 #include <stack>
 #include <iostream>
-    
+#include <sstream>
+//#include <tuple>
+
+
 #define DEB 0
 #define VRB 0
 
@@ -28,22 +32,6 @@
 
 namespace mathvm {
 
-static const struct {
-    const char* name;
-    Instruction insn;
-    size_t length;
-} instructions[] = {
-    #define BC_NAME(b, d, l) {#b, BC_##b, l},
-    FOR_BYTECODES(BC_NAME)
-};
-
-#define insnName(insn) instructions[insn].name
-#define insnLength(insn) instructions[insn].length
-
-
-void printInsn(Bytecode* bc, size_t bci, ostream& out = cerr, int indent = 0);
-
-
 class InterpreterCodeImpl: public Code { 
 public:
     InterpreterCodeImpl() {}
@@ -52,33 +40,32 @@ public:
 
     virtual Status* execute(std::vector<Var*>& vars);
     
-private:
-    struct val_t {
-        union {
-            double _double;
-            int64_t _int;
-            uint16_t _stringId;
-        };        
-        val_t() {}
-        val_t(const val_t& sv): _int(sv._int) {}
-        explicit val_t(double d): _double(d) {}
-        explicit val_t(int64_t i): _int(i) {}
-        explicit val_t(uint16_t s): _stringId(s) {}
+    union Val {
+        double double_;
+        int64_t int64;
+        uint16_t uint16;
+
+        Val() {}
+//        val_t(const val_t& v): this(v) {}
+        explicit Val(double d): double_(d) {}
+        explicit Val(int64_t i): int64(i) {}
+        explicit Val(uint16_t s): uint16(s) {}
         
-        operator double() { return _double; }
-        operator int64_t() { return _int; }
-        operator uint16_t() { return _stringId; }
+        operator double() { return double_; }
+        operator int64_t() { return int64; }
+        operator uint16_t() { return uint16; }
         
-        friend std::ostream& operator << (std::ostream &os, const val_t& v) {
-            return os << v._int;
+        friend std::ostream& operator << (std::ostream &os, const Val& v) {
+            return os << v.int64;
         }
     };
 
+private:
     class Context {
         Context* _parent;
         uint32_t _bci;
         BytecodeFunction* _function;
-        std::vector<val_t> _vars;
+        std::vector<Val> _vars;
         
     public:
         Context(Context* parent, BytecodeFunction* func):
@@ -98,33 +85,37 @@ private:
         
         uint16_t variablesNum() const { return _vars.size(); }
 
-        val_t* getVar(uint16_t index) {
+        Val* getVar(uint16_t index) {
             assert(index < _vars.size());
             return &_vars[index]; 
         }        
     };
     Context* _context;
-    std::stack<val_t> _stack;
+    std::stack<Val> _stack;
     Bytecode* _bc;
     uint32_t _bci;
            
-private:    
-    void push(val_t v) {
+private:
+    std::map<uint16_t, char*> pointers;
+    uint16_t makePointer(char* ptr);
+    char* constantById(uint16_t id);
+    
+    void push(Val v) {
         _stack.push(v);        
     }
     
     template<typename T>
     void pushTyped(T v) {
         VERBOSE("  push " << v);
-        push(val_t(v));
+        push(Val(v));
     }    
-    void pushInt(int64_t v) { pushTyped(v); }
+    void pushInt64(int64_t v);
     void pushDouble(double v) { pushTyped(v); }
     void pushUInt16(uint16_t v) { pushTyped(v); }
        
-    val_t pop() { 
+    Val pop() { 
         assert(!_stack.empty());
-        val_t v = _stack.top();
+        Val v = _stack.top();
         _stack.pop();
         return v;
     }
@@ -134,14 +125,17 @@ private:
         assert(!_stack.empty());
         T v = T(_stack.top());
         _stack.pop();
-        VERBOSE("  popTyped: " << v);
         return v;
     }    
     double popDouble() { return popTyped<double>(); }
-    int64_t popInt() { return popTyped<int64_t>(); }
-    uint16_t popUInt16() { return popTyped<uint16_t>(); }
+    int64_t popInt64() { return popTyped<int64_t>(); }
+    uint16_t popUInt16() { 
+        uint16_t v = popTyped<uint16_t>();
+        VERBOSE("  pop uint16 " << v << ", as string: '" << constantById(v) << "'");
+        return v; 
+    }
     
-    val_t top() {
+    Val top() {
         assert(!_stack.empty());
         return _stack.top();
     }
@@ -168,8 +162,39 @@ private:
 
     void call(uint16_t funcId);
     void return_();
-    void callNative(uint16_t funcId);    
+    void callNative(uint16_t funcId);  
+
+    const std::string valToStringWithType(InterpreterCodeImpl::Val val, VarType type) {
+        if (type == VT_STRING)
+            return constantById((uint16_t) val);
+        
+        std::stringstream ss;
+        switch (type) {
+            case VT_INT: ss << (int64_t) val; break;
+            case VT_DOUBLE: ss << (double) val; break;
+            default: assert(false); break;
+        }
+        return ss.str();
+    } 
 };
+
+static const struct {
+    const char* name;
+    Instruction insn;
+    size_t length;
+} instructions[] = {
+    #define BC_NAME(b, d, l) {#b, BC_##b, l},
+    FOR_BYTECODES(BC_NAME)
+};
+
+#define insnName(insn) instructions[insn].name
+#define insnLength(insn) instructions[insn].length
+
+void printInsn(Bytecode* bc, size_t bci, ostream& out = cerr, int indent = 0);
+
+inline void InterpreterCodeImpl::pushInt64(int64_t v) {
+    pushTyped(v);
+}
 
 }
 

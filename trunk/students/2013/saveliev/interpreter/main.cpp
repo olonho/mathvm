@@ -10,6 +10,7 @@
 using namespace mathvm;
 using namespace std;
 
+
 int main(int argc, char** argv) {
     string impl = "";
     const char* script = NULL;

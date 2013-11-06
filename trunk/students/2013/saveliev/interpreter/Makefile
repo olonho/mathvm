@@ -5,6 +5,8 @@ USER_OBJ = $(OBJ)/main$(OBJ_SUFF) \
 		   $(OBJ)/interpreter_code$(OBJ_SUFF) \
 		   $(OBJ)/bc_translator$(OBJ_SUFF)
 
+USER_CFLAGS = -m64
+
 include $(VM_ROOT)/common.mk
 
 MVM = $(BIN)/mvm
@@ -12,4 +14,4 @@ MVM = $(BIN)/mvm
 all: $(MVM)
 
 $(MVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
-	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)
+	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS) 

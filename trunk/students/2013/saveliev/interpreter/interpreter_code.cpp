@@ -9,7 +9,7 @@ using std::string;
 
 
 Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) { 
-    INFO("EXECUTION");
+    INFO("\nEXECUTION");
     
     call(0);
       
@@ -24,24 +24,24 @@ Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) {
             case BC_INVALID: return new Status("Invalid instruction."); break;
 
             case BC_DLOAD: pushDouble(readDouble()); break;                
-            case BC_ILOAD: pushInt(readInt64()); break;                
+            case BC_ILOAD: pushInt64(readInt64()); break;                
             case BC_SLOAD: pushUInt16(readUInt16()); break;
                 
             case BC_DLOAD0: pushDouble(0.0); break;                
-            case BC_ILOAD0: pushInt(0); break;            
+            case BC_ILOAD0: pushInt64(0); break;            
             case BC_SLOAD0: break;            
             case BC_DLOAD1: pushDouble(1.0); break;            
-            case BC_ILOAD1: pushInt(1); break;            
+            case BC_ILOAD1: pushInt64(1); break;            
             case BC_DLOADM1: pushDouble(-1.0); break;            
-            case BC_ILOADM1: pushInt(-1); break;
+            case BC_ILOADM1: pushInt64(-1); break;
                 
 #           define BIN_D(op) { \
                 double top = popDouble(); \
                 pushDouble(top op popDouble()); \
             }
 #           define BIN_I(op) { \
-                int top = popInt(); \
-                pushInt(top op popInt()); \
+                int top = popInt64(); \
+                pushInt64(top op popInt64()); \
             }  
             case BC_DADD: BIN_D(+); break;
             case BC_IADD: BIN_I(+); break;
@@ -54,23 +54,23 @@ Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) {
             case BC_IMOD: BIN_I(%); break;
             
             case BC_DNEG: pushDouble(-popDouble()); break;
-            case BC_INEG: pushInt(-popInt()); break;
+            case BC_INEG: pushInt64(-popInt64()); break;
             
             case BC_IAOR: BIN_I(|); break;
             case BC_IAAND: BIN_I(&); break;
             case BC_IAXOR: BIN_I(^); break;
 
-            case BC_IPRINT: cout << popInt(); break;
+            case BC_IPRINT: cout << popInt64(); break;
             case BC_DPRINT: cout << popDouble(); break;            
             case BC_SPRINT: cout << constantById(popUInt16()); break;
 
-            case BC_I2D: pushDouble((double) popInt()); break;
-            case BC_D2I: pushInt((int64_t) popDouble()); break;
-            case BC_S2I: break;
+            case BC_I2D: pushDouble((double) popInt64()); break;
+            case BC_D2I: pushInt64((int64_t) popDouble()); break;
+            case BC_S2I: pushInt64((int64_t) popUInt16()); break;
             
             case BC_SWAP: {
-                val_t fst = pop();
-                val_t snd = pop();
+                Val fst = pop();
+                Val snd = pop();
                 push(fst);
                 push(snd);
                 break;
@@ -137,8 +137,8 @@ Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) {
             case BC_JA: _bci += readInt16() - 2; break;
             
 #           define CMPJ(r) { \
-                int top = popInt(); \
-                _bci += top r popInt()? readInt16() - 2: 2; \
+                int top = popInt64(); \
+                _bci += top r popInt64()? readInt16() - 2: 2; \
             }
             case BC_IFICMPNE: CMPJ(!=); break;
             case BC_IFICMPE: CMPJ(==); break;   
@@ -182,6 +182,7 @@ void InterpreterCodeImpl::loadVar(uint16_t varId, Context* context) {
 void InterpreterCodeImpl::storeVar(uint16_t varId, Context* context) {
     VERBOSE("  storeVar " << varId);
     *context->getVar(varId) = pop();
+    INFO("  stored " << *context->getVar(varId));
 }
 
 InterpreterCodeImpl::Context* InterpreterCodeImpl::findContext(uint16_t ctxId) {
@@ -193,11 +194,10 @@ InterpreterCodeImpl::Context* InterpreterCodeImpl::findContext(uint16_t ctxId) {
 }
 
 void InterpreterCodeImpl::call(uint16_t funcId) {
-    DEBUG("Calling function  " << funcId)
-
-    if (_context) {
+    DEBUG("Calling function " << funcId)
+    if (_context)
         _context->saveBci(_bci);
-    }
+    
     BytecodeFunction* func = (BytecodeFunction*) functionById(funcId);
     _context = new Context(_context, func);
     _bc = func->bytecode();
@@ -205,8 +205,6 @@ void InterpreterCodeImpl::call(uint16_t funcId) {
 }
 
 void InterpreterCodeImpl::return_() {
-    DEBUG("...returning from function " << _context->id());
-    
     Context* oldCtx = _context;
     _context = oldCtx->parent();
     delete oldCtx;
@@ -216,57 +214,117 @@ void InterpreterCodeImpl::return_() {
     }
 }
 
+//template <unsigned N>
+//struct applyVariadic {
+//    template <typename Ret, typename... Args, typename... ArgsT>
+//    static Ret call(Ret (*func)(Args...), void** v, ArgsT... args) {
+//        return applyVariadic<N-1>::call(func, v, args..., 
+//            *static_cast<typename std::tuple_element<sizeof...(args), 
+//                std::tuple<Args...>>::type*>(v[sizeof...(ArgsT)]));
+//    }
+//};
+//
+//template<>
+//struct applyVariadic<0> {
+//    template <typename Ret, typename... Args, typename... ArgsT>
+//    static Ret call(Ret (*func)(Args...), void** v, ArgsT... args) {
+//        Ret r = func(args...);
+////        INFO("sizeof args = " << sizeof...(args));
+////        INFO("!!" << r);
+//        return r;
+//    }
+//};
+//
+//template <typename Ret, typename... Args>
+//static Ret callVariadic(Ret (*func)(Args...), void** v) {   
+//    return applyVariadic<sizeof...(Args)>::call(func, v);
+//}
+
+union NativeArg {
+    int64_t int_;
+    char* string;
+    double double_;
+};
+
 void InterpreterCodeImpl::callNative(uint16_t funcId) {
+    int MAX_ARGS = 6;
+    
     const Signature* signature;
     const string* name;
-    const void* initializer = nativeById(funcId, &signature, &name);
-
-    VarType retType = (*signature)[0].first;
+    const void* funAddr = nativeById(funcId, &signature, &name);
+    INFO("  Calling native '" << *name << "' with args:");
     
-    size_t paramNum = signature->size() - 1;
-    vector<val_t> params(paramNum);
-    while (paramNum-->0)
-        params.push_back(pop());
+    VarType retType = (*signature)[0].first; 
+    uint16_t paramNum = signature->size() - 1;
+    NativeArg args[MAX_ARGS];   
+    
+    for (uint16_t i = 0; i < paramNum && i < MAX_ARGS; ++i) {
+        Val val = *_context->getVar(i);        
+        VarType type = (*signature)[i + 1].first;
+        switch (type) {
+            case VT_INT: args[i].int_ = val.int64; break;
+                
+            case VT_STRING: args[i].string = constantById(val.uint16); break;
+                
+            case VT_DOUBLE: args[i].double_ = val.double_; break;
+                
+            default: assert(false); break;
+        }
+    };
+    
+    double doubleRet;
+    int64_t intRet;
+    asm ("mov %0, %%rdi;"::"r"(args[0].int_));
+    asm ("mov %0, %%rsi;"::"r"(args[1].int_));
+    asm ("mov %0, %%rdx;"::"r"(args[2].int_));
+    asm ("mov %0, %%rcx;"::"r"(args[3].int_));
+    asm ("mov %0, %%r8;"::"r"(args[4].int_));
+    asm ("mov %0, %%r9;"::"r"(args[5].int_));
+    asm ("movsd %0, %%xmm0;"::"m"(args[0].double_));
+    asm ("movsd %0, %%xmm1;"::"m"(args[1].double_));
+    asm ("movsd %0, %%xmm2;"::"m"(args[2].double_));
+    asm ("movsd %0, %%xmm3;"::"m"(args[3].double_));
+    asm ("movsd %0, %%xmm4;"::"m"(args[4].double_));
+    asm ("movsd %0, %%xmm5;"::"m"(args[5].double_));
+    asm ("call *%[fun];"
+         "mov %%rax, %[iRet];"
+         "movsd %%xmm0, %[dRet];"
+         :[iRet]"=&r"(intRet),
+          [dRet]"=m"(doubleRet)
+         :[fun]"r"(funAddr)
+          );
+   
+    switch (retType) {
+        case VT_VOID: break;
         
-    switch (paramNum) {
-        case 0: {
-            if (retType == VT_VOID) {
-                typedef void (*func_t)(void);  
-                union { func_t func; const void* obj; } alias;
-                alias.obj = initializer;
-                func_t f = alias.func;
-                f();              
-            } else {
-                typedef val_t (*func_t)(void);  
-                union { func_t func; const void* obj; } alias;
-                alias.obj = initializer;
-                func_t f = alias.func;
-                pushTyped(f());
-            }            
-            break;
-        }
-        case 1: {
-            if (retType == VT_VOID) {
-                typedef void (*func_t)(val_t);  
-                union { func_t func; const void* obj; } alias;
-                alias.obj = initializer;
-                func_t f = alias.func;
-                f(params[0]);              
-            } else {
-                typedef val_t (*func_t)(val_t);  
-                union { func_t func; const void* obj; } alias;
-                alias.obj = initializer;
-                func_t f = alias.func;
-                pushTyped(f(params[0]));
-            }            
-            break;
-        }
-//        case 2: pushTyped(initializer(params[1], params[0])); break;
-//        case 3: pushTyped(nativeFunc(params[2], params[1], params[0])); break;
-//        case 4: pushTyped(nativeFunc(params[3], params[2], params[1], params[0])); break;
-        default: throw string("Native calls with this number of params are not implemented."); break;
-    }
+        case VT_INT: pushInt64(intRet); break;
+            
+        case VT_STRING: pushUInt16(makePointer((char*) intRet)); break;
+            
+        case VT_DOUBLE: pushDouble(doubleRet); break;    
+        
+        default: assert(false); break;
+    }      
 }
+
+uint16_t InterpreterCodeImpl::makePointer(char* ptr) {
+    // just generate an id, underlying data is not our concern:
+    uint16_t id = makeStringConstant("");  
+    
+    pointers.insert(std::make_pair(id, ptr));
+    return id;
+}
+
+char* InterpreterCodeImpl::constantById(uint16_t id) {      
+    if (pointers.size() > 0) { 
+        map<uint16_t, char*>::iterator it = pointers.find(id);
+        if (it != pointers.end()) {
+            return it->second;
+        }
+    }  
+    return const_cast<char*>(Code::constantById(id).c_str());
+}
+
 
 void printInsn(Bytecode* bc, size_t bci, ostream& out, int indent) {
     Instruction insn = bc->getInsn(bci);
