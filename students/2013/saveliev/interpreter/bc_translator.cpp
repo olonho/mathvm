@@ -1,5 +1,4 @@
 #include "bc_translator.h"
-#include "printer.h"
 
 #include <iostream>
 #include <exception>
