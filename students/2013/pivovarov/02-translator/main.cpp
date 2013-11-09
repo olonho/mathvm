@@ -38,9 +38,10 @@ int main(int argc, char** argv) {
 		if (status->isError()) {
 			cout << status->getError() << endl;
 		}
+
+		delete code;
 	}
 
-	delete code;
 	delete status;
 	delete [] program;
 
