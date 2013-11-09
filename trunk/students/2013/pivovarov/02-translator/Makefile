@@ -1,7 +1,7 @@
 ROOT   = .
 VM_ROOT = ./../../../..
 
-OPT = true
+# OPT = true
 
 USER_LIBS = -lavcall
 
