@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="88">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <logicalFolder name="mathvm"
+                   displayName="mathvm"
+                   projectFiles="true"
+                   root="../..">
+      <logicalFolder name="libs" displayName="libs" projectFiles="true">
+        <logicalFolder name="AsmJit" displayName="AsmJit" projectFiles="true">
+          <itemPath>../../../../libs/AsmJit/ApiBegin.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/ApiEnd.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Assembler.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/AssemblerX86X64.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/AssemblerX86X64.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Build.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/CodeGenerator.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/CodeGenerator.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Compiler.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/Compiler.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/CompilerX86X64.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/CompilerX86X64.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Config.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/CpuInfo.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/CpuInfo.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Defs.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/Defs.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/DefsX86X64.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/DefsX86X64.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Logger.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/Logger.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/MemoryManager.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/MemoryManager.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Operand.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/OperandX86X64.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/OperandX86X64.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Platform.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/Platform.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Util.cpp</itemPath>
+          <itemPath>../../../../libs/AsmJit/Util.h</itemPath>
+          <itemPath>../../../../libs/AsmJit/Util_p.h</itemPath>
+        </logicalFolder>
+      </logicalFolder>
+      <logicalFolder name="vm" displayName="vm" projectFiles="true">
+        <itemPath>../../../../vm/ast.cpp</itemPath>
+        <itemPath>../../../../vm/interpreter.cpp</itemPath>
+        <itemPath>../../../../vm/mathvm.cpp</itemPath>
+        <itemPath>../../../../vm/parser.cpp</itemPath>
+        <itemPath>../../../../vm/parser.h</itemPath>
+        <itemPath>../../../../vm/scanner.cpp</itemPath>
+        <itemPath>../../../../vm/scanner.h</itemPath>
+        <itemPath>../../../../vm/translator.cpp</itemPath>
+        <itemPath>../../../../vm/utils.cpp</itemPath>
+      </logicalFolder>
+    </logicalFolder>
+    <df root="." name="translator">
+      <in>main.cpp</in>
+      <in>main.h</in>
+      <in>printastvisitor.cpp</in>
+      <in>printastvisitor.h</in>
+    </df>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
+  <sourceRootList>
+    <Elem>.</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Default" type="0">
+      <toolsSet>
+        <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
+        <compilerSet>default</compilerSet>
+      </toolsSet>
+      <codeAssistance>
+      </codeAssistance>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>.</buildCommandWorkingDir>
+          <buildCommand>${MAKE} -f Makefile</buildCommand>
+          <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
+          <executablePath>build/debug/translator</executablePath>
+          <ccTool>
+            <incDir>
+              <pElem>../../../../include</pElem>
+              <pElem>../../../../libs</pElem>
+            </incDir>
+            <preprocessorList>
+              <Elem>MATHVM_POSIX</Elem>
+              <Elem>_POSIX_SOURCE</Elem>
+              <Elem>_REENTRANT</Elem>
+            </preprocessorList>
+          </ccTool>
+        </makeTool>
+      </makefileType>
+      <item path="../../../../libs/AsmJit/ApiBegin.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/ApiEnd.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Assembler.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/AssemblerX86X64.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/AssemblerX86X64.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Build.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/CodeGenerator.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/CodeGenerator.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Compiler.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Compiler.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/CompilerX86X64.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/CompilerX86X64.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Config.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/CpuInfo.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/CpuInfo.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Defs.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Defs.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/DefsX86X64.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/DefsX86X64.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Logger.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Logger.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/MemoryManager.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/MemoryManager.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Operand.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/OperandX86X64.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/OperandX86X64.h"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Platform.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Platform.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Util.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Util.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../libs/AsmJit/Util_p.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../vm/ast.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../vm/interpreter.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../vm/mathvm.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../vm/parser.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../vm/parser.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../vm/scanner.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../vm/scanner.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="../../../../vm/translator.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="../../../../vm/utils.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <folder path="mathvm/libs">
+        <ccTool>
+          <incDir>
+            <pElem>../../../../libs/AsmJit</pElem>
+            <pElem>.</pElem>
+          </incDir>
+        </ccTool>
+      </folder>
+      <folder path="mathvm/vm">
+        <ccTool>
+          <incDir>
+            <pElem>../../../../vm</pElem>
+            <pElem>.</pElem>
+          </incDir>
+        </ccTool>
+      </folder>
+      <folder path="translator">
+        <ccTool>
+          <incDir>
+            <pElem>../../../../vm</pElem>
+          </incDir>
+        </ccTool>
+      </folder>
+      <item path="main.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="main.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="printastvisitor.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="printastvisitor.h" ex="false" tool="3" flavor2="0">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>
