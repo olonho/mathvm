@@ -1,6 +1,10 @@
 #include "InterpreterCodeImpl.h"
 
+#include <avcall.h>
+
 namespace mathvm {
+
+#define STACK_SIZE 1024 * 1024
 
 Status * InterpreterCodeImpl::execute(vector<Var*> & vars) {
     return new Status("NOT IMPLEMENTED");
@@ -75,7 +79,7 @@ inline T pop(vector<T> & v) {
     *(uint8_t*)(data + INC_8(index))
 
 #define PUSH(V)                             \
-    stack.push_back( V )
+    stack[++stack_top] = V
 #define PUSH_D(V)                           \
     PUSH((double)V)
 #define PUSH_I(V)                           \
@@ -84,9 +88,14 @@ inline T pop(vector<T> & v) {
     PUSH((uint16_t)V)
 
 #define POP()                               \
-    pop<Data>( stack )
+    stack[stack_top--]
 #define TOP()                               \
-    stack.back()
+    stack[stack_top]
+
+#define CHECK_STACK_OF( N )                 \
+    if (stack_top + N >= STACK_SIZE) {     \
+      return new Status("Stack overflow");  \
+    }
 
 #define VAR(CONTEXT, VARIABLE)              \
     context_stack[fun_context[CONTEXT] + VARIABLE]
@@ -97,16 +106,16 @@ inline T pop(vector<T> & v) {
 Status * InterpreterCodeImpl::execute() {
     uint32_t index;
     uint8_t * data;
+    uint32_t stack_top;
 
     vector<CallData> call_stack;
     vector<uint32_t> fun_context;
     vector<Data> context_stack;
-    vector<Data> stack;
+    Data * stack = new Data[STACK_SIZE];
 
     fun_context.resize(funsData.size());
     call_stack.reserve(1024);
     context_stack.reserve(4096);
-    stack.reserve(1024);
 
     void * labels[85] = {
     #define LABEL_POINTER(b, d, l) &&b,
@@ -121,7 +130,10 @@ Status * InterpreterCodeImpl::execute() {
     FunctionData fun_data;
     CallData call_data;
     uint16_t fun_id;
+    NativeFunction_ * native_fun;
+    av_alist alist;
 
+    stack_top = 0;
     fun_data = getFunctionData(0);
     call_stack.push_back(CallData(0, fun_context[0], fun_data.stack_size));
     context_stack.resize(fun_data.stack_size);
@@ -132,33 +144,43 @@ Status * InterpreterCodeImpl::execute() {
     INVALID:
         return new Status("BC_INVALID");
     DLOAD:
+        CHECK_STACK_OF(1);
         PUSH( GET_DATA_D() );
         NEXT;
     ILOAD:
+        CHECK_STACK_OF(1);
         PUSH( GET_DATA_I() );
         NEXT;
     SLOAD:
+        CHECK_STACK_OF(1);
         PUSH( GET_DATA_S() );
         NEXT;
     DLOAD0:
+        CHECK_STACK_OF(1);
         PUSH_D(0);
         NEXT;
     ILOAD0:
+        CHECK_STACK_OF(1);
         PUSH_I(0);
         NEXT;
     SLOAD0:
+        CHECK_STACK_OF(1);
         PUSH_S(0);
         NEXT;
     DLOAD1:
+        CHECK_STACK_OF(1);
         PUSH_D(1);
         NEXT;
     ILOAD1:
+        CHECK_STACK_OF(1);
         PUSH_I(1);
         NEXT;
     DLOADM1:
+        CHECK_STACK_OF(1);
         PUSH_D(-1);
         NEXT;
     ILOADM1:
+        CHECK_STACK_OF(1);
         PUSH_I(-1);
         NEXT;
     DADD:
@@ -260,26 +282,30 @@ Status * InterpreterCodeImpl::execute() {
         PUSH(v1);
         NEXT;
     POP:
-        POP();
+        stack_top--;
         NEXT;
     LOADDVAR0:
     LOADIVAR0:
     LOADSVAR0:
+        CHECK_STACK_OF(1)
         PUSH( VAR(0, 0) );
         NEXT;
     LOADDVAR1:
     LOADIVAR1:
     LOADSVAR1:
+        CHECK_STACK_OF(1)
         PUSH( VAR(0, 1) );
         NEXT;
     LOADDVAR2:
     LOADIVAR2:
     LOADSVAR2:
+        CHECK_STACK_OF(1)
         PUSH( VAR(0, 2) );
         NEXT;
     LOADDVAR3:
     LOADIVAR3:
     LOADSVAR3:
+        CHECK_STACK_OF(1)
         PUSH( VAR(0, 3) );
         NEXT;
     STOREDVAR0:
@@ -309,6 +335,7 @@ Status * InterpreterCodeImpl::execute() {
     LOADDVAR:
     LOADIVAR:
     LOADSVAR:
+        CHECK_STACK_OF(1)
         variable_p = GET_DATA_16();
         PUSH( VAR(0, variable_p) );
         NEXT;
@@ -322,6 +349,7 @@ Status * InterpreterCodeImpl::execute() {
     LOADCTXDVAR:
     LOADCTXIVAR:
     LOADCTXSVAR:
+        CHECK_STACK_OF(1)
         context_p = GET_DATA_16();
         variable_p = GET_DATA_16();
         PUSH( VAR(context_p, variable_p) );
@@ -418,7 +446,53 @@ Status * InterpreterCodeImpl::execute() {
         index = 0;
         NEXT;
     CALLNATIVE:
-        return new Status("Native not supported");
+        fun_id = GET_DATA_16();
+        fun_data = getFunctionData( fun_id );
+        native_fun = fun_data.native_fun;
+
+        switch (native_fun->returnType()) {
+            case VT_INT:
+                av_start_int (alist, native_fun->ptr(), &v1.i);
+                break;
+            case VT_DOUBLE:
+                av_start_double (alist, native_fun->ptr(), &v1.d);
+                break;
+            case VT_VOID:
+                av_start_void (alist, native_fun->ptr());
+                break;
+            default:
+                return new Status("Illegal native return type");
+        }
+
+        for (int i = 0; i < native_fun->parametersNumber(); ++i) {
+            switch (native_fun->parameterType(i)) {
+                case VT_INT:
+                    av_int (alist, POP().i);
+                    break;
+                case VT_DOUBLE:
+                    av_double (alist, POP().d);
+                    break;
+                default:
+                    return new Status("Illegal native parameter type");
+            }
+        }
+
+        av_call (alist);
+
+        switch (native_fun->returnType()) {
+            case VT_INT:
+                PUSH_I(v1.i);
+                break;
+            case VT_DOUBLE:
+                PUSH_D(v1.d);
+                break;
+            case VT_VOID:
+                break;
+            default:
+                return new Status("Illegal native return type");
+        }
+
+        NEXT;
     RETURN:
         call_data = pop<CallData>(call_stack);
         context_stack.resize(context_stack.size() - call_data.stack_size);
