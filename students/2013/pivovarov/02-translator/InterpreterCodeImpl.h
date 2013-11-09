@@ -68,7 +68,9 @@ struct FunctionData {
 class InterpreterCodeImpl : public Code {
     vector<FunctionData> funsData;
 public:
-    InterpreterCodeImpl() {}
+    InterpreterCodeImpl() {
+        makeStringConstant("");
+    }
     virtual ~InterpreterCodeImpl() {}
 
     void addFunctionData(uint16_t id, FunctionData data);

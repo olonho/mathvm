@@ -25,11 +25,11 @@ union Data {
     Data() {}
     Data(int64_t i) : i(i) {}
     Data(double d) : d(d) {}
-    Data(uint16_t s) : s(s) {}
+    Data(char * s) : s(s) {}
 
     int64_t i;
     double d;
-    uint16_t s;
+    char * s;
 };
 
 struct CallData {
@@ -64,16 +64,11 @@ inline T pop(vector<T> & v) {
     *(uint32_t*)(data + INC_32(index))
 #define GET_DATA_64()                       \
     *(int64_t*)(data + INC_64(index))
+#define GET_DATA()                          \
+    GET_DATA_64()
 
 #define PEEK_DATA_S16()                     \
     *(int16_t*)(data + index)
-
-#define GET_DATA_D()                        \
-    GET_DATA_64()
-#define GET_DATA_I()                        \
-    GET_DATA_64()
-#define GET_DATA_S()                        \
-    GET_DATA_16()
 
 #define GET_INSN()                          \
     *(uint8_t*)(data + INC_8(index))
@@ -85,7 +80,7 @@ inline T pop(vector<T> & v) {
 #define PUSH_I(V)                           \
     PUSH((int64_t)V)
 #define PUSH_S(V)                           \
-    PUSH((uint16_t)V)
+    PUSH((char *)V)
 
 #define POP()                               \
     stack[stack_top--]
@@ -131,7 +126,9 @@ Status * InterpreterCodeImpl::execute() {
     CallData call_data;
     uint16_t fun_id;
     NativeFunction_ * native_fun;
+    vector<Data> params;
     av_alist alist;
+    params.reserve(16);
 
     stack_top = 0;
     fun_data = getFunctionData(0);
@@ -145,15 +142,15 @@ Status * InterpreterCodeImpl::execute() {
         return new Status("BC_INVALID");
     DLOAD:
         CHECK_STACK_OF(1);
-        PUSH( GET_DATA_D() );
+        PUSH( GET_DATA_64() );
         NEXT;
     ILOAD:
         CHECK_STACK_OF(1);
-        PUSH( GET_DATA_I() );
+        PUSH( GET_DATA_64() );
         NEXT;
     SLOAD:
         CHECK_STACK_OF(1);
-        PUSH( GET_DATA_S() );
+        PUSH_S( constantById(GET_DATA_16()).c_str() );
         NEXT;
     DLOAD0:
         CHECK_STACK_OF(1);
@@ -165,7 +162,7 @@ Status * InterpreterCodeImpl::execute() {
         NEXT;
     SLOAD0:
         CHECK_STACK_OF(1);
-        PUSH_S(0);
+        PUSH_S( constantById(0).c_str() );
         NEXT;
     DLOAD1:
         CHECK_STACK_OF(1);
@@ -261,7 +258,7 @@ Status * InterpreterCodeImpl::execute() {
         NEXT;
     SPRINT:
         v1 = POP();
-        cout << constantById(v1.s);
+        cout << (char*)v1.s;
         NEXT;
     I2D:
         v1 = POP();
@@ -457,6 +454,9 @@ Status * InterpreterCodeImpl::execute() {
             case VT_DOUBLE:
                 av_start_double (alist, native_fun->ptr(), &v1.d);
                 break;
+            case VT_STRING:
+                av_start_ptr (alist, native_fun->ptr(), char *, &v1.s);
+                break;
             case VT_VOID:
                 av_start_void (alist, native_fun->ptr());
                 break;
@@ -464,13 +464,22 @@ Status * InterpreterCodeImpl::execute() {
                 return new Status("Illegal native return type");
         }
 
-        for (int i = 0; i < native_fun->parametersNumber(); ++i) {
+        // Reverse params
+        params.reserve(native_fun->parametersNumber());
+        for (uint16_t i = 0; i < native_fun->parametersNumber(); ++i) {
+            params[native_fun->parametersNumber() - i - 1] = POP();
+        }
+
+        for (uint16_t i = 0; i < native_fun->parametersNumber(); ++i) {
             switch (native_fun->parameterType(i)) {
                 case VT_INT:
-                    av_int (alist, POP().i);
+                    av_int (alist, params[i].i);
                     break;
                 case VT_DOUBLE:
-                    av_double (alist, POP().d);
+                    av_double (alist, params[i].d);
+                    break;
+                case VT_STRING:
+                    av_ptr (alist, char *, params[i].s);
                     break;
                 default:
                     return new Status("Illegal native parameter type");
@@ -485,6 +494,9 @@ Status * InterpreterCodeImpl::execute() {
                 break;
             case VT_DOUBLE:
                 PUSH_D(v1.d);
+                break;
+            case VT_STRING:
+                PUSH_S(v1.s);
                 break;
             case VT_VOID:
                 break;
