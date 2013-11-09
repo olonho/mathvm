@@ -14,10 +14,7 @@ using std::vector;
 using std::map;
 using std::pair;
 using std::make_pair;
-#include <tr1/memory>
-using std::tr1::shared_ptr;
 
-#include <stdexcept>
 #include <dlfcn.h>
 
 namespace mathvm {

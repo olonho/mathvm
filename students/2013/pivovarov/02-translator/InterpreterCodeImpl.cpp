@@ -98,6 +98,18 @@ inline T pop(vector<T> & v) {
 #define NEXT                                \
     goto *(labels[GET_INSN()])
 
+#define RETURN_ERR( STRING )                \
+    {                                       \
+        delete[] stack;                     \
+        return new Status(STRING);          \
+    }
+
+#define RETURN()                            \
+    {                                       \
+        delete[] stack;                     \
+        return new Status();                \
+    }
+
 Status * InterpreterCodeImpl::execute() {
     uint32_t index;
     uint8_t * data;
@@ -125,7 +137,7 @@ Status * InterpreterCodeImpl::execute() {
     FunctionData fun_data;
     CallData call_data;
     uint16_t fun_id;
-    NativeFunction_ * native_fun;
+    shared_ptr<NativeFunction_> native_fun;
     vector<Data> params;
     av_alist alist;
     params.reserve(16);
@@ -139,7 +151,7 @@ Status * InterpreterCodeImpl::execute() {
     NEXT;
 
     INVALID:
-        return new Status("BC_INVALID");
+        RETURN_ERR("BC_INVALID");
     DLOAD:
         CHECK_STACK_OF(1);
         PUSH( GET_DATA_64() );
@@ -431,7 +443,7 @@ Status * InterpreterCodeImpl::execute() {
         cout << "DUMP: " << v1.i << " " << v1.d << " " << v1.s << endl;
         NEXT;
     STOP:
-        return new Status();
+        RETURN();
     CALL:
         fun_id = GET_DATA_16();
         fun_data = getFunctionData( fun_id );
@@ -461,7 +473,7 @@ Status * InterpreterCodeImpl::execute() {
                 av_start_void (alist, native_fun->ptr());
                 break;
             default:
-                return new Status("Illegal native return type");
+                RETURN_ERR("Illegal native return type");
         }
 
         // Reverse params
@@ -482,7 +494,7 @@ Status * InterpreterCodeImpl::execute() {
                     av_ptr (alist, char *, params[i].s);
                     break;
                 default:
-                    return new Status("Illegal native parameter type");
+                    RETURN_ERR("Illegal native parameter type");
             }
         }
 
@@ -501,7 +513,7 @@ Status * InterpreterCodeImpl::execute() {
             case VT_VOID:
                 break;
             default:
-                return new Status("Illegal native return type");
+                RETURN_ERR("Illegal native return type");
         }
 
         NEXT;
@@ -515,7 +527,7 @@ Status * InterpreterCodeImpl::execute() {
     BREAK:
         NEXT;
 
-    return new Status("End of instructions");
+    RETURN_ERR("End of instructions");
 }
 
 }

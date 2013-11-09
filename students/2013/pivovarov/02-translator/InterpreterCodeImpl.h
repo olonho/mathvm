@@ -7,6 +7,9 @@ using std::vector;
 
 #include <stdexcept>
 
+#include <tr1/memory>
+using std::tr1::shared_ptr;
+
 namespace mathvm {
 
 class Bytecode_ : public Bytecode {
@@ -59,10 +62,8 @@ struct FunctionData {
         : stack_size(-1), native_fun(fun) {}
 
     uint16_t stack_size;
-    union {
-        BytecodeFunction_ * fun;
-        NativeFunction_ * native_fun;
-    };
+    BytecodeFunction_ * fun;
+    shared_ptr<NativeFunction_> native_fun;
 };
 
 class InterpreterCodeImpl : public Code {
