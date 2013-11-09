@@ -20,10 +20,6 @@ class BytecodeFunction_ : public TranslatedFunction {
     Bytecode_ _bytecode;
 
 public:
-    BytecodeFunction_(AstFunction* function) :
-        TranslatedFunction(function) {
-    }
-
     BytecodeFunction_(const string& name, const Signature& signature) :
         TranslatedFunction(name, signature) {
     }
@@ -37,13 +33,36 @@ public:
     }
 };
 
+class NativeFunction_ : public TranslatedFunction {
+    void const * const pointer;
+
+public:
+    NativeFunction_(const string& name, const Signature& signature, void const * const pointer) :
+        TranslatedFunction(name, signature), pointer(pointer) {
+    }
+
+    virtual void disassemble(ostream& out) const {
+        out << "[Native]" << pointer << endl;
+    }
+
+    void const * const ptr() {
+        return pointer;
+    }
+};
+
 struct FunctionData {
     FunctionData() {}
     FunctionData(uint16_t stack_size, BytecodeFunction_ * fun)
         : stack_size(stack_size), fun(fun) {}
 
+    FunctionData(NativeFunction_ * fun)
+        : stack_size(-1), native_fun(fun) {}
+
     uint16_t stack_size;
-    BytecodeFunction_ * fun;
+    union {
+        BytecodeFunction_ * fun;
+        NativeFunction_ * native_fun;
+    };
 };
 
 class InterpreterCodeImpl : public Code {

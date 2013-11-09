@@ -1,7 +1,9 @@
 ROOT   = .
 VM_ROOT = ./../../../..
 
-# OPT = true
+OPT = true
+
+USER_LIBS = -lavcall
 
 USER_OBJ = \
 	$(OBJ)/main$(OBJ_SUFF) \

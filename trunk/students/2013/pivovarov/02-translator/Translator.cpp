@@ -18,6 +18,7 @@ using std::make_pair;
 using std::tr1::shared_ptr;
 
 #include <stdexcept>
+#include <dlfcn.h>
 
 namespace mathvm {
 
@@ -143,11 +144,12 @@ class TranslatorVisitor : AstVisitor {
     };
 
     struct Fun {
-        Fun(uint16_t id, Signature const & signature)
-            : id(id), signature(signature) {}
+        Fun(uint16_t id, Signature const & signature, bool isNative)
+            : id(id), signature(signature), isNative(isNative) {}
 
         uint16_t id;
         Signature const & signature;
+        bool isNative;
     };
 
     struct FunScope {
@@ -176,8 +178,8 @@ class TranslatorVisitor : AstVisitor {
             throw logic_error("Fun not found: " + name);
         }
 
-        void addFun(uint16_t id, string const & name, Signature const & signature) {
-            if ( !funs.insert(make_pair(name, Fun(id, signature))).second ) {
+        void addFun(uint16_t id, string const & name, Signature const & signature, bool isNative) {
+            if ( !funs.insert(make_pair(name, Fun(id, signature, isNative))).second ) {
                 throw logic_error("Duplicated fun: " + name);
             }
         }
@@ -242,8 +244,8 @@ class TranslatorVisitor : AstVisitor {
 
             funs.push_back(shared_ptr<TranslatorVisitor>(new TranslatorVisitor(this, node)));
 
-            BytecodeFunction_ * result = funs.back()->function();
-            fun_scope->addFun(result->id(), result->name(), result->signature());
+            TranslatedFunction * result = funs.back()->function();
+            fun_scope->addFun(result->id(), result->name(), result->signature(), funs.back()->isNativeFun());
         }
 
         for (uint16_t i = 0; i < funs.size(); ++i) {
@@ -364,9 +366,10 @@ class TranslatorVisitor : AstVisitor {
     shared_ptr<FunScope> fun_scope;
 
     bool isRoot;
+    bool isNative;
 public:
     TranslatorVisitor(InterpreterCodeImpl * code, FunctionNode * root)
-        : code(code), root(root), isRoot(true) {
+        : code(code), root(root), isRoot(true), isNative(false) {
             result = new BytecodeFunction_(root->name(), root->signature());
             code->addFunction(result);
 
@@ -375,43 +378,66 @@ public:
         }
 
     TranslatorVisitor(TranslatorVisitor * parent, FunctionNode * root)
-        : code(parent->code), root(root), isRoot(false) {
+        : code(parent->code), root(root), isRoot(false), isNative(false) {
             result = new BytecodeFunction_(root->name(), root->signature());
             code->addFunction(result);
 
             fun_scope = shared_ptr<FunScope>(new FunScope(parent->fun_scope, result->id()));
             var_scope = parent->var_scope;
+
+            if (root->body()->nodes() == 2 && root->body()->nodeAt(0)->isNativeCallNode()) {
+                isNative = true;
+            }
         }
 
     virtual ~TranslatorVisitor() {}
 
-    BytecodeFunction_ * function() {
+    bool isNativeFun() {
+        return isNative;
+    }
+
+    TranslatedFunction * function() {
         return result;
     }
 
     void run() {
-        BlockNode * node = root->body();
-        var_scope = initVarScope(node->scope());
+        if (!isNative) {
+            BlockNode * node = root->body();
+            var_scope = initVarScope(node->scope());
 
-        // load parameters from stack
-        for (uint16_t i = root->parametersNumber(); i-- > 0;) { //reverse loop
-            var_scope->addVar(root->parameterName(i), root->parameterType(i));
+            // load parameters from stack
+            for (uint16_t i = root->parametersNumber(); i-- > 0;) { //reverse loop
+                var_scope->addVar(root->parameterName(i), root->parameterType(i));
 
-            Var var = findVar(root->parameterName(i), root->parameterType(i));
-              STORE_VAR(var);
+                Var var = findVar(root->parameterName(i), root->parameterType(i));
+                  STORE_VAR(var);
+            }
+
+            fun_scope->addFun(result->id(), root->name(), root->signature(), false);
+            updateFunScope(node->scope());
+
+            processBlockNode(node);
+            if (isRoot) {
+                  ADD_INSN(STOP);
+            }
+            ADD_INSN(INVALID);
+
+            var_scope = var_scope->parent;
+            code->addFunctionData(fun_scope->id, FunctionData(fun_scope->vars_count, result));
+        } else {
+            NativeCallNode * node = root->body()->nodeAt(0)->asNativeCallNode();
+
+            if (node->nativeSignature().size() != root->signature().size()) {
+               throw logic_error("CallNative: invalid function signature");
+            }
+
+            void * pointer = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+            if (pointer == 0)
+                throw logic_error("CallNative: " + node->nativeName() + " not found");
+
+            NativeFunction_ * native = new NativeFunction_(node->nativeName(), node->nativeSignature(), pointer);
+            code->addFunctionData(result->id(), FunctionData(native));
         }
-
-        fun_scope->addFun(result->id(), root->name(), root->signature());
-        updateFunScope(node->scope());
-
-        processBlockNode(node);
-        if (isRoot) {
-              ADD_INSN(STOP);
-        }
-        ADD_INSN(INVALID);
-
-        var_scope = var_scope->parent;
-        code->addFunctionData(fun_scope->id, FunctionData(fun_scope->vars_count, result));
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode * node) {
@@ -667,15 +693,19 @@ public:
             pop(fun.signature[i+1].first); // eaten by called function
         }
 
+        if (fun.isNative){
+          ADD_INSN(CALLNATIVE);
+        } else {
           ADD_INSN(CALL);
+        }
           ADD_U16(fun.id);
         if (fun.signature[0].first != VT_VOID) {
             push(fun.signature[0].first);
         }
     }
 
-    virtual void visitNativeCallNode(NativeCallNode * node) { // TODO LATER
-
+    virtual void visitNativeCallNode(NativeCallNode * node) {
+        throw logic_error("NativeCall node should be processed in TranslatorVisitor()");
     }
 
     virtual void visitPrintNode(PrintNode * node) {
