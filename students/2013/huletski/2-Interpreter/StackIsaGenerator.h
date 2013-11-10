@@ -49,6 +49,7 @@ public: // methods
     string req_cnv = t2s(from) + "2" + t2s(to);
     if (m_name_to_instr.count(req_cnv)) {
       addInsn(req_cnv);
+      return;
     }
     
     logError(("Unable to convert " + t2s(from) + " to " + t2s(to)).c_str());
