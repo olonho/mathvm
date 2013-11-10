@@ -115,6 +115,10 @@ void AstToBCTranslator::visitReturnNode(ReturnNode* node) {
     ++m_active_assigments;
     node->returnExpr()->visit(this);
     --m_active_assigments;
+  
+    VarType ret_type = m_curr_funcs.top()->returnType();
+    m_isa.convert(tos_type(), ret_type);
+    m_tos_types.pop();
   }
   
   m_isa.rtrn();
@@ -246,6 +250,7 @@ void AstToBCTranslator::visitIfNode(IfNode* node) {
   m_isa.setBC(&cond_blk);
   node->ifExpr()->visit(this);
   VarType cond_tos_type = tos_type();
+  m_tos_types.pop();
   --m_active_assigments;
   
   m_isa.setBC(&then_blk);
@@ -269,6 +274,7 @@ void AstToBCTranslator::visitWhileNode(WhileNode* node) {
   m_isa.setBC(&cond_blk);
   node->whileExpr()->visit(this);
   VarType cond_tos_type = tos_type();
+  m_tos_types.pop();
   --m_active_assigments;
   
   m_isa.setBC(&body_blk);
@@ -294,8 +300,10 @@ void AstToBCTranslator::visitForNode(ForNode* node) {
   ++m_active_assigments;
   m_isa.setBC(&init_val);
   bon->left()->visit(this);
+  m_tos_types.pop();
   m_isa.setBC(&last_val);
   bon->right()->visit(this);
+  m_tos_types.pop();
   --m_active_assigments;
   
   m_isa.setBC(&body_blk);
@@ -315,11 +323,13 @@ void AstToBCTranslator::visitCallNode(CallNode* node) {
   for (uint32_t i = 0; i < node->parametersNumber(); i++) {
     node->parameterAt(i)->visit(this);
     m_isa.convert(tos_type(), m_code->functionByName(node->name())->parameterType(i));
+    m_tos_types.pop();
   }
   --m_active_assigments;
   
   m_isa.call();
   
+  m_tos_types.push(m_code->functionByName(node->name())->returnType());
   Scope *nearest_scope = m_scopes[m_curr_funcs.top()->scopeId()];
   uint64_t func_addr = (uint64_t)nearest_scope->lookupFunction(node->name());
   m_isa.addUInt16(getRegisteredFuncId(func_addr));

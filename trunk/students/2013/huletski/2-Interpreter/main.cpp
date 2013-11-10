@@ -29,12 +29,12 @@ int main(int argc, char** argv) {
   }
   
   const char* expr = "\
-  function int ack(int m, int n) {\
+  function double ack(int m, int n) {\
     if (m == 0) { return n + 1; } \
     if (n == 0) { return ack(m - 1, 1); }\
     return ack(m - 1, ack(m, n - 1)); \
   }\
-  print(ack(3, 9), '\n');\
+  print(ack(3, 3), '\n');\
   ";
 
 

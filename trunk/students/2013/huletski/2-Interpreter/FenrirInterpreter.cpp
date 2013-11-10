@@ -198,10 +198,12 @@ void FenrirInterpreter::exec_function() {
         break;
       }
       case BC_D2I: {
-        m_op_stack.push(d2i(m_op_stack.pop()));
+        // cast to double bitwise that to int by value
+        m_op_stack.push(i2d(m_op_stack.pop()));
         break;
       }
       case BC_I2D: {
+        // cast to double by value, that to int bitwise
         m_op_stack.push(d2i(m_op_stack.pop()));
         break;
       }
