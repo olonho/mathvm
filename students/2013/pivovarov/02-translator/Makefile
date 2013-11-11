@@ -1,7 +1,8 @@
 ROOT   = .
 VM_ROOT = ./../../../..
 
-# OPT = true
+OPT = true
+WITH_SDL = true
 
 USER_LIBS = -lavcall
 

@@ -44,38 +44,6 @@ const string int2str(long val) {
     return ss.str();
 }
 
-bool isIntType(VarType const & type) {
-    return type == VT_INT;
-}
-
-bool isArithmeticType(VarType const & type) {
-    return type == VT_INT || type == VT_DOUBLE;
-}
-
-void assertVoid(VarType const & type) {
-    if (type != VT_VOID) {
-        throw logic_error("assertVoid: " + type2str(type));
-    }
-}
-
-void assertInt(VarType const & type) {
-    if (type != VT_INT) {
-        throw logic_error("assertInt: " + type2str(type));
-    }
-}
-
-void assertArithmetic(VarType const & type) {
-    if (type != VT_INT && type != VT_DOUBLE) {
-        throw logic_error("assertArithmetic: " + type2str(type));
-    }
-}
-
-void assertSame(VarType const & left, VarType const & right) {
-    if (left != right) {
-        throw logic_error("assertSame: " + type2str(left) + " " + type2str(right));
-    }
-}
-
 class TranslatorVisitor : AstVisitor {
     #define GET_INSN_IDS(PREFIX, SUFFIX, TYPE)                      \
         (TYPE == VT_INT? BC_##PREFIX##I##SUFFIX :                   \
@@ -266,8 +234,12 @@ class TranslatorVisitor : AstVisitor {
         }
     }
 
-    void processLogicOperator(TokenKind const & token, VarType const & type) {
-        assertArithmetic(type);
+    void processLogicOperator(TokenKind const & token) {
+        convertTop2Numeric();
+
+        VarType type = top();
+        pop(type);
+        pop(type);
 
         if (token == tNEQ) {
               ADD_INSN_ID(, CMP, type);
@@ -314,8 +286,12 @@ class TranslatorVisitor : AstVisitor {
         push(VT_INT);
     }
 
-    void processIntOperator(TokenKind const & token, VarType const & type) {
-        assertInt(type);
+    void processIntOperator(TokenKind const & token) {
+        convertTop2Int();
+
+        VarType type = top();
+        pop(type);
+        pop(type);
 
         switch(token) {
             case tOR:    // ||
@@ -334,8 +310,12 @@ class TranslatorVisitor : AstVisitor {
         push(VT_INT);
     }
 
-    void processArithmeticOperator(TokenKind const & token, VarType const & type) {
-        assertArithmetic(type);
+    void processNumericOperator(TokenKind const & token) {
+        convertTop2Numeric();
+
+        VarType type = top();
+        pop(type);
+        pop(type);
 
         switch(token) {
             case tADD:      // +
@@ -346,9 +326,6 @@ class TranslatorVisitor : AstVisitor {
                   ADD_INSN_ID(, MUL, type); break;
             case tDIV:      // /
                   ADD_INSN_ID(, DIV, type); break;
-            case tMOD:      // %
-                assertInt(type);
-                  ADD_INSN(IMOD); break;
             default: throw logic_error("Bad arithmetic token: " + int2str(token));
         }
 
@@ -441,19 +418,13 @@ public:
         VISIT(node->right());
         VISIT(node->left());
 
-        assertSame(top(0), top(1));
-
-        VarType type = top();
-        pop();
-        pop();
-
         switch(node->kind()) {
             case tOR:       // ||
             case tAND:      // &&
             case tAAND:     // &
             case tAOR:      // |
             case tAXOR:     // ^
-                  processIntOperator(node->kind(), type);
+                  processIntOperator(node->kind());
                 return;
             case tNEQ:      // !=
             case tEQ:       // ==
@@ -461,14 +432,19 @@ public:
             case tGE:       // >=
             case tLT:       // <
             case tLE:       // <=
-                  processLogicOperator(node->kind(), type);
+                  processLogicOperator(node->kind());
                 return;
             case tADD:      // +
             case tSUB:      // -
             case tMUL:      // *
             case tDIV:      // /
+                  processNumericOperator(node->kind());
+                return;
             case tMOD:      // %
-                  processArithmeticOperator(node->kind(), type);
+                assertInt(top(0));
+                assertInt(top(1));
+                  ADD_INSN(IMOD);
+                pop(VT_INT);
                 return;
             default:
                 throw logic_error("BinaryOp: unknown kind " + int2str(node->kind()));
@@ -482,11 +458,11 @@ public:
           VISIT (node->operand());
 
         VarType type = top();
-        pop();
 
         switch (node->kind()) {
             case tNOT:  // "!"
-                assertInt(type);
+                convertStackTop1(VT_INT);
+                pop();
                   ADD_INSN(ILOAD0);
                   ADD_BRANCH(E, yes);
                   ADD_INSN(ILOAD0);
@@ -497,7 +473,8 @@ public:
                 push(VT_INT);
                 return;
             case tSUB:  // "-"
-                assertArithmetic(type);
+                assertNumeric(type);
+                pop();
                   ADD_INSN_ID(, NEG, type);
                 push(type);
                 return;
@@ -551,7 +528,7 @@ public:
 
           VISIT(node->value());
 
-        assertSame(var.type, top());
+        convertStackTop1(var.type);
         switch(node->op()) {
             case tASSIGN:
                 break;
@@ -576,7 +553,7 @@ public:
 
         if (!node->elseBlock()) {
               VISIT(node->ifExpr());
-            assertInt(top());
+            convertStackTop1(VT_INT);
             pop();
               ADD_INSN(ILOAD0);
               ADD_BRANCH(E, end);
@@ -584,7 +561,7 @@ public:
             BIND(end);
         } else {
               VISIT(node->ifExpr());
-            assertInt(top());
+            convertStackTop1(VT_INT);
             pop();
               ADD_INSN(ILOAD0);
               ADD_BRANCH(E, els);
@@ -602,7 +579,7 @@ public:
 
         BIND(begin);
           VISIT(node->whileExpr());
-        assertInt(top());
+        convertStackTop1(VT_INT);
         pop();
           ADD_INSN(ILOAD0);
           ADD_BRANCH(E, end);
@@ -663,6 +640,7 @@ public:
     virtual void visitReturnNode(ReturnNode * node) {
         if (node->returnExpr()) {
               VISIT(node->returnExpr());
+            convertStackTop1(root->signature()[0].first);
             pop(root->signature()[0].first);
         }
         if (isRoot) {
@@ -688,6 +666,7 @@ public:
 
         for (uint16_t i = 0; i < node->parametersNumber(); ++i) {
               VISIT(node->parameterAt(i));
+            convertStackTop1(fun.signature[i+1].first);
             pop(fun.signature[i+1].first); // eaten by called function
         }
 
@@ -758,6 +737,110 @@ private: // --------------------------------------------- //
         if (fun_scope->stack.size() > 0) {
             throw logic_error("Stack leak");
         }
+    }
+
+    bool isIntType(VarType const & type) {
+        return type == VT_INT;
+    }
+
+    bool isNumericType(VarType const & type) {
+        return type == VT_INT || type == VT_DOUBLE;
+    }
+
+    void assertVoid(VarType const & type) {
+        if (type != VT_VOID) {
+            throw logic_error("assertVoid: " + type2str(type));
+        }
+    }
+
+    void assertInt(VarType const & type) {
+        if (type != VT_INT) {
+            throw logic_error("assertInt: " + type2str(type));
+        }
+    }
+
+    void assertNumeric(VarType const & type) {
+        if (type != VT_INT && type != VT_DOUBLE) {
+            throw logic_error("assertNumeric: " + type2str(type));
+        }
+    }
+
+    void assertSame(VarType const & left, VarType const & right) {
+        if (left != right) {
+            throw logic_error("assertSame: " + type2str(left) + " " + type2str(right));
+        }
+    }
+
+    void convertStackTop1(VarType const & result) {
+        VarType stack = top();
+
+        if (stack == result) return;
+        if (stack == VT_INT && result == VT_DOUBLE) {
+              ADD_INSN(I2D);
+            pop(VT_INT);
+            push(VT_DOUBLE);
+            return;
+        }
+        if (stack == VT_STRING && result == VT_INT) {
+              ADD_INSN(S2I);
+            pop(VT_STRING);
+            push(VT_INT);
+            return;
+        }
+        if (stack == VT_DOUBLE && result == VT_INT) {
+            cerr << "Double to Int cast. Undefined behavior." << endl;
+              ADD_INSN(D2I);
+            pop(VT_DOUBLE);
+            push(VT_INT);
+            return;
+        }
+        throw logic_error("bad top of stack conversion: " + type2str(stack) + " " + type2str(result) );
+    }
+
+    void convertTop2Numeric() {
+        VarType upper = top(0);
+        VarType lower = top(1);
+        if (upper == lower) return;
+        if (upper == VT_INT && lower == VT_DOUBLE) {
+              ADD_INSN(I2D);
+            pop(VT_INT);
+            push(VT_DOUBLE);
+            return;
+        }
+        if (upper == VT_DOUBLE && lower == VT_INT) {
+              ADD_INSN(SWAP);
+              ADD_INSN(I2D);
+              ADD_INSN(SWAP);
+            pop(VT_DOUBLE);
+            pop(VT_INT);
+            push(VT_DOUBLE);
+            push(VT_DOUBLE);
+            return;
+        }
+        throw logic_error("bad top2 of stack to arithmetic conversion: " + type2str(upper) + " " + type2str(lower) );
+    }
+
+    void convertTop2Int() {
+        VarType upper = top(0);
+        VarType lower = top(1);
+        if (upper == VT_INT && lower == VT_INT) return;
+        if (upper == VT_INT && lower == VT_DOUBLE) {
+              ADD_INSN(I2D);
+            pop(VT_INT);
+            push(VT_DOUBLE);
+            return;
+        }
+        if (upper == VT_DOUBLE && lower == VT_INT) {
+              ADD_INSN(SWAP);
+              ADD_INSN(I2D);
+              ADD_INSN(SWAP);
+            pop(VT_DOUBLE);
+            pop(VT_INT);
+            push(VT_DOUBLE);
+            push(VT_DOUBLE);
+            return;
+        }
+        throw logic_error("bad top2 of stack to int conversion: " + type2str(upper) + " " + type2str(lower) );
     }
 
     #undef GET_INSN_IDS

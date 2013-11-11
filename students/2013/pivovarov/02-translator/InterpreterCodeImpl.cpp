@@ -287,8 +287,8 @@ Status * InterpreterCodeImpl::execute() {
     SWAP:
         v1 = POP();
         v2 = POP();
-        PUSH(v2);
         PUSH(v1);
+        PUSH(v2);
         NEXT;
     POP:
         stack_top--;
