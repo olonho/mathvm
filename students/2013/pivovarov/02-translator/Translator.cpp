@@ -555,10 +555,12 @@ public:
             case tASSIGN:
                 break;
             case tINCRSET:
+                assertSame(var.type, top());
                   LOAD_VAR(var);
                   ADD_INSN_ID(, ADD, var.type);
                 break;
             case tDECRSET:
+                assertSame(var.type, top());
                   LOAD_VAR(var);
                   ADD_INSN_ID(, SUB, var.type);
                 break;
