@@ -551,16 +551,15 @@ public:
 
           VISIT(node->value());
 
+        assertSame(var.type, top());
         switch(node->op()) {
             case tASSIGN:
                 break;
             case tINCRSET:
-                assertSame(var.type, top());
                   LOAD_VAR(var);
                   ADD_INSN_ID(, ADD, var.type);
                 break;
             case tDECRSET:
-                assertSame(var.type, top());
                   LOAD_VAR(var);
                   ADD_INSN_ID(, SUB, var.type);
                 break;
