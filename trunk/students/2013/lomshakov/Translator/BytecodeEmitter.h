@@ -11,7 +11,7 @@
 #include <deque>
 #include <map>
 #include "visitors.h"
-#include "bcInstructionSet.h"
+#include "BcInstructionSet.h"
 
 namespace mathvm {
 
@@ -22,7 +22,7 @@ namespace mathvm {
     Code* _code;
     LocalsMap _localsById;
 
-    deque<uint16_t> _functionId;// same as scopeId
+    deque<uint16_t> _functionId; // same as scopeId
     Scope* _currentAstFunctionScope;
 
     BcInstructionSet insnSet;
@@ -47,15 +47,11 @@ namespace mathvm {
 
   private:
 
-    // 'll give it to the discretion of the verifier
-    VarType guessTypeExpr(AstNode* node);
-
     LocationVar lookupCtxAndIdForVar(string const &name);
     bool isLocalVar(string const& name, uint16_t scopeId) { return _localsById.count(make_pair(name, scopeId)) != 0; };
     Scope* currentAstScope() { return _currentAstFunctionScope; }
     BytecodeFunction* currentBcFunction() { return static_cast<BytecodeFunction*>(_code->functionById(_functionId.front())); }
     uint16_t currentScopeId() { return _functionId.front(); }
-//    bool isLocalVar(string const& name) { return _localsById.count(make_pair(name, currentScopeId())) != 0; };
 
     void makeMappingFunctionParametersAndLocalsById();
     void makeMappingBlockLocals(Scope *);
@@ -63,7 +59,7 @@ namespace mathvm {
     void pushAstFunction(AstFunction* );
     void popAstFunction();
 
-    uint16_t getFunctionIdByName(string const &name);
+    pair<uint16_t, TranslatedFunction*> getFunctionIdByName(string const &name);
   };
 
 }

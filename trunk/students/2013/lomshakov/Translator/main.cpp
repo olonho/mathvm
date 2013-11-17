@@ -7,8 +7,8 @@
 
 
 
-#include "mathvm.h"
 
+#include "mathvm.h"
 
 
 using namespace mathvm;
@@ -31,9 +31,25 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  const char* expr = "double x; double y;"
-      "x += 8.0; y = 2.0;"
-      "print('Hello, x=',x,' y=',y,'\n');"
+  const char* expr =
+    "int r;"
+    "int r1;"
+    ""
+    "function void fib(int x) {"
+    "    if (x == 0) {"
+    "        r = 0;"
+    "        r1 = 1;"
+    "    } else {"
+    "        fib(x - 1);"
+    "        int r2;"
+    "        r2 = r + r1;"
+    "        r = r1;"
+    "        r1 = r2;"
+    "    }"
+    "}"
+    ""
+    "fib(100000);"
+    "print(r, '\n');"
   ;
   bool isDefaultExpr = true;
 
@@ -74,10 +90,10 @@ int main(int argc, char** argv) {
           execStatus->getError().c_str());
     } else {
       if (isDefaultExpr) {
-        printf("x evaluated to %f\n", vars[0]->getDoubleValue());
-        for (uint32_t i = 0; i < vars.size(); i++) {
-          delete vars[i];
-        }
+//        printf("x evaluated to %f\n", vars[0]->getDoubleValue());
+//        for (uint32_t i = 0; i < vars.size(); i++) {
+//          delete vars[i];
+//        }
       }
     }
     delete code;

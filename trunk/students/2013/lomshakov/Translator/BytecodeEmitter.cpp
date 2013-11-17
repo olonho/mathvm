@@ -4,7 +4,7 @@
 //
 
 
-#include "bcEmitter.h"
+#include "BytecodeEmitter.h"
 
 namespace mathvm {
 
@@ -19,7 +19,7 @@ namespace mathvm {
       op = printNode->operandAt(i);
       op->visit(this);
 
-      insnSet.print(guessTypeExpr(op));
+      insnSet.print();
     }
   }
 
@@ -53,10 +53,10 @@ namespace mathvm {
   }
 
   void BytecodeEmitter::visitIfNode(IfNode *ifNode) {
-    ifNode->visit(this);
+    ifNode->ifExpr()->visit(this);
 
     insnSet.prepareThenBranch();
-    ifNode->thenBlock();
+    ifNode->thenBlock()->visit(this);
 
     if (ifNode->elseBlock()) {
       insnSet.prepareElseBranch();
@@ -76,57 +76,57 @@ namespace mathvm {
 
   void BytecodeEmitter::visitBinaryOpNode(BinaryOpNode *node) {
 
-    AstBaseVisitor::visitBinaryOpNode(node);
+    node->right()->visit(this);
+    node->left()->visit(this);
 
-    VarType type = guessTypeExpr(node);
     switch (node->kind()) {
       case tADD:
-        insnSet.add(type);
+        insnSet.add();
         break;
       case tSUB:
-        insnSet.sub(type);
+        insnSet.sub();
         break;
       case tMUL:
-        insnSet.mul(type);
+        insnSet.mul();
         break;
       case tDIV:
-        insnSet.div(type);
+        insnSet.div();
         break;
       case tMOD:
-        insnSet.mod(type);
+        insnSet.mod();
         break;
       case tAOR:
-        insnSet.aor(type);
+        insnSet.aor();
         break;
       case tAAND:
-        insnSet.aand(type);
+        insnSet.aand();
         break;
       case tAXOR:
-        insnSet.axor(type);
+        insnSet.axor();
         break;
       case tEQ:
-        insnSet.eq(type);
+        insnSet.eq();
         break;
       case tNEQ:
-        insnSet.neq(type);
+        insnSet.neq();
         break;
       case tLT:
-        insnSet.lt(type);
+        insnSet.lt();
         break;
       case tGT:
-        insnSet.gt(type);
+        insnSet.gt();
         break;
       case tGE:
-        insnSet.ge(type);
+        insnSet.ge();
         break;
       case tLE:
-        insnSet.le(type);
+        insnSet.le();
         break;
       case tAND:
-        // TODO
+        insnSet.band();
         break;
       case tOR:
-        // TODO
+        insnSet.bor();
         break;
       default:
         throw new logic_error("wrong operator kind " + string(tokenStr(node->kind())));
@@ -138,10 +138,9 @@ namespace mathvm {
 
     AstBaseVisitor::visitUnaryOpNode(node);
 
-    VarType type = guessTypeExpr(node);
     switch (node->kind()) {
       case tSUB:
-        insnSet.neg(type);
+        insnSet.neg();
         break;
       case tNOT:
         insnSet.bnot();
@@ -176,12 +175,17 @@ namespace mathvm {
     // push value of rhs on TOS
     AstBaseVisitor::visitStoreNode(storeNode);
 
+    if (storeNode->op() != tASSIGN) {
+      if (local.first == currentScopeId())
+        insnSet.loadVar(var->type(), local.second);
+      else
+        insnSet.loadCtxVar(var->type(), local.first, local.second);
+    }
+
     if (storeNode->op() == tINCRSET) {
-      var->type() == VT_INT ? insnSet.load((int64_t)1) : insnSet.load(1.0);
-      insnSet.add(var->type());
+      insnSet.add();
     } else if (storeNode->op() == tDECRSET) {
-      var->type() == VT_INT ? insnSet.load((int64_t)-1) : insnSet.load(-1.0);
-      insnSet.add(var->type());
+      insnSet.sub();
     }
 
     if (local.first == currentScopeId())
@@ -213,7 +217,8 @@ namespace mathvm {
   }
 
   void BytecodeEmitter::visitReturnNode(ReturnNode *node) {
-    insnSet.rëturn();
+    AstBaseVisitor::visitReturnNode(node);
+    insnSet.riturn(currentBcFunction()->returnType());
   }
 
   void BytecodeEmitter::visitFunctionNode(FunctionNode *node) {
@@ -229,6 +234,11 @@ namespace mathvm {
     }
 
     function->node()->visit(this);
+
+    Bytecode* bc = currentBcFunction()->bytecode();
+    if (bc->getInsn(bc->length() - 1) != BC_RETURN) {
+      (function->name() == AstFunction::top_name) ? insnSet.stop() : insnSet.riturn(currentBcFunction()->returnType());
+    }
 
     popAstFunction();
   }
@@ -255,7 +265,7 @@ namespace mathvm {
 
     // push locals
     AstVar* v;
-    for (Scope::VarIterator i(_currentAstFunctionScope); i.next(); ++id) {
+    for (Scope::VarIterator i(_currentAstFunctionScope); i.hasNext(); ++id) {
       v = i.next();
       _localsById.insert(make_pair(make_pair(v->name(), currentScopeId()), id));
     }
@@ -264,7 +274,7 @@ namespace mathvm {
   }
 
   void BytecodeEmitter::makeMappingBlockLocals(Scope *scope) {
-    uint16_t id = (uint16_t) currentBcFunction()->localsNumber();
+    uint16_t id = (uint16_t) (currentBcFunction()->localsNumber() + currentBcFunction()->parametersNumber());
     AstVar* v;
 
     for (Scope::VarIterator i(scope); i.hasNext(); ) {
@@ -272,7 +282,7 @@ namespace mathvm {
       if (_localsById.insert(make_pair(make_pair(v->name(), currentScopeId()), id)).second)
         ++id;
     }
-    currentBcFunction()->setLocalsNumber(id);
+    currentBcFunction()->setLocalsNumber(id - currentBcFunction()->parametersNumber());
   }
 
   void BytecodeEmitter::pushAstFunction(AstFunction *astFunction) {
@@ -283,6 +293,7 @@ namespace mathvm {
     if ((foo = _code->functionByName(astFunction->name())) == 0) {
       foo = new BytecodeFunction(astFunction);
       idFoo = _code->addFunction(foo);
+      foo->setScopeId(idFoo);
     } else {
       idFoo = foo->id();
     }
@@ -311,7 +322,7 @@ namespace mathvm {
     return make_pair( -1, -1);
   }
 
-  uint16_t BytecodeEmitter::getFunctionIdByName(string const &name) {
+  pair<uint16_t, TranslatedFunction*> BytecodeEmitter::getFunctionIdByName(string const &name) {
     AstFunction* astFoo;
     TranslatedFunction* foo;
     uint16_t idFoo;
@@ -323,37 +334,12 @@ namespace mathvm {
     if ((foo = _code->functionByName(name)) == 0) {
       foo = new BytecodeFunction(astFoo);
       idFoo = _code->addFunction(foo);
+      foo->setScopeId(idFoo);
     } else {
       idFoo = foo->id();
     }
 
-    return idFoo;
-  }
-
-  VarType BytecodeEmitter::guessTypeExpr(AstNode *node) {
-    VarType type = VT_INVALID;
-    while (node->isBinaryOpNode())
-      node = node->asBinaryOpNode()->left();
-
-    while (node->isUnaryOpNode())
-      node = node->asUnaryOpNode()->operand();
-
-    if (node->isLoadNode())
-      type = node->asLoadNode()->var()->type();
-
-    if (node->isIntLiteralNode())
-      type = VT_INT;
-    if (node->isDoubleLiteralNode())
-      type = VT_DOUBLE;
-    if (node->asStringLiteralNode())
-      type = VT_STRING;
-
-    if (node->isCallNode())
-      type = currentAstScope()->lookupFunction(node->asCallNode()->name(), true)->returnType();
-
-    if (node->isNativeCallNode())
-      type = node->asNativeCallNode()->nativeSignature()[0].first;
-    return type;
+    return make_pair(idFoo, foo);
   }
 
   BytecodeEmitter &BytecodeEmitter::getInstance() {

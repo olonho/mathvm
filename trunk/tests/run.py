@@ -99,7 +99,7 @@ def main(argv):
     mvm = os.path.join('./build', kind, 'mvm')
   tests = glob.glob(os.path.join(testdir, '*.mvm'))
   for t in tests:
-    m = re.search(r"([\w]+)\.mvm", t)
+    m = re.search(r"([\w-]+)\.mvm", t)
     if m is None:
       continue
     t = m.group(1)
