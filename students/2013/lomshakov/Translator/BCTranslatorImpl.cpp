@@ -1,12 +1,15 @@
-#include "mathvm.h"
-#include "parser.h"
-#include "interpreter.h"
-#include "bcEmitter.h"
+//
+// Created by Vadim Lomshakov on 13/11/13.
+// Copyright (c) 2013 spbau. All rights reserved.
+//
+
+
+#include "BCTranslatorImpl.h"
+
 
 namespace mathvm {
 
-
-  Status* BytecodeTranslatorImpl::translateBytecode(const string& program, InterpreterCodeImpl* *code) {
+  Status* BCTranslatorImpl::translateBytecode(const string& program, InterpreterImpl * *code) {
     Parser parser = Parser();
     Status* parserStatus = parser.parseProgram(program);
 
@@ -15,11 +18,13 @@ namespace mathvm {
 
     BytecodeEmitter::getInstance().emitCode(parser.top(), *code);
 
+//    (*code)->disassemble(std::cout);
+
     return new Status();
   }
 
-  Status *BytecodeTranslatorImpl::translate(const string &program, Code **code) {
-    InterpreterCodeImpl* interpreterCode = new InterpreterCodeImpl();
+  Status *BCTranslatorImpl::translate(const string &program, Code **code) {
+    InterpreterImpl * interpreterCode = new InterpreterImpl();
     Status* statusTranslate = 0;
 
     try {

@@ -8,16 +8,18 @@
 
 
 #include <stdexcept>
+#include <stack>
 #include "ast.h"
-#include "bcEmitter.h"
+#include "BytecodeEmitter.h"
 
 namespace mathvm{
 
   class BcInstructionSet {
     Bytecode* _bc;
-    const int64_t TRUE = 1;
-    const int64_t FALSE = 0;
+    static const int64_t FALSE = 0;
 
+    stack<VarType> typeExpr;
+    map<VarType, uint8_t> orderOnTypes;
 
     // for if template
     Label beginOfElseBlck;
@@ -29,14 +31,84 @@ namespace mathvm{
     Label block;
 
     uint16_t _idVarLoop;
-    uint16_t*_ctx;
+    uint16_t* _ctx;
     VarType _typeVarLoop;
   public:
-    BcInstructionSet() : _bc(0) {}
+    BcInstructionSet() : _bc(0), typeExpr() {
+      orderOnTypes[VT_DOUBLE] = 3;
+      orderOnTypes[VT_INT] = 2;
+      orderOnTypes[VT_STRING] = 1;
+    }
 
     void setContext(Bytecode* bc) { _bc = bc; }
 
+    void stop() {
+      emit(BC_STOP);
+    }
+
+    void tryConvertToLogic1() {
+      assert(typeExpr.size() >= 1);
+
+      VarType opType = typeExpr.top();
+      typeExpr.pop();
+      assert(opType != VT_INVALID && opType != VT_VOID);
+
+
+      if (opType == VT_STRING)
+        emit(BC_S2I);
+      else if (opType == VT_DOUBLE)
+        emit(BC_D2I);
+
+      typeExpr.push(VT_INT);
+    }
+
+
+
+    void tryExpandConversion2(VarType maxType = VT_DOUBLE) {
+      assert(typeExpr.size() >= 2);
+      assert(maxType == VT_DOUBLE || maxType == VT_INT);
+
+      VarType op2Type = typeExpr.top();
+      typeExpr.pop();
+      assert(op2Type != VT_INVALID && op2Type != VT_VOID);
+      VarType op1Type = typeExpr.top();
+      typeExpr.pop();
+      assert(op1Type != VT_INVALID && op1Type != VT_VOID);
+
+      if (abs(orderOnTypes[op1Type] - orderOnTypes[op2Type]) == 2)
+        throw std::logic_error("invalid operands to binary operator");
+
+      if (orderOnTypes[maxType] < orderOnTypes[op2Type]
+          || orderOnTypes[maxType] < orderOnTypes[op1Type])
+        throw std::logic_error("invalid operands to binary operator");
+
+      VarType resType = op1Type;
+
+      if (orderOnTypes[op2Type] < orderOnTypes[op1Type]) {
+        assert(op1Type == VT_DOUBLE || op1Type == VT_INT);
+        if (op1Type == VT_DOUBLE)
+          emit(BC_I2D);
+        else
+          emit(BC_S2I);
+      }
+
+      if (orderOnTypes[op1Type] < orderOnTypes[op2Type]) {
+        assert(op2Type == VT_DOUBLE || op2Type == VT_INT);
+        resType = op2Type;
+        emit(BC_SWAP);
+        if (op2Type == VT_DOUBLE)
+          emit(BC_I2D);
+        else
+          emit(BC_S2I);
+        emit(BC_SWAP);
+      }
+
+      typeExpr.push(resType);
+    }
+
     void load(int64_t arg1) {
+      typeExpr.push(VT_INT);
+
       switch (arg1) {
         case 0:
           emit(BC_ILOAD0);
@@ -53,13 +125,19 @@ namespace mathvm{
     }
 
     void load(double arg1) {
+      typeExpr.push(VT_DOUBLE);
+
       // updating float pointing numbers hasn't occurred,
       // comparison of numbers is straightforward
-      if (arg1 == 0.0)
+      if (arg1 == 0.0) {
         emit(BC_DLOAD0);
+        return;
+      }
 
-      if (arg1 == 0.0)
+      if (arg1 == 1.0) {
         emit(BC_DLOAD1);
+        return;
+      }
 
       if (arg1 == -1.0)
         emit(BC_DLOADM1);
@@ -68,14 +146,19 @@ namespace mathvm{
     }
 
     void sload(uint16_t ref) {
+      typeExpr.push(VT_STRING);
+
       emit(BC_SLOAD, ref);
     }
 
     void sload0() {
+      typeExpr.push(VT_STRING);
       emit(BC_SLOAD0);
     }
 
     void loadVar(VarType type, uint16_t id) {
+      typeExpr.push(type);
+
       //TODO use 0,1,...
       switch (type) {
         case VT_INT:
@@ -93,6 +176,8 @@ namespace mathvm{
     }
 
     void loadCtxVar(VarType type, uint16_t ctx, uint16_t id) {
+      typeExpr.push(type);
+
       switch (type) {
         case VT_INT:
           emit(BC_LOADCTXIVAR, ctx, id);
@@ -109,8 +194,12 @@ namespace mathvm{
     }
 
     void storeVar(VarType type, uint16_t id) {
+      // TODO conversion
+      if (type != typeExpr.top())
+        throw logic_error("wrong assignment");
+
       //TODO use 0,1,...
-      switch (type) {
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_STOREIVAR, id);
           break;
@@ -123,10 +212,15 @@ namespace mathvm{
         default:
           throw std::logic_error("wrong type for STOREVAR insn");
       }
+      typeExpr.pop();
     }
 
     void storeCtxVar(VarType type, uint16_t ctx, uint16_t id) {
-      switch (type) {
+      // TODO conversion
+      if (type != typeExpr.top())
+        throw logic_error("wrong assignment");
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_STORECTXIVAR, ctx, id);
           break;
@@ -139,9 +233,12 @@ namespace mathvm{
         default:
           throw std::logic_error("wrong type for STORECTXVAR insn");
       }
+      typeExpr.pop();
     }
 
-    void print(VarType type) {
+    void print() {
+      VarType type = typeExpr.top();
+      typeExpr.pop();
       switch (type) {
         case VT_INT:
           emit(BC_IPRINT);
@@ -157,20 +254,39 @@ namespace mathvm{
       }
     }
 
-    void call(uint16_t fId) {
-      emit(BC_CALL, fId);
+    void call(pair<uint16_t, TranslatedFunction*> foo) {
+      for (int i = foo.second->parametersNumber() - 1; i >= 0; --i) {
+        if (typeExpr.top() != foo.second->parameterType(i))
+          throw logic_error("mismatch type of argument function " + foo.second->name());
+        typeExpr.pop();
+      }
+
+      emit(BC_CALL, foo.first);
+      if (foo.second->returnType() != VT_VOID)
+        typeExpr.push(foo.second->returnType());
     }
 
     void callNative(uint16_t fId) {
       emit(BC_CALLNATIVE, fId);
     }
 
-    void rëturn() {
+    void riturn(VarType returnType) {
+      // TODO conversion
+      assert((typeExpr.size() == 1 && returnType != VT_VOID)
+        || (typeExpr.empty() && returnType == VT_VOID));
+
+      if (returnType != VT_VOID && returnType != typeExpr.top())
+        throw logic_error("mismatch type of return expression");
+
       emit(BC_RETURN);
+      if (returnType != VT_VOID)
+        typeExpr.pop();
     }
 
-    void add(VarType type) {
-      switch (type) {
+    void add() {
+      tryExpandConversion2();
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_IADD);
           break;
@@ -182,8 +298,10 @@ namespace mathvm{
       }
     }
 
-    void sub(VarType type) {
-      switch (type) {
+    void sub() {
+      tryExpandConversion2();
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_ISUB);
           break;
@@ -195,8 +313,10 @@ namespace mathvm{
       }
     }
 
-    void mul(VarType type) {
-      switch (type) {
+    void mul() {
+      tryExpandConversion2();
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_IMUL);
           break;
@@ -208,8 +328,10 @@ namespace mathvm{
       }
     }
 
-    void div(VarType type) {
-      switch (type) {
+    void div() {
+      tryExpandConversion2();
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_IDIV);
           break;
@@ -221,8 +343,10 @@ namespace mathvm{
       }
     }
 
-    void mod(VarType type) {
-      switch (type) {
+    void mod() {
+      tryExpandConversion2(VT_INT);
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_IMOD);
           break;
@@ -231,51 +355,62 @@ namespace mathvm{
       }
     }
 
-    void aor(VarType type) {
-      switch (type) {
+    void aor() {
+      tryExpandConversion2(VT_INT);
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_IAOR);
           break;
         default:
-          throw std::logic_error("wrong type for MOD insn");
+          throw std::logic_error("wrong type for AOR insn");
       }
     }
 
-    void aand(VarType type) {
-      switch (type) {
+    void aand() {
+      tryExpandConversion2(VT_INT);
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_IAAND);
           break;
         default:
-          throw std::logic_error("wrong type for MOD insn");
+          throw std::logic_error("wrong type for AAND insn");
       }
     }
 
-    void axor(VarType type) {
-      switch (type) {
+    void axor() {
+      tryExpandConversion2(VT_INT);
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_IAXOR);
           break;
         default:
-          throw std::logic_error("wrong type for MOD insn");
+          throw std::logic_error("wrong type for AXOR insn");
       }
     }
 
-    void cmp(VarType type) {
-      switch (type) {
+    void cmp() {
+      tryExpandConversion2();
+
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_ICMP);
           break;
         case VT_DOUBLE:
           emit(BC_DCMP);
+
+          typeExpr.pop();
+          typeExpr.push(VT_INT);
           break;
         default:
-          throw std::logic_error("wrong type for ADD insn");
+          throw std::logic_error("wrong type for CMP insn");
       }
     }
 
-    void neg(VarType type) {
-      switch (type) {
+    void neg() {
+      switch (typeExpr.top()) {
         case VT_INT:
           emit(BC_INEG);
           break;
@@ -287,123 +422,139 @@ namespace mathvm{
       }
     }
 
-    void eq(VarType type) {
-      Label startOfTrueBlck;
-      _bc->addBranch(BC_IFICMPE, startOfTrueBlck);
 
-      load(FALSE);
-      Label endOfFalseBlck;
-      _bc->addBranch(BC_JA, endOfFalseBlck);
+    // let {0} - false, {1, -1} - true
 
-      _bc->bind(startOfTrueBlck);
-      load(TRUE);
-      _bc->bind(endOfFalseBlck);
+    // -1 -> -2 -> 0
+    //  0 -> -1 -> -1
+    //  1 ->  0 -> 0
+    void eq() {
+      cmp();
+      emit(BC_ILOADM1);
+      emit(BC_IADD);
+      emit(BC_ILOAD, (int64_t)2);
+//      load((int64_t)2);
+      emit(BC_SWAP);
+      emit(BC_IMOD);
     }
 
-    void neq(VarType type) {
-      Label startOfTrueBlck;
-      _bc->addBranch(BC_IFICMPNE, startOfTrueBlck);
-      load(FALSE);
-
-      Label endOfFalseBlck;
-      _bc->addBranch(BC_JA, endOfFalseBlck);
-
-      _bc->bind(startOfTrueBlck);
-      load(TRUE);
-      _bc->bind(endOfFalseBlck);
+    // -1
+    //  0
+    //  1
+    void neq() {
+      cmp();
     }
 
-    // notes: lower < upper
-    void lt(VarType type) {
-      Label startOfTrueBlck;
-      _bc->addBranch(BC_IFICMPG, startOfTrueBlck);
-      load(FALSE);
-
-      Label endOfFalseBlck;
-      _bc->addBranch(BC_JA, endOfFalseBlck);
-
-      _bc->bind(startOfTrueBlck);
-      load(TRUE);
-      _bc->bind(endOfFalseBlck);
+    // -1 ->  1 -> 0
+    //  0 ->  2 -> 0
+    //  1 ->  3 -> 1
+    // notes: upper > lower
+    void gt() {
+      cmp();
+      emit(BC_ILOAD, (int64_t)2);
+//      load((int64_t)2);
+      emit(BC_IADD);
+      emit(BC_ILOAD, (int64_t)3);
+//      load((int64_t)3);
+      emit(BC_SWAP);
+      emit(BC_IDIV);
     }
 
-    // notes: lower > upper
-    void gt(VarType type) {
-      Label startOfTrueBlck;
-      _bc->addBranch(BC_IFICMPL, startOfTrueBlck);
-      load(FALSE);
 
-      Label endOfFalseBlck;
-      _bc->addBranch(BC_JA, endOfFalseBlck);
-
-      _bc->bind(startOfTrueBlck);
-      load(TRUE);
-      _bc->bind(endOfFalseBlck);
+    // -1 ->  -3 -> -1
+    //  0 ->  -2 -> 0
+    //  1 ->  -1 -> 0
+    // notes: upper < lower
+    void lt() {
+      cmp();
+      emit(BC_ILOAD, (int64_t)-2);
+//      load((int64_t)-2);
+      emit(BC_IADD);
+      emit(BC_ILOAD, (int64_t)3);
+//      load((int64_t)3);
+      emit(BC_SWAP);
+      emit(BC_IDIV);
     }
 
-    // notes: lower <= upper
-    void le(VarType type) {
-      Label startOfTrueBlck;
-      _bc->addBranch(BC_IFICMPGE, startOfTrueBlck);
-      load(FALSE);
-
-      Label endOfFalseBlck;
-      _bc->addBranch(BC_JA, endOfFalseBlck);
-
-      _bc->bind(startOfTrueBlck);
-      load(TRUE);
-      _bc->bind(endOfFalseBlck);
+    // -1 ->  0
+    //  0 ->  1
+    //  1 ->  2
+    // notes: upper => lower
+    void ge() {
+      cmp();
+      emit(BC_ILOAD1);
+      emit(BC_IADD);
     }
 
-    // notes: lower >= upper
-    void ge(VarType type) {
-      Label startOfTrueBlck;
-      _bc->addBranch(BC_IFICMPLE, startOfTrueBlck);
-      load(FALSE);
-
-      Label endOfFalseBlck;
-      _bc->addBranch(BC_JA, endOfFalseBlck);
-
-      _bc->bind(startOfTrueBlck);
-      load(TRUE);
-      _bc->bind(endOfFalseBlck);
+    // -1 -> -2
+    //  0 -> -1
+    //  1 ->  0
+    // notes: upper <= lower
+    void le() {
+      cmp();
+      emit(BC_ILOADM1);
+      emit(BC_IADD);
     }
 
     // is lazy
     void bor() {
+      emit(BC_SWAP);
 
+      prepareThenBranch();
+      emit(BC_POP);
+      emit(BC_ILOAD1);
+      prepareElseBranch();
+      // second expr convert to logic and return it
+      tryConvertToLogic1();
+      buildIf();
     }
 
     void band() {
-
-    }
-
-    // expect 0 or 1 on TOS
-    void bnot() {
-      load((int64_t)1);
-      add(VT_INT);
-
-      load((int64_t)2);
       emit(BC_SWAP);
 
-      mod(VT_INT);
+      prepareThenBranch();
+      // second expr convert to logic and return it
+      tryConvertToLogic1();
+      prepareElseBranch();
+      emit(BC_POP);
+      emit(BC_ILOAD0);
+      buildIf();
+    }
+
+    // -1 -> -2 ->  0
+    //  0 -> -1 -> -1
+    //  1 ->  0 ->  0
+    void bnot() {
+      tryConvertToLogic1();
+
+      emit(BC_ILOADM1);
+      emit(BC_IADD);
+      emit(BC_ILOAD, (int64_t)2);
+//      load((int64_t)2);
+      emit(BC_SWAP);
+      emit(BC_IMOD);
     }
 
 //-------------ControlFLow-----------------------//
 
     // template if:
-    //        ificmpge
+    //        iload0
+    //        ificmpe
     //        then
     //        JA
     //        else
 
     void prepareThenBranch() {
+      tryConvertToLogic1();
+
       beginOfElseBlck = Label(_bc);
       endOfElseBlck = Label(_bc);
       hasElse = false;
 
       load(FALSE);
-      _bc->addBranch(BC_IFICMPGE, beginOfElseBlck);
+      typeExpr.pop();
+      typeExpr.pop();
+      _bc->addBranch(BC_IFICMPE, beginOfElseBlck);
 
     }
 
@@ -427,7 +578,7 @@ namespace mathvm{
     //    $b: ...
     //    $c: expr
     //        iload0
-    //        ificmpl $b
+    //        ificmpne $b
 
 
     void prepareWhileBlock() {
@@ -444,8 +595,12 @@ namespace mathvm{
     }
 
     void buildWhile() {
+      tryConvertToLogic1();
       load(FALSE);
-      _bc->addBranch(BC_IFICMPL, block);
+      assert(typeExpr.size() == 2);
+      typeExpr.pop();
+      typeExpr.pop();
+      _bc->addBranch(BC_IFICMPNE, block);
     }
 //-----------------------------------------------//
 
@@ -485,24 +640,33 @@ namespace mathvm{
       _typeVarLoop == VT_INT ? load((int64_t)1) : load(1.0);
 
       if (_ctx == 0) {
-        storeVar(_typeVarLoop, _idVarLoop);
+        loadVar(_typeVarLoop, _idVarLoop);
       } else {
-        storeCtxVar(_typeVarLoop, _idVarLoop, *_ctx);
+        loadCtxVar(_typeVarLoop, _idVarLoop, *_ctx);
       }
 
-      add(_typeVarLoop);
+      add();
 
-      _bc->bind(condition);
-
-      // prepare condition
       if (_ctx == 0) {
         storeVar(_typeVarLoop, _idVarLoop);
       } else {
         storeCtxVar(_typeVarLoop, _idVarLoop, *_ctx);
       }
+
+      _bc->bind(condition);
+
+      // prepare condition
+      if (_ctx == 0) {
+        loadVar(_typeVarLoop, _idVarLoop);
+      } else {
+        loadCtxVar(_typeVarLoop, _idVarLoop, *_ctx);
+      }
     }
 
     void buildFor() {
+      assert(typeExpr.size() == 2);
+      typeExpr.pop();
+      typeExpr.pop();
       _bc->addBranch(BC_IFICMPGE, block);
     }
 
