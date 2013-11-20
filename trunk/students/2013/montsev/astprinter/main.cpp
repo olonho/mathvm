@@ -253,6 +253,7 @@ int main(int argc, char const *argv[]) {
 
     if (argc != 2) {
         std::cerr << "USAGE: <source filename>" << std::endl;
+        return 1;
     }
 
     Parser parser;
@@ -263,6 +264,7 @@ int main(int argc, char const *argv[]) {
     if (!input) {
         std::cerr << "File: " << filename << "  does not exist" 
                   << std::endl;
+        return 1;
     }
 
     std::stringstream stream;
