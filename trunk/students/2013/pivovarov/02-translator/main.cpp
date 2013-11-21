@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
 	if (status->isError()) {
 		cout << status->getError() << endl;
 	} else {
-		code->disassemble();
+		// code->disassemble();
 		delete status;
 
 		status = ((InterpreterCodeImpl*)code)->execute();
