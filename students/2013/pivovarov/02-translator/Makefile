@@ -4,7 +4,7 @@ VM_ROOT = ./../../../..
 OPT = true
 WITH_SDL = true
 
-USER_LIBS = -lavcall
+# USER_LIBS = -lavcall
 
 USER_OBJ = \
 	$(OBJ)/main$(OBJ_SUFF) \

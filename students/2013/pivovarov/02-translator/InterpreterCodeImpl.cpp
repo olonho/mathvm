@@ -1,7 +1,5 @@
 #include "InterpreterCodeImpl.h"
 
-#include <avcall.h>
-
 namespace mathvm {
 
 #define STACK_SIZE 1024 * 1024
@@ -139,8 +137,12 @@ Status * InterpreterCodeImpl::execute() {
     uint16_t fun_id;
     shared_ptr<NativeFunction_> native_fun;
     vector<Data> params;
-    av_alist alist;
     params.reserve(16);
+
+    int64_t intArgs[6];
+    double doubleArgs[8];
+    size_t intIdx = 0;
+    size_t doubleIdx = 0;
 
     stack_top = 0;
     fun_data = getFunctionData(0);
@@ -459,62 +461,61 @@ Status * InterpreterCodeImpl::execute() {
         fun_data = getFunctionData( fun_id );
         native_fun = fun_data.native_fun;
 
-        switch (native_fun->returnType()) {
-            case VT_INT:
-                av_start_int (alist, native_fun->ptr(), &v1.i);
-                break;
-            case VT_DOUBLE:
-                av_start_double (alist, native_fun->ptr(), &v1.d);
-                break;
-            case VT_STRING:
-                av_start_ptr (alist, native_fun->ptr(), char *, &v1.s);
-                break;
-            case VT_VOID:
-                av_start_void (alist, native_fun->ptr());
-                break;
-            default:
-                RETURN_ERR("Illegal native return type");
-        }
-
-        // Reverse params
         params.reserve(native_fun->parametersNumber());
         for (uint16_t i = 0; i < native_fun->parametersNumber(); ++i) {
             params[native_fun->parametersNumber() - i - 1] = POP();
         }
-
+        intIdx = 0;
+        doubleIdx = 0;
         for (uint16_t i = 0; i < native_fun->parametersNumber(); ++i) {
             switch (native_fun->parameterType(i)) {
                 case VT_INT:
-                    av_int (alist, params[i].i);
-                    break;
-                case VT_DOUBLE:
-                    av_double (alist, params[i].d);
+                    intArgs[intIdx++] = params[i].i;
                     break;
                 case VT_STRING:
-                    av_ptr (alist, char *, params[i].s);
+                    intArgs[intIdx++] = (int64_t) params[i].s;
+                    break;
+                case VT_DOUBLE:
+                    doubleArgs[doubleIdx++] = params[i].d;
                     break;
                 default:
-                    RETURN_ERR("Illegal native parameter type");
+                    RETURN_ERR("Illegal native parameter type: " + int2str(native_fun->returnType()));
             }
         }
 
-        av_call (alist);
+// 6 int parameters + 8 double is enough for everyone
+#define CALL_FUNC(PTR, RET_TYPE, RET_EXPR)                                      \
+    __asm__("mov %0, %%rdi;"::"r"(intArgs[0]));                                 \
+    __asm__("mov %0, %%rsi;"::"r"(intArgs[1]));                                 \
+    __asm__("mov %0, %%rdx;"::"r"(intArgs[2]));                                 \
+    __asm__("mov %0, %%rcx;"::"r"(intArgs[3]));                                 \
+    __asm__("mov %0, %%r8;"::"r"(intArgs[4]));                                  \
+    __asm__("mov %0, %%r9;"::"r"(intArgs[5]));                                  \
+    RET_EXPR (*(RET_TYPE(*)                                                     \
+        (double, double, double, double, double, double, double, double))PTR)   \
+        (doubleArgs[0], doubleArgs[1], doubleArgs[2], doubleArgs[3], doubleArgs[4], doubleArgs[5], doubleArgs[6], doubleArgs[7])
 
         switch (native_fun->returnType()) {
             case VT_INT:
-                PUSH_I(v1.i);
-                break;
-            case VT_DOUBLE:
-                PUSH_D(v1.d);
+                CALL_FUNC(native_fun->ptr(), int64_t, v1.i=);
+                PUSH(v1);
                 break;
             case VT_STRING:
-                PUSH_S(v1.s);
+                CALL_FUNC(native_fun->ptr(), int64_t, v1.s=(char*));
+                PUSH(v1);
+                break;
+            case VT_DOUBLE:
+                CALL_FUNC(native_fun->ptr(), double, v1.d=);
+                PUSH(v1);
                 break;
             case VT_VOID:
+                CALL_FUNC(native_fun->ptr(), void,);
                 break;
             default:
-                RETURN_ERR("Illegal native return type");
+                RETURN_ERR("Illegal native return type: " + int2str(native_fun->returnType()));
         }
+
+#undef CALL_FUNC
 
         NEXT;
     RETURN:

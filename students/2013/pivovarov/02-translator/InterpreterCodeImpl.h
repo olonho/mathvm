@@ -12,6 +12,8 @@ using std::tr1::shared_ptr;
 
 namespace mathvm {
 
+const string int2str(long val);
+
 class Bytecode_ : public Bytecode {
 public:
     uint8_t* getData() {
