@@ -5,6 +5,7 @@
 namespace mathvm {
 
 #define STACK_SIZE 1024 * 1024
+#define CONTEXT_STACK_SIZE 1024 * 1024 * 8
 
 const string type2str(VarType const & type) {
     switch(type) {
@@ -97,6 +98,10 @@ struct CallData {
     if (stack_top + N >= STACK_SIZE) {      \
       return new Status("Stack overflow");  \
     }
+#define CHECK_CONTEXT_STACK_OF( N )         \
+    if (context_top + N >= CONTEXT_STACK_SIZE) { \
+      return new Status("Context overflow");\
+    }
 
 #define VAR(CONTEXT, VARIABLE)              \
     context_stack[fun_context[CONTEXT] + VARIABLE]
@@ -107,28 +112,30 @@ struct CallData {
 #define RETURN_ERR( STRING )                \
     {                                       \
         delete[] stack;                     \
+        delete[] context_stack;             \
         return new Status(STRING);          \
     }
 
 #define RETURN()                            \
     {                                       \
         delete[] stack;                     \
+        delete[] context_stack;             \
         return new Status();                \
     }
 
 Status * InterpreterCodeImpl::execute() {
     uint32_t index;
     uint32_t stack_top;
+    uint32_t context_top;
     uint8_t const * data;
 
     vector<CallData> call_stack;
     vector<uint32_t> fun_context;
-    vector<Data> context_stack;
     Data * stack = new Data[STACK_SIZE];
+    Data * context_stack = new Data[CONTEXT_STACK_SIZE];
 
     fun_context.resize(funsData.size());
     call_stack.reserve(1024);
-    context_stack.reserve(4096);
 
     void * labels[85] = {
     #define LABEL_POINTER(b, d, l) &&b,
@@ -153,8 +160,8 @@ Status * InterpreterCodeImpl::execute() {
 
     stack_top = 0;
     fun_data = getFunctionData(0);
+    context_top = fun_data->local_vars;
     data = fun_data->fun->bytecode()->getData();
-    context_stack.resize(fun_data->local_vars);
     index = 0;
     NEXT;
 
@@ -500,17 +507,18 @@ Status * InterpreterCodeImpl::execute() {
         fun_id = GET_DATA_16();
         fun_data = getFunctionData( fun_id );
         CHECK_STACK_OF( fun_data->stack_size );
+        CHECK_CONTEXT_STACK_OF( fun_data->local_vars );
 
         call_stack.push_back(CallData(fun_id, fun_context[fun_id], fun_data->local_vars, index, data));
-        fun_context[fun_id] = context_stack.size();
+        fun_context[fun_id] = context_top;
         data = fun_data->fun->bytecode()->getData();
-        context_stack.resize(context_stack.size() + fun_data->local_vars);
+        context_top += fun_data->local_vars;
         index = 0;
         NEXT;
     RETURN:
         call_data = call_stack.back();
         call_stack.pop_back();
-        context_stack.resize(context_stack.size() - call_data.local_vars);
+        context_top -= call_data.local_vars;
         index = call_data.index;
         fun_context[call_data.id] = call_data.last_stack;
         data = call_data.data;
