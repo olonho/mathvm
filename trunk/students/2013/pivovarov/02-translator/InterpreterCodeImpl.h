@@ -17,56 +17,55 @@ const string int2str(long val);
 
 class Bytecode_ : public Bytecode {
 public:
-    uint8_t* getData() {
+    uint8_t * getData() {
         return _data.data();
     }
 };
 
 class BytecodeFunction_ : public TranslatedFunction {
-    Bytecode_ _bytecode;
+    Bytecode_ bytecode_;
 
 public:
-    BytecodeFunction_(const string& name, const Signature& signature) :
+    BytecodeFunction_(const string & name, const Signature & signature) :
         TranslatedFunction(name, signature) {
     }
 
-    Bytecode_* bytecode() {
-        return &_bytecode;
+    Bytecode_ * bytecode() {
+        return &bytecode_;
     }
 
     virtual void disassemble(ostream& out) const {
-        _bytecode.dump(out);
+        bytecode_.dump(out);
     }
 };
 
 class NativeFunction_ : public TranslatedFunction {
     void const * const pointer;
-    size_t intParams, doubleParams;
+    uint16_t intParams_;
+    uint16_t doubleParams_;
 
 public:
-    NativeFunction_(const string& name, const Signature& signature, void const * const pointer) :
-        TranslatedFunction(name, signature), pointer(pointer) {
-            intParams = 0;
-            doubleParams = 0;
+    NativeFunction_(string const & name, const Signature& signature, void const * const pointer) :
+        TranslatedFunction(name, signature), pointer(pointer), intParams_(0), doubleParams_(0) {
             for (uint16_t i = 0; i < parametersNumber(); ++i) {
                 switch (parameterType(i)) {
                     case VT_INT:
                     case VT_STRING:
-                        intParams++;
+                        intParams_++;
                         break;
                     case VT_DOUBLE:
-                        doubleParams++;
+                        doubleParams_++;
                         break;
                     default:
                         throw logic_error("Bad native parameter type: " + type2str(parameterType(i)) );
                 }
             }
-            if (intParams > 6 || doubleParams > 8) {
+            if (intParams_ > 6 || doubleParams_ > 8) {
                 throw logic_error("Too much parameters in native call: " + name);
             }
     }
 
-    virtual void disassemble(ostream& out) const {
+    virtual void disassemble(ostream & out) const {
         out << "[Native]" << pointer << endl;
     }
 
@@ -74,26 +73,32 @@ public:
         return pointer;
     }
 
-    size_t intParamsNum() {
-        return intParams;
+    uint16_t intParams() {
+        return intParams_;
     }
 
-    size_t doubleParamsNum() {
-        return doubleParams;
+    uint16_t doubleParams() {
+        return doubleParams_;
     }
 };
 
 struct FunctionData {
+    uint16_t stack_size;
+    uint16_t local_vars;
+    BytecodeFunction_ * fun;
+    NativeFunction_ * native_fun;
+
     FunctionData() {}
-    FunctionData(uint16_t stack_size, BytecodeFunction_ * fun)
-        : stack_size(stack_size), fun(fun) {}
+
+    FunctionData(BytecodeFunction_ * fun)
+        : stack_size(0), local_vars(0), fun(fun), native_fun(NULL) {}
 
     FunctionData(NativeFunction_ * fun)
-        : stack_size(-1), native_fun(fun) {}
+        : stack_size(-1), local_vars(-1), fun(NULL), native_fun(fun) {}
 
-    uint16_t stack_size;
-    BytecodeFunction_ * fun;
-    shared_ptr<NativeFunction_> native_fun;
+    bool isNative() {
+        return native_fun != NULL;
+    }
 };
 
 class InterpreterCodeImpl : public Code {
@@ -102,10 +107,28 @@ public:
     InterpreterCodeImpl() {
         makeStringConstant("");
     }
-    virtual ~InterpreterCodeImpl() {}
 
-    void addFunctionData(uint16_t id, FunctionData data);
-    FunctionData const & getFunctionData(uint16_t id);
+    virtual ~InterpreterCodeImpl() {
+        for (uint32_t i = 0; i < funsData.size(); ++i) {
+            if (funsData[i].isNative()) {
+                delete funsData[i].native_fun;
+            }
+        }
+    }
+
+    void addFunctionData(uint16_t id, FunctionData data) {
+        if (funsData.size() <= id) {
+            funsData.resize(id + 1);
+        }
+        funsData[id] = data;
+    }
+
+    FunctionData * getFunctionData(uint16_t id) {
+        if (id >= funsData.size()) {
+            throw logic_error("Unknown functionData: " + int2str(id));
+        }
+        return &funsData[id];
+    }
 
     Status * execute(vector<Var*> & vars);
 
