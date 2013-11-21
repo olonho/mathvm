@@ -130,15 +130,14 @@ Status * InterpreterCodeImpl::execute() {
 
     Data v1;
     Data v2;
+
     uint16_t context_p;
     uint16_t variable_p;
     FunctionData fun_data;
     CallData call_data;
     uint16_t fun_id;
-    shared_ptr<NativeFunction_> native_fun;
-    vector<Data> params;
-    params.reserve(16);
 
+    shared_ptr<NativeFunction_> native_fun;
     int64_t intArgs[6];
     double doubleArgs[8];
     size_t intIdx = 0;
@@ -461,30 +460,29 @@ Status * InterpreterCodeImpl::execute() {
         fun_data = getFunctionData( fun_id );
         native_fun = fun_data.native_fun;
 
-        params.reserve(native_fun->parametersNumber());
-        for (uint16_t i = 0; i < native_fun->parametersNumber(); ++i) {
-            params[native_fun->parametersNumber() - i - 1] = POP();
-        }
         intIdx = 0;
         doubleIdx = 0;
         for (uint16_t i = 0; i < native_fun->parametersNumber(); ++i) {
             switch (native_fun->parameterType(i)) {
                 case VT_INT:
-                    intArgs[intIdx++] = params[i].i;
+                    intArgs[native_fun->intParamsNum() - intIdx - 1] = POP().i;
+                    intIdx++;
                     break;
                 case VT_STRING:
-                    intArgs[intIdx++] = (int64_t) params[i].s;
+                    intArgs[native_fun->intParamsNum() - intIdx - 1] = (int64_t) POP().s;
+                    intIdx++;
                     break;
                 case VT_DOUBLE:
-                    doubleArgs[doubleIdx++] = params[i].d;
+                    doubleArgs[native_fun->doubleParamsNum() - doubleIdx - 1] = POP().d;
+                    doubleIdx++;
                     break;
                 default:
-                    RETURN_ERR("Illegal native parameter type: " + int2str(native_fun->returnType()));
+                    RETURN_ERR("Illegal native parameter type: " + type2str(native_fun->returnType()));
             }
         }
 
 // 6 int parameters + 8 double is enough for everyone
-#define CALL_FUNC(PTR, RET_TYPE, RET_EXPR)                                      \
+#define CALL_NATIVE_FUNC(PTR, RET_TYPE, RET_EXPR)                                      \
     __asm__("mov %0, %%rdi;"::"r"(intArgs[0]));                                 \
     __asm__("mov %0, %%rsi;"::"r"(intArgs[1]));                                 \
     __asm__("mov %0, %%rdx;"::"r"(intArgs[2]));                                 \
@@ -493,29 +491,30 @@ Status * InterpreterCodeImpl::execute() {
     __asm__("mov %0, %%r9;"::"r"(intArgs[5]));                                  \
     RET_EXPR (*(RET_TYPE(*)                                                     \
         (double, double, double, double, double, double, double, double))PTR)   \
-        (doubleArgs[0], doubleArgs[1], doubleArgs[2], doubleArgs[3], doubleArgs[4], doubleArgs[5], doubleArgs[6], doubleArgs[7])
+        (doubleArgs[0], doubleArgs[1], doubleArgs[2], doubleArgs[3],            \
+            doubleArgs[4], doubleArgs[5], doubleArgs[6], doubleArgs[7])
 
         switch (native_fun->returnType()) {
             case VT_INT:
-                CALL_FUNC(native_fun->ptr(), int64_t, v1.i=);
+                CALL_NATIVE_FUNC(native_fun->ptr(), int64_t, v1.i=);
                 PUSH(v1);
                 break;
             case VT_STRING:
-                CALL_FUNC(native_fun->ptr(), int64_t, v1.s=(char*));
+                CALL_NATIVE_FUNC(native_fun->ptr(), int64_t, v1.s=(char*));
                 PUSH(v1);
                 break;
             case VT_DOUBLE:
-                CALL_FUNC(native_fun->ptr(), double, v1.d=);
+                CALL_NATIVE_FUNC(native_fun->ptr(), double, v1.d=);
                 PUSH(v1);
                 break;
             case VT_VOID:
-                CALL_FUNC(native_fun->ptr(), void,);
+                CALL_NATIVE_FUNC(native_fun->ptr(), void,);
                 break;
             default:
-                RETURN_ERR("Illegal native return type: " + int2str(native_fun->returnType()));
+                RETURN_ERR("Illegal native return type: " + type2str(native_fun->returnType()));
         }
 
-#undef CALL_FUNC
+#undef CALL_NATIVE_FUNC
 
         NEXT;
     RETURN:

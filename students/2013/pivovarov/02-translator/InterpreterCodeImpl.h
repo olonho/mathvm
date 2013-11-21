@@ -12,6 +12,7 @@ using std::tr1::shared_ptr;
 
 namespace mathvm {
 
+const string type2str(VarType const & type);
 const string int2str(long val);
 
 class Bytecode_ : public Bytecode {
@@ -40,10 +41,29 @@ public:
 
 class NativeFunction_ : public TranslatedFunction {
     void const * const pointer;
+    size_t intParams, doubleParams;
 
 public:
     NativeFunction_(const string& name, const Signature& signature, void const * const pointer) :
         TranslatedFunction(name, signature), pointer(pointer) {
+            intParams = 0;
+            doubleParams = 0;
+            for (uint16_t i = 0; i < parametersNumber(); ++i) {
+                switch (parameterType(i)) {
+                    case VT_INT:
+                    case VT_STRING:
+                        intParams++;
+                        break;
+                    case VT_DOUBLE:
+                        doubleParams++;
+                        break;
+                    default:
+                        throw logic_error("Bad native parameter type: " + type2str(parameterType(i)) );
+                }
+            }
+            if (intParams > 6 || doubleParams > 8) {
+                throw logic_error("Too much parameters in native call: " + name);
+            }
     }
 
     virtual void disassemble(ostream& out) const {
@@ -52,6 +72,14 @@ public:
 
     void const * const ptr() {
         return pointer;
+    }
+
+    size_t intParamsNum() {
+        return intParams;
+    }
+
+    size_t doubleParamsNum() {
+        return doubleParams;
     }
 };
 
