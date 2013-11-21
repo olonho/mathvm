@@ -9,7 +9,6 @@
 using namespace mathvm;
 
 // Exception class for handling type errors etc...
-
 class error : public exception {
     string _msg;
 
@@ -24,6 +23,19 @@ public:
     }
 };
 
+// Configuration functions 
+
+// Is stack variable type checker. Now int and double is stack variable types.
+bool isStackVariableType(VarType type) {
+    switch (type) {
+        case VT_INT:
+        case VT_DOUBLE:
+            return true;
+        default:
+            return false;
+    }
+}
+
 // Utils
 
 size_t getSizeOfType(VarType type) {
@@ -33,6 +45,7 @@ size_t getSizeOfType(VarType type) {
         case VT_DOUBLE:
             return sizeof(double);
         default:
+        // If VarType is String then return 0 because String variables stores not in stack memory
             return 0;
     }
 }
@@ -44,23 +57,38 @@ struct BcVar {
     string name;
     VarType type;
     uint16_t id;
+    uint32_t address;
 
-    BcVar(): name("DEFAULT NAME"), type(VT_INVALID), id(-1) {}
+    BcVar(): name("DEFAULT NAME"), type(VT_INVALID), id(-1), address(Status::INVALID_POSITION) {}
 
-    BcVar(string name, VarType type, uint16_t id): name(name), type(type), id(id) {}
+    BcVar(string name, VarType type, uint16_t id, uint32_t address = Status::INVALID_POSITION)
+        : name(name), type(type), id(id), address(address) {}
 };
 
 // This class is simply translates body of the main function (without function calls, scopes and function declaration yet)
 class AstVisitorHelper : public AstVisitor {
-    Bytecode* _code;
-
+    
 private: // fields
 
-    vector<string> _constants;
-    map<string, BcVar> _nameToBcVarMap;
-    map<uint16_t, uint32_t> _idToBciMap;
+    Bytecode* _code;
 
+    // String literal constants, id of the constant is position in vector
+    vector<string> _constants;
+
+    // Name to bytecode variable map
+    // TODO fix it to be consistent with multiple scopes 
+    map<string, BcVar> _nameToBcVarMap;
+
+    // Variable id to stack address map, if it'snt a stack variable then return INVALID_POSITION   
+    map<uint16_t, uint32_t> _idToSaMap;
+
+    // Variable id to BcVar map
+    map<uint16_t, BcVar> _idToBcVarMap;
+
+    // Type of the last expression
     VarType _lastType;
+
+    // Stack pointer to last variable
     uint32_t _sp;
 
 public: // constructors
@@ -74,6 +102,8 @@ public: // constructors
     }
 
 public: // methods
+
+    // visitors
 
     virtual void visitBinaryOpNode(BinaryOpNode* node);
 
@@ -102,12 +132,17 @@ public: // methods
 private: // methods
 
     // checkers    
+
     void checkVarType(VarType expected, VarType found) const;
 
     // utils
-    void addLoadVarInsn(BcVar* var);
+
+    void addLoadVarInsn(const BcVar& var);
 
     BcVar* findBcVarForName(const string& name);
+    BcVar* findBcVarForId(uint16_t id);
+
+    void putIdToSaValue(uint16_t id);
 };
 
 // Choose the right visitor
@@ -123,6 +158,77 @@ Status* translateAST(AstFunction* main, Bytecode* code) {
 
     return 0;
 }
+
+
+// AstVisitorHelper checkers
+
+void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
+   // TODO try type error cases
+    if (expected != found) {
+        string msg("Type error. Expected: ");
+        msg += typeToName(expected);
+        msg += ". Found: ";
+        msg += typeToName(found);
+        throw error(msg);
+    }
+}
+
+// AstVisitorHelper utils
+
+void AstVisitorHelper::addLoadVarInsn(const BcVar& var) {
+    switch (var.type) {
+        case VT_INT:
+            _code->addInsn(BC_LOADIVAR);
+            break;
+        case VT_DOUBLE:
+            _code->addInsn(BC_LOADDVAR);
+            break;
+        case VT_STRING:
+            _code->addInsn(BC_LOADSVAR);
+            break;
+        case VT_INVALID:
+            throw error("Invalid type of variable: " + var.name);
+            break;
+        default:
+            break;
+    }
+    _code->addInt16(var.id);
+}
+
+BcVar* AstVisitorHelper::findBcVarForName(const string& name) {
+    map<string, BcVar>::iterator variter = _nameToBcVarMap.find(name);
+
+    if (variter == _nameToBcVarMap.end()) {
+        throw error("Unresolved reference: " + name);
+    }
+
+    return &variter->second;
+}
+
+BcVar* AstVisitorHelper::findBcVarForId(uint16_t id) {
+    map<uint16_t, BcVar>::iterator variter = _idToBcVarMap.find(id);
+
+    if (variter == _idToBcVarMap.end()) {
+        stringstream msg;
+        msg << "Can't find variable by id. Id: " << id;
+        throw error(msg.str());
+    }
+
+    return &variter->second;
+}
+
+void AstVisitorHelper::putIdToSaValue(uint16_t id) {
+
+    BcVar* var = findBcVarForId(id);
+
+    if (isStackVariableType(var->type)) {
+        _idToSaMap[id] = _sp;
+    } else {
+        _idToSaMap[id] = Status::INVALID_POSITION;
+    }
+}
+
+// AstVisitorHelper visitors
 
 void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
 
@@ -144,54 +250,6 @@ void AstVisitorHelper::visitIntLiteralNode(IntLiteralNode* node) {
 
 }
 
-
-// AstVisitorHelper checkers
-
-void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
-   // TODO try type error cases
-    if (expected != found) {
-        string msg("Type error. Expected: ");
-        msg += typeToName(expected);
-        msg += ". Found: ";
-        msg += typeToName(found);
-        throw error(msg);
-    }
-}
-
-// AstVisitorHelper utils
-
-void AstVisitorHelper::addLoadVarInsn(BcVar* var) {
-    switch (var->type) {
-        case VT_INT:
-            _code->addInsn(BC_LOADIVAR);
-            break;
-        case VT_DOUBLE:
-            _code->addInsn(BC_LOADDVAR);
-            break;
-        case VT_STRING:
-            _code->addInsn(BC_LOADSVAR);
-            break;
-        case VT_INVALID:
-            throw error("Invalid type of variable: " + var->name);
-            break;
-        default:
-            break;
-    }
-    _code->addInt16(var->id);
-}
-
-BcVar* AstVisitorHelper::findBcVarForName(const string& name) {
-    map<string, BcVar>::iterator variter = _nameToBcVarMap.find(name);
-
-    if (variter == _nameToBcVarMap.end()) {
-        throw error("Unresolved reference: " + name);
-    }
-
-    return &variter->second;
-}
-
-// visitors
-
 void AstVisitorHelper::visitLoadNode(LoadNode* node) {
     VarType nodeType = node->var()->type();
     string nodeName = node->var()->name();
@@ -199,7 +257,7 @@ void AstVisitorHelper::visitLoadNode(LoadNode* node) {
     BcVar* var = findBcVarForName(nodeName);
     checkVarType(var->type, nodeType);
 
-    addLoadVarInsn(var);
+    addLoadVarInsn(*var);
 }
 
 void AstVisitorHelper::visitStoreNode(StoreNode* node) {
@@ -225,13 +283,16 @@ void AstVisitorHelper::visitBlockNode(BlockNode* node) {
     Scope::VarIterator variter(scope);
 
     uint32_t size = node->nodes();
-    uint16_t index = 0;
+    uint16_t vId = 0;
 
     while (variter.hasNext()) {
         AstVar* ptr = variter.next();
-        BcVar var(ptr->name(), ptr->type(), index);
+        BcVar var(ptr->name(), ptr->type(), vId);
+
         _nameToBcVarMap[ptr->name()] = var;
-        _idToBciMap[index] = _sp;
+        _idToBcVarMap[vId] = var;
+
+        putIdToSaValue(vId);
         _sp += getSizeOfType(ptr->type());
     }
 
