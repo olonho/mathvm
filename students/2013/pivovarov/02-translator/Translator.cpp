@@ -308,6 +308,70 @@ class TranslatorVisitor : AstVisitor {
         push(type);
     }
 
+    void evalExprAndJumpIfFalse(AstNode * node, Label & end) {
+        TokenKind kind;
+        if (node->isBinaryOpNode()) {
+            kind = node->asBinaryOpNode()->kind();
+        } else {
+            kind = tUNDEF;
+        }
+        if (kind == tEQ || kind == tNEQ || kind == tGE || kind == tGT || kind == tLE || kind == tLT) {
+            VISIT(node->asBinaryOpNode()->right());
+            VISIT(node->asBinaryOpNode()->left());
+
+            convertTop2Numeric();
+
+            VarType type = top();
+            pop(type);
+            pop(type);
+
+            if (type != VT_INT) {
+              ADD_INSN_ID(, CMP, type);
+              ADD_INSN(ILOAD0);
+            }
+
+            if (type == VT_INT) {
+                switch(kind) {
+                    case tEQ:   // ==
+                          ADD_BRANCH(NE, end); break;
+                    case tNEQ:   // ==
+                          ADD_BRANCH(E, end); break;
+                    case tGT:   // >
+                          ADD_BRANCH(LE, end); break;
+                    case tGE:   // >=
+                          ADD_BRANCH(L, end); break;
+                    case tLT:   // <
+                          ADD_BRANCH(GE, end); break;
+                    case tLE:   // <=
+                          ADD_BRANCH(G, end); break;
+                    default: throw logic_error("Unknown logic token: " + int2str(kind));
+                }
+            } else { // invert order after 'cmp 0 (cmp x y)'
+                switch(kind) {
+                    case tEQ:   // ==
+                          ADD_BRANCH(NE, end); break;
+                    case tNEQ:   // ==
+                          ADD_BRANCH(E, end); break;
+                    case tGT:   // >
+                          ADD_BRANCH(GE, end); break;
+                    case tGE:   // >=
+                          ADD_BRANCH(G, end); break;
+                    case tLT:   // <
+                          ADD_BRANCH(LE, end); break;
+                    case tLE:   // <=
+                          ADD_BRANCH(L, end); break;
+                    default: throw logic_error("Unknown logic token: " + int2str(kind));
+                }
+            }
+        } else {
+              VISIT(node);
+            convertStackTop1(VT_INT);
+            pop();
+              ADD_INSN(ILOAD0);
+              ADD_BRANCH(E, end);
+        }
+    }
+
     InterpreterCodeImpl * code;
     FunctionNode * root;
 
@@ -530,19 +594,11 @@ public:
         Label end(bc());
 
         if (!node->elseBlock()) {
-              VISIT(node->ifExpr());
-            convertStackTop1(VT_INT);
-            pop();
-              ADD_INSN(ILOAD0);
-              ADD_BRANCH(E, end);
+            evalExprAndJumpIfFalse(node->ifExpr(), end);
               VISIT(node->thenBlock());
             BIND(end);
         } else {
-              VISIT(node->ifExpr());
-            convertStackTop1(VT_INT);
-            pop();
-              ADD_INSN(ILOAD0);
-              ADD_BRANCH(E, els);
+            evalExprAndJumpIfFalse(node->ifExpr(), els);
               VISIT(node->thenBlock());
               ADD_BRANCH_JA(end);
             BIND(els);
@@ -556,11 +612,9 @@ public:
         Label end(bc());
 
         BIND(begin);
-          VISIT(node->whileExpr());
-        convertStackTop1(VT_INT);
-        pop();
-          ADD_INSN(ILOAD0);
-          ADD_BRANCH(E, end);
+
+        evalExprAndJumpIfFalse(node->whileExpr(), end);
+
           VISIT(node->loopBlock());
           ADD_BRANCH_JA(begin);
 
