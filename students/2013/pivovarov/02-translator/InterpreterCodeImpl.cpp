@@ -1,22 +1,36 @@
 #include "InterpreterCodeImpl.h"
 
+#include <sstream>
+
 namespace mathvm {
 
 #define STACK_SIZE 1024 * 1024
 
+const string type2str(VarType const & type) {
+    switch(type) {
+        case VT_INVALID:
+            return "VT_INVALID";
+        case VT_VOID:
+            return "VT_VOID";
+        case VT_DOUBLE:
+            return "VT_DOUBLE";
+        case VT_INT:
+            return "VT_INT";
+        case VT_STRING:
+            return "VT_STRING";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+const string int2str(long val) {
+    std::stringstream ss;
+    ss << val;
+    return ss.str();
+}
+
 Status * InterpreterCodeImpl::execute(vector<Var*> & vars) {
     return new Status("NOT IMPLEMENTED");
-}
-
-void InterpreterCodeImpl::addFunctionData(uint16_t id, FunctionData data) {
-    if (funsData.size() <= id) {
-        funsData.resize(id + 1);
-    }
-    funsData[id] = data;
-}
-
-FunctionData const & InterpreterCodeImpl::getFunctionData(uint16_t id) {
-    return funsData[id];
 }
 
 union Data {
@@ -32,21 +46,15 @@ union Data {
 
 struct CallData {
     CallData() {}
-    CallData(uint16_t id, uint32_t last_stack, uint16_t stack_size)
-        : id(id), last_stack(last_stack), stack_size(stack_size), index(0) {}
+    CallData(uint16_t id, uint32_t last_stack, uint16_t local_vars, uint32_t index, uint8_t const * data)
+        : id(id), last_stack(last_stack), local_vars(local_vars), index(index), data(data) {}
 
     uint16_t id;
     uint32_t last_stack;
-    uint16_t stack_size;
+    uint16_t local_vars;
     uint32_t index;
+    uint8_t const * data;
 };
-
-template<class T>
-inline T pop(vector<T> & v) {
-    T tmp = v.back();
-    v.pop_back();
-    return tmp;
-}
 
 #define INC(x, inc) (((x)+=(inc))-(inc))
 #define INC_8(x) INC(x, 1)
@@ -86,7 +94,7 @@ inline T pop(vector<T> & v) {
     stack[stack_top]
 
 #define CHECK_STACK_OF( N )                 \
-    if (stack_top + N >= STACK_SIZE) {     \
+    if (stack_top + N >= STACK_SIZE) {      \
       return new Status("Stack overflow");  \
     }
 
@@ -110,8 +118,8 @@ inline T pop(vector<T> & v) {
 
 Status * InterpreterCodeImpl::execute() {
     uint32_t index;
-    uint8_t * data;
     uint32_t stack_top;
+    uint8_t const * data;
 
     vector<CallData> call_stack;
     vector<uint32_t> fun_context;
@@ -133,64 +141,53 @@ Status * InterpreterCodeImpl::execute() {
 
     uint16_t context_p;
     uint16_t variable_p;
-    FunctionData fun_data;
+    FunctionData * fun_data;
     CallData call_data;
     uint16_t fun_id;
 
-    shared_ptr<NativeFunction_> native_fun;
+    NativeFunction_ * native_fun;
     int64_t intArgs[6];
     double doubleArgs[8];
-    size_t intIdx = 0;
-    size_t doubleIdx = 0;
+    uint16_t intIdx;
+    uint16_t doubleIdx;
 
     stack_top = 0;
     fun_data = getFunctionData(0);
-    call_stack.push_back(CallData(0, fun_context[0], fun_data.stack_size));
-    context_stack.resize(fun_data.stack_size);
-    data = fun_data.fun->bytecode()->getData();
+    data = fun_data->fun->bytecode()->getData();
+    context_stack.resize(fun_data->local_vars);
     index = 0;
     NEXT;
 
     INVALID:
         RETURN_ERR("BC_INVALID");
     DLOAD:
-        CHECK_STACK_OF(1);
-        PUSH( GET_DATA_64() );
+        PUSH_D( GET_DATA_64() );
         NEXT;
     ILOAD:
-        CHECK_STACK_OF(1);
-        PUSH( GET_DATA_64() );
+        PUSH_I( GET_DATA_64() );
         NEXT;
     SLOAD:
-        CHECK_STACK_OF(1);
         PUSH_S( constantById(GET_DATA_16()).c_str() );
         NEXT;
     DLOAD0:
-        CHECK_STACK_OF(1);
         PUSH_D(0);
         NEXT;
     ILOAD0:
-        CHECK_STACK_OF(1);
         PUSH_I(0);
         NEXT;
     SLOAD0:
-        CHECK_STACK_OF(1);
         PUSH_S( constantById(0).c_str() );
         NEXT;
     DLOAD1:
-        CHECK_STACK_OF(1);
         PUSH_D(1);
         NEXT;
     ILOAD1:
-        CHECK_STACK_OF(1);
         PUSH_I(1);
         NEXT;
     DLOADM1:
-        CHECK_STACK_OF(1);
         PUSH_D(-1);
         NEXT;
     ILOADM1:
-        CHECK_STACK_OF(1);
         PUSH_I(-1);
         NEXT;
     DADD:
@@ -297,25 +294,21 @@ Status * InterpreterCodeImpl::execute() {
     LOADDVAR0:
     LOADIVAR0:
     LOADSVAR0:
-        CHECK_STACK_OF(1)
         PUSH( VAR(0, 0) );
         NEXT;
     LOADDVAR1:
     LOADIVAR1:
     LOADSVAR1:
-        CHECK_STACK_OF(1)
         PUSH( VAR(0, 1) );
         NEXT;
     LOADDVAR2:
     LOADIVAR2:
     LOADSVAR2:
-        CHECK_STACK_OF(1)
         PUSH( VAR(0, 2) );
         NEXT;
     LOADDVAR3:
     LOADIVAR3:
     LOADSVAR3:
-        CHECK_STACK_OF(1)
         PUSH( VAR(0, 3) );
         NEXT;
     STOREDVAR0:
@@ -345,7 +338,6 @@ Status * InterpreterCodeImpl::execute() {
     LOADDVAR:
     LOADIVAR:
     LOADSVAR:
-        CHECK_STACK_OF(1)
         variable_p = GET_DATA_16();
         PUSH( VAR(0, variable_p) );
         NEXT;
@@ -359,7 +351,6 @@ Status * InterpreterCodeImpl::execute() {
     LOADCTXDVAR:
     LOADCTXIVAR:
     LOADCTXSVAR:
-        CHECK_STACK_OF(1)
         context_p = GET_DATA_16();
         variable_p = GET_DATA_16();
         PUSH( VAR(context_p, variable_p) );
@@ -397,7 +388,7 @@ Status * InterpreterCodeImpl::execute() {
     IFICMPE:
         v1 = POP();
         v2 = POP();
-        if (v1.i == v2.i) {
+        if  (v1.i == v2.i) {
             index += PEEK_DATA_S16();
         } else {
             index += 2;
@@ -445,35 +436,25 @@ Status * InterpreterCodeImpl::execute() {
         NEXT;
     STOP:
         RETURN();
-    CALL:
-        fun_id = GET_DATA_16();
-        fun_data = getFunctionData( fun_id );
-        call_stack.back().index = index;
-        call_stack.push_back(CallData(fun_id, fun_context[fun_id], fun_data.stack_size));
-        fun_context[fun_id] = context_stack.size();
-        context_stack.resize(context_stack.size() + fun_data.stack_size);
-        data = fun_data.fun->bytecode()->getData();
-        index = 0;
-        NEXT;
     CALLNATIVE:
         fun_id = GET_DATA_16();
         fun_data = getFunctionData( fun_id );
-        native_fun = fun_data.native_fun;
+        native_fun = fun_data->native_fun;
 
         intIdx = 0;
         doubleIdx = 0;
         for (uint16_t i = 0; i < native_fun->parametersNumber(); ++i) {
             switch (native_fun->parameterType(i)) {
                 case VT_INT:
-                    intArgs[native_fun->intParamsNum() - intIdx - 1] = POP().i;
+                    intArgs[native_fun->intParams() - intIdx - 1] = POP().i;
                     intIdx++;
                     break;
                 case VT_STRING:
-                    intArgs[native_fun->intParamsNum() - intIdx - 1] = (int64_t) POP().s;
+                    intArgs[native_fun->intParams() - intIdx - 1] = (int64_t) POP().s;
                     intIdx++;
                     break;
                 case VT_DOUBLE:
-                    doubleArgs[native_fun->doubleParamsNum() - doubleIdx - 1] = POP().d;
+                    doubleArgs[native_fun->doubleParams() - doubleIdx - 1] = POP().d;
                     doubleIdx++;
                     break;
                 default:
@@ -513,16 +494,26 @@ Status * InterpreterCodeImpl::execute() {
             default:
                 RETURN_ERR("Illegal native return type: " + type2str(native_fun->returnType()));
         }
-
 #undef CALL_NATIVE_FUNC
+        NEXT;
+    CALL:
+        fun_id = GET_DATA_16();
+        fun_data = getFunctionData( fun_id );
+        CHECK_STACK_OF( fun_data->stack_size );
 
+        call_stack.push_back(CallData(fun_id, fun_context[fun_id], fun_data->local_vars, index, data));
+        fun_context[fun_id] = context_stack.size();
+        data = fun_data->fun->bytecode()->getData();
+        context_stack.resize(context_stack.size() + fun_data->local_vars);
+        index = 0;
         NEXT;
     RETURN:
-        call_data = pop<CallData>(call_stack);
-        context_stack.resize(context_stack.size() - call_data.stack_size);
-        index = call_stack.back().index;
+        call_data = call_stack.back();
+        call_stack.pop_back();
+        context_stack.resize(context_stack.size() - call_data.local_vars);
+        index = call_data.index;
         fun_context[call_data.id] = call_data.last_stack;
-        data = getFunctionData( call_stack.back().id ).fun->bytecode()->getData();
+        data = call_data.data;
         NEXT;
     BREAK:
         NEXT;

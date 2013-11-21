@@ -5,7 +5,6 @@
 #include "visitors.h"
 #include "parser.h"
 
-#include <sstream>
 #include <string>
 #include <vector>
 #include <map>
@@ -20,29 +19,6 @@ using std::make_pair;
 namespace mathvm {
 
 const uint16_t MAX_INDEX = 65535;
-
-const string type2str(VarType const & type) {
-    switch(type) {
-        case VT_INVALID:
-            return "VT_INVALID";
-        case VT_VOID:
-            return "VT_VOID";
-        case VT_DOUBLE:
-            return "VT_DOUBLE";
-        case VT_INT:
-            return "VT_INT";
-        case VT_STRING:
-            return "VT_STRING";
-        default:
-            return "UNKNOWN";
-    }
-}
-
-const string int2str(long val) {
-    std::stringstream ss;
-    ss << val;
-    return ss.str();
-}
 
 class TranslatorVisitor : AstVisitor {
     #define GET_INSN_IDS(PREFIX, SUFFIX, TYPE)                      \
@@ -390,6 +366,8 @@ public:
             fun_scope->addFun(result->id(), root->name(), root->signature(), false);
             updateFunScope(node->scope());
 
+            code->addFunctionData(fun_scope->id, FunctionData(result));
+
             processBlockNode(node);
             if (isRoot) {
                   ADD_INSN(STOP);
@@ -397,7 +375,7 @@ public:
             ADD_INSN(INVALID);
 
             var_scope = var_scope->parent;
-            code->addFunctionData(fun_scope->id, FunctionData(fun_scope->vars_count, result));
+            code->getFunctionData(fun_scope->id)->local_vars = fun_scope->vars_count;
         } else {
             NativeCallNode * node = root->body()->nodeAt(0)->asNativeCallNode();
 
@@ -615,13 +593,19 @@ public:
 
         Var var = findVar(avar->name(), VT_INT);
 
+        var_scope->addVar("<for_end>", VT_INT);
+        Var for_end = findVar("<for_end>", VT_INT);
+
           VISIT(expr->left());
           STORE_VAR(var);
-        pop(var.type);
-        BIND(begin);
           VISIT(expr->right());
+          STORE_VAR(for_end);
+        pop(VT_INT);
+        pop(VT_INT);
+
+        BIND(begin);
+          LOAD_VAR(for_end);
           LOAD_VAR(var);
-        pop(var.type);
           ADD_BRANCH(G, end);
 
         processBlockNode(node);
@@ -713,6 +697,10 @@ private: // --------------------------------------------- //
 
     void push(VarType const & type) {
         fun_scope->stack.push_back(type);
+
+        if (code->getFunctionData(result->id())->stack_size < fun_scope->stack.size()) {
+            code->getFunctionData(result->id())->stack_size = fun_scope->stack.size();
+        }
     }
 
     VarType top() {
