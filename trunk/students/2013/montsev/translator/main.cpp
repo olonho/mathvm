@@ -4,288 +4,286 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <stdexcept>
 
 using namespace mathvm;
 
-class TranslatorImpl : public Translator {
+// Exception class for handling type errors etc...
+
+class error : public exception {
+    string _msg;
+
 public:
+    explicit error(const string& msg): _msg(msg) {}
+    explicit error(const char* msg): _msg(msg) {}
 
-    virtual void translate(const std::string& text, Code* code) {
+    virtual ~error() throw () {}
 
+    const char* what() const throw () {
+        return _msg.c_str();
     }
-
-    virtual void dump(ostream& out) {
-
-    }
-
-    virtual ~TranslatorImpl() {}
-
-private:
-
-
 };
 
-class AstVisitorHelper : public AstVisitor {
+// Utils
 
-public:
+size_t getSizeOfType(VarType type) {
+    switch (type) {
+        case VT_INT:
+            return sizeof(int64_t);
+        case VT_DOUBLE:
+            return sizeof(double);
+        default:
+            return 0;
+    }
+}
+
+// Internal compiler structs
+
+struct BcVar {
+
+    string name;
+    VarType type;
+    uint16_t id;
+
+    BcVar(): name("DEFAULT NAME"), type(VT_INVALID), id(-1) {}
+
+    BcVar(string name, VarType type, uint16_t id): name(name), type(type), id(id) {}
+};
+
+// This class is simply translates body of the main function (without function calls, scopes and function declaration yet)
+class AstVisitorHelper : public AstVisitor {
+    Bytecode* _code;
+
+private: // fields
+
+    vector<string> _constants;
+    map<string, BcVar> _nameToBcVarMap;
+    map<uint16_t, uint32_t> _idToBciMap;
+
+    VarType _lastType;
+    uint32_t _sp;
+
+public: // constructors
+
+    AstVisitorHelper(): _lastType(VT_INVALID), _sp(0) {}
 
     virtual ~AstVisitorHelper() {}
 
-    virtual void visitBinaryOpNode(BinaryOpNode* node) {
-        // _out << "(";
-        // node->left()->visit(this);
-        // _out << " " << tokenOp(node->kind()) << " ";
-        // node->right()->visit(this);
-        // _out << ")";
+    void setBytecode(Bytecode* code) {
+        _code = code;
     }
 
-    virtual void visitUnaryOpNode(UnaryOpNode* node) {
-        // _out << tokenOp(node->kind());
-        // node->operand()->visit(this);
-    }
+public: // methods
 
-    virtual void visitStringLiteralNode(StringLiteralNode* node) {
-        // std::string oldlit = node->literal();
-        // std::string lit;
-        // for(uint32_t index = 0; index < oldlit.size(); ++index) {
-        //     switch(oldlit[index]) {
-        //         case '\t':
-        //             lit += "\\t";
-        //             break;
-        //         case '\r':
-        //             lit += "\\r";
-        //             break;
-        //         case '\n':
-        //             lit += "\\n";
-        //             break;
-        //         case '\\':
-        //             lit += "\\\\";
-        //             break;
-        //         default:
-        //             lit += oldlit[index];
-        //     }
-        // }
-        // _out << "'" << lit << "'";
-    }
+    virtual void visitBinaryOpNode(BinaryOpNode* node);
 
-    virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
-        // _out << node->literal();
-    }
+    virtual void visitUnaryOpNode(UnaryOpNode* node);
 
-    virtual void visitIntLiteralNode(IntLiteralNode* node) {
-        // _out << node->literal();
-    }
+    virtual void visitStringLiteralNode(StringLiteralNode* node);
 
-    virtual void visitLoadNode(LoadNode* node) {
-        // _out << node->var()->name(); 
-    }
+    virtual void visitDoubleLiteralNode(DoubleLiteralNode* node);
 
-    virtual void visitStoreNode(StoreNode* node) {
-        // makeIndent();
-        // _out << node->var()->name() 
-        //      << " " 
-        //      << tokenOp(node->op())
-        //      << " ";
+    virtual void visitIntLiteralNode(IntLiteralNode* node);
 
-        // node->visitChildren(this);
-        // _out << ";" << std::endl;
-    }
+    virtual void visitLoadNode(LoadNode* node);
 
-    virtual void visitForNode(ForNode* node) {
-        // makeIndent();
-        // _out << "for(" 
-        //      << node->var()->name()
-        //      << " in ";
-        // node->inExpr()->visit(this);
-        // _out << ")" << std::endl;
-        // node->body()->visit(this);
-    }
+    virtual void visitStoreNode(StoreNode* node);
 
-    virtual void visitWhileNode(WhileNode* node) {
-        // makeIndent();        
-        // _out << "while(";
-        // node->whileExpr()->visit(this);
-        // _out << ")" << std::endl;
-        // node->loopBlock()->visit(this);
-    }
+    virtual void visitForNode(ForNode* node);
 
-    virtual void visitIfNode(IfNode* node) {
-        // makeIndent();        
-        // _out << "if(";
-        // node->ifExpr()->visit(this);
-        // _out << ")" << std::endl;
-        // node->thenBlock()->visit(this);
-        // if (node->elseBlock()) {
-        //     makeIndent();
-        //     _out << "else\n";
-        //     node->elseBlock()->visit(this);
-        // }
-    }
+    virtual void visitWhileNode(WhileNode* node);
 
-    virtual void visitBlockNode(BlockNode* node) {
-        // makeIndent();
-        // if (_indent != -1) _out << "{" << std::endl;
+    virtual void visitIfNode(IfNode* node);
 
-        // ++_indent;
+    virtual void visitBlockNode(BlockNode* node);
 
-        // Scope* scope = node->scope();
+    virtual void visitFunctionNode(FunctionNode* node);
 
-        // Scope::VarIterator variter(scope);
+private: // methods
 
-        // while(variter.hasNext()) {
-        //     makeIndent();
-        //     AstVar* var = variter.next();
-        //     _out << typeToName(var->type()) 
-        //          << " " << var->name() 
-        //          << ";" << std::endl;
-        // }
+    // checkers    
+    void checkVarType(VarType expected, VarType found) const;
 
-        // Scope::FunctionIterator funciter(scope);
+    // utils
+    void addLoadVarInsn(BcVar* var);
 
-        // while(funciter.hasNext()) {
-        //     makeIndent();
-        //     AstFunction* func = funciter.next();
-        //     func->node()->visit(this);
-        // }
-
-        // uint32_t size = node->nodes();
-        // for(uint32_t index = 0; index < size; ++index) {
-        //     if (isPrimitiveExpr(node->nodeAt(index))) {
-        //         makeIndent();
-        //         node->nodeAt(index)->visit(this);
-        //         _out << ";" << std::endl;
-        //     } else {
-        //         node->nodeAt(index)->visit(this);
-        //     }
-        // }
-
-        // --_indent;
-        // makeIndent();
-        // if (_indent != -1) _out << "}" << std::endl;
-    }
-
-    virtual void visitFunctionNode(FunctionNode* node) {
-        // makeIndent();
-
-        // _out << "function " 
-        //      << typeToName(node->returnType())
-        //      << " "
-        //      << node->name()
-        //      << "(";
-
-        // uint32_t count = node->parametersNumber();
-        // for (uint32_t index = 0; index < count; ++index) {
-        //     _out << typeToName(node->parameterType(index))
-        //          << " "
-        //          << node->parameterName(index);
-        //     if (index != count - 1) {
-        //         _out << ", ";
-        //     }
-        // }
-
-        // _out << ")"; 
-        // uint32_t size = node->body()->nodes();
-        // if (size) {
-        //     if (node->body()->nodeAt(0)->isNativeCallNode()) {
-        //         _out << " native '"
-        //              << node->body()->nodeAt(0)->asNativeCallNode()->nativeName()
-        //              << "';"
-        //              << std::endl;
-        //     } else {
-        //         _out << std::endl;
-        //         node->visitChildren(this);
-        //     } 
-        //     return;
-        // }
-        // node->visitChildren(this);
-    }
-
-    virtual void visitReturnNode(ReturnNode* node) {
-        // AstNode* expr = node->returnExpr();
-        // if (expr) {
-        //     makeIndent();
-        //     _out << "return ";
-        //     expr->visit(this);
-        //     _out << ";" << std::endl;
-        // }
-    }
-
-    virtual void visitCallNode(CallNode* node) {
-        // _out << node->name() << "(";
-        // uint32_t size = node->parametersNumber();
-        // for (uint32_t index = 0; index < size; ++index) {
-        //     node->parameterAt(index)->visit(this);
-        //     if (index != size - 1) {
-        //         _out << ", ";
-        //     }
-        // }
-        // _out << ")";
-    }
-
-    virtual void visitPrintNode(PrintNode* node) {
-        // makeIndent();
-        // _out << "print(";
-        // uint32_t size = node->operands();
-        // for (uint32_t index = 0; index < size; ++index) {
-        //     node->operandAt(index)->visit(this);
-        //     if (index != size - 1) {
-        //         _out << ", ";
-        //     }
-        // }
-        // _out << ");" << std::endl;
-    }
-
-    bool isPrimitiveExpr(AstNode* node) {
-        if (node->isLoadNode() || 
-            node->isIntLiteralNode() ||
-            node->isDoubleLiteralNode() ||
-            node->isStringLiteralNode() ||
-            node->isBinaryOpNode() ||
-            node->isUnaryOpNode() ||
-            node->isCallNode()) {
-
-            return true;
-        }
-        return false;
-    }
-
-    void run(AstFunction* func) {
-        func->node()->body()->visit(this);
-    }
+    BcVar* findBcVarForName(const string& name);
 };
+
+// Choose the right visitor
+Status* translateAST(AstFunction* main, Bytecode* code) {
+    AstVisitorHelper visitor;
+    visitor.setBytecode(code);
+
+    try {
+        main->node()->body()->visit(&visitor);
+    } catch (exception& e) {
+        return new Status(e.what());
+    }
+
+    return 0;
+}
+
+void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
+
+}
+
+void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
+
+}
+
+void AstVisitorHelper::visitStringLiteralNode(StringLiteralNode* node) {
+
+}
+
+void AstVisitorHelper::visitDoubleLiteralNode(DoubleLiteralNode* node) {
+
+}
+
+void AstVisitorHelper::visitIntLiteralNode(IntLiteralNode* node) {
+
+}
+
+
+// AstVisitorHelper checkers
+
+void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
+   // TODO try type error cases
+    if (expected != found) {
+        string msg("Type error. Expected: ");
+        msg += typeToName(expected);
+        msg += ". Found: ";
+        msg += typeToName(found);
+        throw error(msg);
+    }
+}
+
+// AstVisitorHelper utils
+
+void AstVisitorHelper::addLoadVarInsn(BcVar* var) {
+    switch (var->type) {
+        case VT_INT:
+            _code->addInsn(BC_LOADIVAR);
+            break;
+        case VT_DOUBLE:
+            _code->addInsn(BC_LOADDVAR);
+            break;
+        case VT_STRING:
+            _code->addInsn(BC_LOADSVAR);
+            break;
+        case VT_INVALID:
+            throw error("Invalid type of variable: " + var->name);
+            break;
+        default:
+            break;
+    }
+    _code->addInt16(var->id);
+}
+
+BcVar* AstVisitorHelper::findBcVarForName(const string& name) {
+    map<string, BcVar>::iterator variter = _nameToBcVarMap.find(name);
+
+    if (variter == _nameToBcVarMap.end()) {
+        throw error("Unresolved reference: " + name);
+    }
+
+    return &variter->second;
+}
+
+// visitors
+
+void AstVisitorHelper::visitLoadNode(LoadNode* node) {
+    VarType nodeType = node->var()->type();
+    string nodeName = node->var()->name();
+
+    BcVar* var = findBcVarForName(nodeName);
+    checkVarType(var->type, nodeType);
+
+    addLoadVarInsn(var);
+}
+
+void AstVisitorHelper::visitStoreNode(StoreNode* node) {
+
+}
+
+void AstVisitorHelper::visitForNode(ForNode* node) {
+
+}
+
+void AstVisitorHelper::visitWhileNode(WhileNode* node) {
+
+}
+
+void AstVisitorHelper::visitIfNode(IfNode* node) {
+
+}
+
+void AstVisitorHelper::visitBlockNode(BlockNode* node) {
+
+    // Initializing block variables declarations
+    Scope* scope = node->scope();
+    Scope::VarIterator variter(scope);
+
+    uint32_t size = node->nodes();
+    uint16_t index = 0;
+
+    while (variter.hasNext()) {
+        AstVar* ptr = variter.next();
+        BcVar var(ptr->name(), ptr->type(), index);
+        _nameToBcVarMap[ptr->name()] = var;
+        _idToBciMap[index] = _sp;
+        _sp += getSizeOfType(ptr->type());
+    }
+
+    for (uint32_t i = 0; i < size; ++i) {
+        node->nodeAt(i)->visit(this);
+    }
+
+}
+
+void AstVisitorHelper::visitFunctionNode(FunctionNode* node) {
+
+}
+
 
 int main(int argc, char const *argv[]) {
 
     if (argc != 2) {
-        std::cerr << "USAGE: <source filename>" << std::endl;
+        cerr << "USAGE: <source filename>. " << endl;
         return 1;
     }
+
+    string filename = argv[1];
+
+    ifstream input(filename.c_str());
+    if (!input) {
+        cerr << "File: " << filename << "  does not exist. " 
+                  << endl;
+        return 1;
+    }
+
+    stringstream stream;
+    stream << input.rdbuf();
+    string source(stream.str());
 
     Parser parser;
 
-    std::string filename = argv[1];
-
-    std::ifstream input(filename.c_str());
-    if (!input) {
-        std::cerr << "File: " << filename << "  does not exist" 
-                  << std::endl;
-        return 1;
-    }
-
-    std::stringstream stream;
-    stream << input.rdbuf();
-    std::string source(stream.str());
-
     if (Status* s = parser.parseProgram(source)) {
-        std::cout << "There is some error while parsing."  
-                  << s->getError() << std::endl;
+        cout << "There is some error while parsing. Error message:\n"  
+                  << s->getError() << endl;
         return 1;
     }
 
-    AstVisitorHelper visitor;
-    AstFunction* topFunc = parser.top();
+    Bytecode* code = new Bytecode();
 
-    visitor.run(topFunc);
+    AstFunction* main = parser.top();
+    if (Status* s = translateAST(main, code)) {
+        cout << "There is some error while translating. Error message:\n"
+                  << s->getError() << endl;
+        return 1;
+    }
+
+    code->dump(cout);
 
     return 0;
 }

@@ -9,8 +9,8 @@ using namespace mathvm;
 
 class AstPrinter : public AstVisitor {
 
-std::ostream& _out;
-int _indent;
+    std::ostream& _out;
+    int _indent;
 
 public:
 
