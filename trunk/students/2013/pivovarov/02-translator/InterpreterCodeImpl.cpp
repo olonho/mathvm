@@ -169,10 +169,10 @@ Status * InterpreterCodeImpl::execute() {
     INVALID:
         RETURN_ERR("BC_INVALID");
     DLOAD:
-        PUSH_D( GET_DATA_64() );
+        PUSH( GET_DATA_64() );
         NEXT;
     ILOAD:
-        PUSH_I( GET_DATA_64() );
+        PUSH( GET_DATA_64() );
         NEXT;
     SLOAD:
         PUSH_S( constantById(GET_DATA_16()).c_str() );
