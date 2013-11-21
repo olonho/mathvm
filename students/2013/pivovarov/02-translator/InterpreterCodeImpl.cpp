@@ -113,6 +113,7 @@ struct CallData {
     {                                       \
         delete[] stack;                     \
         delete[] context_stack;             \
+        delete[] fun_context;               \
         return new Status(STRING);          \
     }
 
@@ -120,6 +121,7 @@ struct CallData {
     {                                       \
         delete[] stack;                     \
         delete[] context_stack;             \
+        delete[] fun_context;               \
         return new Status();                \
     }
 
@@ -130,11 +132,10 @@ Status * InterpreterCodeImpl::execute() {
     uint8_t const * data;
 
     vector<CallData> call_stack;
-    vector<uint32_t> fun_context;
     Data * stack = new Data[STACK_SIZE];
     Data * context_stack = new Data[CONTEXT_STACK_SIZE];
+    uint32_t * fun_context = new uint32_t[funsData.size()]();
 
-    fun_context.resize(funsData.size());
     call_stack.reserve(1024);
 
     void * labels[85] = {
