@@ -25,7 +25,8 @@ public:
 
 // Configuration functions 
 
-// Is stack variable type checker. Now int and double is stack variable types.
+// Check if arg is stack variable type. 
+// int and double is stack variable types.
 bool isStackVariableType(VarType type) {
     switch (type) {
         case VT_INT:
@@ -38,7 +39,7 @@ bool isStackVariableType(VarType type) {
 
 // Utils
 
-size_t getSizeOfType(VarType type) {
+size_t getTypeSize(VarType type) {
     switch (type) {
         case VT_INT:
             return sizeof(int64_t);
@@ -68,6 +69,40 @@ struct BcVar {
 // This class is simply translates body of the main function (without function calls, scopes and function declaration yet)
 class AstVisitorHelper : public AstVisitor {
     
+
+public: // constructors
+
+    AstVisitorHelper(): _lastType(VT_INVALID), _sp(0) {}
+
+    virtual ~AstVisitorHelper() {}
+
+    void setBytecode(Bytecode* code) {
+        _code = code;
+    }
+
+private: // methods
+
+    // visitors
+
+#define VISITOR_FUNCTION(type, name) \
+    virtual void visit##type(type* node);
+
+    FOR_NODES(VISITOR_FUNCTION)
+#undef VISITOR_FUNCTION
+
+    // checkers    
+
+    void checkVarType(VarType expected, VarType found) const;
+
+    // utils
+
+    void addLoadVarInsn(const BcVar& var);
+
+    BcVar* findBcVarForName(const string& name);
+    BcVar* findBcVarForId(uint16_t id);
+
+    void putIdToSaValue(uint16_t id);
+
 private: // fields
 
     Bytecode* _code;
@@ -90,59 +125,6 @@ private: // fields
 
     // Stack pointer to last variable
     uint32_t _sp;
-
-public: // constructors
-
-    AstVisitorHelper(): _lastType(VT_INVALID), _sp(0) {}
-
-    virtual ~AstVisitorHelper() {}
-
-    void setBytecode(Bytecode* code) {
-        _code = code;
-    }
-
-public: // methods
-
-    // visitors
-
-    virtual void visitBinaryOpNode(BinaryOpNode* node);
-
-    virtual void visitUnaryOpNode(UnaryOpNode* node);
-
-    virtual void visitStringLiteralNode(StringLiteralNode* node);
-
-    virtual void visitDoubleLiteralNode(DoubleLiteralNode* node);
-
-    virtual void visitIntLiteralNode(IntLiteralNode* node);
-
-    virtual void visitLoadNode(LoadNode* node);
-
-    virtual void visitStoreNode(StoreNode* node);
-
-    virtual void visitForNode(ForNode* node);
-
-    virtual void visitWhileNode(WhileNode* node);
-
-    virtual void visitIfNode(IfNode* node);
-
-    virtual void visitBlockNode(BlockNode* node);
-
-    virtual void visitFunctionNode(FunctionNode* node);
-
-private: // methods
-
-    // checkers    
-
-    void checkVarType(VarType expected, VarType found) const;
-
-    // utils
-
-    void addLoadVarInsn(const BcVar& var);
-
-    BcVar* findBcVarForName(const string& name);
-    BcVar* findBcVarForId(uint16_t id);
-
-    void putIdToSaValue(uint16_t id);
 };
 
 // Choose the right visitor
@@ -293,13 +275,29 @@ void AstVisitorHelper::visitBlockNode(BlockNode* node) {
         _idToBcVarMap[vId] = var;
 
         putIdToSaValue(vId);
-        _sp += getSizeOfType(ptr->type());
+        _sp += getTypeSize(ptr->type());
     }
 
     for (uint32_t i = 0; i < size; ++i) {
         node->nodeAt(i)->visit(this);
     }
 
+}
+
+void AstVisitorHelper::visitPrintNode(PrintNode* node) {
+
+}
+
+void AstVisitorHelper::visitCallNode(CallNode* node) {
+    
+}
+
+void AstVisitorHelper::visitReturnNode(ReturnNode* node) {
+    
+}
+
+void AstVisitorHelper::visitNativeCallNode(NativeCallNode* node) {
+    
 }
 
 void AstVisitorHelper::visitFunctionNode(FunctionNode* node) {
