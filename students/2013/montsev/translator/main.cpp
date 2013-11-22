@@ -104,12 +104,12 @@ private: // methods
     void addLiteralOnTOS(VarType type, BcVal u);
 
     void addVarInsn3(Instruction bcInt, Instruction bcDouble, Instruction bcString, const BcVar& var);
-    void addVarInsn2(Instruction bcInt, Instruction bcDouble, const BcVar& var);
+    void addInsn2(Instruction bcInt, Instruction bcDouble, VarType type);
 
     void addLoadVarInsn(const BcVar& var);
     void addStoreVarInsn(const BcVar& var);
-    void addAddVarInsn(const BcVar& var);
-    void addSubVarInsn(const BcVar& var);
+    void addAddInsn(VarType type);
+    void addSubInsn(VarType type);
 
     BcVar* findBcVarForName(const string& name);
     BcVar* findBcVarForId(uint16_t id);
@@ -208,14 +208,17 @@ void AstVisitorHelper::addVarInsn3(Instruction bcInt, Instruction bcDouble, Inst
     _code->addInt16(var.id);
 }
 
-void AstVisitorHelper::addVarInsn2(Instruction bcInt, Instruction bcDouble, const BcVar& var) {
-    // FIXME what to do with string?
-    switch (var.type) {
+void AstVisitorHelper::addInsn2(Instruction bcInt, Instruction bcDouble, VarType type) {
+    // FIXME what to do with string? Now we can't add strings etc...
+    switch (type) {
         case VT_INT:
             _code->addInsn(bcInt);
             break;
         case VT_DOUBLE:
             _code->addInsn(bcDouble);
+            break;
+        case VT_STRING:
+            throw error("Invalid operation on string. " );
             break;
         default:
             break;
@@ -230,12 +233,12 @@ void AstVisitorHelper::addStoreVarInsn(const BcVar& var) {
     addVarInsn3(BC_STOREIVAR, BC_STOREDVAR, BC_STORESVAR, var);
 }
 
-void AstVisitorHelper::addAddVarInsn(const BcVar& var) {
-    addVarInsn2(BC_IADD, BC_DADD, var);
+void AstVisitorHelper::addAddInsn(VarType type) {
+    addInsn2(BC_IADD, BC_DADD, type);
 }
 
-void AstVisitorHelper::addSubVarInsn(const BcVar& var) {
-    addVarInsn2(BC_ISUB, BC_DSUB, var);
+void AstVisitorHelper::addSubInsn(VarType type) {
+    addInsn2(BC_ISUB, BC_DSUB, type);
 }
 
 BcVar* AstVisitorHelper::findBcVarForName(const string& name) {
@@ -280,6 +283,28 @@ void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
 }
 
 void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
+    TokenKind kind = node->kind();
+    node->operand()->visit(this);
+    if (_lastType != VT_INT && _lastType != VT_DOUBLE) {
+        stringstream msg;
+        msg << "Invalid type for unary operation. Operation: " 
+            << tokenOp(kind) << ". Type is: " << typeToName(_lastType);
+        throw error(msg.str());
+    }
+    if (_lastType == VT_DOUBLE && kind == tNOT) {
+        throw error("Can't do logical not on double. ");
+    }
+    switch (kind) {
+        case tSUB:
+            addInsn2(BC_INEG, BC_DNEG, _lastType);
+            break;
+        case tNOT:
+            _code->addInsn(BC_ILOAD0);
+            _code->addInsn(BC_ICMP);
+            break;
+        default:
+            break;
+    }
 
 }
 
@@ -324,19 +349,25 @@ void AstVisitorHelper::visitStoreNode(StoreNode* node) {
     BcVar* var = findBcVarForName(node->var()->name());
     checkVarType(var->type, _lastType);
 
-    switch (node->op()) {
-        case tINCRSET:
-            addLoadVarInsn(*var);
-            addAddVarInsn(*var);
-            break;
-        case tDECRSET:
-            addLoadVarInsn(*var);
-            addSubVarInsn(*var);
-            break;
-        default:
-            break;
+    try {
+        switch (node->op()) {
+            case tINCRSET:
+                addLoadVarInsn(*var);
+                addAddInsn(var->type);
+                break;
+            case tDECRSET:
+                addLoadVarInsn(*var);
+                addSubInsn(var->type);
+                break;
+            default:
+                break;
+        }
+    } catch (exception& e) {
+        stringstream msg;
+        msg << e.what() << "Variable name is: " << var->name << endl;
+        throw error(msg.str());
     }
-
+    
     addStoreVarInsn(*var);
 }
 
@@ -379,7 +410,25 @@ void AstVisitorHelper::visitBlockNode(BlockNode* node) {
 }
 
 void AstVisitorHelper::visitPrintNode(PrintNode* node) {
-
+    size_t nodes = node->operands();
+    for (size_t i = 0; i < nodes; ++i) {
+        node->operandAt(i)->visit(this);
+        switch (_lastType) {
+            case VT_INT:
+                _code->addInsn(BC_IPRINT);
+                break;
+            case VT_DOUBLE:
+                _code->addInsn(BC_DPRINT);
+                break;
+            case VT_STRING:
+                _code->addInsn(BC_SPRINT); 
+                // What about string constants? SPRINT expects that string value pushed on TOS,
+                // but constants stored by id. 
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 void AstVisitorHelper::visitCallNode(CallNode* node) {
