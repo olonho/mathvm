@@ -184,6 +184,7 @@ void AstVisitorHelper::addLiteralOnTOS(VarType type, BcVal u) {
             _code->addInt16(u.sval);
             break;
         default:
+            throw error("Unsupported type for operation. ");
     }
 }
 
@@ -198,10 +199,8 @@ void AstVisitorHelper::addVarInsn3(Instruction bcInt, Instruction bcDouble, Inst
         case VT_STRING:
             _code->addInsn(bcString);
             break; 
-        case VT_INVALID:
-            throw error("Invalid type of variable: " + var.name);
-            break;
         default:
+            throw error("Invalid type of variable: " + var.name);
     }
     _code->addUInt16(var.id);
 }
@@ -219,6 +218,7 @@ void AstVisitorHelper::addInsn2(Instruction bcInt, Instruction bcDouble, VarType
             throw error("Invalid operation on string. " );
             break;
         default:
+            throw error("Unsupported type for operation. ");
     }
 }
 
@@ -283,7 +283,7 @@ void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
     VarType rightType = _lastType;
 
     switch (kind) {
-        case tOR:
+        case tOR: {
             if (leftType != VT_INT && rightType != VT_INT) {
                 stringstream msg;
                 msg << "Invalid use of binary operation: "
@@ -294,8 +294,27 @@ void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
             }
             _code->addInsn(BC_IAOR);
             break;
+        }
+           
         // TODO add other cases
+        case tAND:
+        case tAOR:
+        case tAAND:
+        case tAXOR:
+        case tEQ:
+        case tNEQ:
+        case tGT:
+        case tGE:
+        case tLT:
+        case tLE:
+        case tADD:
+        case tSUB:
+        case tMUL:
+        case tDIV:
+        case tMOD:
+            break;
         default:
+            throw error("Unknown token. ");
     }
 }
 
@@ -315,18 +334,20 @@ void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
         case tSUB:
             addInsn2(BC_INEG, BC_DNEG, _lastType);
             break;
-        case tNOT:
-            Label elseif(_code);
-            Label endif(_code);
+        case tNOT: {
+            Label elseIf(_code);
+            Label endIf(_code);
             _code->addInsn(BC_ILOAD0);
-            _code->addBranch(BC_IFICMPNE, ifelse);
+            _code->addBranch(BC_IFICMPNE, elseIf);
             _code->addInsn(BC_ILOAD1);
-            _code->addBranch(BC_JA, endif);
-            _code->bind(elseif);
+            _code->addBranch(BC_JA, endIf);
+            _code->bind(elseIf);
             _code->addInsn(BC_ILOAD0);
-            _code->bind(endif);
+            _code->bind(endIf);
             break;
+        }
         default:
+            throw error("Unknown token");
     }
 
 }
@@ -382,7 +403,10 @@ void AstVisitorHelper::visitStoreNode(StoreNode* node) {
                 addLoadVarInsn(*var);
                 addSubInsn(var->type);
                 break;
+            case tASSIGN:
+                break;
             default:
+                throw error("Unknown store operator. ");
         }
     } catch (exception& e) {
         stringstream msg;
@@ -448,6 +472,7 @@ void AstVisitorHelper::visitPrintNode(PrintNode* node) {
                 // but constants stored by id. 
                 break;
             default:
+                throw error("Unknown type: ");
         }
     }
 }
