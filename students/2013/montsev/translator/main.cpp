@@ -35,7 +35,7 @@ bool isStackVariableType(VarType type) {
         default:
             return false;
     }
-}
+    }
 
 // Utils
 
@@ -66,9 +66,14 @@ struct BcVar {
         : name(name), type(type), id(id), address(address) {}
 };
 
+union BcVal {
+    int64_t ival;
+    double dval;
+    uint16_t sval;
+};  
+
 // This class is simply translates body of the main function (without function calls, scopes and function declaration yet)
 class AstVisitorHelper : public AstVisitor {
-    
 
 public: // constructors
 
@@ -96,7 +101,15 @@ private: // methods
 
     // utils
 
+    void addLiteralOnTOS(VarType type, BcVal u);
+
+    void addVarInsn3(Instruction bcInt, Instruction bcDouble, Instruction bcString, const BcVar& var);
+    void addVarInsn2(Instruction bcInt, Instruction bcDouble, const BcVar& var);
+
     void addLoadVarInsn(const BcVar& var);
+    void addStoreVarInsn(const BcVar& var);
+    void addAddVarInsn(const BcVar& var);
+    void addSubVarInsn(const BcVar& var);
 
     BcVar* findBcVarForName(const string& name);
     BcVar* findBcVarForId(uint16_t id);
@@ -141,7 +154,6 @@ Status* translateAST(AstFunction* main, Bytecode* code) {
     return 0;
 }
 
-
 // AstVisitorHelper checkers
 
 void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
@@ -157,17 +169,36 @@ void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
 
 // AstVisitorHelper utils
 
-void AstVisitorHelper::addLoadVarInsn(const BcVar& var) {
-    switch (var.type) {
+void AstVisitorHelper::addLiteralOnTOS(VarType type, BcVal u) {
+    switch(type) {
         case VT_INT:
-            _code->addInsn(BC_LOADIVAR);
+            _code->addInsn(BC_ILOAD);
+            _code->addInt64(u.ival);
             break;
         case VT_DOUBLE:
-            _code->addInsn(BC_LOADDVAR);
+            _code->addInsn(BC_DLOAD);
+            _code->addDouble(u.dval);
             break;
         case VT_STRING:
-            _code->addInsn(BC_LOADSVAR);
+            _code->addInsn(BC_SLOAD);
+            _code->addInt16(u.sval);
             break;
+        default:
+            break;
+    }
+}
+
+void AstVisitorHelper::addVarInsn3(Instruction bcInt, Instruction bcDouble, Instruction bcString, const BcVar& var) {
+    switch (var.type) {
+        case VT_INT:
+            _code->addInsn(bcInt);
+            break;
+        case VT_DOUBLE:
+            _code->addInsn(bcDouble);
+            break;
+        case VT_STRING:
+            _code->addInsn(bcString);
+            break; 
         case VT_INVALID:
             throw error("Invalid type of variable: " + var.name);
             break;
@@ -175,6 +206,36 @@ void AstVisitorHelper::addLoadVarInsn(const BcVar& var) {
             break;
     }
     _code->addInt16(var.id);
+}
+
+void AstVisitorHelper::addVarInsn2(Instruction bcInt, Instruction bcDouble, const BcVar& var) {
+    // FIXME what to do with string?
+    switch (var.type) {
+        case VT_INT:
+            _code->addInsn(bcInt);
+            break;
+        case VT_DOUBLE:
+            _code->addInsn(bcDouble);
+            break;
+        default:
+            break;
+    }
+}
+
+void AstVisitorHelper::addLoadVarInsn(const BcVar& var) {
+    addVarInsn3(BC_LOADIVAR, BC_LOADDVAR, BC_LOADSVAR, var);
+}
+
+void AstVisitorHelper::addStoreVarInsn(const BcVar& var) {
+    addVarInsn3(BC_STOREIVAR, BC_STOREDVAR, BC_STORESVAR, var);
+}
+
+void AstVisitorHelper::addAddVarInsn(const BcVar& var) {
+    addVarInsn2(BC_IADD, BC_DADD, var);
+}
+
+void AstVisitorHelper::addSubVarInsn(const BcVar& var) {
+    addVarInsn2(BC_ISUB, BC_DSUB, var);
 }
 
 BcVar* AstVisitorHelper::findBcVarForName(const string& name) {
@@ -199,12 +260,14 @@ BcVar* AstVisitorHelper::findBcVarForId(uint16_t id) {
     return &variter->second;
 }
 
+// Puts (id, sa) and assigns var address to stack pointer
 void AstVisitorHelper::putIdToSaValue(uint16_t id) {
 
     BcVar* var = findBcVarForId(id);
 
     if (isStackVariableType(var->type)) {
         _idToSaMap[id] = _sp;
+        var->address = _sp;
     } else {
         _idToSaMap[id] = Status::INVALID_POSITION;
     }
@@ -221,15 +284,26 @@ void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
 }
 
 void AstVisitorHelper::visitStringLiteralNode(StringLiteralNode* node) {
-
+    BcVal literal;
+    uint16_t id = _constants.size();
+    _constants.push_back(node->literal());
+    literal.sval = id;
+    addLiteralOnTOS(VT_STRING, literal);
+    _lastType = VT_STRING;
 }
 
 void AstVisitorHelper::visitDoubleLiteralNode(DoubleLiteralNode* node) {
-
+    BcVal literal;
+    literal.dval = node->literal();
+    addLiteralOnTOS(VT_DOUBLE, literal);
+    _lastType = VT_DOUBLE;
 }
 
 void AstVisitorHelper::visitIntLiteralNode(IntLiteralNode* node) {
-
+    BcVal literal;
+    literal.ival = node->literal();
+    addLiteralOnTOS(VT_INT, literal);
+    _lastType = VT_INT;
 }
 
 void AstVisitorHelper::visitLoadNode(LoadNode* node) {
@@ -240,10 +314,30 @@ void AstVisitorHelper::visitLoadNode(LoadNode* node) {
     checkVarType(var->type, nodeType);
 
     addLoadVarInsn(*var);
+    _lastType = var->type;
 }
 
 void AstVisitorHelper::visitStoreNode(StoreNode* node) {
+    // TODO add int/double implicit conversions
+    node->visitChildren(this);
 
+    BcVar* var = findBcVarForName(node->var()->name());
+    checkVarType(var->type, _lastType);
+
+    switch (node->op()) {
+        case tINCRSET:
+            addLoadVarInsn(*var);
+            addAddVarInsn(*var);
+            break;
+        case tDECRSET:
+            addLoadVarInsn(*var);
+            addSubVarInsn(*var);
+            break;
+        default:
+            break;
+    }
+
+    addStoreVarInsn(*var);
 }
 
 void AstVisitorHelper::visitForNode(ForNode* node) {
@@ -259,8 +353,7 @@ void AstVisitorHelper::visitIfNode(IfNode* node) {
 }
 
 void AstVisitorHelper::visitBlockNode(BlockNode* node) {
-
-    // Initializing block variables declarations
+    // Initialize block variables declarations
     Scope* scope = node->scope();
     Scope::VarIterator variter(scope);
 
@@ -276,6 +369,7 @@ void AstVisitorHelper::visitBlockNode(BlockNode* node) {
 
         putIdToSaValue(vId);
         _sp += getTypeSize(ptr->type());
+        ++vId;
     }
 
     for (uint32_t i = 0; i < size; ++i) {
@@ -303,7 +397,6 @@ void AstVisitorHelper::visitNativeCallNode(NativeCallNode* node) {
 void AstVisitorHelper::visitFunctionNode(FunctionNode* node) {
 
 }
-
 
 int main(int argc, char const *argv[]) {
 
