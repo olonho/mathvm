@@ -184,7 +184,6 @@ void AstVisitorHelper::addLiteralOnTOS(VarType type, BcVal u) {
             _code->addInt16(u.sval);
             break;
         default:
-            break;
     }
 }
 
@@ -203,9 +202,8 @@ void AstVisitorHelper::addVarInsn3(Instruction bcInt, Instruction bcDouble, Inst
             throw error("Invalid type of variable: " + var.name);
             break;
         default:
-            break;
     }
-    _code->addInt16(var.id);
+    _code->addUInt16(var.id);
 }
 
 void AstVisitorHelper::addInsn2(Instruction bcInt, Instruction bcDouble, VarType type) {
@@ -221,7 +219,6 @@ void AstVisitorHelper::addInsn2(Instruction bcInt, Instruction bcDouble, VarType
             throw error("Invalid operation on string. " );
             break;
         default:
-            break;
     }
 }
 
@@ -279,7 +276,27 @@ void AstVisitorHelper::putIdToSaValue(uint16_t id) {
 // AstVisitorHelper visitors
 
 void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
+    TokenKind kind = node->kind();
+    node->left()->visit(this);
+    VarType leftType = _lastType;
+    node->right()->visit(this);
+    VarType rightType = _lastType;
 
+    switch (kind) {
+        case tOR:
+            if (leftType != VT_INT && rightType != VT_INT) {
+                stringstream msg;
+                msg << "Invalid use of binary operation: "
+                    << tokenOp(kind) << ". Left operand type = "
+                    << typeToName(leftType) << ". Right operand type = "
+                    << typeToName(rightType);
+                throw error(msg.str());
+            }
+            _code->addInsn(BC_IAOR);
+            break;
+        // TODO add other cases
+        default:
+    }
 }
 
 void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
@@ -299,11 +316,17 @@ void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
             addInsn2(BC_INEG, BC_DNEG, _lastType);
             break;
         case tNOT:
+            Label elseif(_code);
+            Label endif(_code);
             _code->addInsn(BC_ILOAD0);
-            _code->addInsn(BC_ICMP);
+            _code->addBranch(BC_IFICMPNE, ifelse);
+            _code->addInsn(BC_ILOAD1);
+            _code->addBranch(BC_JA, endif);
+            _code->bind(elseif);
+            _code->addInsn(BC_ILOAD0);
+            _code->bind(endif);
             break;
         default:
-            break;
     }
 
 }
@@ -360,7 +383,6 @@ void AstVisitorHelper::visitStoreNode(StoreNode* node) {
                 addSubInsn(var->type);
                 break;
             default:
-                break;
         }
     } catch (exception& e) {
         stringstream msg;
@@ -426,7 +448,6 @@ void AstVisitorHelper::visitPrintNode(PrintNode* node) {
                 // but constants stored by id. 
                 break;
             default:
-                break;
         }
     }
 }
