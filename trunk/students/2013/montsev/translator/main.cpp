@@ -129,7 +129,7 @@ private: // fields
     vector<string> _constants;
 
     // Name to bytecode variable map
-    // TODO fix it to be consistent with multiple scopes 
+    // TODO It must be consistent with multiple scopes 
     map<string, BcVar> _nameToBcVarMap;
 
     // Variable id to stack address map, if it'snt a stack variable then return INVALID_POSITION   
@@ -183,7 +183,6 @@ void AstVisitorHelper::checkOp2(VarType left, VarType right, VarType expected, T
 }
 
 void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
-   // TODO try type error cases
     if (expected != found) {
         string msg("Type error. Expected: ");
         msg += typeToName(expected);
@@ -197,10 +196,11 @@ void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
 
 void AstVisitorHelper::addConvertOps(VarType left, VarType right) {
     checkNumericTypes(left, right);
+    // left is upper, right is lower
     if (left!= right) {
-        if (left == VT_DOUBLE) {
+        if (right == VT_DOUBLE) {
             addIntToDoubleConv();
-        } else if (right == VT_DOUBLE) {
+        } else if (left == VT_DOUBLE) {
             _code->addInsn(BC_STOREDVAR3);
             addIntToDoubleConv();
             _code->addInsn(BC_LOADDVAR3);
@@ -254,7 +254,7 @@ void AstVisitorHelper::addVarInsn3(Instruction bcInt, Instruction bcDouble, Inst
 }
 
 void AstVisitorHelper::addInsn2(Instruction bcInt, Instruction bcDouble, VarType type) {
-    // FIXME what to do with string? Now we can't add strings etc...
+    // FIXME What to do with string? Now we can't add strings etc...
     switch (type) {
         case VT_INT:
             _code->addInsn(bcInt);
@@ -325,110 +325,136 @@ void AstVisitorHelper::putIdToSaValue(uint16_t id) {
 
 void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
     TokenKind kind = node->kind();
-    node->left()->visit(this);
-    VarType leftType = _lastType;
+    // left is upper, right is lower
     node->right()->visit(this);
-    VarType rightType = _lastType;
-
+    VarType lower = _lastType;
+    node->left()->visit(this);
+    VarType upper = _lastType;
     switch (kind) {
-        case tOR: {
-            checkOp2(leftType, rightType, VT_INT, kind);
-
-            break;
-        }
-        case tAND: {
-            checkOp2(leftType, rightType, VT_INT, kind);
-
-            break;
-        }
-        case tAOR: {
-            checkOp2(leftType, rightType, VT_INT, kind);
-            _code->addInsn(BC_IAOR);
-            break;
-        }
-        case tAAND: {
-            checkOp2(leftType, rightType, VT_INT, kind);
-            _code->addInsn(BC_IAAND);
-            break;
-        }
-        case tAXOR: {
-            checkOp2(leftType, rightType, VT_INT, kind);
-            _code->addInsn(BC_IAXOR);
-            break;
-        }
-        case tEQ: {
-            addConvertOps(leftType, rightType);
-            addInsn2(BC_ICMP, BC_DCMP, _lastType);
-
-            _lastType = VT_INT;
-            break; 
-        }
-        case tNEQ: {
-            addConvertOps(leftType, rightType);
-            addInsn2(BC_ICMP, BC_DCMP, _lastType);
-
-            _lastType = VT_INT;
-            break; 
-        }
-        case tGT: {
-            addConvertOps(leftType, rightType);
-            addInsn2(BC_ICMP, BC_DCMP, _lastType);
-
-            _lastType = VT_INT;
-            break; 
-        }
-        case tGE: {
-            addConvertOps(leftType, rightType);
-            addInsn2(BC_ICMP, BC_DCMP, _lastType);
-            
-            _lastType = VT_INT;
-            break; 
-        }
-        case tLT: {
-            addConvertOps(leftType, rightType);
-            addInsn2(BC_ICMP, BC_DCMP, _lastType);
-            
-            _lastType = VT_INT;
-            break; 
-        }
-        case tLE: {
-            addConvertOps(leftType, rightType);
-            addInsn2(BC_ICMP, BC_DCMP, _lastType);
-            
-            _lastType = VT_INT;
-            break; 
-        }
-        case tADD: {
-            addConvertOps(leftType, rightType);
-            
-            break; 
-        }
-        case tSUB: {
-            addConvertOps(leftType, rightType);
-            
-            
-            break; 
-        }
-        case tMUL: {
-            addConvertOps(leftType, rightType);
-            
-            
-            break; 
-        }
-        case tDIV: {
-            addConvertOps(leftType, rightType);
-            
-            
-            break; 
-        }
+        case tOR: 
+        case tAND:
+        case tAOR:
+        case tAAND:
+        case tAXOR:
         case tMOD: {
-            checkOp2(leftType, rightType, VT_INT, kind);
-
-            break; 
-        }
+            checkOp2(upper, lower, VT_INT, kind);
+            Label elseIf(_code);
+            Label endIf(_code);
+            switch (kind) {
+                case tOR: {
+                    _code->addInsn(BC_ILOAD0);
+                    _code->addBranch(BC_IFICMPNE, elseIf);
+                    _code->addInsn(BC_ILOAD0);
+                    _code->addBranch(BC_IFICMPNE, elseIf);
+                    _code->addInsn(BC_ILOAD0);
+                    _code->addBranch(BC_JA, endIf);
+                    _code->bind(elseIf);
+                    _code->addInsn(BC_ILOAD1);
+                    _code->bind(endIf);
+                    break;
+                }
+                case tAND: {
+                    _code->addInsn(BC_ILOAD0);
+                    _code->addBranch(BC_IFICMPE, elseIf);
+                    _code->addInsn(BC_ILOAD0);
+                    _code->addBranch(BC_IFICMPE, elseIf);
+                    _code->addInsn(BC_ILOAD1);
+                    _code->addBranch(BC_JA, endIf);
+                    _code->bind(elseIf);
+                    _code->addInsn(BC_ILOAD0);
+                    _code->bind(endIf);                    
+                    break;
+                }
+                case tAOR:
+                    _code->addInsn(BC_IAOR);
+                    break;
+                case tAAND:
+                    _code->addInsn(BC_IAAND);
+                    break;
+                case tAXOR:
+                    _code->addInsn(BC_IAXOR);
+                    break;
+                case tMOD:
+                    _code->addInsn(BC_IMOD);
+                    break;
+                default: break;
+            }
             break;
-        default:
-            throw error("Unknown token. ");
+        }
+        case tEQ:
+        case tNEQ:
+        case tGT:
+        case tGE:
+        case tLT:
+        case tLE: {
+            addConvertOps(upper, lower);
+            addInsn2(BC_ICMP, BC_DCMP, _lastType);
+            _lastType = VT_INT;
+            Label endIf(_code);
+            Label elseIf(_code);
+            switch (kind) {
+                case tEQ: {
+                    _code->addInsn(BC_ILOAD0);
+                    _code->addBranch(BC_IFICMPE, elseIf);
+                    break; 
+                }
+                case tGT: {
+                    _code->addInsn(BC_ILOAD1);
+                    _code->addBranch(BC_IFICMPE, elseIf);
+                    break; 
+                }
+                case tGE: {
+                    _code->addInsn(BC_ILOADM1);
+                    _code->addBranch(BC_IFICMPNE, elseIf);
+                    break; 
+                }
+                case tLT: {
+                    _code->addInsn(BC_ILOADM1);
+                    _code->addBranch(BC_IFICMPE, elseIf);
+                    break;
+                }
+                case tNEQ: {
+                    _code->addInsn(BC_ILOAD0);
+                    _code->addBranch(BC_IFICMPNE, elseIf);
+                    break; 
+                }
+                case tLE: {
+                    _code->addInsn(BC_ILOAD1);
+                    _code->addBranch(BC_IFICMPNE, elseIf);
+                    break; 
+                }
+                default: break;
+            }
+            _code->addInsn(BC_ILOAD0);
+            _code->addBranch(BC_JA, endIf);
+            _code->bind(elseIf);
+            _code->addInsn(BC_ILOAD1);
+            _code->bind(endIf);
+            break;
+        }
+        case tADD:
+        case tSUB:
+        case tMUL:
+        case tDIV: {
+            addConvertOps(upper, lower);
+            switch (kind) {
+                case tADD: 
+                    addInsn2(BC_IADD, BC_DADD, _lastType);
+                    break;
+                case tSUB:
+                    addInsn2(BC_ISUB, BC_DSUB, _lastType);
+                    break;
+                case tMUL:
+                    addInsn2(BC_IMUL, BC_DMUL, _lastType);
+                    break; 
+                case tDIV:
+                    addInsn2(BC_IDIV, BC_DDIV, _lastType);
+                    break;
+                default: break;
+            }
+            break;
+        }
+        default: throw error("Unknown token. ");
     }
 }
 
@@ -460,8 +486,7 @@ void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
             _code->bind(endIf);
             break;
         }
-        default:
-            throw error("Unknown token");
+        default: throw error("Unknown token");
     }
 
 }
@@ -525,8 +550,7 @@ void AstVisitorHelper::visitStoreNode(StoreNode* node) {
                 break;
             case tASSIGN:
                 break;
-            default:
-                throw error("Unknown store operator. ");
+            default: throw error("Unknown store operator. ");
         }
     } catch (exception& e) {
         stringstream msg;
@@ -591,8 +615,7 @@ void AstVisitorHelper::visitPrintNode(PrintNode* node) {
                 // What about string constants? SPRINT expects that string value pushed on TOS,
                 // but constants stored by id. 
                 break;
-            default:
-                throw error("Unknown type: ");
+            default: throw error("Unknown type: ");
         }
     }
 }
