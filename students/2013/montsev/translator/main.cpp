@@ -680,11 +680,12 @@ void AstVisitorHelper::visitReturnNode(ReturnNode* node) {
 
 void AstVisitorHelper::visitNativeCallNode(NativeCallNode* node) {
 // TODO Implement me    
+    
 }
 
 void AstVisitorHelper::visitFunctionNode(FunctionNode* node) {
 // TODO Implement me
-    
+
 }
 
 int main(int argc, char const *argv[]) {
