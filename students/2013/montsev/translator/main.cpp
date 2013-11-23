@@ -672,11 +672,12 @@ void AstVisitorHelper::visitPrintNode(PrintNode* node) {
 
 void AstVisitorHelper::visitCallNode(CallNode* node) {
 // TODO Implement me    
+    
 }
 
 void AstVisitorHelper::visitReturnNode(ReturnNode* node) {
 // TODO Implement me    
-    
+
 }
 
 void AstVisitorHelper::visitNativeCallNode(NativeCallNode* node) {
