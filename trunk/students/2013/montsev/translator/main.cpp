@@ -160,7 +160,7 @@ Status* translateAST(AstFunction* main, Bytecode* code) {
 // AstVisitorHelper checkers
 
 void AstVisitorHelper::checkNumericTypes(VarType left, VarType right) const {
-    if (left != VT_INT && left != VT_DOUBLE && right != VT_INT && right != VT_DOUBLE) {
+    if ((left != VT_INT && left != VT_DOUBLE) || (right != VT_INT && right != VT_DOUBLE)) {
         stringstream msg;
         msg << "Invalid types for numeric operation. "
             << "Left operand type: " << typeToName(left)
@@ -170,7 +170,7 @@ void AstVisitorHelper::checkNumericTypes(VarType left, VarType right) const {
 }
 
 void AstVisitorHelper::checkOp2(VarType left, VarType right, VarType expected, TokenKind kind) const {
-    if (left != expected && right != expected) {
+    if (left != expected || right != expected) {
         stringstream msg;
         msg << "Invalid binary operation. " << tokenOp(kind)
             << ". Left operand type: " << typeToName(left)
@@ -672,7 +672,7 @@ void AstVisitorHelper::visitPrintNode(PrintNode* node) {
 
 void AstVisitorHelper::visitCallNode(CallNode* node) {
 // TODO Implement me    
-    
+
 }
 
 void AstVisitorHelper::visitReturnNode(ReturnNode* node) {
