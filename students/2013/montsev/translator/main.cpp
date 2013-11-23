@@ -97,10 +97,15 @@ private: // methods
 
     // checkers    
 
+    void checkNumericTypes(VarType left, VarType right) const;
+    void checkOp2(VarType left, VarType right, VarType expected, TokenKind kind) const;
     void checkVarType(VarType expected, VarType found) const;
 
     // utils
 
+    void addConvertOps(VarType left, VarType right);
+    void addDoubleToIntConv();
+    void addIntToDoubleConv();
     void addLiteralOnTOS(VarType type, BcVal u);
 
     void addVarInsn3(Instruction bcInt, Instruction bcDouble, Instruction bcString, const BcVar& var);
@@ -156,6 +161,27 @@ Status* translateAST(AstFunction* main, Bytecode* code) {
 
 // AstVisitorHelper checkers
 
+void AstVisitorHelper::checkNumericTypes(VarType left, VarType right) const {
+    if (left != VT_INT && left != VT_DOUBLE && right != VT_INT && right != VT_DOUBLE) {
+        stringstream msg;
+        msg << "Invalid types for numeric operation. "
+            << "Left operand type: " << typeToName(left)
+            << ". Right operand type: " << typeToName(right);
+        throw error(msg.str());
+    }
+}
+
+void AstVisitorHelper::checkOp2(VarType left, VarType right, VarType expected, TokenKind kind) const {
+    if (left != expected && right != expected) {
+        stringstream msg;
+        msg << "Invalid binary operation. " << tokenOp(kind)
+            << ". Left operand type: " << typeToName(left)
+            << ". Right operand type: " << typeToName(right)
+            << ". Expected type: " << typeToName(expected);
+        throw error(msg.str());
+    }
+}
+
 void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
    // TODO try type error cases
     if (expected != found) {
@@ -168,6 +194,28 @@ void AstVisitorHelper::checkVarType(VarType expected, VarType found) const {
 }
 
 // AstVisitorHelper utils
+
+void AstVisitorHelper::addConvertOps(VarType left, VarType right) {
+    checkNumericTypes(left, right);
+    if (left!= right) {
+        if (left == VT_DOUBLE) {
+            addIntToDoubleConv();
+        } else if (right == VT_DOUBLE) {
+            _code->addInsn(BC_STOREDVAR3);
+            addIntToDoubleConv();
+            _code->addInsn(BC_LOADDVAR3);
+        }
+        _lastType = VT_DOUBLE;
+    }
+}
+
+void AstVisitorHelper::addDoubleToIntConv() {
+    _code->addInsn(BC_D2I);
+}
+
+void AstVisitorHelper::addIntToDoubleConv() {
+    _code->addInsn(BC_I2D);
+}
 
 void AstVisitorHelper::addLiteralOnTOS(VarType type, BcVal u) {
     switch(type) {
@@ -284,34 +332,100 @@ void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
 
     switch (kind) {
         case tOR: {
-            if (leftType != VT_INT && rightType != VT_INT) {
-                stringstream msg;
-                msg << "Invalid use of binary operation: "
-                    << tokenOp(kind) << ". Left operand type = "
-                    << typeToName(leftType) << ". Right operand type = "
-                    << typeToName(rightType);
-                throw error(msg.str());
-            }
+            checkOp2(leftType, rightType, VT_INT, kind);
+
+            break;
+        }
+        case tAND: {
+            checkOp2(leftType, rightType, VT_INT, kind);
+
+            break;
+        }
+        case tAOR: {
+            checkOp2(leftType, rightType, VT_INT, kind);
             _code->addInsn(BC_IAOR);
             break;
         }
-           
-        // TODO add other cases
-        case tAND:
-        case tAOR:
-        case tAAND:
-        case tAXOR:
-        case tEQ:
-        case tNEQ:
-        case tGT:
-        case tGE:
-        case tLT:
-        case tLE:
-        case tADD:
-        case tSUB:
-        case tMUL:
-        case tDIV:
-        case tMOD:
+        case tAAND: {
+            checkOp2(leftType, rightType, VT_INT, kind);
+            _code->addInsn(BC_IAAND);
+            break;
+        }
+        case tAXOR: {
+            checkOp2(leftType, rightType, VT_INT, kind);
+            _code->addInsn(BC_IAXOR);
+            break;
+        }
+        case tEQ: {
+            addConvertOps(leftType, rightType);
+            addInsn2(BC_ICMP, BC_DCMP, _lastType);
+
+            _lastType = VT_INT;
+            break; 
+        }
+        case tNEQ: {
+            addConvertOps(leftType, rightType);
+            addInsn2(BC_ICMP, BC_DCMP, _lastType);
+
+            _lastType = VT_INT;
+            break; 
+        }
+        case tGT: {
+            addConvertOps(leftType, rightType);
+            addInsn2(BC_ICMP, BC_DCMP, _lastType);
+
+            _lastType = VT_INT;
+            break; 
+        }
+        case tGE: {
+            addConvertOps(leftType, rightType);
+            addInsn2(BC_ICMP, BC_DCMP, _lastType);
+            
+            _lastType = VT_INT;
+            break; 
+        }
+        case tLT: {
+            addConvertOps(leftType, rightType);
+            addInsn2(BC_ICMP, BC_DCMP, _lastType);
+            
+            _lastType = VT_INT;
+            break; 
+        }
+        case tLE: {
+            addConvertOps(leftType, rightType);
+            addInsn2(BC_ICMP, BC_DCMP, _lastType);
+            
+            _lastType = VT_INT;
+            break; 
+        }
+        case tADD: {
+            addConvertOps(leftType, rightType);
+            
+            break; 
+        }
+        case tSUB: {
+            addConvertOps(leftType, rightType);
+            
+            
+            break; 
+        }
+        case tMUL: {
+            addConvertOps(leftType, rightType);
+            
+            
+            break; 
+        }
+        case tDIV: {
+            addConvertOps(leftType, rightType);
+            
+            
+            break; 
+        }
+        case tMOD: {
+            checkOp2(leftType, rightType, VT_INT, kind);
+
+            break; 
+        }
             break;
         default:
             throw error("Unknown token. ");
@@ -391,7 +505,13 @@ void AstVisitorHelper::visitStoreNode(StoreNode* node) {
     node->visitChildren(this);
 
     BcVar* var = findBcVarForName(node->var()->name());
-    checkVarType(var->type, _lastType);
+
+    // Int to double implicit conversion
+    if (var->type == VT_DOUBLE && _lastType == VT_INT) {
+        addIntToDoubleConv();
+    } else {
+        checkVarType(var->type, _lastType);
+    }
 
     try {
         switch (node->op()) {
