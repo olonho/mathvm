@@ -684,6 +684,7 @@ void AstVisitorHelper::visitNativeCallNode(NativeCallNode* node) {
 
 void AstVisitorHelper::visitFunctionNode(FunctionNode* node) {
 // TODO Implement me
+    
 }
 
 int main(int argc, char const *argv[]) {
