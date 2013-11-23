@@ -32,10 +32,9 @@ bool isStackVariableType(VarType type) {
         case VT_INT:
         case VT_DOUBLE:
             return true;
-        default:
-            return false;
+        default: return false;
     }
-    }
+}
 
 // Utils
 
@@ -45,9 +44,8 @@ size_t getTypeSize(VarType type) {
             return sizeof(int64_t);
         case VT_DOUBLE:
             return sizeof(double);
-        default:
-        // If VarType is String then return 0 because String variables stores not in stack memory
-            return 0;
+        // If VarType is string then return 0 because string variables stores not in stack memory
+        default: return 0;
     }
 }
 
@@ -336,6 +334,7 @@ void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
         case tAOR:
         case tAAND:
         case tAXOR:
+        case tRANGE:
         case tMOD: {
             checkOp2(upper, lower, VT_INT, kind);
             Label elseIf(_code);
@@ -374,6 +373,8 @@ void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
                 case tAXOR:
                     _code->addInsn(BC_IAXOR);
                     break;
+                case tRANGE:
+                    break; 
                 case tMOD:
                     _code->addInsn(BC_IMOD);
                     break;
@@ -562,15 +563,63 @@ void AstVisitorHelper::visitStoreNode(StoreNode* node) {
 }
 
 void AstVisitorHelper::visitForNode(ForNode* node) {
+    // IVAR0 - counter, IVAR3 - general purpose register
+    // Save IVAR0 on stack
+    _code->addInsn(BC_LOADIVAR0);
+    node->inExpr()->visit(this);
+    _code->addInsn(BC_STOREIVAR0);
+    Label beginFor(_code);
+    Label endFor(_code);
+    _code->bind(beginFor);
+    _code->addInsn(BC_STOREIVAR3);
+    _code->addInsn(BC_LOADIVAR3);
+    _code->addInsn(BC_LOADIVAR0);
+    _code->addBranch(BC_IFICMPG, endFor);
+    _code->addInsn(BC_LOADIVAR3);
 
+    node->body()->visit(this);
+
+    _code->addBranch(BC_JA, beginFor);
+    _code->bind(endFor);
+
+    // Restore IVAR0 from TOS
+    _code->addInsn(BC_STOREIVAR0);
 }
-
+    
 void AstVisitorHelper::visitWhileNode(WhileNode* node) {
+    Label loopWhile(_code);
+    Label endWhile(_code);
+    _code->bind(loopWhile);
 
+    node->whileExpr()->visit(this);
+    VarType exprType = _lastType;
+    checkVarType(exprType, VT_INT);
+
+    _code->addInsn(BC_ILOAD0);
+    _code->addBranch(BC_IFICMPE, endWhile);
+    node->loopBlock()->visit(this);
+    _code->addBranch(BC_JA, loopWhile);
+    _code->bind(endWhile);
 }
 
 void AstVisitorHelper::visitIfNode(IfNode* node) {
-
+    node->ifExpr()->visit(this);
+    VarType exprType = _lastType;
+    checkVarType(exprType, VT_INT);
+    Label elseIf(_code);
+    Label endIf(_code);
+    _code->addInsn(BC_ILOAD0);
+    if (node->elseBlock()) {
+        _code->addBranch(BC_IFICMPE, elseIf);
+        node->thenBlock()->visit(this);
+        _code->addBranch(BC_JA, endIf);
+        _code->bind(elseIf);
+        node->elseBlock()->visit(this);
+    } else {
+        _code->addBranch(BC_IFICMPE, endIf);
+        node->thenBlock()->visit(this);
+    }
+    _code->bind(endIf);
 }
 
 void AstVisitorHelper::visitBlockNode(BlockNode* node) {
@@ -621,19 +670,19 @@ void AstVisitorHelper::visitPrintNode(PrintNode* node) {
 }
 
 void AstVisitorHelper::visitCallNode(CallNode* node) {
-    
+// TODO Implement me    
 }
 
 void AstVisitorHelper::visitReturnNode(ReturnNode* node) {
-    
+// TODO Implement me    
 }
 
 void AstVisitorHelper::visitNativeCallNode(NativeCallNode* node) {
-    
+// TODO Implement me    
 }
 
 void AstVisitorHelper::visitFunctionNode(FunctionNode* node) {
-
+// TODO Implement me
 }
 
 int main(int argc, char const *argv[]) {
