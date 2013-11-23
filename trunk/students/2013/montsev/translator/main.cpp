@@ -566,6 +566,7 @@ void AstVisitorHelper::visitForNode(ForNode* node) {
     // IVAR0 - counter, IVAR3 - general purpose register
     // Save IVAR0 on stack
     _code->addInsn(BC_LOADIVAR0);
+    // FIXME Range variable could be used in for block
     node->inExpr()->visit(this);
     _code->addInsn(BC_STOREIVAR0);
     Label beginFor(_code);
