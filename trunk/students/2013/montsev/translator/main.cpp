@@ -19,7 +19,7 @@ public:
     }
 };
 
-// Exception class for handling type errors etc...
+// Exception class for type errors etc...
 class error : public exception {
     string _msg;
 
@@ -85,7 +85,7 @@ private: // fields
     Code* _code;
 
     // Current function Bytecode
-    Bytecode* _function;
+    Bytecode* _bc;
 
     // Name to bytecode variable map
     // TODO It must be consistent with multiple scopes 
@@ -145,85 +145,103 @@ private: // methods
 
     // utils
 
+    #define GENERATE(name, type) \
+        void name(type op) { _bc->name(op); }
+
+    GENERATE(addInsn, Instruction);
+    GENERATE(bind, Label&);
+    GENERATE(addInt16, int16_t);
+    GENERATE(addInt64, int64_t);
+    GENERATE(addDouble, double);
+    GENERATE(addUInt16, uint16_t);
+
+    #undef GENERATE
+
+    #define GENERATE(name, type1, type2) \
+        void name(type1 op1, type2 op2) { _bc->name(op1, op2); }
+
+    GENERATE(addBranch, Instruction, Label&);
+    #undef GENERATE
+
     void addLogicOperator(TokenKind kind) {
         addInsn2(BC_ICMP, BC_DCMP, _lastType);
         _lastType = VT_INT;
-        Label endIf(_function);
-        Label elseIf(_function);
+        Label endIf(_bc);
+        Label elseIf(_bc);
         switch (kind) {
             case tEQ: {
-                _function->addInsn(BC_ILOAD0);
-                _function->addBranch(BC_IFICMPE, elseIf);
+                addInsn(BC_ILOAD0);
+                addBranch(BC_IFICMPE, elseIf);
                 break; 
             }
             case tGT: {
-                _function->addInsn(BC_ILOAD1);
-                _function->addBranch(BC_IFICMPE, elseIf);
+                addInsn(BC_ILOAD1);
+                addBranch(BC_IFICMPE, elseIf);
                 break; 
             }
             case tGE: {
-                _function->addInsn(BC_ILOADM1);
-                _function->addBranch(BC_IFICMPNE, elseIf);
+                addInsn(BC_ILOADM1);
+                addBranch(BC_IFICMPNE, elseIf);
                 break; 
             }
             case tLT: {
-                _function->addInsn(BC_ILOADM1);
-                _function->addBranch(BC_IFICMPE, elseIf);
+                addInsn(BC_ILOADM1);
+                addBranch(BC_IFICMPE, elseIf);
                 break;
             }
             case tNEQ: {
-                _function->addInsn(BC_ILOAD0);
-                _function->addBranch(BC_IFICMPNE, elseIf);
+                addInsn(BC_ILOAD0);
+                addBranch(BC_IFICMPNE, elseIf);
                 break; 
             }
             case tLE: {
-                _function->addInsn(BC_ILOAD1);
-                _function->addBranch(BC_IFICMPNE, elseIf);
+                addInsn(BC_ILOAD1);
+                addBranch(BC_IFICMPNE, elseIf);
                 break; 
             }
             default: break;
         }
-        _function->addInsn(BC_ILOAD0);
-        _function->addBranch(BC_JA, endIf);
-        _function->bind(elseIf);
-        _function->addInsn(BC_ILOAD1);
-        _function->bind(endIf);
+        addInsn(BC_ILOAD0);
+        addBranch(BC_JA, endIf);
+        bind(elseIf);
+        addInsn(BC_ILOAD1);
+        bind(endIf);
     }
 
     void addIntOperator(TokenKind kind) {
-        Label elseIf(_function);
-        Label endIf(_function);
+        Label elseIf(_bc);
+        Label endIf(_bc);
         switch (kind) {
             case tOR: {
-                _function->addInsn(BC_ILOAD0);
-                _function->addBranch(BC_IFICMPNE, elseIf);
-                _function->addInsn(BC_ILOAD0);
-                _function->addBranch(BC_IFICMPNE, elseIf);
-                _function->addInsn(BC_ILOAD0);
-                _function->addBranch(BC_JA, endIf);
-                _function->bind(elseIf);
-                _function->addInsn(BC_ILOAD1);
-                _function->bind(endIf);
+                addInsn(BC_ILOAD0);
+                addBranch(BC_IFICMPNE, elseIf);
+                addInsn(BC_ILOAD0);
+                addBranch(BC_IFICMPNE, elseIf);
+                addInsn(BC_ILOAD0);
+                addBranch(BC_JA, endIf);
+                bind(elseIf);
+                addInsn(BC_ILOAD1);
+                bind(endIf);
                 break;
             }
             case tAND: {
-                _function->addInsn(BC_ILOAD0);
-                _function->addBranch(BC_IFICMPE, elseIf);
-                _function->addInsn(BC_ILOAD0);
-                _function->addBranch(BC_IFICMPE, elseIf);
-                _function->addInsn(BC_ILOAD1);
-                _function->addBranch(BC_JA, endIf);
-                _function->bind(elseIf);
-                _function->addInsn(BC_ILOAD0);
-                _function->bind(endIf);                    
+                addInsn(BC_ILOAD0);
+                addBranch(BC_IFICMPE, elseIf);
+                addInsn(BC_ILOAD0);
+                addBranch(BC_IFICMPE, elseIf);
+                addInsn(BC_ILOAD1);
+                addBranch(BC_JA, endIf);
+                bind(elseIf);
+                addInsn(BC_ILOAD0);
+                bind(endIf);                    
                 break;
             }
             case tAOR:
-                _function->addInsn(BC_IAOR); break;
+                addInsn(BC_IAOR); break;
             case tAAND:
-                _function->addInsn(BC_IAAND); break;
+                addInsn(BC_IAAND); break;
             case tAXOR:
-                _function->addInsn(BC_IAXOR); break;
+                addInsn(BC_IAXOR); break;
             default: break;
         }
     }
@@ -249,35 +267,35 @@ private: // methods
             if (right == VT_DOUBLE) {
                 addIntToDoubleConv();
             } else if (left == VT_DOUBLE) {
-                _function->addInsn(BC_STOREDVAR3);
+                addInsn(BC_STOREDVAR3);
                 addIntToDoubleConv();
-                _function->addInsn(BC_LOADDVAR3);
+                addInsn(BC_LOADDVAR3);
             }
             _lastType = VT_DOUBLE;
         }
     }
 
     void addDoubleToIntConv() {
-        _function->addInsn(BC_D2I);
+        addInsn(BC_D2I);
     }
 
     void addIntToDoubleConv() {
-        _function->addInsn(BC_I2D);
+        addInsn(BC_I2D);
     }
 
     void addLiteralOnTOS(VarType type, BcVal u) {
         switch(type) {
             case VT_INT:
-                _function->addInsn(BC_ILOAD);
-                _function->addInt64(u.ival);
+                addInsn(BC_ILOAD);
+                addInt64(u.ival);
                 break;
             case VT_DOUBLE:
-                _function->addInsn(BC_DLOAD);
-                _function->addDouble(u.dval);
+                addInsn(BC_DLOAD);
+                addDouble(u.dval);
                 break;
             case VT_STRING:
-                _function->addInsn(BC_SLOAD);
-                _function->addInt16(u.sval);
+                addInsn(BC_SLOAD);
+                addInt16(u.sval);
                 break;
             default:
                 throw error("Unsupported type for operation. ");
@@ -289,28 +307,28 @@ private: // methods
 
         switch (var.type) {
             case VT_INT:
-                _function->addInsn(bcInt);
+                addInsn(bcInt);
                 break;
             case VT_DOUBLE:
-                _function->addInsn(bcDouble);
+                addInsn(bcDouble);
                 break;
             case VT_STRING:
-                _function->addInsn(bcString);
+                addInsn(bcString);
                 break; 
             default:
                 throw error("Invalid type of variable: " + var.name);
         }
-        _function->addUInt16(var.id);
+        addUInt16(var.id);
     }
 
     void addInsn2(Instruction bcInt, Instruction bcDouble, VarType type) {
         // FIXME What to do with string? Now we can't add strings etc...
         switch (type) {
             case VT_INT:
-                _function->addInsn(bcInt);
+                addInsn(bcInt);
                 break;
             case VT_DOUBLE:
-                _function->addInsn(bcDouble);
+                addInsn(bcDouble);
                 break;
             case VT_STRING:
                 throw error("Invalid operation on string. " );
@@ -397,7 +415,7 @@ private: // methods
 
             case tMOD: 
                 checkOp2(upper, lower, VT_INT, kind);
-                _function->addInsn(BC_IMOD);
+                addInsn(BC_IMOD);
                 break;
             case tRANGE:
                 checkOp2(upper, lower, VT_INT, kind);
@@ -419,15 +437,15 @@ private: // methods
                 addInsn2(BC_INEG, BC_DNEG, _lastType);
                 break;
             case tNOT: {
-                Label elseIf(_function);
-                Label endIf(_function);
-                _function->addInsn(BC_ILOAD0);
-                _function->addBranch(BC_IFICMPNE, elseIf);
-                _function->addInsn(BC_ILOAD1);
-                _function->addBranch(BC_JA, endIf);
-                _function->bind(elseIf);
-                _function->addInsn(BC_ILOAD0);
-                _function->bind(endIf);
+                Label elseIf(_bc);
+                Label endIf(_bc);
+                addInsn(BC_ILOAD0);
+                addBranch(BC_IFICMPNE, elseIf);
+                addInsn(BC_ILOAD1);
+                addBranch(BC_JA, endIf);
+                bind(elseIf);
+                addInsn(BC_ILOAD0);
+                bind(endIf);
                 break;
             }
             default: throw error("Unknown token");
@@ -507,65 +525,65 @@ private: // methods
     void visitForNode(ForNode* node) {
         // IVAR0 - counter, IVAR3 - general purpose register
         // Save IVAR0 on stack
-        _function->addInsn(BC_LOADIVAR0);
+        addInsn(BC_LOADIVAR0);
         // FIXME Range variable could be used in for block
         node->inExpr()->visit(this);
-        _function->addInsn(BC_STOREIVAR0);
+        addInsn(BC_STOREIVAR0);
 
-        Label beginFor(_function);
-        Label endFor(_function);
+        Label beginFor(_bc);
+        Label endFor(_bc);
 
-        _function->bind(beginFor);
-        _function->addInsn(BC_STOREIVAR3);
-        _function->addInsn(BC_LOADIVAR3);
-        _function->addInsn(BC_LOADIVAR0);
-        _function->addBranch(BC_IFICMPG, endFor);
-        _function->addInsn(BC_LOADIVAR3);
+        bind(beginFor);
+        addInsn(BC_STOREIVAR3);
+        addInsn(BC_LOADIVAR3);
+        addInsn(BC_LOADIVAR0);
+        addBranch(BC_IFICMPG, endFor);
+        addInsn(BC_LOADIVAR3);
 
         node->body()->visit(this);
 
-        _function->addBranch(BC_JA, beginFor);
-        _function->bind(endFor);
+        addBranch(BC_JA, beginFor);
+        bind(endFor);
 
         // Restore IVAR0 from TOS
-        _function->addInsn(BC_STOREIVAR0);
+        addInsn(BC_STOREIVAR0);
     }
         
     void visitWhileNode(WhileNode* node) {
-        Label loopWhile(_function);
-        Label endWhile(_function);
-        _function->bind(loopWhile);
+        Label loopWhile(_bc);
+        Label endWhile(_bc);
+        bind(loopWhile);
 
         node->whileExpr()->visit(this);
         VarType exprType = _lastType;
         checkVarType(exprType, VT_INT);
 
-        _function->addInsn(BC_ILOAD0);
-        _function->addBranch(BC_IFICMPE, endWhile);
+        addInsn(BC_ILOAD0);
+        addBranch(BC_IFICMPE, endWhile);
         node->loopBlock()->visit(this);
-        _function->addBranch(BC_JA, loopWhile);
-        _function->bind(endWhile);
+        addBranch(BC_JA, loopWhile);
+        bind(endWhile);
     }
 
     void visitIfNode(IfNode* node) {
         node->ifExpr()->visit(this);
         VarType exprType = _lastType;
         checkVarType(exprType, VT_INT);
-        Label elseIf(_function);
-        Label endIf(_function);
-        _function->addInsn(BC_ILOAD0);
+        Label elseIf(_bc);
+        Label endIf(_bc);
+        addInsn(BC_ILOAD0);
 
         if (node->elseBlock()) {
-            _function->addBranch(BC_IFICMPE, elseIf);
+            addBranch(BC_IFICMPE, elseIf);
             node->thenBlock()->visit(this);
-            _function->addBranch(BC_JA, endIf);
-            _function->bind(elseIf);
+            addBranch(BC_JA, endIf);
+            bind(elseIf);
             node->elseBlock()->visit(this);
         } else {
-            _function->addBranch(BC_IFICMPE, endIf);
+            addBranch(BC_IFICMPE, endIf);
             node->thenBlock()->visit(this);
         }
-        _function->bind(endIf);
+        bind(endIf);
     }
 
     void visitBlockNode(BlockNode* node) {
@@ -607,13 +625,13 @@ private: // methods
             node->operandAt(i)->visit(this);
             switch (_lastType) {
                 case VT_INT:
-                    _function->addInsn(BC_IPRINT);
+                    addInsn(BC_IPRINT);
                     break;
                 case VT_DOUBLE:
-                    _function->addInsn(BC_DPRINT);
+                    addInsn(BC_DPRINT);
                     break;
                 case VT_STRING:
-                    _function->addInsn(BC_SPRINT); 
+                    addInsn(BC_SPRINT); 
                     // What about string constants? 
                     // SPRINT expects that string value pushed on TOS,
                     // but constants stored by id. 
@@ -639,25 +657,25 @@ private: // methods
     // FIXME Stub code only 
         uint16_t nativeId = _code->makeNativeFunction(node->nativeName(), 
                                                       node->nativeSignature(), 0);
-        _function->addInsn(BC_CALLNATIVE);
-        _function->addUInt16(nativeId);
+        addInsn(BC_CALLNATIVE);
+        addUInt16(nativeId);
     }
 
     void visitFunctionNode(FunctionNode* node) {
-        Bytecode* saveFunc = _function;
+        Bytecode* saveFunc = _bc;
         uint16_t saveId = _fId;
         Scope* scope = node->body()->scope();
 
         BytecodeFunction* bcFunction = new BytecodeFunction(scope->lookupFunction(node->name()));
-        _function = bcFunction->bytecode();
+        _bc = bcFunction->bytecode();
         _fId = _code->addFunction(bcFunction);
         bcFunction->setScopeId(_scopeId);
 
         node->body()->visit(this);
 
-        _function->addInsn(BC_STOP);
+        addInsn(BC_STOP);
 
-        _function = saveFunc;
+        _bc = saveFunc;
         _fId = saveId;
 
     }
