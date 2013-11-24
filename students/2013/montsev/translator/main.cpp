@@ -26,7 +26,7 @@ public:
 // Configuration functions 
 
 // Check if arg is stack variable type. 
-// int and double is stack variable types.
+// Int and double is stack variable types.
 bool isStackVariableType(VarType type) {
     switch (type) {
         case VT_INT:
@@ -44,24 +44,36 @@ size_t getTypeSize(VarType type) {
             return sizeof(int64_t);
         case VT_DOUBLE:
             return sizeof(double);
-        // If VarType is string then return 0 because string variables stores not in stack memory
+        // If VarType is string then return 0 because string variables stored not in stack memory
         default: return 0;
     }
 }
 
 // Internal compiler structs
 
+class CodeImpl : public Code {
+public:
+    CodeImpl() {}
+    virtual ~CodeImpl() {}
+
+    virtual Status* execute(vector<Var*>& vars) {
+        // TODO Implement me
+        return 0;
+    }
+};
+
 struct BcVar {
 
     string name;
     VarType type;
     uint16_t id;
+    uint16_t scopeId;
     uint32_t address;
 
-    BcVar(): name("DEFAULT NAME"), type(VT_INVALID), id(-1), address(Status::INVALID_POSITION) {}
+    BcVar(): name("DEFAULT NAME"), type(VT_INVALID), id(-1), scopeId(-1), address(Status::INVALID_POSITION) {}
 
-    BcVar(string name, VarType type, uint16_t id, uint32_t address = Status::INVALID_POSITION)
-        : name(name), type(type), id(id), address(address) {}
+    BcVar(string name, VarType type, uint16_t id, uint16_t scopeId, uint32_t address = Status::INVALID_POSITION)
+        : name(name), type(type), id(id), scopeId(scopeId), address(address) {}
 };
 
 union BcVal {
@@ -70,17 +82,26 @@ union BcVal {
     uint16_t sval;
 };  
 
-// This class is simply translates body of the main function (without function calls, scopes and function declaration yet)
+// This class is simply translates body of the main function 
+// (without function calls, scopes and function declarations yet)
 class AstVisitorHelper : public AstVisitor {
 
 public: // constructors
 
-    AstVisitorHelper(): _lastType(VT_INVALID), _sp(0) {}
+    AstVisitorHelper(Code* code): 
+        _code(code), _lastType(VT_INVALID), _sp(0), _fId(0), _scopeId(0) {
+
+    }
 
     virtual ~AstVisitorHelper() {}
 
-    void setBytecode(Bytecode* code) {
-        _code = code;
+    // setters
+
+    void setAstFunction(AstFunction* function) {
+        BytecodeFunction* bcTop = new BytecodeFunction(function);
+        _fId = _code->addFunction(bcTop);
+        bcTop->setScopeId(_scopeId);
+        _function = bcTop->bytecode();
     }
 
 private: // methods
@@ -121,7 +142,10 @@ private: // methods
 
 private: // fields
 
-    Bytecode* _code;
+    Code* _code;
+
+    // Current function Bytecode
+    Bytecode* _function;
 
     // String literal constants, id of the constant is position in vector
     vector<string> _constants;
@@ -141,12 +165,18 @@ private: // fields
 
     // Stack pointer to last variable
     uint32_t _sp;
+
+    // Current function id
+    uint16_t _fId;
+
+    // Scope id
+    uint16_t _scopeId;
 };
 
 // Choose the right visitor
-Status* translateAST(AstFunction* main, Bytecode* code) {
-    AstVisitorHelper visitor;
-    visitor.setBytecode(code);
+Status* translateAST(AstFunction* main, Code* code) {
+    AstVisitorHelper visitor(code);
+    visitor.setAstFunction(main);
 
     try {
         main->node()->body()->visit(&visitor);
@@ -199,35 +229,35 @@ void AstVisitorHelper::addConvertOps(VarType left, VarType right) {
         if (right == VT_DOUBLE) {
             addIntToDoubleConv();
         } else if (left == VT_DOUBLE) {
-            _code->addInsn(BC_STOREDVAR3);
+            _function->addInsn(BC_STOREDVAR3);
             addIntToDoubleConv();
-            _code->addInsn(BC_LOADDVAR3);
+            _function->addInsn(BC_LOADDVAR3);
         }
         _lastType = VT_DOUBLE;
     }
 }
 
 void AstVisitorHelper::addDoubleToIntConv() {
-    _code->addInsn(BC_D2I);
+    _function->addInsn(BC_D2I);
 }
 
 void AstVisitorHelper::addIntToDoubleConv() {
-    _code->addInsn(BC_I2D);
+    _function->addInsn(BC_I2D);
 }
 
 void AstVisitorHelper::addLiteralOnTOS(VarType type, BcVal u) {
     switch(type) {
         case VT_INT:
-            _code->addInsn(BC_ILOAD);
-            _code->addInt64(u.ival);
+            _function->addInsn(BC_ILOAD);
+            _function->addInt64(u.ival);
             break;
         case VT_DOUBLE:
-            _code->addInsn(BC_DLOAD);
-            _code->addDouble(u.dval);
+            _function->addInsn(BC_DLOAD);
+            _function->addDouble(u.dval);
             break;
         case VT_STRING:
-            _code->addInsn(BC_SLOAD);
-            _code->addInt16(u.sval);
+            _function->addInsn(BC_SLOAD);
+            _function->addInt16(u.sval);
             break;
         default:
             throw error("Unsupported type for operation. ");
@@ -237,28 +267,28 @@ void AstVisitorHelper::addLiteralOnTOS(VarType type, BcVal u) {
 void AstVisitorHelper::addVarInsn3(Instruction bcInt, Instruction bcDouble, Instruction bcString, const BcVar& var) {
     switch (var.type) {
         case VT_INT:
-            _code->addInsn(bcInt);
+            _function->addInsn(bcInt);
             break;
         case VT_DOUBLE:
-            _code->addInsn(bcDouble);
+            _function->addInsn(bcDouble);
             break;
         case VT_STRING:
-            _code->addInsn(bcString);
+            _function->addInsn(bcString);
             break; 
         default:
             throw error("Invalid type of variable: " + var.name);
     }
-    _code->addUInt16(var.id);
+    _function->addUInt16(var.id);
 }
 
 void AstVisitorHelper::addInsn2(Instruction bcInt, Instruction bcDouble, VarType type) {
     // FIXME What to do with string? Now we can't add strings etc...
     switch (type) {
         case VT_INT:
-            _code->addInsn(bcInt);
+            _function->addInsn(bcInt);
             break;
         case VT_DOUBLE:
-            _code->addInsn(bcDouble);
+            _function->addInsn(bcDouble);
             break;
         case VT_STRING:
             throw error("Invalid operation on string. " );
@@ -337,46 +367,46 @@ void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
         case tRANGE:
         case tMOD: {
             checkOp2(upper, lower, VT_INT, kind);
-            Label elseIf(_code);
-            Label endIf(_code);
+            Label elseIf(_function);
+            Label endIf(_function);
             switch (kind) {
                 case tOR: {
-                    _code->addInsn(BC_ILOAD0);
-                    _code->addBranch(BC_IFICMPNE, elseIf);
-                    _code->addInsn(BC_ILOAD0);
-                    _code->addBranch(BC_IFICMPNE, elseIf);
-                    _code->addInsn(BC_ILOAD0);
-                    _code->addBranch(BC_JA, endIf);
-                    _code->bind(elseIf);
-                    _code->addInsn(BC_ILOAD1);
-                    _code->bind(endIf);
+                    _function->addInsn(BC_ILOAD0);
+                    _function->addBranch(BC_IFICMPNE, elseIf);
+                    _function->addInsn(BC_ILOAD0);
+                    _function->addBranch(BC_IFICMPNE, elseIf);
+                    _function->addInsn(BC_ILOAD0);
+                    _function->addBranch(BC_JA, endIf);
+                    _function->bind(elseIf);
+                    _function->addInsn(BC_ILOAD1);
+                    _function->bind(endIf);
                     break;
                 }
                 case tAND: {
-                    _code->addInsn(BC_ILOAD0);
-                    _code->addBranch(BC_IFICMPE, elseIf);
-                    _code->addInsn(BC_ILOAD0);
-                    _code->addBranch(BC_IFICMPE, elseIf);
-                    _code->addInsn(BC_ILOAD1);
-                    _code->addBranch(BC_JA, endIf);
-                    _code->bind(elseIf);
-                    _code->addInsn(BC_ILOAD0);
-                    _code->bind(endIf);                    
+                    _function->addInsn(BC_ILOAD0);
+                    _function->addBranch(BC_IFICMPE, elseIf);
+                    _function->addInsn(BC_ILOAD0);
+                    _function->addBranch(BC_IFICMPE, elseIf);
+                    _function->addInsn(BC_ILOAD1);
+                    _function->addBranch(BC_JA, endIf);
+                    _function->bind(elseIf);
+                    _function->addInsn(BC_ILOAD0);
+                    _function->bind(endIf);                    
                     break;
                 }
                 case tAOR:
-                    _code->addInsn(BC_IAOR);
+                    _function->addInsn(BC_IAOR);
                     break;
                 case tAAND:
-                    _code->addInsn(BC_IAAND);
+                    _function->addInsn(BC_IAAND);
                     break;
                 case tAXOR:
-                    _code->addInsn(BC_IAXOR);
+                    _function->addInsn(BC_IAXOR);
                     break;
                 case tRANGE:
                     break; 
                 case tMOD:
-                    _code->addInsn(BC_IMOD);
+                    _function->addInsn(BC_IMOD);
                     break;
                 default: break;
             }
@@ -391,46 +421,46 @@ void AstVisitorHelper::visitBinaryOpNode(BinaryOpNode* node) {
             addConvertOps(upper, lower);
             addInsn2(BC_ICMP, BC_DCMP, _lastType);
             _lastType = VT_INT;
-            Label endIf(_code);
-            Label elseIf(_code);
+            Label endIf(_function);
+            Label elseIf(_function);
             switch (kind) {
                 case tEQ: {
-                    _code->addInsn(BC_ILOAD0);
-                    _code->addBranch(BC_IFICMPE, elseIf);
+                    _function->addInsn(BC_ILOAD0);
+                    _function->addBranch(BC_IFICMPE, elseIf);
                     break; 
                 }
                 case tGT: {
-                    _code->addInsn(BC_ILOAD1);
-                    _code->addBranch(BC_IFICMPE, elseIf);
+                    _function->addInsn(BC_ILOAD1);
+                    _function->addBranch(BC_IFICMPE, elseIf);
                     break; 
                 }
                 case tGE: {
-                    _code->addInsn(BC_ILOADM1);
-                    _code->addBranch(BC_IFICMPNE, elseIf);
+                    _function->addInsn(BC_ILOADM1);
+                    _function->addBranch(BC_IFICMPNE, elseIf);
                     break; 
                 }
                 case tLT: {
-                    _code->addInsn(BC_ILOADM1);
-                    _code->addBranch(BC_IFICMPE, elseIf);
+                    _function->addInsn(BC_ILOADM1);
+                    _function->addBranch(BC_IFICMPE, elseIf);
                     break;
                 }
                 case tNEQ: {
-                    _code->addInsn(BC_ILOAD0);
-                    _code->addBranch(BC_IFICMPNE, elseIf);
+                    _function->addInsn(BC_ILOAD0);
+                    _function->addBranch(BC_IFICMPNE, elseIf);
                     break; 
                 }
                 case tLE: {
-                    _code->addInsn(BC_ILOAD1);
-                    _code->addBranch(BC_IFICMPNE, elseIf);
+                    _function->addInsn(BC_ILOAD1);
+                    _function->addBranch(BC_IFICMPNE, elseIf);
                     break; 
                 }
                 default: break;
             }
-            _code->addInsn(BC_ILOAD0);
-            _code->addBranch(BC_JA, endIf);
-            _code->bind(elseIf);
-            _code->addInsn(BC_ILOAD1);
-            _code->bind(endIf);
+            _function->addInsn(BC_ILOAD0);
+            _function->addBranch(BC_JA, endIf);
+            _function->bind(elseIf);
+            _function->addInsn(BC_ILOAD1);
+            _function->bind(endIf);
             break;
         }
         case tADD:
@@ -476,15 +506,15 @@ void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
             addInsn2(BC_INEG, BC_DNEG, _lastType);
             break;
         case tNOT: {
-            Label elseIf(_code);
-            Label endIf(_code);
-            _code->addInsn(BC_ILOAD0);
-            _code->addBranch(BC_IFICMPNE, elseIf);
-            _code->addInsn(BC_ILOAD1);
-            _code->addBranch(BC_JA, endIf);
-            _code->bind(elseIf);
-            _code->addInsn(BC_ILOAD0);
-            _code->bind(endIf);
+            Label elseIf(_function);
+            Label endIf(_function);
+            _function->addInsn(BC_ILOAD0);
+            _function->addBranch(BC_IFICMPNE, elseIf);
+            _function->addInsn(BC_ILOAD1);
+            _function->addBranch(BC_JA, endIf);
+            _function->bind(elseIf);
+            _function->addInsn(BC_ILOAD0);
+            _function->bind(endIf);
             break;
         }
         default: throw error("Unknown token");
@@ -494,8 +524,7 @@ void AstVisitorHelper::visitUnaryOpNode(UnaryOpNode* node) {
 
 void AstVisitorHelper::visitStringLiteralNode(StringLiteralNode* node) {
     BcVal literal;
-    uint16_t id = _constants.size();
-    _constants.push_back(node->literal());
+    uint16_t id = _code->makeStringConstant(node->literal());
     literal.sval = id;
     addLiteralOnTOS(VT_STRING, literal);
     _lastType = VT_STRING;
@@ -565,66 +594,68 @@ void AstVisitorHelper::visitStoreNode(StoreNode* node) {
 void AstVisitorHelper::visitForNode(ForNode* node) {
     // IVAR0 - counter, IVAR3 - general purpose register
     // Save IVAR0 on stack
-    _code->addInsn(BC_LOADIVAR0);
+    _function->addInsn(BC_LOADIVAR0);
     // FIXME Range variable could be used in for block
     node->inExpr()->visit(this);
-    _code->addInsn(BC_STOREIVAR0);
-    Label beginFor(_code);
-    Label endFor(_code);
-    _code->bind(beginFor);
-    _code->addInsn(BC_STOREIVAR3);
-    _code->addInsn(BC_LOADIVAR3);
-    _code->addInsn(BC_LOADIVAR0);
-    _code->addBranch(BC_IFICMPG, endFor);
-    _code->addInsn(BC_LOADIVAR3);
+    _function->addInsn(BC_STOREIVAR0);
+    Label beginFor(_function);
+    Label endFor(_function);
+    _function->bind(beginFor);
+    _function->addInsn(BC_STOREIVAR3);
+    _function->addInsn(BC_LOADIVAR3);
+    _function->addInsn(BC_LOADIVAR0);
+    _function->addBranch(BC_IFICMPG, endFor);
+    _function->addInsn(BC_LOADIVAR3);
 
     node->body()->visit(this);
 
-    _code->addBranch(BC_JA, beginFor);
-    _code->bind(endFor);
+    _function->addBranch(BC_JA, beginFor);
+    _function->bind(endFor);
 
     // Restore IVAR0 from TOS
-    _code->addInsn(BC_STOREIVAR0);
+    _function->addInsn(BC_STOREIVAR0);
 }
     
 void AstVisitorHelper::visitWhileNode(WhileNode* node) {
-    Label loopWhile(_code);
-    Label endWhile(_code);
-    _code->bind(loopWhile);
+    Label loopWhile(_function);
+    Label endWhile(_function);
+    _function->bind(loopWhile);
 
     node->whileExpr()->visit(this);
     VarType exprType = _lastType;
     checkVarType(exprType, VT_INT);
 
-    _code->addInsn(BC_ILOAD0);
-    _code->addBranch(BC_IFICMPE, endWhile);
+    _function->addInsn(BC_ILOAD0);
+    _function->addBranch(BC_IFICMPE, endWhile);
     node->loopBlock()->visit(this);
-    _code->addBranch(BC_JA, loopWhile);
-    _code->bind(endWhile);
+    _function->addBranch(BC_JA, loopWhile);
+    _function->bind(endWhile);
 }
 
 void AstVisitorHelper::visitIfNode(IfNode* node) {
     node->ifExpr()->visit(this);
     VarType exprType = _lastType;
     checkVarType(exprType, VT_INT);
-    Label elseIf(_code);
-    Label endIf(_code);
-    _code->addInsn(BC_ILOAD0);
+    Label elseIf(_function);
+    Label endIf(_function);
+    _function->addInsn(BC_ILOAD0);
     if (node->elseBlock()) {
-        _code->addBranch(BC_IFICMPE, elseIf);
+        _function->addBranch(BC_IFICMPE, elseIf);
         node->thenBlock()->visit(this);
-        _code->addBranch(BC_JA, endIf);
-        _code->bind(elseIf);
+        _function->addBranch(BC_JA, endIf);
+        _function->bind(elseIf);
         node->elseBlock()->visit(this);
     } else {
-        _code->addBranch(BC_IFICMPE, endIf);
+        _function->addBranch(BC_IFICMPE, endIf);
         node->thenBlock()->visit(this);
     }
-    _code->bind(endIf);
+    _function->bind(endIf);
 }
 
 void AstVisitorHelper::visitBlockNode(BlockNode* node) {
-    // Initialize block variables declarations
+    // Block variables declarations
+    _scopeId++;
+
     Scope* scope = node->scope();
     Scope::VarIterator variter(scope);
 
@@ -633,7 +664,7 @@ void AstVisitorHelper::visitBlockNode(BlockNode* node) {
 
     while (variter.hasNext()) {
         AstVar* ptr = variter.next();
-        BcVar var(ptr->name(), ptr->type(), vId);
+        BcVar var(ptr->name(), ptr->type(), vId, _scopeId);
 
         _nameToBcVarMap[ptr->name()] = var;
         _idToBcVarMap[vId] = var;
@@ -641,6 +672,13 @@ void AstVisitorHelper::visitBlockNode(BlockNode* node) {
         putIdToSaValue(vId);
         _sp += getTypeSize(ptr->type());
         ++vId;
+    }
+
+    // Block functions declarations
+    Scope::FunctionIterator funciter(scope);
+    while (funciter.hasNext()) {
+        AstFunction* func = funciter.next();
+        func->node()->visit(this);
     }
 
     for (uint32_t i = 0; i < size; ++i) {
@@ -655,13 +693,13 @@ void AstVisitorHelper::visitPrintNode(PrintNode* node) {
         node->operandAt(i)->visit(this);
         switch (_lastType) {
             case VT_INT:
-                _code->addInsn(BC_IPRINT);
+                _function->addInsn(BC_IPRINT);
                 break;
             case VT_DOUBLE:
-                _code->addInsn(BC_DPRINT);
+                _function->addInsn(BC_DPRINT);
                 break;
             case VT_STRING:
-                _code->addInsn(BC_SPRINT); 
+                _function->addInsn(BC_SPRINT); 
                 // What about string constants? SPRINT expects that string value pushed on TOS,
                 // but constants stored by id. 
                 break;
@@ -676,18 +714,32 @@ void AstVisitorHelper::visitCallNode(CallNode* node) {
 }
 
 void AstVisitorHelper::visitReturnNode(ReturnNode* node) {
-// TODO Implement me    
-
+    if (node->returnExpr()) {
+        node->returnExpr()->visit(this);
+        checkVarType(_code->functionById(_fId)->returnType(), _lastType);
+    }
 }
 
 void AstVisitorHelper::visitNativeCallNode(NativeCallNode* node) {
-// TODO Implement me    
-
+// FIXME Stub code only 
+    uint16_t nativeId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), 0);
+    _function->addInsn(BC_CALLNATIVE);
+    _function->addUInt16(nativeId);
 }
 
 void AstVisitorHelper::visitFunctionNode(FunctionNode* node) {
-// TODO Implement me
+    Bytecode* saveFunc = _function;
+    uint16_t saveId = _fId;
+    Scope* scope = node->body()->scope();
 
+    BytecodeFunction* bcFunction = new BytecodeFunction(scope->lookupFunction(node->name()));
+    _function = bcFunction->bytecode();
+    _fId = _code->addFunction(bcFunction);
+    bcFunction->setScopeId(_scopeId);
+
+    node->body()->visit(this);
+    _function = saveFunc;
+    _fId = saveId;
 }
 
 int main(int argc, char const *argv[]) {
@@ -718,16 +770,19 @@ int main(int argc, char const *argv[]) {
         return 1;
     }
 
-    Bytecode* code = new Bytecode();
+    Code* code = new CodeImpl;
 
     AstFunction* main = parser.top();
+
     if (Status* s = translateAST(main, code)) {
         cout << "There is some error while translating. Error message:\n"
                   << s->getError() << endl;
         return 1;
     }
 
-    code->dump(cout);
+    code->disassemble(cout);
+
+    delete code;
 
     return 0;
 }
