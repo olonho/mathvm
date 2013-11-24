@@ -5,8 +5,12 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include <tr1/memory>
+
 
 using namespace mathvm;
+
+using std::tr1::shared_ptr;
 
 class CodeImpl : public Code {
 public:
@@ -48,11 +52,13 @@ bool isStringType(VarType type) {
     return type == VT_STRING;
 }
 
+static const uint16_t MAX_ID = 65535;
+
 class TranslatorVisitor : public AstVisitor {
 
 public: // constructors
 
-    TranslatorVisitor(AstFunction* top, Code* code): _code(code), _scopeId(-1) {}
+    TranslatorVisitor(AstFunction* top, Code* code): _code(code) {}
 
     virtual ~TranslatorVisitor() {}
 
@@ -60,25 +66,73 @@ private: // structs
 
     // Internal compiler structs
 
-    struct BcVar {
+    struct Var {
 
         string name;
         VarType type;
         uint16_t id;
-        uint16_t scopeId;
 
-        BcVar() {}
+        Var() {}
 
-        BcVar(string name, VarType type, uint16_t id, uint16_t scopeId)
-            : name(name), type(type), id(id), scopeId(scopeId) {}
+        Var(const string& name, VarType type, uint16_t id)
+            : name(name), type(type), id(id) {}
     };
 
-    union BcVal {
+    struct VarScope {
+        typedef map<string, Var> VarMap;
+        typedef VarMap::iterator VarIter;
+
+        VarScope(VarScope* parent): _parent(parent) {
+            if (parent != 0) {
+                _vars = parent->vars();
+            }
+        }
+
+        VarScope* parent() const {
+            return _parent;
+        }
+
+        uint16_t declareVar(const string& name, VarType type) {
+            size_t len = _vars.size();
+            if (len >= MAX_ID) {
+                throw error("Too much local variables");
+            }
+
+            VarIter lit = _locals.find(name);
+            if (lit != _locals.end()) {
+                throw error("Duplicate variable");
+            }
+
+            Var newvar(name, type, len);
+            _vars[name] = newvar;
+            _locals[name] = newvar;
+            return len;
+        }
+        
+        bool hasName(const string& name) {
+            return _vars.find(name) != _vars.end();
+        }
+
+        Var resolveName(const string& name) {
+            return _vars.at(name);
+        }
+
+    private: 
+
+        VarMap _vars;
+        VarMap _locals;
+        VarScope* _parent;
+
+        VarMap vars() const {
+            return _vars;
+        }
+    };
+
+    union Val {
         int64_t ival;
         double dval;
         uint16_t sval;
     };  
-
 
 private: // fields
 
@@ -87,22 +141,17 @@ private: // fields
     // Current function Bytecode
     Bytecode* _bc;
 
-    // Name to bytecode variable map
-    // TODO It must be consistent with multiple scopes 
-    map<string, BcVar> _nameToBcVarMap;
-
-    // Variable id to BcVar map
-    map<uint16_t, BcVar> _idToBcVarMap;
+    // Current context scope
+    VarScope* _scope;
 
     // Type of the last expression
     VarType _lastType;
 
+    // Collection of all scopes
+    vector<shared_ptr<VarScope> > _scopes;
+
     // Current function id
-    uint16_t _fId;
-
-    // Scope id
-    uint16_t _scopeId;
-
+    uint16_t _fid;
 
 private: // methods
 
@@ -120,7 +169,7 @@ private: // methods
         }
     }
 
-    void checkOp2(VarType left, VarType right, 
+    void checkOpType(VarType left, VarType right, 
                                     VarType expected, TokenKind kind) const {
 
         if (left != expected || right != expected) {
@@ -135,11 +184,12 @@ private: // methods
 
     void checkVarType(VarType expected, VarType found) const {
         if (expected != found) {
-            string msg("Type error. Expected: ");
-            msg += typeToName(expected);
-            msg += ". Found: ";
-            msg += typeToName(found);
-            throw error(msg);
+            stringstream msg;
+            msg << "Type error. Expected: "
+                << typeToName(expected)
+                << ". Found: "
+                << typeToName(found);
+            throw error(msg.str());
         }
     }
 
@@ -162,6 +212,16 @@ private: // methods
 
     GENERATE(addBranch, Instruction, Label&);
     #undef GENERATE
+
+    Var findVar(const string& name) {
+        if (!_scope->hasName(name)) {
+            stringstream msg;
+            msg << "Cannot resolve name: "
+                << name << endl;
+            throw error(msg.str());
+        }
+        return _scope->resolveName(name);
+    }
 
     void addLogicOperator(TokenKind kind) {
         addInsn2(BC_ICMP, BC_DCMP, _lastType);
@@ -283,7 +343,7 @@ private: // methods
         addInsn(BC_I2D);
     }
 
-    void addLiteralOnTOS(VarType type, BcVal u) {
+    void addLiteralOnTOS(VarType type, Val u) {
         switch(type) {
             case VT_INT:
                 addInsn(BC_ILOAD);
@@ -303,7 +363,7 @@ private: // methods
     }
 
     void addVarInsn3(Instruction bcInt, Instruction bcDouble, 
-                                       Instruction bcString, const BcVar& var) {
+                     Instruction bcString, Var var) {
 
         switch (var.type) {
             case VT_INT:
@@ -338,11 +398,11 @@ private: // methods
         }
     }
 
-    void addLoadVarInsn(const BcVar& var) {
+    void addLoadVarInsn(Var var) {
         addVarInsn3(BC_LOADIVAR, BC_LOADDVAR, BC_LOADSVAR, var);
     }
 
-    void addStoreVarInsn(const BcVar& var) {
+    void addStoreVarInsn(Var var) {
         addVarInsn3(BC_STOREIVAR, BC_STOREDVAR, BC_STORESVAR, var);
     }
 
@@ -352,28 +412,6 @@ private: // methods
 
     void addSubInsn(VarType type) {
         addInsn2(BC_ISUB, BC_DSUB, type);
-    }
-
-    BcVar* findBcVarForName(const string& name) {
-        map<string, BcVar>::iterator variter = _nameToBcVarMap.find(name);
-
-        if (variter == _nameToBcVarMap.end()) {
-            throw error("Unresolved reference: " + name);
-        }
-
-        return &variter->second;
-    }
-
-    BcVar* findBcVarForId(uint16_t id) {
-        map<uint16_t, BcVar>::iterator variter = _idToBcVarMap.find(id);
-
-        if (variter == _idToBcVarMap.end()) {
-            stringstream msg;
-            msg << "Can't find variable by id. Id: " << id;
-            throw error(msg.str());
-        }
-
-        return &variter->second;
     }
 
     // visitors
@@ -391,7 +429,7 @@ private: // methods
             case tAOR:
             case tAAND:
             case tAXOR:  
-                checkOp2(upper, lower, VT_INT, kind);
+                checkOpType(upper, lower, VT_INT, kind);
                 addIntOperator(kind);
                 break;
 
@@ -414,11 +452,11 @@ private: // methods
                 break;
 
             case tMOD: 
-                checkOp2(upper, lower, VT_INT, kind);
+                checkOpType(upper, lower, VT_INT, kind);
                 addInsn(BC_IMOD);
                 break;
             case tRANGE:
-                checkOp2(upper, lower, VT_INT, kind);
+                checkOpType(upper, lower, VT_INT, kind);
                 break;
             default: throw error("Unknown token. ");
         }
@@ -454,7 +492,7 @@ private: // methods
     }
 
     void visitStringLiteralNode(StringLiteralNode* node) {
-        BcVal literal;
+        Val literal;
         uint16_t id = _code->makeStringConstant(node->literal());
         literal.sval = id;
         addLiteralOnTOS(VT_STRING, literal);
@@ -462,14 +500,14 @@ private: // methods
     }
 
     void visitDoubleLiteralNode(DoubleLiteralNode* node) {
-        BcVal literal;
+        Val literal;
         literal.dval = node->literal();
         addLiteralOnTOS(VT_DOUBLE, literal);
         _lastType = VT_DOUBLE;
     }
 
     void visitIntLiteralNode(IntLiteralNode* node) {
-        BcVal literal;
+        Val literal;
         literal.ival = node->literal();
         addLiteralOnTOS(VT_INT, literal);
         _lastType = VT_INT;
@@ -479,35 +517,36 @@ private: // methods
         VarType nodeType = node->var()->type();
         string nodeName = node->var()->name();
 
-        BcVar* var = findBcVarForName(nodeName);
-        checkVarType(var->type, nodeType);
+        Var var = findVar(nodeName);
 
-        addLoadVarInsn(*var);
-        _lastType = var->type;
+        checkVarType(var.type, nodeType);
+
+        addLoadVarInsn(var);
+        _lastType = var.type;
     }
 
     void visitStoreNode(StoreNode* node) {
         // TODO add int/double implicit conversions
         node->visitChildren(this);
 
-        BcVar* var = findBcVarForName(node->var()->name());
+        Var var = findVar(node->var()->name());
 
         // Int to double implicit conversion
-        if (var->type == VT_DOUBLE && _lastType == VT_INT) {
+        if (var.type == VT_DOUBLE && _lastType == VT_INT) {
             addIntToDoubleConv();
         } else {
-            checkVarType(var->type, _lastType);
+            checkVarType(var.type, _lastType);
         }
 
         try {
             switch (node->op()) {
                 case tINCRSET:
-                    addLoadVarInsn(*var);
-                    addAddInsn(var->type);
+                    addLoadVarInsn(var);
+                    addAddInsn(var.type);
                     break;
                 case tDECRSET:
-                    addLoadVarInsn(*var);
-                    addSubInsn(var->type);
+                    addLoadVarInsn(var);
+                    addSubInsn(var.type);
                     break;
                 case tASSIGN:
                     break;
@@ -515,11 +554,11 @@ private: // methods
             }
         } catch (exception& e) {
             stringstream msg;
-            msg << e.what() << "Variable name is: " << var->name << endl;
+            msg << e.what() << "Variable name is: " << var.name << endl;
             throw error(msg.str());
         }
         
-        addStoreVarInsn(*var);
+        addStoreVarInsn(var);
     }
 
     void visitForNode(ForNode* node) {
@@ -588,23 +627,22 @@ private: // methods
 
     void visitBlockNode(BlockNode* node) {
         // Block variables declarations
-        _scopeId++;
 
         Scope* scope = node->scope();
         Scope::VarIterator variter(scope);
 
         uint32_t size = node->nodes();
-        uint16_t vId = 0;
+
+        VarScope* varscope = new VarScope(_scope);
+        _scopes.push_back(shared_ptr<VarScope>(varscope));
 
         while (variter.hasNext()) {
             AstVar* ptr = variter.next();
-            BcVar var(ptr->name(), ptr->type(), vId, _scopeId);
-
-            _nameToBcVarMap[ptr->name()] = var;
-            _idToBcVarMap[vId] = var;
-
-            ++vId;
+            varscope->declareVar(ptr->name(), ptr->type());
         }
+
+        VarScope* temp = _scope;
+        _scope = varscope;
 
         // Block functions declarations
         Scope::FunctionIterator funciter(scope);
@@ -617,6 +655,7 @@ private: // methods
             node->nodeAt(i)->visit(this);
         }
 
+        _scope = temp;
     }
 
     void visitPrintNode(PrintNode* node) {
@@ -642,14 +681,21 @@ private: // methods
     }
 
     void visitCallNode(CallNode* node) {
-    // TODO Implement me    
+        size_t params = node->parametersNumber();
+        TranslatedFunction* f = _code->functionByName(node->name());
 
+        for (int i = params - 1; i >= 0; --i) {
+            node->parameterAt(i)->visit(this);
+            checkVarType(f->parameterType(i), _lastType);
+        }
+        addInsn(BC_CALL);
+        addUInt16(f->id());
     }
 
     void visitReturnNode(ReturnNode* node) {
         if (node->returnExpr()) {
             node->returnExpr()->visit(this);
-            checkVarType(_code->functionById(_fId)->returnType(), _lastType);
+            checkVarType(_code->functionById(_fid)->returnType(), _lastType);
         }
     }
 
@@ -662,21 +708,37 @@ private: // methods
     }
 
     void visitFunctionNode(FunctionNode* node) {
-        Bytecode* saveFunc = _bc;
-        uint16_t saveId = _fId;
+        Bytecode* saveBc = _bc;
+        uint16_t saveId = _fid;
         Scope* scope = node->body()->scope();
+        VarScope* saveScope = _scope;
 
-        BytecodeFunction* bcFunction = new BytecodeFunction(scope->lookupFunction(node->name()));
+        AstFunction* func = scope->lookupFunction(node->name());
+        BytecodeFunction* bcFunction = new BytecodeFunction(func);
+
         _bc = bcFunction->bytecode();
-        _fId = _code->addFunction(bcFunction);
-        bcFunction->setScopeId(_scopeId);
+        _fid = _code->addFunction(bcFunction);
+
+
+        VarScope* varscope = new VarScope(0);
+        bcFunction->setScopeId(_scopes.size());
+        _scopes.push_back(shared_ptr<VarScope>(varscope));
+        _scope = varscope;
+
+        size_t params = node->parametersNumber();
+
+        for (size_t i = 0; i < params; ++i) {
+            _scope->declareVar(node->parameterName(i), node->parameterType(i));
+            addStoreVarInsn(_scope->resolveName(node->parameterName(i)));
+        }
 
         node->body()->visit(this);
 
         addInsn(BC_STOP);
 
-        _bc = saveFunc;
-        _fId = saveId;
+        _scope = saveScope;
+        _bc = saveBc;
+        _fid = saveId;
 
     }
 
@@ -685,6 +747,7 @@ private: // methods
 // Choose the right visitor
 Status* translateAST(AstFunction* main, Code* code) {
     TranslatorVisitor visitor(main, code);
+
     try {
         main->node()->visit(&visitor);
     } catch (exception& e) {
@@ -707,7 +770,7 @@ int main(int argc, char const *argv[]) {
     ifstream input(filename.c_str());
     if (!input) {
         cerr << "File: " << filename << "  does not exist. " 
-                  << endl;
+             << endl;
         return 1;
     }
 
@@ -719,7 +782,7 @@ int main(int argc, char const *argv[]) {
 
     if (Status* s = parser.parseProgram(source)) {
         cout << "There is some error while parsing. Error message:\n"  
-                  << s->getError() << endl;
+             << s->getError() << endl;
         return 1;
     }
 
@@ -729,7 +792,7 @@ int main(int argc, char const *argv[]) {
 
     if (Status* s = translateAST(main, code)) {
         cout << "There is some error while translating. Error message:\n"
-                  << s->getError() << endl;
+             << s->getError() << endl;
         return 1;
     }
 
