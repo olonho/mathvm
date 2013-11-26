@@ -23,7 +23,7 @@ void AstToBCTranslator::handle_function_definition(AstFunction *func) {
   
   Scope *scope = func->node()->body()->scope();
   m_scopes.push_back(scope);
-  curr_func->setLocalsNumber(1 + scope->variablesCount() + func->parametersNumber());
+  curr_func->setLocalsNumber(1 + func->parametersNumber());
 
   uint16_t assigned_locals = 1; // zero loral is reserved
   uint16_t scope_id = m_curr_funcs.top()->scopeId();
