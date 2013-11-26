@@ -14,7 +14,7 @@ using namespace mathvm;
 
 
 void AstToBCTranslator::handle_function_definition(AstFunction *func) {
-  BytecodeFunction *curr_func = new BytecodeFunction(func);
+  BytecodeFunction *curr_func = (BytecodeFunction *) m_code->functionByName(func->name());
   
   m_curr_funcs.push(curr_func);
   m_isa.setBC(curr_func->bytecode());
@@ -33,11 +33,9 @@ void AstToBCTranslator::handle_function_definition(AstFunction *func) {
     param->setInfo(new VarInfo(assigned_locals++, scope_id, param->type()));
   }
   
-  uint16_t func_id = m_code->addFunction(m_curr_funcs.top());
-  registerFunction((uint64_t)func, func_id);
-  
   func->node()->visit(this);
   
+  //std::cout << "==== " << func->name() << std::endl;
   //m_curr_funcs.top()->bytecode()->dump(std::cout);
   m_curr_funcs.pop();
   m_isa.setBC(m_curr_funcs.size() ? m_curr_funcs.top()->bytecode() : NULL);
@@ -59,8 +57,12 @@ void AstToBCTranslator::visitBlockNode(BlockNode* node) {
   }
   m_curr_funcs.top()->setLocalsNumber(assigned_locals);
 
-  // NB: function processing should be done after vars since funcs may use vars
+  //emulate forward declaration
   Scope::FunctionIterator fi(node->scope());
+  while (fi.hasNext()) { registerFunction(fi.next()); }
+  
+  // NB: function processing should be done after vars since funcs may use vars
+  fi = node->scope();
   while (fi.hasNext()) { handle_function_definition(fi.next()); }
 
   AstBaseVisitor::visitBlockNode(node);

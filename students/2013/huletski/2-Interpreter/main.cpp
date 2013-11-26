@@ -28,17 +28,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   
-  const char* expr = "\
-  function double ack(int m, int n) {\
-    if (m == 0) { return n + 1; } \
-    if (n == 0) { return ack(m - 1, 1); }\
-    return ack(m - 1, ack(m, n - 1)); \
-  }\
-  print(ack(3, 3), '\n');\
-  ";
-
-
- /* const char*expr = "int x1; int y; int z;"
+  const char*expr = "int x1; int y; int z;"
   "function int foo(int x) { int r;"
     "function int bar(int a) { if (a <= 0) { return z;} x = baz(); r += 1; return x + bar(a - 1); }"
     "function int baz() { int s;"
@@ -52,8 +42,7 @@ int main(int argc, char** argv) {
     "  s = foo(x - 1); y += s; z = bak(z - y + 1); z -= 2; return s + bar(x); }"
    " if (x == 0) { int f; f = baz(); return bar(f - 3); }"
    " r = foo(x - 1); bar(r); return r + baz(); }"
-  "x1 = 2; y = 2; z = 2; print(foo(2), '\n'); print(x1, '\n', y, '\n', z, '\n');"
-;*/
+  "x1 = 2; y = 2; z = 2; print(foo(2), '\n'); print(x1, '\n', y, '\n', z, '\n');";
 
   bool isDefaultExpr = true;
   

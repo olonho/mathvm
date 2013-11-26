@@ -31,6 +31,7 @@ public: //methods
   Status *convert(AstFunction *main) {
     m_err_status = NULL;
     
+    registerFunction(main);
     handle_function_definition(main);
     m_code->prepareForExec(m_scopes.size());
     
@@ -51,8 +52,10 @@ private: //methods
     return m_tos_types.size() ? m_tos_types.top() : VT_INVALID;
   }
   
-  inline void registerFunction(uint64_t func_key, uint16_t func_id) {
-    m_funcAddr2Id[func_key] = func_id;
+  inline void registerFunction(AstFunction* function) {
+    BytecodeFunction *new_fn = new BytecodeFunction(function);
+    uint16_t func_id = m_code->addFunction(new_fn);
+    m_funcAddr2Id[(uint64_t)function] = func_id;
   }
   
   inline uint16_t getRegisteredFuncId(uint64_t func_key) {
