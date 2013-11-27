@@ -16,6 +16,9 @@
 #include "ast.h"
 #include "mathvm.h"
 
+#include <AsmJit/AsmJit.h>
+using namespace AsmJit;
+
 Status* FenrirInterpreter::execute(vector<Var*>& vars) {
   BytecodeFunction *main = (BytecodeFunction *)functionByName(AstFunction::top_name);
   
@@ -37,7 +40,7 @@ void FenrirInterpreter::functionCallPrologue(BytecodeFunction *new_fn) {
   
   m_func_intimates[fn->scopeId()].push(allocVectorFromCache(fn->localsNumber()));
   
-  locals = &getVectorFromCache(m_func_intimates[fn->scopeId()].top());
+  m_locals = &getVectorFromCache(m_func_intimates[fn->scopeId()].top());
   
   //init params
   for(int32_t param = fn->parametersNumber(); param > 0; --param) {
@@ -55,12 +58,11 @@ void FenrirInterpreter::functionCallEpilogue() {
   fn = stacked.second;
   ic = stacked.first;
   bc = fn->bytecode();
-  locals = &getVectorFromCache(m_func_intimates[fn->scopeId()].top());
+  m_locals = &getVectorFromCache(m_func_intimates[fn->scopeId()].top());
 }
 
 
-void FenrirInterpreter::exec_function() {  
-  
+void FenrirInterpreter::exec_function() {
   while (ic < bc->length()) {
     uint8_t insn = bc->get(ic);
     ic += 1;
@@ -74,7 +76,7 @@ void FenrirInterpreter::exec_function() {
         m_op_stack.push(bc->getInt64(ic));
         ic += 8;
         break;
-      case BC_DLOAD0: m_op_stack.push(0); break;
+      case BC_DLOAD0: m_op_stack.push(d2i(0)); break;
       case BC_ILOAD0: m_op_stack.push(0); break;
       case BC_DLOAD1:  m_op_stack.push(d2i(1)); break;
       case BC_ILOAD1: m_op_stack.push(1); break;
@@ -170,7 +172,7 @@ void FenrirInterpreter::exec_function() {
         break;
       }
       case BC_SPRINT: {
-        std::cout << constantById((uint16_t)m_op_stack.pop());
+        std::cout << strFromDesc(m_op_stack.pop());
         break;
       }
 
@@ -213,6 +215,11 @@ void FenrirInterpreter::exec_function() {
         //m_op_stack.push(atoi(constantById(str_id).c_str()));
         break;
       }
+      case BC_CALLNATIVE: {
+        NativeCallExecutor executor(this, bc->getInt16(ic));
+        executor.performNativeCall();
+        ic += 2;
+      }
       default:
         break;
     }
@@ -221,10 +228,171 @@ void FenrirInterpreter::exec_function() {
 
 }
 
-//To be imlemented
-/*
-DO(CALLNATIVE, "Call native function, next two bytes - id of the native function.", 3)  \
-*/
+FenrirInterpreter::NativeCallExecutor::NativeCallExecutor(FenrirInterpreter *inter, uint16_t nid) {
+  m_inter = inter;
+  
+  std::string const *name;
+  Signature const *signature;
+  m_code_ref = (void *)m_inter->nativeById(nid, &signature, &name);
+
+  //reserve size that enought to store all args to prevent vector relocation
+  m_copied_consts = std::vector<std::string>(signature->size());
+  m_signature = *signature;
+}
+
+FenrirInterpreter::NativeCallExecutor::~NativeCallExecutor() {
+  for (size_t i = 0; i < m_arg_vars.size(); ++i) {
+    delete m_arg_vars[i];
+  }
+}
+
+void FenrirInterpreter::NativeCallExecutor::prepareReturnValue() {
+  //setup return value
+  switch (returnType()) {
+    case VT_DOUBLE: {
+
+      m_compiler.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<double>());
+      break;
+    }
+    case VT_INT: {
+      m_native_fun_bldr.setReturnValue<int64_t>();
+      m_compiler.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<int64_t>());
+      break;
+    }
+    case VT_STRING: {
+      m_native_fun_bldr.setReturnValue<char *>();
+      m_compiler.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<char *>());
+      break;
+    }
+    case VT_VOID: {
+      m_native_fun_bldr.setReturnValue<void>();
+      m_compiler.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<Void>());
+      break;
+    }
+    default: break;
+  }
+}
+
+void FenrirInterpreter::NativeCallExecutor::prepareArgs() {
+  for (size_t arg_ti = 1; arg_ti < m_signature.size(); ++arg_ti) {
+    switch (m_signature.at(arg_ti).first) {
+      case VT_DOUBLE: {
+        m_native_fun_bldr.addArgument<double>();
+        XMMVar *arg = new XMMVar(m_compiler.newXMM(VARIABLE_TYPE_XMM_1D));
+        m_arg_vars.push_back(arg);
+        
+        //aghhrr need to convert to relative address to support x64 (see AssemblerX86X64.c:328)
+        // so use workaround for now
+        GPVar tmp(m_compiler.newGP());
+        m_compiler.mov(tmp, m_inter->locals()->at(arg_ti));
+        m_compiler.movq(*arg, tmp);
+        m_compiler.unuse(tmp);
+        break;
+      }
+      case VT_INT: {
+        m_native_fun_bldr.addArgument<int64_t>();
+        GPVar *arg = new GPVar(m_compiler.newGP());
+        m_arg_vars.push_back(arg);
+        
+        m_compiler.mov(*arg, m_inter->locals()->at(arg_ti));
+        break;
+      }
+      case VT_STRING: {
+        m_native_fun_bldr.addArgument<char *>();
+        uint64_t str_desc = m_inter->locals()->at(arg_ti);
+        
+        char *data = m_inter->strFromDesc(str_desc);
+        if (!m_inter->isStrDescNativePtr(str_desc)) {
+          //not native means const, so provide copy to prevent modification
+          m_copied_consts.push_back(data);
+          data = (char *)m_copied_consts[m_copied_consts.size() - 1].c_str();
+        }
+        
+        GPVar *arg = new GPVar(m_compiler.newGP());
+        m_arg_vars.push_back(arg);
+        m_compiler.mov(*arg, imm((sysint_t)data));
+        break;
+      }
+      case VT_VOID: break;
+      default: break;
+    }
+  }
+}
+
+void FenrirInterpreter::NativeCallExecutor::setupArgs(ECall* ctx) {
+  //setup args
+  ctx->setPrototype(CALL_CONV_DEFAULT, m_native_fun_bldr);
+  for (unsigned i = 0; i < m_arg_vars.size(); ++i) {
+    ctx->setArgument(i, *m_arg_vars[i]);
+  }
+  
+  switch (returnType()) {
+    case VT_DOUBLE: {
+      XMMVar ret(m_compiler.newXMM(VARIABLE_TYPE_XMM_1D));
+      ctx->setReturn(ret);
+      m_compiler.ret(ret);
+      break;
+    }
+    case VT_VOID: break;
+    default: {
+      GPVar ret(m_compiler.newGP());
+      ctx->setReturn(ret);
+      m_compiler.ret(ret);
+      break;
+    }
+  }
+}
+  
+void FenrirInterpreter::NativeCallExecutor::performNativeCall() {
+  //** Use power of AsmJit instead of generating asm by hands
+  // inspired by http://fog-framework.blogspot.ru/2010/07/asmjit-function-calling-finally.html
+
+  prepareReturnValue();
+  m_compiler.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
+  prepareArgs();
+ 
+  
+  GPVar native_address(m_compiler.newGP());
+  m_compiler.mov(native_address, imm((sysint_t)m_code_ref));
+  setupArgs(m_compiler.call(native_address));
+  
+  m_compiler.endFunction();
+  
+  void *fn = m_compiler.make();
+  if (!fn) {
+    printf("Error making jit function (%u).\n", m_compiler.getError());
+    exit(-1);
+  }
+  
+  switch (returnType()) {
+    case VT_DOUBLE: {
+      double (*dfn)(void) = function_cast<double (*)(void)>(fn);
+      double res = dfn();
+      m_inter->m_op_stack.push(m_inter->d2i(res));
+      break;
+    }
+    case VT_INT: {      
+      uint64_t (*ifn)(void) = function_cast<uint64_t (*)(void)>(fn);
+      uint64_t res = ifn();
+      m_inter->m_op_stack.push(res);
+      break;
+    }
+    case VT_VOID: {
+      void (*vfn)(void) = function_cast<void (*)(void)>(fn);
+      vfn();
+      break;
+    }
+    case VT_STRING: {
+      char *(*cfn)(void) = function_cast<char* (*)(void)>(fn);
+      char * str = cfn();
+      m_inter->m_op_stack.push(makeNativeStrDesc(str));
+    }
+    default: break;
+  }
+  
+  MemoryManager::getGlobal()->free((void*)fn);
+}
+
 
 //Unused by translator commads
 /*

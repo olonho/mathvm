@@ -67,6 +67,11 @@ private: //methods
     m_err_status = new Status(error);
   }
   
+  inline bool isFunctionNative(AstFunction *func) {
+    return func->node()->body() && func->node()->body()->nodes() &&
+    func->node()->body()->nodeAt(0)->isNativeCallNode();
+  }
+  
 private: //fields
   FenrirInterpreter *m_code;
   StackIsaGenerator m_isa;
