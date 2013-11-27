@@ -127,6 +127,7 @@ public: // methods
 
   inline void rtrn() { addInsn(BC_RETURN); }
   inline void call() { addInsn(BC_CALL); }
+  inline void nativeCall() { addInsn(BC_CALLNATIVE); }
   inline void aand() { addInsn(BC_IAAND); }
   inline void aor() { addInsn(BC_IAOR); }
   inline void axor() { addInsn(BC_IAXOR); }

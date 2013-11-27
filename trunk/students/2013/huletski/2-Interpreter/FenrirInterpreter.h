@@ -11,9 +11,10 @@
 
 #include <stack>
 #include <vector>
-#include "mathvm.h"
 #include "OperandStack.h"
+#include "mathvm.h"
 
+#include <AsmJit/AsmJit.h>
 using namespace mathvm;
 
 class FenrirInterpreter: public Code {
@@ -55,10 +56,30 @@ public:
     m_func_intimates.resize(func_cnt);
   }
 
-  inline void loadVar(int16_t ind) { m_op_stack.push(locals->operator[](ind)); }
-  inline void storeVar(int16_t ind){locals->operator[](ind) = m_op_stack.pop();}
-                    
-                    
+  inline void loadVar(int16_t ind) { m_op_stack.push(m_locals->operator[](ind)); }
+  inline void storeVar(int16_t ind){ m_locals->operator[](ind) = m_op_stack.pop();}
+  
+  static bool isStrDescNativePtr(uint64_t str_desc) {
+    return str_desc & ((uint64_t)1 << 63);
+  }
+  
+  static uint64_t makeNativeStrDesc(char * str_desc) {
+    return (uint64_t)str_desc | ((uint64_t)1 << 63);
+  }
+  
+  char * strFromDesc(uint64_t str_desc) {
+    //only 48 bit for 64 are used, also work in user mode... so let's hack
+    if (FenrirInterpreter::isStrDescNativePtr(str_desc)) {
+      str_desc <<= 1;
+      str_desc >>= 1;
+      return (char *)str_desc;
+    } else {
+      return (char *)constantById(str_desc).c_str();
+    }
+  }
+  
+  std::vector<int64_t> * locals() { return m_locals; }
+  
 private:
   
   inline int64_t d2i(double val) {
@@ -102,8 +123,30 @@ private:
   inline void returnLastVectorToCache() {
     m_vector_cache_ind--;
   }
+  
+private: //classes
 
-
+  class NativeCallExecutor {
+  public: //methods
+    inline VarType returnType() { return m_signature.at(0).first; }
+    
+    NativeCallExecutor(FenrirInterpreter *inter, uint16_t nid);
+    ~NativeCallExecutor();
+    void performNativeCall();
+  private: // methods
+    void prepareReturnValue();
+    void prepareArgs();
+    void setupArgs(AsmJit::ECall* ctx);
+  private: // fields
+    FenrirInterpreter *m_inter;
+    std::vector<std::string> m_copied_consts;
+    AsmJit::Compiler m_compiler;
+    Signature m_signature;
+    AsmJit::FunctionBuilderX m_native_fun_bldr;
+    std::vector<AsmJit::BaseVar *> m_arg_vars;
+    
+    void * m_code_ref;
+  };
   
 private:
   OperandStack m_op_stack;
@@ -117,7 +160,9 @@ private:
   BytecodeFunction *fn;
   uint32_t ic;
   Bytecode *bc;
-  std::vector<int64_t> *locals;
+  std::vector<int64_t> *m_locals;
+  
+  std::map< uint16_t, std::pair<VarType, void *> > m_native_func_cache;
 };
 
 #endif /* defined(__VM_2__FenrirCode__) */

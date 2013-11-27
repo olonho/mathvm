@@ -6,6 +6,8 @@
 //  Copyright (c) 2013 WooHoo. All rights reserved.
 //
 
+#include <dlfcn.h>
+
 #include "AstToBcTranslator.h"
 #include "mathvm.h"
 #include "CommonStructs.h"
@@ -25,7 +27,7 @@ void AstToBCTranslator::handle_function_definition(AstFunction *func) {
   m_scopes.push_back(scope);
   curr_func->setLocalsNumber(1 + func->parametersNumber());
 
-  uint16_t assigned_locals = 1; // zero loral is reserved
+  uint16_t assigned_locals = 1; // zero local is reserved
   uint16_t scope_id = m_curr_funcs.top()->scopeId();
   //init infos of AstVars that corresponds to parameters
   for (uint32_t i = 0; i < func->parametersNumber(); ++i) {
@@ -338,5 +340,12 @@ void AstToBCTranslator::visitCallNode(CallNode* node) {
 }
 
 void AstToBCTranslator::visitNativeCallNode(NativeCallNode* node) {
-  //TODO: implement me!
+  void *code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+  if (!code) {
+    m_err_status = new Status("Unable to locate code for native function " + node->nativeName());
+  }
+
+  uint16_t nid = m_code->makeNativeFunction(node->nativeName().c_str(), node->nativeSignature(), code);
+  m_isa.nativeCall();
+  m_isa.addUInt16(nid);
 }
