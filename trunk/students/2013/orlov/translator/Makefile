@@ -3,6 +3,7 @@ VM_ROOT = ../../../..
 
 USER_OBJ = $(OBJ)/main$(OBJ_SUFF) \
 		   $(OBJ)/TranslatorVisitor$(OBJ_SUFF) \
+		   $(OBJ)/CodeImpl$(OBJ_SUFF) 
 
 include $(VM_ROOT)/common.mk
 

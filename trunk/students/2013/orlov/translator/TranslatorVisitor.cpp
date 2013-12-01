@@ -9,9 +9,9 @@ namespace mathvm {
 		: (type == VT_DOUBLE ? BC_##D##suff : BC_INVALID))
 
 void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode * node) {
-	node->left()->visit(this);
-	VarType first = lastExpressionType;
 	node->right()->visit(this);
+	VarType first = lastExpressionType;
+	node->left()->visit(this);
 	VarType second = lastExpressionType;
 	if (!(first == VT_INT || first == VT_DOUBLE)
 			|| !(second == VT_INT || second == VT_DOUBLE)) {
@@ -159,6 +159,9 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode * node) {
 
 
 void TranslatorVisitor::visitBlockNode(BlockNode * node) {
+	currentFunction->setLocalsNumber(
+		currentFunction->localsNumber() + node->scope()->variablesCount());
+
 	Scope::VarIterator vars(node->scope());
 	while(vars.hasNext())
 		currentScope->addVar(vars.next());
@@ -381,6 +384,7 @@ void TranslatorVisitor::processFunction (AstFunction * f) {
 		fun = new BytecodeFunction(f);
 		code->addFunction(fun);
 	}
+	BytecodeFunction * prevFunc = currentFunction;
 	currentFunction = fun;
 	currentScope = new ScopeVar(fun->id(), currentScope);
 
@@ -396,6 +400,7 @@ void TranslatorVisitor::processFunction (AstFunction * f) {
 	ScopeVar * parent = currentScope->parent;
 	delete currentScope;
 	currentScope = parent;
+	currentFunction = prevFunc;
 }
 
 void TranslatorVisitor::convertToBool() {

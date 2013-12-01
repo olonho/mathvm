@@ -16,4 +16,13 @@ int main(int argc, char * argv[]) {
 		std::cout << "Translation error: "  << res->getError();
 		return -1;
 	}
+	//code->disassemble();
+	std::vector<mathvm::Var *> v;
+	try {
+		code->execute(v);		
+	} catch (std::string msg) {
+		std::cout << "Interpreatation error: " << msg << std::endl;
+	}
+
+	return 0;
 }
