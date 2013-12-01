@@ -9,6 +9,7 @@
 
 #include <stdexcept>
 #include <stack>
+#include <cmath>
 #include "ast.h"
 #include "BytecodeEmitter.h"
 
