@@ -9,7 +9,7 @@
 
 namespace mathvm {
 
-class CodeImpl: Code {
+class CodeImpl: public Code {
 	class FuncScope {
 	public:
 		FuncScope(BytecodeFunction * f, FuncScope * parent = 0): ip(0), parent(parent), function(f)
