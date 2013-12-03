@@ -10,9 +10,9 @@ namespace mathvm {
 
 void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode * node) {
 	node->right()->visit(this);
-	VarType first = lastExpressionType;
-	node->left()->visit(this);
 	VarType second = lastExpressionType;
+	node->left()->visit(this);
+	VarType first = lastExpressionType;
 	if (!(first == VT_INT || first == VT_DOUBLE)
 			|| !(second == VT_INT || second == VT_DOUBLE)) {
 		throw std::string("Error in binary expression");

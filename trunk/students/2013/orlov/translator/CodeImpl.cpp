@@ -107,8 +107,8 @@ Status * CodeImpl::execute(vector<Var *> &vars) {
 		case BC_LOADCTXIVAR:
 		case BC_LOADCTXDVAR:
 		case BC_LOADCTXSVAR: {
-			uint16_t a = currentScope->function->bytecode()->getInt16(currentScope->ip); 
-			uint16_t b = currentScope->function->bytecode()->getInt16(currentScope->ip); 
+			uint16_t a = getVal<uint16_t>(2); 
+			uint16_t b = getVal<uint16_t>(2);
 			loadVar(a, b); 
 			break;
 		}
@@ -140,8 +140,8 @@ Status * CodeImpl::execute(vector<Var *> &vars) {
 		case BC_STORECTXIVAR:
 		case BC_STORECTXDVAR:
 		case BC_STORECTXSVAR: {
-			uint16_t a = currentScope->function->bytecode()->getInt16(currentScope->ip); 
-			uint16_t b = currentScope->function->bytecode()->getInt16(currentScope->ip); 
+			uint16_t a = getVal<uint16_t>(2); 
+			uint16_t b = getVal<uint16_t>(2); 
 			storeVar(a, b); 
 			break;
 		}
@@ -301,7 +301,7 @@ void CodeImpl::intBinOp(TokenKind op) {
 
 Var CodeImpl::popStack() {
 	if (varStack.empty())
-		throw std::string("Empty stack detected.");
+		throw std::string("Stack is empty");
 	Var res = varStack.top();
 	varStack.pop();
 	return res;
