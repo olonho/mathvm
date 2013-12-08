@@ -24,7 +24,7 @@ void usage() {
 }
 
 void fileNotFound(const string& filename) {
-    cerr << "File: " << filename << "  does not exist. " 
+    cerr << "File: " << filename << " does not exist. " 
          << endl;
 }
 
