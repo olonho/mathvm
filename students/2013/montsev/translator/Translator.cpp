@@ -74,8 +74,7 @@ private: // structs
                 reportOverflowError(len);
             }
 
-            VarIter lit = _locals.find(name);
-            if (lit != _locals.end()) {
+            if (_locals.find(name) != _locals.end()) {
                 reportDuplicateError(name);
             }
 
@@ -195,6 +194,12 @@ private: // methods
                 << ". Found: "
                 << typeToName(found);
             throw error(msg.str());
+        }
+    }
+
+    void checkNotNull(void* ptr, const string& msg) const {
+        if (!ptr) {
+            throw error(msg);
         }
     }
 
@@ -572,13 +577,14 @@ private: // methods
     }
 
     void visitForNode(ForNode* node) {
-        // IVAR0 - counter, IVAR3 - general purpose register
-        // Save IVAR0 on stack
-        addInsn(BC_LOADIVAR0);
+        // IVAR3 - general purpose register
         
-        // FIXME Range variable could be used in for block
+        checkNotNull((void*) node->var(), "Invalid for expression. ");
+
+        Var var(_scope->resolveName(node->var()->name()));
+        checkVarType(var.type, VT_INT);
+
         node->inExpr()->visit(this);
-        addInsn(BC_STOREIVAR0);
 
         Label beginFor(_bc);
         Label endFor(_bc);
@@ -586,17 +592,20 @@ private: // methods
         bind(beginFor);
         addInsn(BC_STOREIVAR3);
         addInsn(BC_LOADIVAR3);
-        addInsn(BC_LOADIVAR0);
+        addLoadVarInsn(var);
         addBranch(BC_IFICMPG, endFor);
         addInsn(BC_LOADIVAR3);
 
         node->body()->visit(this);
 
+        addLoadVarInsn(var);
+        addInsn(BC_ILOAD1);
+        addInsn(BC_IADD);
+        addStoreVarInsn(var);
+
         addBranch(BC_JA, beginFor);
         bind(endFor);
 
-        // Restore IVAR0 from TOS
-        addInsn(BC_STOREIVAR0);
     }
         
     void visitWhileNode(WhileNode* node) {
@@ -651,7 +660,7 @@ private: // methods
             varscope->declareVar(ptr->name(), ptr->type(), _fid);
         }
 
-        VarScope* temp = _scope;
+        VarScope* saveScope = _scope;
         _scope = varscope;
 
         // Block functions declarations
@@ -672,7 +681,7 @@ private: // methods
             }
         }
 
-        _scope = temp;
+        _scope = saveScope;
     }
 
     void visitPrintNode(PrintNode* node) {
@@ -724,9 +733,10 @@ private: // methods
     }
 
     void visitFunctionNode(FunctionNode* node) {
+        Scope* scope = node->body()->scope();
+
         Bytecode* saveBc = _bc;
         uint16_t saveId = _fid;
-        Scope* scope = node->body()->scope();
         VarScope* saveScope = _scope;
 
         AstFunction* func = scope->lookupFunction(node->name());
@@ -737,7 +747,7 @@ private: // methods
 
         VarScope* varscope = constructScope(0, 0);
 
-        bcFunction->setScopeId(_scopes.size());
+        bcFunction->setScopeId(_scopes.size() - 1);
         _scope = varscope;
 
         size_t params = node->parametersNumber();
@@ -754,7 +764,6 @@ private: // methods
         _scope = saveScope;
         _bc = saveBc;
         _fid = saveId;
-
     }
 
 };
