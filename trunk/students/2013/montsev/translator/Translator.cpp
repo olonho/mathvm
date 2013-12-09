@@ -24,7 +24,6 @@ public:
 
 static const uint16_t MAX_ID = 65535;
 
-
 // Ast visitor implementation
 class TranslatorVisitor : public AstVisitor {
 
@@ -174,7 +173,7 @@ private: // methods
     }
 
     void checkOpType(VarType left, VarType right, 
-                                    VarType expected, TokenKind kind) const {
+                     VarType expected, TokenKind kind) const {
 
         if (left != expected || right != expected) {
             stringstream msg;
@@ -605,7 +604,6 @@ private: // methods
 
         addBranch(BC_JA, beginFor);
         bind(endFor);
-
     }
         
     void visitWhileNode(WhileNode* node) {
@@ -745,7 +743,7 @@ private: // methods
         _bc = bcFunction->bytecode();
         _fid = _code->addFunction(bcFunction);
 
-        VarScope* varscope = constructScope(0, 0);
+        VarScope* varscope = constructScope(_scope, 0);
 
         bcFunction->setScopeId(_scopes.size() - 1);
         _scope = varscope;
