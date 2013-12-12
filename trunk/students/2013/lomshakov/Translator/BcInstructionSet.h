@@ -267,8 +267,16 @@ namespace mathvm{
         typeExpr.push(foo.second->returnType());
     }
 
-    void callNative(uint16_t fId) {
+    void skipRetVal() {
+      assert(!typeExpr.empty());
+      typeExpr.pop();
+      emit(BC_POP);
+    }
+
+    void callNative(uint16_t fId, VarType retType) {
       emit(BC_CALLNATIVE, fId);
+      if (retType != VT_VOID)
+        typeExpr.push(retType);
     }
 
     void riturn(VarType returnType) {
