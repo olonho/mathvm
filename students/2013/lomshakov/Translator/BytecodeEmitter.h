@@ -10,6 +10,8 @@
 
 #include <deque>
 #include <map>
+#include <dlfcn.h>
+
 #include "visitors.h"
 #include "BcInstructionSet.h"
 
@@ -27,11 +29,16 @@ namespace mathvm {
 
     BcInstructionSet insnSet;
 
+    std::string _dynLibraryName;
+    void* _dynLibraryHandle;
+
     BytecodeEmitter();
     BytecodeEmitter(BytecodeEmitter&);
     BytecodeEmitter& operator=(BytecodeEmitter&);
   public:
     static BytecodeEmitter& getInstance();
+
+    void setDynLibraryName(std::string const& library);
 
     void emitCode(AstFunction* topLevel, Code* code);
 
@@ -46,6 +53,9 @@ namespace mathvm {
     virtual ~BytecodeEmitter();
 
   private:
+
+    void* getPointerOnFunction(string const& name);
+
 
     LocationVar lookupCtxAndIdForVar(string const &name);
     bool isLocalVar(string const& name, uint16_t scopeId) { return _localsById.count(make_pair(name, scopeId)) != 0; };

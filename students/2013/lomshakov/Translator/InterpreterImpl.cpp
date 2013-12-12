@@ -115,7 +115,151 @@ namespace mathvm {
   }
 
   void InterpreterImpl::executeCALLNATIVE() {
-    assert("method is not implement" == 0);
+    Signature const ** signature = (Signature const **) new Signature*;
+    string const ** name = (string const **) new string*;
+    void const * code = nativeById(getNextUInt16(), signature, name);
+    delete name;
+
+    VarType returnType = (**signature)[0].first;
+
+    Compiler c;
+
+    switch (returnType) {
+      case VT_DOUBLE:
+        c.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<double>());
+        break;
+      case VT_INT:
+        c.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<int64_t>());
+        break;
+      case VT_STRING:
+        c.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<char*>());
+        break;
+      case VT_VOID:
+        c.newFunction(CALL_CONV_DEFAULT, FunctionBuilder0<void>());
+        break;
+      case VT_INVALID:
+      default:
+        throw std::runtime_error("wrong return type");
+    }
+    c.getFunction()->setHint(FUNCTION_HINT_NAKED, true);
+
+    size_t countArgs = (**signature).size() - 1;
+    std::vector<BaseVar> args;
+    assert(currentLocals().size() == countArgs);
+    for (size_t i = 0; i != countArgs; ++i) {
+      switch ((**signature)[i + 1].first) {
+        case VT_INT: {
+          GPVar arg(c.newGP());
+          c.mov(arg, Imm(currentLocals()[i].getIntValue()));
+          args.push_back(arg);
+          break;
+        }
+        case VT_DOUBLE: {
+          XMMVar arg(c.newXMM(VARIABLE_TYPE_XMM_1D));
+          GPVar tmp(c.newGP(VARIABLE_TYPE_INT64));
+          c.mov(tmp, Imm(currentLocals()[i].getIntValue()));
+          c.movq(arg, tmp);
+          c.unuse(tmp);
+          args.push_back(arg);
+          break;
+        }
+        case VT_STRING: {
+          GPVar arg(c.newGP());
+          int64_t addr = (int64_t) getStringConstant(currentLocals()[i].getStringValue());
+          // if you wanna to modify string, it's your problem)
+          c.mov(arg, Imm(addr));
+          args.push_back(arg);
+          break;
+        }
+        case VT_VOID: break;
+        case VT_INVALID:
+        default:
+          throw std::runtime_error("wrong arg type");
+      }
+    }
+
+    XMMVar retVal(c.newXMM(VARIABLE_TYPE_XMM_1D));
+
+    // Call a function.
+    GPVar address(c.newGP());
+    c.mov(address, imm((sysint_t)code));
+    ECall* ctx = c.call(address);
+
+
+    FunctionBuilderX definition = FunctionBuilderX();
+    switch (returnType) {
+      case VT_DOUBLE:
+        definition.setReturnValue<double>();
+        break;
+      case VT_INT:
+        definition.setReturnValue<int64_t>();
+        break;
+      case VT_STRING:
+        definition.setReturnValue<char*>();
+        break;
+      case VT_VOID:
+        definition.setReturnValue<void>();
+        break;
+      case VT_INVALID:
+      default:
+        throw std::runtime_error("wrong return type");
+    }
+
+    for (size_t i = 0; i != countArgs; ++i) {
+      switch ((**signature)[i + 1].first) {
+        case VT_DOUBLE:
+          definition.addArgument<double>();
+          break;
+        case VT_INT:
+          definition.addArgument<int64_t>();
+          break;
+        case VT_STRING:
+          definition.addArgument<char*>();
+          break;
+        case VT_VOID:
+          definition.addArgument<void>();
+          break;
+        case VT_INVALID:
+        default:
+          throw std::runtime_error("wrong return type");
+      }
+    }
+    ctx->setPrototype(CALL_CONV_DEFAULT, definition);
+
+    for(size_t i = 0; i != countArgs; ++i)
+      ctx->setArgument(i, args[i]);
+
+    ctx->setReturn(retVal);
+
+    c.ret(retVal);
+    c.endFunction();
+
+    // Make the function.
+    void* fn = c.make();
+
+    switch (returnType) {
+      case VT_DOUBLE:
+        currentStack().pushDoubleValue(function_cast<double(*)()>(fn)());
+        break;
+      case VT_INT:
+        currentStack().pushIntValue(function_cast<int64_t(*)()>(fn)());
+        break;
+      case VT_STRING: {
+        char* ptr = function_cast<char*(*)()>(fn)();
+        currentStack().pushStringValue(makeExternalString(ptr));
+      break; }
+      case VT_VOID:
+        function_cast<void(*)()>(fn)();
+        break;
+      case VT_INVALID:
+      default:
+        throw std::runtime_error("wrong return type");
+    }
+
+
+    // Free the generated function if it's not needed anymore.
+    MemoryManager::getGlobal()->free(fn);
+    delete signature;
   }
 
   void InterpreterImpl::executeINVALID() {
@@ -266,7 +410,7 @@ namespace mathvm {
 
   void InterpreterImpl::executeSPRINT() {
     assert(!currentStack().empty());
-    out << constantById(currentStack().popStringValue());
+    out << getStringConstant(currentStack().popStringValue());//constantById(currentStack().popStringValue());
   }
 
   void InterpreterImpl::executeDDIV() {

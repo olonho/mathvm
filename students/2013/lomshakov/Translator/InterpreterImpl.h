@@ -9,27 +9,31 @@
 
 
 
-
+#include <map>
 #include <cfloat>
 #include <stdexcept>
 #include <iostream>
+#include <AsmJit/AsmJit.h>
 #include "ast.h"
 #include "mathvm.h"
 
+
 namespace mathvm {
   // maybe make splitting commands set, and optimized work with stack and access to it
+
+  using namespace AsmJit;
 
   class SVar {
     union {
       double _doubleValue;
       int64_t _intValue;
-      uint16_t _stringRef;
+      uint32_t _stringRef; // extend for save flag isExternalStr
     };
   public:
-    SVar() {}
+    SVar() { }
     explicit SVar(double var): _doubleValue(var) {};
     explicit SVar(int64_t val): _intValue(val) {};
-    explicit SVar(uint16_t val): _stringRef(val) {};
+    explicit SVar(uint32_t val): _stringRef(val) {};
 
     void setDoubleValue(double value) {
       _doubleValue = value;
@@ -47,11 +51,11 @@ namespace mathvm {
       return _intValue;
     }
 
-    void setStringValue(uint16_t ref) {
+    void setStringValue(uint32_t ref) {
       _stringRef = ref;
     }
 
-    uint16_t getStringValue() const {
+    uint32_t getStringValue() const {
 
       return _stringRef;
     }
@@ -95,12 +99,12 @@ namespace mathvm {
       return tmp;
     }
 
-    void pushStringValue(uint16_t ref) {
+    void pushStringValue(uint32_t ref) {
       push_back(SVar(ref));
     }
 
-    uint16_t popStringValue() {
-      uint16_t tmp = back().getStringValue();
+    uint32_t popStringValue() {
+      uint32_t tmp = back().getStringValue();
       pop_back();
       return tmp;
     }
@@ -171,64 +175,64 @@ namespace mathvm {
 
   private:
 
-    Stack& currentStack() { return currentFrameStack().stack; }
-    LocalsArray& localsByCtx(uint16_t ctxId) { return _mapFrames[ctxId].back().locals; }
-    LocalsArray& currentLocals() { return currentFrameStack().locals; }
-    StackFrame& currentFrameStack() { return _mapFrames[_callStack.top().fid].back(); }
+    inline Stack& currentStack() { return currentFrameStack().stack; }
+    inline LocalsArray& localsByCtx(uint16_t ctxId) { return _mapFrames[ctxId].back().locals; }
+    inline LocalsArray& currentLocals() { return currentFrameStack().locals; }
+    inline StackFrame& currentFrameStack() { return _mapFrames[_callStack.top().fid].back(); }
 
-    void jump(int16_t offset) {
+    inline void jump(int16_t offset) {
       assert(ip() + offset >= 0);
       assert((int32_t)ip() + offset - 2 < (int32_t)_currentCode->length());
 
       _callStack.top().ip += offset - 2 /* because we shifted to two bytes when we was reading the offset of jump instruction */;
     }
 
-    uint8_t getNextInsn() {
+    inline uint8_t getNextInsn() {
       uint32_t idx = ip();
       shiftIpOnByte();
       return _currentCode->get(idx);
     }
 
-    void shiftIpOnByte() {
+    inline void shiftIpOnByte() {
       assert(ip() < _currentCode->length());
       ++(_callStack.top().ip);
     }
 
-    uint16_t getNextUInt16() {
+    inline uint16_t getNextUInt16() {
       uint32_t idx = ip();
       shiftIpOn2Byte();
       return _currentCode->getUInt16(idx);
     }
 
-    int16_t getNextInt16() {
+    inline int16_t getNextInt16() {
       uint32_t idx = ip();
       shiftIpOn2Byte();
       return _currentCode->getInt16(idx);
     }
 
-    void shiftIpOn2Byte() {
+    inline void shiftIpOn2Byte() {
       assert(ip() + 1 < _currentCode->length());
       _callStack.top().ip += 2;
     }
 
-    double getNextDouble() {
+    inline double getNextDouble() {
       uint32_t idx = ip();
       shiftIpOn8Byte();
       return _currentCode->getDouble(idx);
     }
 
-    int64_t getNextInt64() {
+    inline int64_t getNextInt64() {
       uint32_t idx = ip();
       shiftIpOn8Byte();
       return _currentCode->getInt64(idx);
     }
 
-    void shiftIpOn8Byte() {
+    inline void shiftIpOn8Byte() {
       assert(ip() + 7 < _currentCode->length());
       _callStack.top().ip += 8;
     }
 
-    uint32_t ip() const {
+    inline uint32_t ip() const {
       assert(!_callStack.empty());
       return _callStack.top().ip;
     }
@@ -238,6 +242,32 @@ namespace mathvm {
     void callFunction(uint16_t id);
     void returnFromFunction();
     void setInitialState();
+
+// ================================================================================================================== //
+// wrapping constantById and introduce method for make external string
+
+    inline char const * getStringConstant(uint32_t extRef) {
+      if ((extRef >> 16) & 1) { // this is external string
+        assert(externalPtrs.count((uint16_t) extRef) == 1);
+        return (char const*)externalPtrs[(uint16_t) extRef];
+      }
+      return constantById((uint16_t) extRef).c_str();
+    }
+
+
+
+    inline uint32_t makeExternalString(char* ptr) {
+      assert(externalPtrs.size() < (1 << 16));
+      uint16_t sid = (uint16_t) externalPtrs.size();
+
+      assert(externalPtrs.count(sid) == 0); // Ref must be not allocated yet
+
+      externalPtrs[sid] = (int64_t) ptr;
+      uint32_t res = (1 << 16) | sid;
+      return res;
+    }
+
+    map<uint16_t, int64_t> externalPtrs;
   };
 
 }

@@ -1,4 +1,4 @@
-//
+	//
 // Created by Vadim Lomshakov on 10/26/13.
 // Copyright (c) 2013 spbau.
 //
@@ -9,7 +9,12 @@
 namespace mathvm {
 
 
-  BytecodeEmitter::BytecodeEmitter(): _code(0), _currentAstFunctionScope(0) {}
+  BytecodeEmitter::BytecodeEmitter():
+  _code(0),
+  _currentAstFunctionScope(0),
+  _dynLibraryName("libc.dylib"),
+  _dynLibraryHandle(0)
+  {}
 
   BytecodeEmitter::~BytecodeEmitter() {}
 
@@ -154,7 +159,8 @@ namespace mathvm {
   }
 
   void BytecodeEmitter::visitNativeCallNode(NativeCallNode *node) {
-    //TODO
+    uint16_t id = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), getPointerOnFunction(node->nativeName()));
+    insnSet.callNative(id, node->nativeSignature()[0].first);
   }
 
   void BytecodeEmitter::visitCallNode(CallNode *node) {
@@ -222,7 +228,21 @@ namespace mathvm {
   }
 
   void BytecodeEmitter::visitFunctionNode(FunctionNode *node) {
-    AstBaseVisitor::visitBlockNode(node->body());
+    BlockNode* blockNode = node->body();
+    for (uint32_t i = 0; i < blockNode->nodes(); i++) {
+      if (blockNode->nodeAt(i)->isCallNode()) {
+        blockNode->nodeAt(i)->visit(this);
+
+        //bad patch - clear type stack after unassigned call function
+        AstFunction* foo = blockNode->scope()->lookupFunction(blockNode->nodeAt(i)->asCallNode()->name(), true);
+
+        assert(foo != 0);
+        if (foo->returnType() != VT_VOID)
+          insnSet.skipRetVal();
+      } else {
+        blockNode->nodeAt(i)->visit(this);
+      }
+    }
   }
 
   void BytecodeEmitter::visitAstFunction(AstFunction  *function) {
@@ -345,5 +365,28 @@ namespace mathvm {
   BytecodeEmitter &BytecodeEmitter::getInstance() {
     static BytecodeEmitter emitter;
     return emitter;
+  }
+
+  void BytecodeEmitter::setDynLibraryName(std::string const &library) {
+    _dynLibraryName = library;
+  }
+
+  void* BytecodeEmitter::getPointerOnFunction(string const& name) {
+    if (!_dynLibraryHandle) {
+      assert(_dynLibraryName.size() != 0);
+      _dynLibraryHandle = dlopen(_dynLibraryName.c_str(), RTLD_LAZY);
+      if (!_dynLibraryHandle) {
+        char const * msg = dlerror();
+        throw std::runtime_error(msg ? msg : "[BytecodeEmitter]library not load");
+      }
+    }
+
+    void* sym = dlsym(_dynLibraryHandle, name.c_str());
+    if (!sym) {
+      char const * msg = dlerror();
+      throw std::runtime_error(msg ? msg : "[BytecodeEmitter]symbol not found");
+    }
+
+    return sym;
   }
 }
