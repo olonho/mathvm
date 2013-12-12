@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <VmRootDir>$(SolutionDir)..\..\..\</VmRootDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <IncludePath>$(VmRootDir)libs;$(VmRootDir)vm;$(VmRootDir)include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)out\$(Configuration)\</OutDir>
+    <IntDir>$(OutDir)$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BuildMacro Include="VmRootDir">
+      <Value>$(VmRootDir)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

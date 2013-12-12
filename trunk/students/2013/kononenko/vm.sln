@@ -1,0 +1,38 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "01_ast_printer", "01_ast_printer\01_ast_printer.vcxproj", "{70CEB46F-07E8-4061-B00B-965C0DA07860}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vm", "vm\vm.vcxproj", "{E58CBC9F-9561-4467-BC79-408D36984304}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "02_translator", "02_translator\02_translator.vcxproj", "{4504D7E3-2F52-412C-8AF9-0DB60362D7C1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "asmjit", "asmjit\asmjit.vcxproj", "{399DDD19-85CB-4A48-B22D-CB5B0218D3FC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{70CEB46F-07E8-4061-B00B-965C0DA07860}.Debug|Win32.ActiveCfg = Debug|Win32
+		{70CEB46F-07E8-4061-B00B-965C0DA07860}.Debug|Win32.Build.0 = Debug|Win32
+		{70CEB46F-07E8-4061-B00B-965C0DA07860}.Release|Win32.ActiveCfg = Release|Win32
+		{70CEB46F-07E8-4061-B00B-965C0DA07860}.Release|Win32.Build.0 = Release|Win32
+		{E58CBC9F-9561-4467-BC79-408D36984304}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E58CBC9F-9561-4467-BC79-408D36984304}.Debug|Win32.Build.0 = Debug|Win32
+		{E58CBC9F-9561-4467-BC79-408D36984304}.Release|Win32.ActiveCfg = Release|Win32
+		{E58CBC9F-9561-4467-BC79-408D36984304}.Release|Win32.Build.0 = Release|Win32
+		{4504D7E3-2F52-412C-8AF9-0DB60362D7C1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4504D7E3-2F52-412C-8AF9-0DB60362D7C1}.Debug|Win32.Build.0 = Debug|Win32
+		{4504D7E3-2F52-412C-8AF9-0DB60362D7C1}.Release|Win32.ActiveCfg = Release|Win32
+		{4504D7E3-2F52-412C-8AF9-0DB60362D7C1}.Release|Win32.Build.0 = Release|Win32
+		{399DDD19-85CB-4A48-B22D-CB5B0218D3FC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{399DDD19-85CB-4A48-B22D-CB5B0218D3FC}.Debug|Win32.Build.0 = Debug|Win32
+		{399DDD19-85CB-4A48-B22D-CB5B0218D3FC}.Release|Win32.ActiveCfg = Release|Win32
+		{399DDD19-85CB-4A48-B22D-CB5B0218D3FC}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
