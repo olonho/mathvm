@@ -1,24 +1,10 @@
 #include "parser.h"
+#include "errors.h"
 
 #include <sstream>
 #include <stdexcept>
 
 using namespace mathvm;
-
-// Exception class for type errors etc...
-class error : public exception {
-    string _msg;
-
-public:
-    explicit error(const string& msg): _msg(msg) {}
-    explicit error(const char* msg): _msg(msg) {}
-
-    virtual ~error() throw () {}
-
-    const char* what() const throw () {
-        return _msg.c_str();
-    }
-};
 
 // constants
 
@@ -656,6 +642,8 @@ private: // methods
         while (variter.hasNext()) {
             AstVar* ptr = variter.next();
             varscope->declareVar(ptr->name(), ptr->type(), _fid);
+            TranslatedFunction * f = _code->functionById(_fid);
+            f->setLocalsNumber(f->localsNumber() + 1);
         }
 
         VarScope* saveScope = _scope;

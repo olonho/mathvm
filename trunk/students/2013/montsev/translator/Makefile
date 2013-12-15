@@ -10,6 +10,7 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
+   $(OBJ)/CodeImpl$(OBJ_SUFF) \
    $(OBJ)/Translator$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
