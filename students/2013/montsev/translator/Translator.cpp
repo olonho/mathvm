@@ -573,12 +573,17 @@ private: // methods
 
         Label beginFor(_bc);
         Label endFor(_bc);
+        
+        addStoreVarInsn(var);
 
         bind(beginFor);
+
         addInsn(BC_STOREIVAR3);
         addInsn(BC_LOADIVAR3);
-        addStoreVarInsn(var);
+        addLoadVarInsn(var);
+
         addBranch(BC_IFICMPG, endFor);
+
         addInsn(BC_LOADIVAR3);
 
         node->body()->visit(this);
@@ -692,7 +697,9 @@ private: // methods
     void visitCallNode(CallNode* node) {
         size_t params = node->parametersNumber();
         TranslatedFunction* f = _code->functionByName(node->name());
-
+        if (params != f->parametersNumber()) {
+            throw error("Invalid call. ");
+        }
         for (int i = params - 1; i >= 0; --i) {
             node->parameterAt(i)->visit(this);
             checkVarType(f->parameterType(i), _lastType);
@@ -701,13 +708,16 @@ private: // methods
         addInsn(BC_CALL);
         addUInt16(f->id());
 
+        _lastType = _code->functionById(f->id())->returnType();
     }
 
     void visitReturnNode(ReturnNode* node) {
         if (node->returnExpr()) {
             node->returnExpr()->visit(this);
-            checkVarType(_code->functionById(_fid)->returnType(), _lastType);
+            VarType type = _code->functionById(_fid)->returnType();
+            checkVarType(type, _lastType);
         }
+        addInsn(BC_RETURN);
     }
 
     void visitNativeCallNode(NativeCallNode* node) {
@@ -745,7 +755,9 @@ private: // methods
 
         node->body()->visit(this);
 
-        addInsn(BC_RETURN);
+        if (_fid == 0) {
+            addInsn(BC_RETURN);
+        }
 
         _scope = saveScope;
         _bc = saveBc;

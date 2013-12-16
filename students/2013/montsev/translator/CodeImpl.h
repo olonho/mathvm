@@ -46,12 +46,11 @@ private: // fields
 
     Stack _stack;
     vector<FStack> _cStack;
-    stack<uint16_t> _stackTrace;
+    stack<pair<uint16_t, uint32_t> > _stackTrace;
 
-    vector<Val> _sReg;
     vector<Val> _dReg;
     vector<Val> _iReg;
-
+    vector<Val> _sReg;
 };
 
 }
