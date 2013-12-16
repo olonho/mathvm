@@ -1,6 +1,7 @@
 ROOT = .
 VM_ROOT = ../../../..
 
+OPT=1
 WITH_SDL=1
 
 USER_OBJ = $(OBJ)/main$(OBJ_SUFF) \
