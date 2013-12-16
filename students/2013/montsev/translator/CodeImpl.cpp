@@ -8,7 +8,11 @@
     {_stack.push(val);}
 
 #define PUSH(field, val) \
-    {Val v; v.field = val; _stack.push(v);}
+    { \
+        Val v; \
+        v.field = val; \
+        _stack.push(v); \
+    } 
 
 #define PUSH_INT(val) \
     PUSH(ival, val)
@@ -23,16 +27,29 @@
     if (_stack.empty()) {throw stackUnderFlowError(_ip);}
 
 #define POP_UNION(var) \
-    CHECK_STACK; Val var = _stack.top(); _stack.pop();
+    CHECK_STACK; \
+    Val var = _stack.top(); \
+    _stack.pop(); 
 
 #define POP(var, field) \
-    CHECK_STACK; var = _stack.top().field; _stack.pop();
+    CHECK_STACK; \
+    var = _stack.top().field; \
+    _stack.pop();
 
 #define BINARY_OP(pusher, type, field, op) \
-    {type upper, lower; POP(upper, field); POP(lower, field); pusher(upper op lower);} 
+    { \
+        type upper, lower; \
+        POP(upper, field); \
+        POP(lower, field); \
+        pusher(upper op lower); \
+    } 
 
 #define UNARY_OP(pusher, type, field, op) \
-    {type top; POP(top, field); pusher(op top);}
+    { \
+        type top; \
+        POP(top, field); \
+        pusher(op top); \
+    }
 
 
 using namespace mathvm;
@@ -46,6 +63,9 @@ void CodeImpl::validate() {
 void CodeImpl::initialize() {
     _fid = 0;
     _ip = 0;
+    _sReg.clear();
+    _dReg.clear();
+    _iReg.clear();
 
     Code::FunctionIterator it(this);
     while (it.hasNext()) {
@@ -254,187 +274,107 @@ Status* CodeImpl::execute() {
                 _stack.pop();
                 break;
             }
-         
-            case BC_LOADDVAR0: {
 
-                break;
-            }
-         
-            case BC_LOADDVAR1: {
+            // register operations 
 
-                break;
-            }
-         
-            case BC_LOADDVAR2: {
+            #define FOR_VARS(DO, insn, reg) \
+                DO(insn, 0, reg) \
+                DO(insn, 1, reg) \
+                DO(insn, 2, reg) \
+                DO(insn, 3, reg)
 
-                break;
-            }
-         
-            case BC_LOADDVAR3: {
+            // load register operations
 
-                break;
-            }
-         
-            case BC_LOADIVAR0: {
+            #define CASE_ELEM(insn, index, reg) \
+                case BC_##insn##VAR##index: { \
+                    PUSH_UNION(reg[index]); \
+                    break; \
+                }
 
-                break;
-            }
-         
-            case BC_LOADIVAR1: {
+            FOR_VARS(CASE_ELEM, LOADD, _dReg)
+            FOR_VARS(CASE_ELEM, LOADI, _iReg)
+            FOR_VARS(CASE_ELEM, LOADS, _sReg)
 
-                break;
-            }
-         
-            case BC_LOADIVAR2: {
+            #undef CASE_ELEM
 
-                break;
-            }
-         
-            case BC_LOADIVAR3: {
+            // store register operations
 
-                break;
-            }
-         
-            case BC_LOADSVAR0: {
+            #define CASE_ELEM(insn, index, reg) \
+                case BC_##insn##VAR##index: { \
+                    POP_UNION(top); \
+                    reg[index] = top; \
+                    break; \
+                }
 
-                break;
-            }
-         
-            case BC_LOADSVAR1: {
+            FOR_VARS(CASE_ELEM, STORED, _dReg) 
+            FOR_VARS(CASE_ELEM, STOREI, _iReg)
+            FOR_VARS(CASE_ELEM, STORES, _sReg)
 
-                break;
-            }
-         
-            case BC_LOADSVAR2: {
+            #undef CASE_ELEM
+            #undef FOR_VARS
 
-                break;
-            }
-         
-            case BC_LOADSVAR3: {
+            // load variable operations
 
-                break;
-            }
-         
-            case BC_STOREDVAR0: {
+            #define CASE_ELEM(insn) \
+                case BC_##insn##VAR: { \
+                    uint16_t id = _bc->getUInt16(_ip + 1); \
+                    Val val = _cStack[_fid].top()[id]; \
+                    PUSH_UNION(val); \
+                    break; \
+                }
 
-                break;
-            }
-         
-            case BC_STOREDVAR1: {
 
-                break;
-            }
-         
-            case BC_STOREDVAR2: {
+            #define FOR_VARS(DO, prefix) \
+                DO(prefix##D) \
+                DO(prefix##I) \
+                DO(prefix##S)
 
-                break;
-            }
-         
-            case BC_STOREDVAR3: {
+            FOR_VARS(CASE_ELEM, LOAD)
 
-                break;
-            }
-         
-            case BC_STOREIVAR0: {
+            #undef CASE_ELEM
 
-                break;
-            }
-         
-            case BC_STOREIVAR1: {
+            // store variable operations
 
-                break;
-            }
-         
-            case BC_STOREIVAR2: {
+            #define CASE_ELEM(insn) \
+                case BC_##insn##VAR: { \
+                    uint16_t id = _bc->getUInt16(_ip + 1); \
+                    POP_UNION(var); \
+                    _cStack[_fid].top()[id] = var; \
+                } 
 
-                break;
-            }
-         
-            case BC_STOREIVAR3: {
+            FOR_VARS(CASE_ELEM, STORE)
 
-                break;
-            }
-         
-            case BC_STORESVAR0: {
+            #undef CASE_ELEM
 
-                break;
-            }
-         
-            case BC_STORESVAR1: {
+            // load variable by context operations
 
-                break;
-            }
-         
-            case BC_STORESVAR2: {
+            #define CASE_ELEM(insn) \
+                case BC_##insn##VAR: { \
+                    uint16_t id = _bc->getUInt16(_ip + 1); \
+                    uint16_t ctx = _bc->getUInt16(_ip + 3); \
+                    Val val = _cStack[ctx].top()[id]; \
+                    PUSH_UNION(val); \
+                }
 
-                break;
-            }
-         
-            case BC_STORESVAR3: {
+            FOR_VARS(CASE_ELEM, LOADCTX)
 
-                break;
-            }
-         
-            case BC_LOADDVAR: {
+            #undef CASE_ELEM
 
-                break;
-            }
-         
-            case BC_LOADIVAR: {
+            // store variable by context operations
 
-                break;
-            }
-         
-            case BC_LOADSVAR: {
+            #define CASE_ELEM(insn) \
+                case BC_##insn##VAR: { \
+                    uint16_t id = _bc->getUInt16(_ip + 1); \
+                    uint16_t ctx = _bc->getUInt16(_ip + 3); \
+                    POP_UNION(var); \
+                    _cStack[ctx].top()[id] = var; \
+                }
 
-                break;
-            }
-         
-            case BC_STOREDVAR: {
+            FOR_VARS(CASE_ELEM, STORECTX)
 
-                break;
-            }
-         
-            case BC_STOREIVAR: {
+            #undef CASE_ELEM
+            #undef FOR_VARS
 
-                break;
-            }
-         
-            case BC_STORESVAR: {
-
-                break;
-            }
-         
-            case BC_LOADCTXDVAR: {
-
-                break;
-            }
-         
-            case BC_LOADCTXIVAR: {
-
-                break;
-            }
-         
-            case BC_LOADCTXSVAR: {
-
-                break;
-            }
-         
-            case BC_STORECTXDVAR: {
-
-                break;
-            }
-         
-            case BC_STORECTXIVAR: {
-
-                break;
-            }
-         
-            case BC_STORECTXSVAR: {
-
-                break;
-            }
-         
             case BC_DCMP: {
 
                 break;

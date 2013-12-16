@@ -44,6 +44,10 @@ private: // fields
     Stack _stack;
     vector<FStack> _cStack;
 
+    vector<Val> _sReg;
+    vector<Val> _dReg;
+    vector<Val> _iReg;
+
 };
 
 }
