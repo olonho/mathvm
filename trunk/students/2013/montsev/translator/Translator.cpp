@@ -577,7 +577,7 @@ private: // methods
         bind(beginFor);
         addInsn(BC_STOREIVAR3);
         addInsn(BC_LOADIVAR3);
-        addLoadVarInsn(var);
+        addStoreVarInsn(var);
         addBranch(BC_IFICMPG, endFor);
         addInsn(BC_LOADIVAR3);
 

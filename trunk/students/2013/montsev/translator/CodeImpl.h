@@ -1,3 +1,6 @@
+#ifndef CODE_IMPL_H
+#define CODE_IMPL_H
+
 #include "parser.h"
 #include <stack>
 
@@ -43,6 +46,7 @@ private: // fields
 
     Stack _stack;
     vector<FStack> _cStack;
+    stack<uint16_t> _stackTrace;
 
     vector<Val> _sReg;
     vector<Val> _dReg;
@@ -52,3 +56,4 @@ private: // fields
 
 }
 
+#endif // CODE_IMPL_H

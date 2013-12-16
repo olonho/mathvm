@@ -1,6 +1,11 @@
+#ifndef ERRORS_H
+#define ERRORS_H
+
 #include <string>
 #include <sstream>
 #include <stdexcept>
+
+#include "mathvm.h"
 
 // Exception class for type errors etc...
 class error : public std::exception {
@@ -17,21 +22,9 @@ public:
     }
 };
 
-error invalidBytecodeError(const std::string & funcName, uint32_t ip) {
-    std::stringstream msg;
-    msg << "Invalid bytecode instruction at function: " 
-        << funcName
-        << ". Instruction position: "
-        << ip << std::endl;
+error invalidBytecodeError(uint16_t fid, uint32_t ip);
+error stackUnderFlowError(uint16_t fid, uint32_t ip);
+error notImplementedError(uint16_t fid, uint32_t ip);
 
-    return error(msg.str());
-}
-
-error stackUnderFlowError(uint32_t ip) {
-    std::stringstream msg;
-    msg << "Pop from empty stack. At position: "
-        << ip << std::endl;
-
-    return error(msg.str());
-}
+#endif // ERRORS_H
 

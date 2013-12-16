@@ -62,7 +62,9 @@ int main(int argc, char const *argv[]) {
         return 1;
     }
 
-    code->disassemble(cout);
+    // code->disassemble(cout);
+
+    ((CodeImpl*)code)->execute();
 
     release(code, translator);
 
