@@ -69,9 +69,9 @@ using namespace mathvm;
 void CodeImpl::initialize() {
     _fid = 0;
     _ip = 0;
-    _sReg.clear();
-    _dReg.clear();
-    _iReg.clear();
+    _iReg.assign(4, Val());
+    _dReg.assign(4, Val());
+    _sReg.assign(4, Val());
 
     Code::FunctionIterator it(this);
     while (it.hasNext()) {
@@ -492,11 +492,12 @@ Status* CodeImpl::execute() {
             case BC_CALL: {
                 uint16_t callId = _bc->getUInt16(_ip + 1);
                 _cStack[callId].push(VStack(_cStack[callId].top()));
+                _stackTrace.push(make_pair(_fid, _ip + 3));
+
                 _ip = 0;
-                _stackTrace.push(_fid);
                 _fid = callId;
                 _bc = ((BytecodeFunction*)functionById(callId))->bytecode();
-                break;
+                continue;
             }
          
             case BC_CALLNATIVE: {
@@ -514,7 +515,10 @@ Status* CodeImpl::execute() {
                     throw stackUnderFlowError(_fid, _ip);
                 }
 
-                uint16_t retId = _stackTrace.top();
+                pair<uint16_t, uint32_t> top = _stackTrace.top();
+                uint16_t retId = top.first;
+                uint32_t retIp = top.second;
+
                 _stackTrace.pop();
 
                 _cStack[_fid].pop();
@@ -522,7 +526,7 @@ Status* CodeImpl::execute() {
                 _bc = ((BytecodeFunction*)functionById(retId))->bytecode();
 
                 _fid = retId; 
-                _ip = 0; 
+                _ip = retIp; 
                 continue;
             }
        
@@ -531,7 +535,7 @@ Status* CodeImpl::execute() {
                 break;
             }
      
-            default: break;
+            default: throw invalidBytecodeError(_fid, _ip);
         }
         _ip += length;
     }
