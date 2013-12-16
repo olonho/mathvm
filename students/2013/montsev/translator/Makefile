@@ -11,7 +11,8 @@ USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/CodeImpl$(OBJ_SUFF) \
-   $(OBJ)/Translator$(OBJ_SUFF)
+   $(OBJ)/Translator$(OBJ_SUFF) \
+   $(OBJ)/errors$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
@@ -28,7 +29,7 @@ rebuild:
 
 .PHONY: test
 test: 
-	make && ./run.py
+	make && ../../../../tests/run.py -e ./build/debug/mvm -t ../../../../tests
 
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)
