@@ -29,7 +29,24 @@ int main(int argc, char** argv) {
   }
 
   
-
+  const char*expr ="\
+    function void foo(int i) { \
+      int k;\
+      function void bar() {\
+        k = 5050;\
+        print(k, '\n');\
+        foo(0);\
+      }\
+      k = 42;\
+      if (i != 0) {\
+        bar();\
+      }\
+      print(k, '\n');\
+    }\
+    foo(1);\
+  ";
+  
+  /*
   const char * expr = "\
   function double sqrt(double x) native 'sqrt';\
   function int int(double d) { return 0 + d;}\
@@ -62,8 +79,8 @@ int main(int argc, char** argv) {
   }\
   \
   int n;\
-  for (n in 10000000..10100000) { factorize(n, 0); }\
-  ";
+  for (n in 10000000..10100000) { factorize(n, 1); }\
+  ";*/
   
   /*
   const char*expr = "\

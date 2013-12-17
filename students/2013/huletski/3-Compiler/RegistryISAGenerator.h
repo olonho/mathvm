@@ -264,16 +264,11 @@ public: // methods
   }
   
   void toBool(AAVI *aavi) {
-    AsmJit::Label zero_l(m_compiler.newLabel());
-    AsmJit::Label eol_l(m_compiler.newLabel());
-    
     m_compiler.cmp(AS_GP(aavi), imm(0));
-    m_compiler.je(zero_l);
-    m_compiler.mov(AS_GP(aavi), imm(1));
-    m_compiler.jmp(eol_l);
-    m_compiler.bind(zero_l);
     m_compiler.mov(AS_GP(aavi), imm(0));
-    m_compiler.bind(eol_l);
+    (AS_GP(aavi))._var.size = 1;
+    m_compiler.setnz(AS_GP(aavi));
+    (AS_GP(aavi))._var.size = 8;
   }
 
   #define LOAD_CONST_TO_XMM(xmm_var, const)                                    \
@@ -516,10 +511,41 @@ public: // methods
 
   GENERATE_COMPARATOR(ll, <, 0)
   GENERATE_COMPARATOR(lle, <=, 1)
-  GENERATE_COMPARATOR(leq, ==, 2)
+ // GENERATE_COMPARATOR(leq, ==, 2)
   GENERATE_COMPARATOR(lne, !=, (3))
   GENERATE_COMPARATOR(lge, >=, 4)
   GENERATE_COMPARATOR(lg, >, 5)
+  
+  inline EvalResult leq(EvalResult *l, EvalResult *r) {
+    VarType type = toBroader(l, r);
+    if (type == VT_INVALID) {
+      ERV erv; erv.var = 0;
+      return EvalResult(VT_VOID, erv);
+    }
+    TRY_CONST_COMPUTE(l, ==, r, type)
+    ensureInVar(l); ensureInVar(r);
+
+    AAVI *aavi = new AAVI(true, m_compiler, VT_INT);
+    if (type == VT_DOUBLE) {
+      m_compiler.mov(AS_GP(aavi), imm(2));
+
+      ECall *ctx = m_compiler.call(imm((sysint_t) &double_cmp));
+      ctx->setPrototype(CALL_CONV_DEFAULT,
+                        FunctionBuilder3<uint64_t, double, double, uint64_t>());
+      ctx->setArgument(0, AS_XMM(l->data.var));
+      ctx->setArgument(1, AS_XMM(r->data.var));
+      ctx->setArgument(2, AS_GP(aavi));
+      ctx->setReturn(AS_GP(aavi));
+    } else {
+      m_compiler.cmp(AS_GP(l->data.var), AS_GP(r->data.var));
+      m_compiler.mov(AS_GP(aavi), imm(0));
+      (AS_GP(aavi))._var.size = 1;
+      m_compiler.setz(AS_GP(aavi));
+      (AS_GP(aavi))._var.size = 8;
+    }
+    ERV erv; erv.var = aavi;
+    return EvalResult(VT_INVALID, erv);
+  }
 
   void neg(EvalResult *er) {
     ensureInVar(er);
