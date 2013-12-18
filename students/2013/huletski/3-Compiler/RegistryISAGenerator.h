@@ -265,10 +265,10 @@ public: // methods
   
   void toBool(AAVI *aavi) {
     m_compiler.cmp(AS_GP(aavi), imm(0));
-    m_compiler.mov(AS_GP(aavi), imm(0));
     (AS_GP(aavi))._var.size = 1;
     m_compiler.setnz(AS_GP(aavi));
     (AS_GP(aavi))._var.size = 8;
+    m_compiler.and_(AS_GP(aavi), imm(1));
   }
 
   #define LOAD_CONST_TO_XMM(xmm_var, const)                                    \
@@ -538,10 +538,10 @@ public: // methods
       ctx->setReturn(AS_GP(aavi));
     } else {
       m_compiler.cmp(AS_GP(l->data.var), AS_GP(r->data.var));
-      m_compiler.mov(AS_GP(aavi), imm(0));
       (AS_GP(aavi))._var.size = 1;
       m_compiler.setz(AS_GP(aavi));
       (AS_GP(aavi))._var.size = 8;
+      m_compiler.and_(AS_GP(aavi), imm(1));
     }
     ERV erv; erv.var = aavi;
     return EvalResult(VT_INVALID, erv);
@@ -919,7 +919,7 @@ private: // methods
     INT_PERFORM_OP(AS_GP(div), a, mov)
     
     AAVI *rem = new AAVI(true, m_compiler, VT_INT);
-    m_compiler.mov(AS_GP(rem), imm(0));
+    m_compiler.xor_(AS_GP(rem), AS_GP(rem));
     
     // use one common var as divisor as WORKAROUND for div late init bug
     m_compiler.idiv_lo_hi(AS_GP(div), AS_GP(rem), AS_GP(m_divisor));
