@@ -33,7 +33,7 @@ static uint64_t double_cmp(double a, double b, uint64_t mode) {
   else { res = 2; }
   return cmp_tbl[mode][res];
 }
-static uint64_t int_cmp(uint64_t a, uint64_t b, uint64_t mode) {
+static uint64_t int_cmp(int64_t a, int64_t b, int64_t mode) {
   int res = 0;
   if (a > b) { res = 0; }
   else if (a < b) { res = 1; }

@@ -40,7 +40,7 @@ public: //methods
     Scope *scope = func->node()->body()->scope();
     for (uint32_t i = 0; i < func->parametersNumber(); ++i) {
       AstVar * param = scope->lookupVariable(func->parameterName(i));
-      param->setInfo(new FirstPassVarInfo(fn->id(), m_scope_cnt - 1, false));
+      param->setInfo(new FirstPassVarInfo(m_fn_id_stack.top(), m_scope_stack.top(), false));
     }
     
     func->node()->visit(this);
@@ -89,7 +89,8 @@ private: //fields
       //new global found
       v_i->global = true;
       v_i->globals_ind = ++m_globals.at(v_i->func_id);
-      //std::cout << "Global var " << var->name() << " with id ";
+      //std::cout << "Global var " << var->name() << "(";
+      //std::cout << var << ")"<< " with id ";
       //std::cout << v_i->func_id << ":" << v_i->globals_ind << std::endl;
     }
   }

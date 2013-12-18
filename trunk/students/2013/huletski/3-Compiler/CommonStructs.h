@@ -54,7 +54,8 @@ struct AstAsmVarInfo {
   }
   
   AstAsmVarInfo *clone() {
-    AstAsmVarInfo * cl = new AstAsmVarInfo(false, m_c, type, false, 0);
+    AstAsmVarInfo * cl = new AstAsmVarInfo(false, m_c, type,
+                                           is_global, global_ind);
     delete cl->aj_var;
     if (type == VT_DOUBLE) { cl->aj_var = new XMMVar(*(XMMVar *)aj_var); }
     else { cl->aj_var = new GPVar(*(GPVar *)aj_var); }

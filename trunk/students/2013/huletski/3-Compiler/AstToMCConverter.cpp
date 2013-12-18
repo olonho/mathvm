@@ -36,8 +36,7 @@ void AstToMCConverter::handle_function_definition(AstFunction *func) {
   //init infos of AstVars that corresponds to parameters
   for (uint32_t i = 0; i < func->parametersNumber(); ++i) {
     AstVar *var = scope->lookupVariable(func->parameterName(i));
-    FPVI *v_i = (FPVI *)var->info();
-    var->setInfo(m_isa.initArg(i, var->type(), v_i->func_id));
+    var->setInfo(m_isa.initArg(i, var->type(), (FPVI *)var->info()));
   }
   
   func->node()->visit(this);
@@ -108,9 +107,9 @@ void AstToMCConverter::visitPrintNode(PrintNode* node) {
 void AstToMCConverter::visitLoadNode(LoadNode* node) {
   if (!m_active_assigments) { return; }
   
+  m_isa.load(node->var());
   ERV erv; erv.var = cloneAAVI(node->var());
   m_eval_results.push(EvalResult(VT_INVALID, erv));
-  m_isa.load(node->var());
 }
 
 void AstToMCConverter::visitStoreNode(StoreNode* node) {
