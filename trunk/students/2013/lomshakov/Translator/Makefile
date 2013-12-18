@@ -9,10 +9,14 @@ endif
 
 USER_OBJ = \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/InterpreterImpl$(OBJ_SUFF) \
-   $(OBJ)/BytecodeEmitter$(OBJ_SUFF)\
-   $(OBJ)/Translator$(OBJ_SUFF)\
-   $(OBJ)/BCTranslatorImpl$(OBJ_SUFF)
+   $(OBJ)/MachineCodeTranslatorImpl$(OBJ_SUFF) \
+   $(OBJ)/MachineCodeGenerator$(OBJ_SUFF)\
+   $(OBJ)/MachCode$(OBJ_SUFF)\
+   $(OBJ)/InitPass$(OBJ_SUFF) \
+   $(OBJ)/Translator$(OBJ_SUFF) \
+   $(OBJ)/BCTranslatorImpl$(OBJ_SUFF)\
+   $(OBJ)/BytecodeEmitter$(OBJ_SUFF) \
+   $(OBJ)/InterpreterImpl$(OBJ_SUFF)
 
 
 USER_CFLAGS =
