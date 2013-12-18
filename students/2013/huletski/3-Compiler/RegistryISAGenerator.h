@@ -41,6 +41,8 @@ class RegistryISAGenerator {
 public: // methods
   
   RegistryISAGenerator():m_error_status(NULL) {
+    //m_compiler.setLogger(new FileLogger(stdout));
+    
     m_prnt_code = dlsym(RTLD_DEFAULT, "printf");
     m_gvt = NULL;
     assert(m_prnt_code && "Unable to obtain printf code");
@@ -93,7 +95,7 @@ public: // methods
     
     m_divisor = new AAVI(true, m_compiler, VT_INT);
     m_compiler.setPriority(*(m_divisor->aj_var), 100);
-    
+    m_gp_tmp = new GPVar(m_compiler.newGP(VARIABLE_TYPE_INT64));
     return f;
   }
   
@@ -107,8 +109,11 @@ public: // methods
       default: break;
     }
     
+    m_compiler.unuse(*m_gp_tmp);
     m_compiler.endFunction();
+    delete m_gp_tmp;
     
+    m_gp_tmp  = NULL;
     m_ret_lbl = NULL;
     m_ret_var = NULL;
     m_divisor = NULL;
@@ -272,13 +277,9 @@ public: // methods
   }
 
   #define LOAD_CONST_TO_XMM(xmm_var, const)                                    \
-  {                                                                            \
-    GPVar tmp(m_compiler.newGP(VARIABLE_TYPE_INT64));                          \
-    m_compiler.mov(tmp, imm(d2i((double)const)));                              \
-    m_compiler.movq(xmm_var, tmp);                                             \
-    m_compiler.unuse(tmp);                                                     \
-  }
-  
+    m_compiler.mov(*m_gp_tmp, imm(d2i((double)const)));                              \
+    m_compiler.movq(xmm_var, *m_gp_tmp);
+
   void ensureInVar(EvalResult *er) {
     if (er->type == VT_INVALID) { return; }
     if (er->type == VT_DOUBLE) {
@@ -387,9 +388,8 @@ public: // methods
       if (src_aavi->type == VT_INVALID) {                                      \
         m_compiler.int_op(AS_GP(dest), AS_GP(src_aavi->data.var));             \
       } else {                                                                 \
-        GPVar tmp(m_compiler.newGP(VARIABLE_TYPE_INT64));                      \
-        m_compiler.mov(tmp, imm(src_aavi->data.i));                            \
-        m_compiler.int_op(AS_GP(dest), tmp);                                   \
+        m_compiler.mov(*m_gp_tmp, imm(src_aavi->data.i));                      \
+        m_compiler.int_op(AS_GP(dest), *m_gp_tmp);                             \
       }                                                                        \
     }
 
@@ -434,16 +434,12 @@ public: // methods
     TRY_CONST_COMPUTE(l, -, r, type)
     
     AAVI *aavi = NULL;
-    if (l->type == VT_INVALID && l->data.var->is_transient) {
+    if (HAS_TRANSIENT_VAR(l)) {
       aavi = l->data.var;
       PERFORM_GENERIC_OP(aavi, r, sub, subpd, type)
     } else {
       aavi = new AAVI(true, m_compiler, type);
-      if (type == VT_DOUBLE) {
-        m_compiler.movq(AS_XMM(aavi), AS_XMM(l->data.var));
-      } else {
-        m_compiler.mov(AS_GP(aavi), AS_GP(l->data.var));
-      }
+      copyContentToVar(l->data.var, aavi);
       PERFORM_GENERIC_OP(aavi, r, sub, subpd, type)
     }
     if (HAS_TRANSIENT_VAR(r)) { delete r->data.var; }
@@ -546,9 +542,15 @@ public: // methods
     ERV erv; erv.var = aavi;
     return EvalResult(VT_INVALID, erv);
   }
-
+  
   void neg(EvalResult *er) {
     ensureInVar(er);
+    if (!(HAS_TRANSIENT_VAR(er))) {
+      AAVI *aavi = new AAVI(true, m_compiler, er->data.var->type);
+      copyContentToVar(er->data.var, aavi);
+      er->data.var = aavi;
+    }
+    
     if (er->effectiveType() == VT_DOUBLE) {
       AAVI *aavi = new AAVI(true, m_compiler, VT_DOUBLE);
       LOAD_CONST_TO_XMM(AS_XMM(aavi), (-1))
@@ -587,14 +589,16 @@ public: // methods
 //------------------------------------------------------------------------------
 // Function calls
   
-  AAVI * initArg(uint32_t i, VarType arg_type, uint16_t fn_id) {
-    AAVI *aavi = new AAVI(false, m_compiler, arg_type);
+  AAVI * initArg(uint32_t i, VarType arg_type, FPVI *v_i) {
+    AAVI *aavi = new AAVI(false, m_compiler, arg_type,
+                          v_i->global, v_i->globals_ind);
     delete aavi->aj_var;
     
     aavi->aj_var = (arg_type == VT_DOUBLE) ?
       (BaseVar *) new XMMVar(m_compiler.argXMM(i)) :
       (BaseVar *) new GPVar(m_compiler.argGP(i));
-    aavi->fn_id = fn_id;
+    aavi->fn_id = v_i->func_id;
+    updateGVT(aavi);
     return aavi;
   }
   
@@ -611,7 +615,8 @@ public: // methods
       sysint_t addr = (sysint_t)&pushGVT;
       ECall *ctx = m_compiler.call(imm(addr));
     
-      ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder3<void, uint64_t, uint64_t, uint64_t>());
+      ctx->setPrototype(CALL_CONV_DEFAULT,
+                        FunctionBuilder3<void, uint64_t, uint64_t, uint64_t>());
       ctx->setArgument(0, gvt_param);
       ctx->setArgument(1, fn_id_param);
       ctx->setArgument(2, var_cnt_param);
@@ -630,7 +635,8 @@ public: // methods
       
       
       ECall *ctx = m_compiler.call(imm((sysint_t)&popGVT));
-      ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder2<void, uint64_t, uint64_t>());
+      ctx->setPrototype(CALL_CONV_DEFAULT,
+                        FunctionBuilder2<void, uint64_t, uint64_t>());
       ctx->setArgument(0, gvt_param);
       ctx->setArgument(1, fn_id_param);
     }
@@ -649,8 +655,7 @@ public: // methods
   // variable in return close is not alloc after it
   // have no time to investigate AsmJit internals
   void rtrnSpillWA() {
-    GPVar tmp(m_compiler.newGP());
-    m_compiler.cmp(tmp, tmp);
+    m_compiler.cmp(*m_gp_tmp, *m_gp_tmp);
     m_compiler.je(*m_ret_lbl);
   }
   
@@ -667,9 +672,7 @@ public: // methods
       if (er->type == VT_INVALID) {
         m_compiler.movq(ret_var, AS_XMM(er->data.var));
       } else {
-        GPVar tmp_gp(m_compiler.newGP(VARIABLE_TYPE_INT64));
-        m_compiler.mov(tmp_gp, imm(d2i(er->data.d)));
-        m_compiler.movq(ret_var, tmp_gp);
+        LOAD_CONST_TO_XMM(ret_var, er->data.d)
       }
     } else {
       GPVar &ret_var = *(GPVar *)m_ret_var;
@@ -688,7 +691,7 @@ public: // methods
   inline void load(const AstVar * v) {
     AAVI *vi = (AAVI *)v->info();
     if (!vi->is_global) { return; }
-
+    
     // load var from GVT
     GPVar gvt_param(m_compiler.newGP());
     m_compiler.mov(gvt_param, imm((uint64_t)m_gvt));
@@ -697,7 +700,7 @@ public: // methods
     GPVar var_id_param(m_compiler.newGP());
     m_compiler.mov(var_id_param, imm(vi->global_ind));
     
-    AAVI *result = new AAVI(true, m_compiler, VT_INT);
+    AAVI *result = new AAVI(false, m_compiler, VT_INT);
     sysint_t addr = (sysint_t)&loadGlobalVar;
     ECall *ctx = m_compiler.call(imm(addr));
 
@@ -707,9 +710,24 @@ public: // methods
     ctx->setArgument(1, fn_id_param);
     ctx->setArgument(2, var_id_param);
     ctx->setReturn(AS_GP(result));
-      
-    if (v->type() == VT_DOUBLE) { m_compiler.movq(AS_XMM(vi), AS_GP(result)); }
-    else {                        m_compiler.mov(AS_GP(vi), AS_GP(result)); }
+    
+    // init result as new variable state;
+    // it's safe to drop var info since function
+    // that own variable has already been generated by this momemnt
+    result->is_global = true;
+    result->global_ind = vi->global_ind;
+    result->fn_id = vi->fn_id;
+    
+    if (v->type() == VT_DOUBLE) {
+      XMMVar *dbl_var = new XMMVar(m_compiler.newXMM());
+      m_compiler.movq(*dbl_var, AS_GP(result));
+      delete result->aj_var;
+      result->aj_var = dbl_var;
+      result->type = VT_DOUBLE;
+    }
+    
+    delete vi;
+    ((AstVar *)v)->setInfo(result);
   }
   
   inline void store(const AstVar * v, EvalResult er) {
@@ -725,11 +743,8 @@ public: // methods
     if (dst_type == VT_DOUBLE) {
       switch (er.type) {
         case VT_INT: case VT_DOUBLE: {
-          GPVar tmp(m_compiler.newGP(VARIABLE_TYPE_INT64));
-          uint64_t dbl_bits = d2i(er.type == VT_DOUBLE ?
-                                  er.data.d : (double)er.data.i);
-          m_compiler.mov(tmp, imm(dbl_bits));
-          m_compiler.movq(AS_XMM(vi), tmp);
+          double dbl = er.type == VT_DOUBLE ? er.data.d : (double)er.data.i;
+          LOAD_CONST_TO_XMM(AS_XMM(vi), dbl)
           break;
         }
         case VT_STRING: assert(0 && "Str to Dbl can't be converted");
@@ -769,6 +784,10 @@ public: // methods
     }
     
     // Store to GVT
+    updateGVT(vi);
+  }
+  
+  inline void updateGVT(AAVI *vi) {
     if (vi->is_global) {
       GPVar gvt_param(m_compiler.newGP());
       m_compiler.mov(gvt_param, imm((uint64_t)m_gvt));
@@ -778,15 +797,15 @@ public: // methods
       m_compiler.mov(var_id_param, imm(vi->global_ind));
       
       GPVar var_value_param(m_compiler.newGP());
-      if (v->type() == VT_DOUBLE) {
+      if (vi->type == VT_DOUBLE) {
         m_compiler.movq(var_value_param, AS_XMM(vi));
       } else {
         m_compiler.mov(var_value_param, AS_GP(vi));
       }
-
+      
       ECall *ctx = m_compiler.call(imm((sysint_t)&storeGlobalVar));
       ctx->setPrototype(CALL_CONV_DEFAULT,
-              FunctionBuilder4<void, uint64_t, uint64_t, uint64_t, uint64_t>());
+                        FunctionBuilder4<void, uint64_t, uint64_t, uint64_t, uint64_t>());
       ctx->setArgument(0, gvt_param);
       ctx->setArgument(1, fn_id_param);
       ctx->setArgument(2, var_id_param);
@@ -896,6 +915,14 @@ private: // methods
     m_compiler.jz(lbl);
   }
   
+  void copyContentToVar(AAVI *src, AAVI *dest) {
+    if (src->type == VT_DOUBLE) {
+      m_compiler.movq(AS_XMM(dest), AS_XMM(src));
+    } else {
+      m_compiler.mov(AS_GP(dest), AS_GP(src));
+    }
+  }
+  
   inline std::string prnt_fmt_spec(VarType t) {
     switch (t) {
       case VT_DOUBLE: return "%g";
@@ -978,6 +1005,9 @@ private: //fields
   AAVI *m_divisor;
   AsmJit::Label *m_ret_lbl;
   BaseVar *m_ret_var;
+  
+  //GP func spec tmp var to make Asmit life easy
+  GPVar *m_gp_tmp;
 };
 
 #undef AS_XMM
