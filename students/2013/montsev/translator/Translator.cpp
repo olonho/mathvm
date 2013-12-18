@@ -15,7 +15,8 @@ class TranslatorVisitor : public AstVisitor {
 
 public: // constructors
 
-    TranslatorVisitor(AstFunction* top, Code* code): _code(code) {}
+    TranslatorVisitor(AstFunction* top, Code* code)
+        : _code(code), _astFunction(top), _fid(0) {}
 
     virtual ~TranslatorVisitor() {
         for(vector<VarScope*>::iterator it = _scopes.begin(); it != _scopes.end(); ++it) {
@@ -42,6 +43,8 @@ private: // structs
 
     struct VarScope {
         typedef map<string, Var> VarMap;
+        typedef map<string, TranslatedFunction*> FuncMap;
+
         typedef VarMap::iterator VarIter;
 
         VarScope(VarScope* parent, size_t lastId)
@@ -49,6 +52,13 @@ private: // structs
 
         VarScope* parent() const {
             return _parent;
+        }
+
+        void declareFunction(const string& name, TranslatedFunction* func) {
+            if (_functions.find(name) != _functions.end()) {
+                reportFunctionDuplicateError(name);
+            }
+            _functions[name] = func;
         }
 
         uint16_t declareVar(const string& name, VarType type, uint16_t ctx) {
@@ -66,6 +76,15 @@ private: // structs
             Var newvar(name, type, ctx, len);
             _locals[name] = newvar;
             return len;
+        }
+
+        TranslatedFunction* resolveFunction(const string& name) {
+            if (_functions.find(name) == _functions.end()) {
+                if (_parent != 0) {
+                    return _parent->resolveFunction(name);
+                }
+            }
+            return _functions.at(name);
         }
         
         Var resolveName(const string& name) {
@@ -85,6 +104,7 @@ private: // structs
     private: 
 
         VarMap _locals;
+        FuncMap _functions;
         VarScope* _parent;
         size_t _lastId;
 
@@ -93,6 +113,14 @@ private: // structs
         }
 
         // error handlers
+
+        void reportFunctionDuplicateError(const string& name) const {
+            stringstream msg;
+            msg << "Duplicate function: "
+                << name
+                << endl;
+            throw error(msg.str());
+        }
 
         void reportOverflowError(size_t vars) const {
             stringstream msg;
@@ -129,6 +157,9 @@ private: // fields
 
     // Current function Bytecode
     Bytecode* _bc;
+
+    // Current ast function
+    AstFunction* _astFunction;
 
     // Current context scope
     VarScope* _scope;
@@ -648,18 +679,25 @@ private: // methods
             AstVar* ptr = variter.next();
             varscope->declareVar(ptr->name(), ptr->type(), _fid);
             TranslatedFunction * f = _code->functionById(_fid);
+
             f->setLocalsNumber(f->localsNumber() + 1);
         }
 
         VarScope* saveScope = _scope;
         _scope = varscope;
 
+        AstFunction* saveFunction = _astFunction;
         // Block functions declarations
         Scope::FunctionIterator funciter(scope);
         while (funciter.hasNext()) {
             AstFunction* func = funciter.next();
+            _astFunction = func;
+
             func->node()->visit(this);
+
         }
+
+        _astFunction = saveFunction;
 
         for (uint32_t i = 0; i < size; ++i) {
             node->nodeAt(i)->visit(this);
@@ -696,7 +734,7 @@ private: // methods
 
     void visitCallNode(CallNode* node) {
         size_t params = node->parametersNumber();
-        TranslatedFunction* f = _code->functionByName(node->name());
+        TranslatedFunction* f = _scope->resolveFunction(node->name());
         if (params != f->parametersNumber()) {
             throw error("Invalid call. ");
         }
@@ -729,18 +767,21 @@ private: // methods
     }
 
     void visitFunctionNode(FunctionNode* node) {
-        Scope* scope = node->body()->scope();
 
         Bytecode* saveBc = _bc;
         uint16_t saveId = _fid;
         VarScope* saveScope = _scope;
 
-        AstFunction* func = scope->lookupFunction(node->name());
+        AstFunction* func = _astFunction;
         BytecodeFunction* bcFunction = new BytecodeFunction(func);
 
         _bc = bcFunction->bytecode();
         _fid = _code->addFunction(bcFunction);
 
+        if (_fid != 0) {
+            _scope->declareFunction(func->name(), bcFunction);
+        }
+        
         VarScope* varscope = constructScope(_scope, 0);
 
         bcFunction->setScopeId(_scopes.size() - 1);
