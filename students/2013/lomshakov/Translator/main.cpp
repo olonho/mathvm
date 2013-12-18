@@ -9,21 +9,139 @@
 
 
 #include "mathvm.h"
-
+#include <AsmJit/AsmJit.h>
+#include <dlfcn.h>
 
 using namespace mathvm;
 using namespace std;
+using namespace AsmJit;
+
+//int main(int argc, char* argv[])
+//{
+//  void* _LIBC_Handle = dlopen("libc.dylib", RTLD_LAZY);
+//  if (!_LIBC_Handle) {
+//    char const * msg = dlerror();
+//
+//  }
+//  void* sym = dlsym(_LIBC_Handle, "printf");
+//  if (!sym) {
+//    char const * msg = dlerror();
+//
+//  }
+//
+//
+//  typedef int (*FuncType)(double);
+//
+//  Compiler c;
+//  FileLogger logger(stderr);
+//
+//  c.setLogger(&logger);
+//
+//  AsmJit::Label funcBL = c.newLabel();
+//  AsmJit::Label skip(c.newLabel());
+//  AsmJit::Label funcCL(c.newLabel());
+//  ECall* ctxRec;
+//
+//  char ar[16];
+//  int64_t* p = (int64_t *)(void*) ar;
+//  *(p + 1) = 100;
+//
+//
+//  EFunction* funcA = c.newFunction(CALL_CONV_DEFAULT, FunctionBuilder1<int, double>());
+//
+////    GPVar cnt(c.newGP());
+////    c.mov(cnt, 1);
+////    c.save(cnt);
+//
+//
+////    GPVar i(c.newGP());
+////    c.mov(i, 4);
+//
+////    GPVar t(c.newGP());
+//  XMMVar tmp(c.argXMM(0));
+//  GPVar var(c.newGP());
+//  c.cvtsd2si(var, tmp);
+//
+////    c.mov(t, Imm((sysint_t)(void*)(ar)));
+////    c.mov(var, qword_ptr(t, 8));
+//
+//
+////    GPVar var = c.newGP();
+////    ECall* ctx = c.call(funcBL);
+////
+////    ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<int, int>());
+////    ctx->setArgument(0, i);
+////    ctx->setReturn(var);
+//
+//    c.ret(var);
+//    c.endFunction();
+//
+//
+////  c.align(16);
+////  c.bind(funcBL);
+////  EFunction* funcB = c.newFunction(CALL_CONV_DEFAULT, FunctionBuilder1<int, int>());
+////  {
+////    GPVar arg0(c.argGP(0));
+////
+////
+////    c.cmp(arg0, 1);
+////    c.jle(skip);
+////
+////    GPVar r(c.newGP());
+////    ECall* pf = c.call(funcCL);
+////    pf->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<int, int>());
+////    pf->setArgument(0, arg0);
+////    pf->setReturn(r);
+////    c.mov(arg0, r);
+////
+////    c.bind(skip);
+////    c.ret(arg0);
+////    c.endFunction();
+////  }
+////
+////  c.align(16);
+////  c.bind(funcCL);
+////  EFunction* funcC = c.newFunction(CALL_CONV_DEFAULT, FunctionBuilder1<int, int>());
+////  {
+////    GPVar a(c.argGP(0));
+////    c.sub(a, Imm(1)) ;
+////    GPVar r(c.newGP());
+////
+////    ECall* ctx = c.call(funcBL);
+////    ctx->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<int, int>());
+////    ctx->setArgument(0, a);
+////    ctx->setReturn(r);
+////
+////    c.ret(r);
+////    c.endFunction();
+////  }
+//
+//
+//
+//
+//  FuncType f = function_cast<FuncType>(c.make());
+//
+//
+//
+//  int result = f(1.1333);
+//
+//  std::cout << "result: " << result <<  std::endl;
+//  return 0;
+//}
+
 
 int main(int argc, char** argv) {
   string impl = "";
   const char* script = NULL;
   for (int32_t i = 1; i < argc; i++) {
     if (string(argv[i]) == "-j") {
-      impl = "intepreter";
+      impl = "jit";
     } else {
       script = argv[i];
     }
   }
+
+  impl = "jit";
   Translator* translator = Translator::create(impl);
 
   if (translator == 0) {
@@ -32,56 +150,78 @@ int main(int argc, char** argv) {
   }
 
   const char* expr =
-//    "int r;"
-//    "int r1;"
-//    ""
-//    "function void fib(int x) {"
-//    "    if (x == 0) {"
-//    "        r = 0;"
-//    "        r1 = 1;"
-//    "    } else {"
-//    "        fib(x - 1);"
-//    "        int r2;"
-//    "        r2 = r + r1;"
-//    "        r = r1;"
-//    "        r1 = r2;"
-//    "    }"
-//    "}"
-//    ""
-//    "fib(100000);"
-//    "print(r, '\n');"
-//  "function double sin(double x) native 'sin';"
-//  "print( sin(3.14/2.0), '\n');"
-  "string s;"
-  "string s1;"
-  ""
-  "s = 'Hello';"
-  "function int strlen(string s) native 'strlen';"
-  "function string malloc(int len) native 'malloc';"
-  "function void free(string s) native 'free';"
-  "function string strcat(string s1, string s2) native 'strcat';"
-  "function string strcpy(string dst, string src) native 'strcpy';"
-  ""
-  "print('strlen of ', s , ' is ', strlen(s), '\n');"
-  ""
-  "function string concat(string s1, string s2) {"
-  "    string result;"
-  "    result = malloc(strlen(s1)+strlen(s2) + 1);"
-  "    strcpy(result, s1);"
-  "    strcat(result, s2);"
-  "    return result;"
-  "}"
-  ""
-  "s1 = concat(s, ' kitty');"
-  "print('concat ', s1, '\n');"
-  "free(s1);"
-  ""
-//  "function double sin(double x) native 'sin';"
-//  "print('sin(1.0) ', sin(1.0), '\n');"
-//  ""
-//  "function double pow(double x, double y) native 'pow';"
-//  "print('pow(8, 1/3) ', pow(8.0, 1.0/3.0), '\n');"
-//  ""
+//  "int x = 13;"
+//  "double d = 42.0"
+//  "function void foo() { "
+//  "string j = 'kitty';"
+//  "int i = 13;"
+//  " function void boo() {"
+//  "   int i = 2;"
+//  "   print(j,x, i, '\n');"
+////      "foo();"
+//  " }"
+//  " boo();"
+//  " print( i, '[foo]', j, ' hi number', x, '\n'); "
+//  "}"
+//  "foo();"
+//  "print( d, x, 'dsd' ,17000000000000000, 'dsd');"
+//  "function int zz(double d) { "
+//      "return d; }"
+//      ""
+//  "print(zz(90.9999));"
+//      "int i = 1;"
+//          "i -= 10;"
+//  "print(i);"
+//      "function int add(int x, int y) {"
+//          "    return x + y;"
+//          "}"
+//          ""
+//          "function void doit() {"
+//          "    print('Hi\n');"
+//          "}"
+          ""
+          "function double mul5(int max, double x1, double x2, double x3, double x4, double x5) {"
+          "    double r;"
+          ""
+          "    r = 1.0;"
+          ""
+//          "    if (max > 1) {"
+//          "        r = r * x1;"
+//          "    }"
+//          ""
+//          "    if (max > 2) {"
+//          "        r = r * x2;"
+//          "    }"
+//          ""
+//          "    if (max > 3) {"
+//          "        r = r * x3;"
+//          "    }"
+//          ""
+//          "    if (max > 4) {"
+//          "        r = r * x4;"
+//          "    }"
+//          ""
+//          "    if (max > 5) {"
+//          "        r = r * x5;"
+//          "    }"
+          ""
+          "    return r;"
+          "}"
+          ""
+//          "function int fact(int n) {"
+//          "    if (n < 3) {"
+//          "        return n;"
+//          "    }"
+//          "    return fact(n-1);"
+//          "}"
+//          ""
+//          "print(add(2, 3), '\n');"
+//          "doit();"
+          "print(mul5(2, 2.0, 0.0, 0.0, 0.0, 0.0), '\n');"
+//          "print(mul5(4, 2.0, 3.0, 4.0, 5.0, 0.0), '\n');"
+//          "print(mul5(5, 2.0, 3.0, 4.0, 5.0, 6.0), '\n');"
+//          "print(fact(9),'\n');"
+
   ;
   bool isDefaultExpr = true;
 
