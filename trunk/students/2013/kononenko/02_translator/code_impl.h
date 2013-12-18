@@ -65,7 +65,7 @@ private:
     function_id_t get_top_function() OVERRIDE { return 0; }
     function_id_t num_functions() OVERRIDE  { return funcs_.size(); }
     function *get_function(function_id_t id) OVERRIDE { return &funcs_.at(id); }
-    string const& get_string_const(int16_t id) OVERRIDE { return constantById(id); }
+    string const& get_string_const(int16_t id) const OVERRIDE { return constantById(id); }
 
 private:
     vector<function_impl> funcs_;

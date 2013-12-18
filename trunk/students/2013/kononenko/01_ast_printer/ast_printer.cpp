@@ -129,8 +129,6 @@ void ast_printer::visitBlockNode(BlockNode* node)
     ++indent_;
 
     Scope::VarIterator var_iter(node->scope());
-    bool hasVarDeclaration = var_iter.hasNext();
-
     
     for (Scope::VarIterator it(node->scope(), false); it.hasNext(); )
     {
