@@ -5,6 +5,27 @@
 namespace mathvm
 {
 
+namespace interpreter_detail
+{
+
+template<typename T>
+inline T read_from_bc(interpreted const * /*code*/, Bytecode const *bc, size_t &pos)
+{
+    const T res = bc->getTyped<T>(pos);
+    pos += sizeof(T);
+    return res;
+}
+
+template<>
+inline const char* read_from_bc<const char*>(interpreted const *code, Bytecode const *bc, size_t &pos)
+{
+    const int16_t id = read_from_bc<int16_t>(code, bc, pos);
+    return code->get_string_const(id).c_str();
+}
+
+
+}
+
 struct interpreter
 {
     void interpret(interpreted *code);
@@ -37,16 +58,7 @@ private:
 private:
     template<typename T> T read()
     {
-        const T res = func_->bytecode()->getTyped<T>(pos_);
-        pos_ += sizeof(T);
-        return res;
-    }
-
-    template<>
-    const char* read<const char*>()
-    {
-        const int16_t id = read<int16_t>();
-        return code_->get_string_const(id).c_str();
+        return interpreter_detail::read_from_bc<T>(code_, func_->bytecode(), pos_);
     }
 
 private:
