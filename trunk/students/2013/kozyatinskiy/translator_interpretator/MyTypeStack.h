@@ -1,7 +1,8 @@
 #pragma once
 
+#include <stdexcept>
 #include <vector>
-#include "vm/mathvm.h"
+#include <mathvm.h>
 using namespace mathvm;
 
 class MyTypeStack

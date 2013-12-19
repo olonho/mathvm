@@ -1,6 +1,7 @@
 #pragma once
 #pragma once
 
+#include <stdexcept>
 #include <vector>
 using std::vector;
 using std::pair;
@@ -8,7 +9,7 @@ using std::pair;
 using std::string;
 #include <algorithm>
 
-#include "vm\mathvm.h"
+#include <mathvm.h>
 using namespace mathvm;
 
 class MyFuncScope
@@ -18,7 +19,7 @@ public:
 	{
 		int id = getID(/*signature,*/ name);
 		// add if vars dont exist
-		if (id == funcs_.size())
+		if (static_cast<size_t>(id) == funcs_.size())
 			funcs_.push_back(std::make_pair(name, signature));
 		// add var to current memory
 		if (isInit_.empty())
@@ -31,7 +32,7 @@ public:
 	{
 		int id = getID(name);
 		// add if vars dont exist
-		if (id == funcs_.size())
+		if (static_cast<size_t>(id) == funcs_.size())
 			throw std::runtime_error("function not found");
 		return std::make_pair(funcs_[id].second[0].first, id);
 	}

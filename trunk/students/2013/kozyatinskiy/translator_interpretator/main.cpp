@@ -3,8 +3,8 @@
 #include <fstream>
 #include <iterator>
 
-#include "vm/parser.h"
-#include "vm/ast.h"
+#include <parser.h>
+#include <ast.h>
 
 #include "PrintVisitor.h"
 #include "MyInterpreter.h"
@@ -40,15 +40,15 @@ int main(int argc, char* argv[])
 	try
 	{
 		node_printer.process(top);
-		p.dump(cout);
+		//p.dump(cout);
 		p.removeAllLabels();
-		cout << "--------" << endl;
-		p.dump(cout);
+		//cout << "--------" << endl;
+		//p.dump(cout);
 		MyBytecode* bc = p.link();
-		cout << "--------" << endl;
-		bc->dump(cout);
+		//cout << "--------" << endl;
+		//bc->dump(cout);
 
-		cout << "------" << endl;
+		//cout << "------" << endl;
 		MyInterpreter interpreter(bc);
 		interpreter.run();
 	}

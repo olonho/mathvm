@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <string>
 using std::string;
 #include <vector>
@@ -25,7 +26,7 @@ public:
 	{
 		int size = static_cast<int>(vars_.size());
 		for (int i = size - 1; i >= 0; --i)
-			if (vars_[i].size() > id_ && vars_[i][id_])
+			if (vars_[i].size() > static_cast<size_t>(id_) && vars_[i][id_])
 				return vars_[i][id_];
 		throw std::logic_error("bad var");
 	}
@@ -33,13 +34,13 @@ public:
 	void store(int id_, void* val)
 	{
 		for (int i = vars_.size() - 1; i >= 0; --i)
-			if (vars_[i].size() > id_ && vars_[i][id_] != 0)
+			if (vars_[i].size() > static_cast<size_t>(id_) && vars_[i][id_] != 0)
 			{
 				vars_[i][id_] = val;
 				return;
 			}
 		vector<void*>& cur = vars_.back();
-		if (cur.size() < id_ + 1)
+		if (cur.size() < static_cast<size_t>(id_) + 1)
 			cur.resize(id_ + 1);
 		cur[id_] = val;
 	}

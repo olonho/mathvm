@@ -19,7 +19,7 @@ public:
 			main_.addInstruction(i);
 		else
 		{
-			if (functions_.size() < func + 1)
+			if (functions_.size() < static_cast<size_t>(func) + 1)
 			{
 				functions_.resize(func + 1);
 				functions_[func] = new MyBytecode();

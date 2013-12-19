@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <vector>
 using std::vector;
 using std::pair;
@@ -7,7 +8,7 @@ using std::pair;
 using std::string;
 #include <algorithm>
 
-#include "vm\mathvm.h"
+#include <mathvm.h>
 using namespace mathvm;
 
 class MyVarScope
@@ -17,7 +18,7 @@ public:
 	{
 		int id = getID(type, name);
 		// add if vars dont exist
-		if (id == vars_.size())
+		if (static_cast<size_t>(id) == vars_.size())
 		{
 			vars_.push_back(std::make_pair(type, name));
 		}
@@ -32,13 +33,14 @@ public:
 	{
 		int id = getID(type, name);
 		// add if vars dont exist
-		if (id == vars_.size())
+		if (static_cast<size_t>(id) == vars_.size())
 			throw std::runtime_error("try load bad variable");
 		for (int i = isInit_.size() - 1; i >= 0; --i)
 			for (size_t j = 0; j < isInit_[i].size(); ++j)
 				if (isInit_[i][j] == id)
 					return id;
 		throw std::runtime_error("try load bad variable");
+		return -1;
 	}
 
 	void incMem()
