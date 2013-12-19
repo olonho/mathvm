@@ -7,6 +7,7 @@ MyInstruction* MyInstruction::GetCast(VarType from, VarType to)
 	if (from == VT_DOUBLE && to == VT_INT)
 		return new ConvertTop<double, __int64>();
 	throw std::logic_error("bad convertion");
+	return 0;
 }
 
 MyInstruction* MyInstruction::GetStore(VarType type, const string& name, MyVarScope* varScope)
@@ -18,6 +19,7 @@ MyInstruction* MyInstruction::GetStore(VarType type, const string& name, MyVarSc
 	if (type == VT_DOUBLE)
 		return new Store<double>(name, varScope);
 	throw std::logic_error("bad store");
+	return 0;
 }
 
 Integer* Integer::GetByKind(TokenKind kind)
@@ -43,6 +45,7 @@ Integer* Integer::GetByKind(TokenKind kind)
 		default:
 			throw std::logic_error("bad operation");
 	}
+	return 0;
 }
 
 Numeric* Numeric::GetByKind(TokenKind kind, VarType type)
@@ -96,6 +99,7 @@ Numeric* Numeric::GetByKind(TokenKind kind, VarType type)
 				throw std::logic_error("bad operation");
 		}
 	}
+	return 0;
 }
 
 

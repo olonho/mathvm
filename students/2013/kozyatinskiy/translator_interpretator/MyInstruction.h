@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdio.h>
 #include <vector>
 using std::vector;
 #include <string>
@@ -7,9 +8,11 @@ using std::string;
 #include <sstream>
 using std::stringstream;
 
-#include "vm/mathvm.h"
-#include "vm/ast.h"
+#include <mathvm.h>
+#include <ast.h>
 using namespace mathvm;
+
+#define __int64 int64_t
 
 #include "StringStorage.h"
 #include "MyVarScope.h"
@@ -45,7 +48,7 @@ inline void printVar(const T& val)
 template<>
 inline void printVar(const __int64& val)
 {
-	printf("%I64i", val);
+	printf("%ld", val);
 }
 
 class MyInstruction

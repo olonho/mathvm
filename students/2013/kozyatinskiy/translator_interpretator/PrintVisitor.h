@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vm/ast.h"
+#include <ast.h>
 
 #include <ostream>
 using std::ostream;
@@ -22,6 +22,8 @@ using std::vector;
 
 #include <iosfwd>
 
+#define __int64 int64_t
+
 struct nullstream {};
 
 // Swallow all types
@@ -30,16 +32,6 @@ inline nullstream & operator<<(nullstream & s, T const &) {return s;}
 
 // Swallow manipulator templates
 inline nullstream & operator<<(nullstream & s, std::ostream &(std::ostream&)) {return s;}
-
-/*!
-TODO:
-1. implement type checking
-2. implement exists var / func checing
-3. implement zip vars in blocks
-4. refactor code
-5. Generation Code
-7. Interpretator
-*/
 
 using namespace mathvm;
 
@@ -70,14 +62,14 @@ public:
 		node->right()->visit(this);
 		switch(node->kind())
 		{
-            case tOR:       // ||
-            case tAND:      // &&
-            case tNEQ:      // !=
-            case tEQ:       // ==
-			case tAOR:      // |
-            case tAAND:     // &
-			case tAXOR:     // ^
-            case tMOD:      // %
+            	case tOR:       // ||
+            	case tAND:      // &&
+            	case tNEQ:      // !=
+            	case tEQ:       // ==
+		case tAOR:      // |
+            	case tAAND:     // &
+		case tAXOR:     // ^
+            	case tMOD:      // %
 				{
 					if (myTypeStack.second() != VT_INT)
 					{
@@ -107,6 +99,8 @@ public:
 					processInstruction(Numeric::GetByKind(node->kind(), type));
 				}
 				break;
+		default:
+			throw std::logic_error("incorrect op");
 		}
 	}
 
@@ -133,6 +127,8 @@ public:
 						throw std::logic_error("bad stack");
 				}
                 return;
+		default:
+			throw std::logic_error("bad un op");
 		}
 	}
 
@@ -172,6 +168,7 @@ public:
 			processInstruction(new Load(node->var()->type(), node->var()->name(), &myVarScope));
 			isDecOrInc = true;
 			break;
+		default: break;
 		}
 
 		if (isDecOrInc && node->op() == tINCRSET)
@@ -252,7 +249,7 @@ public:
 	virtual void visitBlockNode(BlockNode* node)
 	{
 		IndentHelper h(indent);
-		m_out_stream << indent << "--- start context" << std::endl;
+		//m_out_stream << indent << "--- start context" << std::endl;
 		myVarScope.incMem();
 		myFuncScope.incMem();
 
@@ -296,7 +293,7 @@ public:
 
 		myVarScope.decMem();
 		myFuncScope.decMem();
-		m_out_stream << indent << "--- end context" << std::endl;
+		//m_out_stream << indent << "--- end context" << std::endl;
 	}
 
 	virtual void visitFunctionNode(FunctionNode* node)
@@ -317,7 +314,7 @@ public:
 		if (node->returnExpr())
 		{
 			node->returnExpr()->visit(this);
-		}	
+		}
 		processInstruction(new Return());
 	}
 
@@ -367,7 +364,7 @@ private:
 	void printFunction(AstFunction* func, int id)
 	{
 		IndentHelper h(indent);
-		cout << indent << "function " << id << " #" << func->name() << endl;
+		//cout << indent << "function " << id << " #" << func->name() << endl;
 		lastFunction = func->node();
 
 		if (func->node()->body()->nodeAt(0)->isNativeCallNode())
@@ -390,7 +387,7 @@ private:
 
 	void processInstruction(MyInstruction* i, bool processStack = true)
 	{
-		m_out_stream << indent << i->text() << endl;
+		//m_out_stream << indent << i->text() << endl;
 		if (processStack)
 			i->processStack(&myTypeStack);
 
@@ -402,7 +399,7 @@ private:
 
 	void processLabel(MyLabel* label)
 	{
-		m_out_stream << indent << label->text() << endl;
+		//m_out_stream << indent << label->text() << endl;
 		if (myProgram)
 			myProgram->addInstruction(curFuncID, label);
 	}

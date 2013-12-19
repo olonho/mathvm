@@ -17,7 +17,7 @@ public:
 		stack<int>   returnPointers_;
 		stack<void*> vals_;
 		bool isExit_;
-		State():isExit_(true), programPointer_(0){}
+		State():programPointer_(0), isExit_(true){}
 	};
 
 	MyInterpreter(MyBytecode* bytecode);
