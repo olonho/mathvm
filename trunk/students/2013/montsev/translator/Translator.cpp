@@ -4,6 +4,8 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <iostream>
+
 using namespace mathvm;
 
 // constants
@@ -16,7 +18,10 @@ class TranslatorVisitor : public AstVisitor {
 public: // constructors
 
     TranslatorVisitor(AstFunction* top, Code* code)
-        : _code(code), _astFunction(top), _fid(0) {}
+        : _code(code), _bcFunction(new BytecodeFunction(top)), _scope(0) 
+        {
+            _code->addFunction(_bcFunction);
+        }
 
     virtual ~TranslatorVisitor() {
         for(vector<VarScope*>::iterator it = _scopes.begin(); it != _scopes.end(); ++it) {
@@ -43,7 +48,7 @@ private: // structs
 
     struct VarScope {
         typedef map<string, Var> VarMap;
-        typedef map<string, TranslatedFunction*> FuncMap;
+        typedef map<string, BytecodeFunction*> FuncMap;
 
         typedef VarMap::iterator VarIter;
 
@@ -54,7 +59,7 @@ private: // structs
             return _parent;
         }
 
-        void declareFunction(const string& name, TranslatedFunction* func) {
+        void declareFunction(const string& name, BytecodeFunction* func) {
             if (_functions.find(name) != _functions.end()) {
                 reportFunctionDuplicateError(name);
             }
@@ -78,11 +83,13 @@ private: // structs
             return len;
         }
 
-        TranslatedFunction* resolveFunction(const string& name) {
+        BytecodeFunction* resolveFunction(const string& name) {
             if (_functions.find(name) == _functions.end()) {
                 if (_parent != 0) {
                     return _parent->resolveFunction(name);
                 }
+
+                reportResolveError(name);
             }
             return _functions.at(name);
         }
@@ -155,11 +162,8 @@ private: // fields
 
     Code* _code;
 
-    // Current function Bytecode
-    Bytecode* _bc;
-
-    // Current ast function
-    AstFunction* _astFunction;
+    // Current bytecode function
+    BytecodeFunction* _bcFunction;
 
     // Current context scope
     VarScope* _scope;
@@ -169,9 +173,6 @@ private: // fields
 
     // Collection of all scopes
     vector<VarScope*> _scopes;
-
-    // Current function id
-    uint16_t _fid;
 
 private: // methods
 
@@ -227,10 +228,14 @@ private: // methods
         return varscope;
     }
 
+    Bytecode* bc() {
+        return _bcFunction->bytecode();
+    }
+
     // bytecode helpers
 
     #define GENERATE(name, type) \
-        void name(type op) { _bc->name(op); }
+        void name(type op) { bc()->name(op); }
 
     GENERATE(addInsn, Instruction);
     GENERATE(bind, Label&);
@@ -242,7 +247,7 @@ private: // methods
     #undef GENERATE
 
     #define GENERATE(name, type1, type2) \
-        void name(type1 op1, type2 op2) { _bc->name(op1, op2); }
+        void name(type1 op1, type2 op2) { bc()->name(op1, op2); }
 
     GENERATE(addBranch, Instruction, Label&);
     #undef GENERATE
@@ -250,8 +255,8 @@ private: // methods
     void addLogicOperator(TokenKind kind) {
         addInsn2(BC_ICMP, BC_DCMP, _lastType);
         _lastType = VT_INT;
-        Label endIf(_bc);
-        Label elseIf(_bc);
+        Label endIf(bc());
+        Label elseIf(bc());
         switch (kind) {
             case tEQ: {
                 addInsn(BC_ILOAD0);
@@ -293,8 +298,8 @@ private: // methods
     }
 
     void addIntOperator(TokenKind kind) {
-        Label elseIf(_bc);
-        Label endIf(_bc);
+        Label elseIf(bc());
+        Label endIf(bc());
         switch (kind) {
             case tOR: {
                 addInsn(BC_ILOAD0);
@@ -354,6 +359,13 @@ private: // methods
                 addIntToDoubleConv();
                 addInsn(BC_LOADDVAR3);
             }
+            _lastType = VT_DOUBLE;
+        }
+    }
+
+    void addDirectCast(VarType from, VarType to) {
+        if (from == VT_INT && to == VT_DOUBLE) {
+            addIntToDoubleConv();
             _lastType = VT_DOUBLE;
         }
     }
@@ -421,7 +433,7 @@ private: // methods
     }
 
     void addLoadVarInsn(Var var) {
-        if (var.ctx != _fid) {
+        if (var.ctx != _bcFunction->id()) {
             addVarInsn3(BC_LOADCTXIVAR, BC_LOADCTXDVAR, BC_LOADCTXSVAR, var);
             addUInt16(var.ctx);
             return;
@@ -430,7 +442,7 @@ private: // methods
     }
 
     void addStoreVarInsn(Var var) {
-        if (var.ctx != _fid) {
+        if (var.ctx != _bcFunction->id()) {
             addVarInsn3(BC_STORECTXIVAR, BC_STORECTXDVAR, BC_STORECTXSVAR, var);
             addUInt16(var.ctx);
             return;
@@ -507,8 +519,8 @@ private: // methods
                 addInsn2(BC_INEG, BC_DNEG, _lastType);
                 break;
             case tNOT: {
-                Label elseIf(_bc);
-                Label endIf(_bc);
+                Label elseIf(bc());
+                Label endIf(bc());
                 addInsn(BC_ILOAD0);
                 addBranch(BC_IFICMPNE, elseIf);
                 addInsn(BC_ILOAD1);
@@ -602,8 +614,8 @@ private: // methods
 
         node->inExpr()->visit(this);
 
-        Label beginFor(_bc);
-        Label endFor(_bc);
+        Label beginFor(bc());
+        Label endFor(bc());
         
         addStoreVarInsn(var);
 
@@ -629,8 +641,8 @@ private: // methods
     }
         
     void visitWhileNode(WhileNode* node) {
-        Label loopWhile(_bc);
-        Label endWhile(_bc);
+        Label loopWhile(bc());
+        Label endWhile(bc());
         bind(loopWhile);
 
         node->whileExpr()->visit(this);
@@ -648,8 +660,8 @@ private: // methods
         node->ifExpr()->visit(this);
         VarType exprType = _lastType;
         checkVarType(exprType, VT_INT);
-        Label elseIf(_bc);
-        Label endIf(_bc);
+        Label elseIf(bc());
+        Label endIf(bc());
         addInsn(BC_ILOAD0);
 
         if (node->elseBlock()) {
@@ -677,27 +689,39 @@ private: // methods
 
         while (variter.hasNext()) {
             AstVar* ptr = variter.next();
-            varscope->declareVar(ptr->name(), ptr->type(), _fid);
-            TranslatedFunction * f = _code->functionById(_fid);
+            varscope->declareVar(ptr->name(), ptr->type(), _bcFunction->id());
 
-            f->setLocalsNumber(f->localsNumber() + 1);
+            _bcFunction->setLocalsNumber(_bcFunction->localsNumber() + 1);
         }
 
         VarScope* saveScope = _scope;
         _scope = varscope;
 
-        AstFunction* saveFunction = _astFunction;
         // Block functions declarations
-        Scope::FunctionIterator funciter(scope);
-        while (funciter.hasNext()) {
-            AstFunction* func = funciter.next();
-            _astFunction = func;
+        {
+            Scope::FunctionIterator funciter(scope);
+            while (funciter.hasNext()) {
+                AstFunction* func = funciter.next();
+                BytecodeFunction* bcFunction = new BytecodeFunction(func);
+                _code->addFunction(bcFunction);
 
-            func->node()->visit(this);
-
+                _scope->declareFunction(func->name(), bcFunction);
+            }
         }
 
-        _astFunction = saveFunction;
+        BytecodeFunction* saveFunction = _bcFunction;
+
+        {
+            Scope::FunctionIterator funciter(scope);
+            while (funciter.hasNext()) {
+                AstFunction* func = funciter.next();
+                _bcFunction = _scope->resolveFunction(func->name());
+                func->node()->visit(this);
+            }
+        }
+        
+        _bcFunction = saveFunction;
+
 
         for (uint32_t i = 0; i < size; ++i) {
             node->nodeAt(i)->visit(this);
@@ -734,25 +758,32 @@ private: // methods
 
     void visitCallNode(CallNode* node) {
         size_t params = node->parametersNumber();
+
         TranslatedFunction* f = _scope->resolveFunction(node->name());
+
         if (params != f->parametersNumber()) {
             throw error("Invalid call. ");
         }
-        for (int i = params - 1; i >= 0; --i) {
-            node->parameterAt(i)->visit(this);
-            checkVarType(f->parameterType(i), _lastType);
+        if (params != 0) {
+            for (int i = params - 1; i >= 0; --i) {
+                node->parameterAt(i)->visit(this);
+                VarType type = f->parameterType(i);
+                addDirectCast(_lastType, type);
+                checkVarType(type , _lastType);
+            }
         }
 
         addInsn(BC_CALL);
         addUInt16(f->id());
 
-        _lastType = _code->functionById(f->id())->returnType();
+        _lastType = f->returnType();
     }
 
     void visitReturnNode(ReturnNode* node) {
         if (node->returnExpr()) {
             node->returnExpr()->visit(this);
-            VarType type = _code->functionById(_fid)->returnType();
+            VarType type = _bcFunction->returnType();
+            addDirectCast(_lastType, type);
             checkVarType(type, _lastType);
         }
         addInsn(BC_RETURN);
@@ -768,41 +799,28 @@ private: // methods
 
     void visitFunctionNode(FunctionNode* node) {
 
-        Bytecode* saveBc = _bc;
-        uint16_t saveId = _fid;
         VarScope* saveScope = _scope;
 
-        AstFunction* func = _astFunction;
-        BytecodeFunction* bcFunction = new BytecodeFunction(func);
-
-        _bc = bcFunction->bytecode();
-        _fid = _code->addFunction(bcFunction);
-
-        if (_fid != 0) {
-            _scope->declareFunction(func->name(), bcFunction);
-        }
-        
         VarScope* varscope = constructScope(_scope, 0);
 
-        bcFunction->setScopeId(_scopes.size() - 1);
+        _bcFunction->setScopeId(_scopes.size() - 1);
+
         _scope = varscope;
 
         size_t params = node->parametersNumber();
 
         for (size_t i = 0; i < params; ++i) {
-            _scope->declareVar(node->parameterName(i), node->parameterType(i), _fid);
+            _scope->declareVar(node->parameterName(i), node->parameterType(i), _bcFunction->id());
             addStoreVarInsn(_scope->resolveName(node->parameterName(i)));
         }
 
         node->body()->visit(this);
 
-        if (_fid == 0) {
-            addInsn(BC_RETURN);
+        if (_bcFunction->id() == 0) {
+            bc()->addInsn(BC_RETURN);
         }
-
+        
         _scope = saveScope;
-        _bc = saveBc;
-        _fid = saveId;
     }
 
 };

@@ -28,11 +28,14 @@ void fileNotFound(const string& filename) {
          << endl;
 }
 
-void translationError(Status* s) {
-    cerr << "There is some error while translating. Error message:\n"
-         << s->getError() << endl
-         << "At position: "
-         << s->getPosition() << endl;
+void translationError(const char* source, Status* s) {
+    uint32_t position = s->getPosition();
+    uint32_t line = 0, offset = 0;
+    positionToLineOffset(source, position, line, offset);
+    printf("Cannot translate expression: expression at %d,%d; "
+           "error '%s'\n",
+           line, offset,
+           s->getError().c_str());
 
     delete s;
 }
@@ -65,7 +68,7 @@ int main(int argc, char const *argv[]) {
     Code* code = new CodeImpl;
 
     if (Status* s = translator->translate(source, &code)) {
-        translationError(s);
+        translationError(source.c_str(), s);
 
         release(code, translator);
         return 1;
