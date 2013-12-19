@@ -1,0 +1,41 @@
+
+int x = 1;
+
+function int foo() {
+    int x = 1;
+    while (x < -10) {
+        function void bar() {
+            return;
+        }
+        print(x);
+        bar();
+    }
+    int z = 2 * x + 1;
+    function int baz(int z) {
+        print(z);
+        return z + 2;
+    }
+    z = baz(23);
+    int i;
+    for (i in 1 .. 100) {
+        print(baz(x));
+    }
+    return 1;
+}
+
+//foo();
+
+function int fib(int n) {
+    if (n == 0) {
+        return 0;
+    }
+    if (n == 1) {
+        return 1;
+    }
+    return fib(n-1) + fib(n-2);
+}
+
+int i;
+for (i in 0..25) {
+    print(fib(i), '\n');
+}

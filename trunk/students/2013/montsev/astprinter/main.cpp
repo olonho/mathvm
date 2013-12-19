@@ -82,6 +82,7 @@ public:
 
     virtual void visitForNode(ForNode* node) {
         makeIndent();
+        assert(node->var());
         _out << "for(" 
              << node->var()->name()
              << " in ";

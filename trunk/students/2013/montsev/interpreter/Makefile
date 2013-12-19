@@ -29,11 +29,7 @@ rebuild:
 
 .PHONY: test
 test: 
-	make && ./run.py -e ./build/debug/mvm -t ./tests 
-
-.PHONY: gen
-gen:
-	make && ./run.py -e ./build/debug/mvm -t ./tests/ -g
+	make && ../../../../tests/run.py -e ./build/debug/mvm -t ../../../../tests
 
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)

@@ -37,6 +37,14 @@ void translationError(Status* s) {
     delete s;
 }
 
+void runtimeError(Status* s) {
+    cerr << "There is some error while executing. Error message: "
+         << s->getError() << endl
+         << "At position: " << endl;
+
+    delete s;
+}
+
 int main(int argc, char const *argv[]) {
 
     if (argc != 2) {
@@ -64,7 +72,14 @@ int main(int argc, char const *argv[]) {
         return 1;
     }
 
-    code->disassemble(cout);
+    // code->disassemble(cout);
+
+    if (Status* s = ((CodeImpl*)code)->execute()) {
+        runtimeError(s);
+
+        release(code, translator);
+        return 1;
+    }
 
     release(code, translator);
 
