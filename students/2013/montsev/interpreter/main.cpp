@@ -39,8 +39,7 @@ void translationError(Status* s) {
 
 void runtimeError(Status* s) {
     cerr << "There is some error while executing. Error message: "
-         << s->getError() << endl
-         << "At position: " << endl;
+         << s->getError() << endl;
 
     delete s;
 }
