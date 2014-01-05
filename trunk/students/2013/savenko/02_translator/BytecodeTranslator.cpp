@@ -1,169 +1,203 @@
 #include <mathvm.h>
 #include <visitors.h>
+#include <parser.h>
 
 #include <stdexcept>
+#include <memory>
 
 namespace mathvm {
 
-class BytecodeTranslator : public AstVisitor {
+uint16_t ID_MAX = 0xFFFF;
+
+class BytecodeScope {
+  typedef std::map<std::string, uint16_t> FunctionMap;
+  typedef std::map<std::string, uint16_t> VarMap;
+  typedef std::pair<uint16_t, uint16_t>   VarId; // (scopeId, varId);
+
+public:
+  BytecodeScope(Code* code) : _id(0), _parent(0), _code(code), _all_scopes(new std::vector<BytecodeScope *>(ID_MAX)) {
+    _all_scopes->push_back(this);
+  }
+  
+  uint16_t addFunction(BytecodeFunction* function) {
+    uint16_t id = _code->addFunction(function);
+    if (id >= ID_MAX || _functions.find(function->name()) != _functions.end()) return ID_MAX;
+    function->setScopeId(_id);
+    _functions[function->name()] = id;
+    return id;
+  }
+  
+  uint16_t addVariable(std::string const & name, VarType type) {
+    if (_variables_map.find(name) != _variables_map.end() || _variables.size() >= ID_MAX) return ID_MAX;
+    uint16_t newId = _variables.size();
+    _variables.push_back(new Var(type, name));
+    _variables_map[name] = newId;
+    return newId;
+  }
+
+  uint16_t id() const {
+    return _id;
+  }
+
+  VarId resolveVariable(std::string const & varName) const {
+    VarMap::const_iterator i = _variables_map.find(varName);
+    if (i == _variables_map.end()) {
+      return _parent ? _parent->resolveVariable(varName) : std::make_pair(ID_MAX, ID_MAX);
+    }
+    return std::make_pair(_id, i->second);
+  }
+  
+  Var * getVariable(VarId varId) {
+    return getVariable(varId.first, varId.second);
+  }
+
+  Var * getVariable(uint16_t scopeId, uint16_t varId) {
+    if (scopeId >= _all_scopes->size()) return NULL;
+    BytecodeScope * scope = (*_all_scopes)[scopeId];
+    if (scope->_variables.size() >= varId) return NULL;
+    return scope->_variables[varId];
+  }
+  
+  uint16_t resolveFunction(std::string const & functionName) {
+    BytecodeFunction * function = getFunction(functionName);
+    return function ? function->id() : ID_MAX;
+  }
+
+  BytecodeFunction * getFunction(std::string const & functionName) {
+    FunctionMap::iterator i = _functions.find(functionName);
+    if (i == _functions.end()) {
+      return _parent ? _parent->getFunction(functionName) : NULL;
+    }
+    return dynamic_cast<BytecodeFunction *>(_code->functionById(i->second));
+  }
+
+  BytecodeScope * createChildScope() {
+    uint16_t newId = _all_scopes->size();
+    if (newId >= ID_MAX) return NULL;
+    BytecodeScope * newScope = new BytecodeScope(this, newId);
+    _all_scopes->push_back(newScope);
+    return newScope;
+  }
+  
+  ~BytecodeScope() {
+    if (!_parent) { 
+      for (std::vector<BytecodeScope *>::iterator i = _all_scopes->begin(); i != _all_scopes->end(); ++i) {
+        delete *i;
+      }
+      delete _all_scopes;
+    }
+    for (std::vector<Var *>::iterator i = _variables.begin(); i != _variables.end(); ++i) {
+      delete *i;
+    }
+  }
+  
+  static bool isValidVarId(VarId varId) {
+    return !(varId.first == ID_MAX || varId.second == ID_MAX);
+  }
+
+private:
+  BytecodeScope(BytecodeScope* parent, uint16_t id) : _id(id),  _parent(parent), _code(parent->_code), _all_scopes(parent->_all_scopes) {
+  }
+  
+private:
+  uint16_t _id;
+  BytecodeScope* _parent;
+  Code* _code;
+  std::vector<BytecodeScope *>* _all_scopes;
+
+private:
+  FunctionMap _functions;
+  VarMap _variables_map;
+  std::vector<Var *> _variables;
+};
+
+
+
+class BytecodeGenerator : public AstVisitor {
+public:
+BytecodeGenerator(AstFunction * function) {
+}
 
 void visitBinaryOpNode(BinaryOpNode * binaryOpNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  binaryOpNode->left()->visit(this);
-  std::cout << " " << tokenOp(binaryOpNode->kind()) << " ";
-  binaryOpNode->right()->visit(this);
 }
 
 void visitUnaryOpNode(UnaryOpNode * unaryOpNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << tokenOp(unaryOpNode->kind());
-  unaryOpNode->operand()->visit(this);
 }
 
 void visitStringLiteralNode(StringLiteralNode * stringLiteralNode) {
  throw std::logic_error("NOT IMPLEMENTED");
- std::cout << '\'' << stringLiteralNode->literal() << '\'';
 }
 
 void visitDoubleLiteralNode(DoubleLiteralNode * doubleLiteralNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << doubleLiteralNode->literal();
 } 
 
 void visitIntLiteralNode(IntLiteralNode * intLiteralNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << intLiteralNode->literal();
 }
 
 void visitLoadNode(LoadNode * loadNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << loadNode->var()->name();
 }
 
 void visitStoreNode(StoreNode * storeNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << storeNode->var()->name()
-            << " " << tokenOp(storeNode->op()) << " ";
-  storeNode->value()->visit(this);
 }
 
 void visitForNode(ForNode * forNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << "for (" << forNode->var()->name() << " in ";
-  forNode->inExpr()->visit(this);
-  std::cout << ")" << std::endl;
-  forNode->body()->visit(this);
 }
 
 void visitWhileNode(WhileNode * whileNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << "while (";
-  whileNode->whileExpr()->visit(this);
-  std::cout << ")" << std::endl;
-  whileNode->loopBlock()->visit(this);
 }
 
 void visitIfNode(IfNode * ifNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << "if (";
-  ifNode->ifExpr()->visit(this);
-  std::cout << ")" << std::endl;
-  ifNode->thenBlock()->visit(this);
-  if (ifNode->elseBlock()) {
-    std::cout << "else" << std::endl;
-    ifNode->elseBlock()->visit(this);
-  }
-}
-
-void visitBlockNodeInternal(BlockNode * blockNode, bool needIndentation) {
-  if (needIndentation) {
-    std::cout << "{" << std::endl;
-  }
-  for(Scope::VarIterator varIterator(blockNode->scope()); varIterator.hasNext(); ) {
-    AstVar * var = varIterator.next();
-    std::cout << typeToName(var->type()) << " " << var->name()
-              << ";" << std::endl;
-  }
-  std::cout << std::endl;
-  for (uint32_t i = 0; i < blockNode->nodes(); ++i) {
-    blockNode->nodeAt(i)->visit(this);
-    std::cout << ";" << std::endl;
-  }
-  if (needIndentation) {
-    std::cout << "}" << std::endl;
-  }
 }
 
 void visitBlockNode(BlockNode * blockNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  visitBlockNodeInternal(blockNode, true);
 }
 
 void visitFunctionNode(FunctionNode * functionNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  bool topNode = functionNode->position() == 0;
-  if (!topNode) {
-    std::cout << "function "
-              << typeToName(functionNode->returnType())
-              << " " << functionNode->name() << "(";
-  }
-  for (uint32_t i = 0; i != functionNode->parametersNumber(); ++i) {
-    std::cout << typeToName(functionNode->parameterType(i))
-              << " "
-              << functionNode->parameterName(i);
-    if (!topNode && i != functionNode->parametersNumber() - 1) {
-      std::cout << ", ";
-    }
-  }
-  if (!topNode) std::cout << ")" << std::endl;
-  visitBlockNodeInternal(functionNode->body(), !topNode);
+}
+
+void generateBytecode(BytecodeFunction* function) {
+  throw std::logic_error("NOT IMPLEMENTED");
 }
 
 void visitReturnNode(ReturnNode * returnNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << "return ";
-  returnNode->returnExpr()->visit(this);
 }
 
 void visitCallNode(CallNode * callNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << callNode->name() << "(";
-  for (uint32_t i = 0; i != callNode->parametersNumber(); ++i) {
-    callNode->parameterAt(i)->visit(this);
-    if (i != callNode->parametersNumber() - 1) {
-      std::cout << ", ";
-    }
-  }
-  std::cout << ")";
 }
 
 void visitNativeCallNode(NativeCallNode * NativeCallNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << "NativeCall" << std::endl;
 }
 
 void visitPrintNode(PrintNode * printNode) {
   throw std::logic_error("NOT IMPLEMENTED");
-  std::cout << "print (";
-  for (uint32_t i = 0; i != printNode->operands(); ++i) {
-    printNode->operandAt(i)->visit(this);
-    if (i != printNode->operands() - 1) {
-      std::cout << ", ";
-    }
-  }
-  std::cout << ")";
 }
-
-
 };
 
-Status* BytecodeTranslatorImpl::translateBytecode(std::string const & program, InterpreterCodeImpl** code) {
-  throw std::logic_error("NOT IMPLEMENTED");
-  return 0;
-}
-
 Status* BytecodeTranslatorImpl::translate(std::string const & program, Code** code) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  Parser parser;
+  std::auto_ptr<Status> status(parser.parseProgram(program));
+  
+  if (status.get() != NULL && status->isError()) {
+    std::cerr << "Parser reports error at " << status->getPosition() << ":" << std::endl;
+    std::cerr << status->getError() << std::endl;
+    return 0;
+  }
+  
+  //TODO get code from translator.
   return 0;
 }
 

@@ -13,10 +13,6 @@ public:
   virtual Status* execute(std::vector<Var*> & vars) {
     return 0;
   }
-
-  virtual void disassemble(std::ostream& out = cout, FunctionFilter* filter = 0) {
-  }
-
 };
 
 }
