@@ -4,7 +4,6 @@
 #include <string>
 #include <memory>
 
-#include <parser.h>
 #include <mathvm.h>
 
 using namespace mathvm;
