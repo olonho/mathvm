@@ -1,0 +1,27 @@
+function [0] void <top>()
+0: CALL *1
+3: DPRINT
+4: SLOAD @1
+7: SPRINT
+function [1] double bar()
+0: ILOAD 0
+9: ILOAD 1
+18: INVALID
+19: STOREIVAR @1
+22: ILOAD 12
+31: INVALID
+32: LOADIVAR @1
+35: I2D
+36: CALL *2
+39: I2D
+40: RETURN
+function [2] int foo(double, int)
+0: DLOAD 0
+9: ILOAD 0
+18: LOADDVAR @1
+21: DPRINT
+22: SLOAD @1
+25: SPRINT
+26: LOADIVAR @10
+29: INVALID
+30: RETURN
