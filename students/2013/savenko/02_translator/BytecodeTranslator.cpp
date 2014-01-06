@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "InterpreterCodeImpl.h"
-
+#include "DebugMacros.h"
 
 namespace mathvm {
 
@@ -19,11 +19,12 @@ class BytecodeScope {
   typedef std::pair<uint16_t, uint16_t>   VarId; // (scopeId, varId);
 
 public:
-  BytecodeScope(Code* code) : _id(0), _parent(0), _code(code), _all_scopes(new std::vector<BytecodeScope *>(ID_MAX)) {
+  BytecodeScope(Code* code) : _id(0), _parent(0), _code(code), _all_scopes(new std::vector<BytecodeScope *>) {
     _all_scopes->push_back(this);
   }
   
   uint16_t addFunction(BytecodeFunction* function) {
+    LOG("adding a function " << function->name() << " to scope " << _id);
     uint16_t id = _code->addFunction(function);
     if (id >= ID_MAX || _functions.find(function->name()) != _functions.end()) return ID_MAX;
     function->setScopeId(_id);
@@ -32,6 +33,7 @@ public:
   }
   
   uint16_t addVariable(std::string const & name, VarType type) {
+    LOG("adding a variable " << typeToName(type) << " " << name << " to scope " << _id);
     if (_variables_map.find(name) != _variables_map.end() || _variables.size() >= ID_MAX) return ID_MAX;
     uint16_t newId = _variables.size();
     _variables.push_back(new Var(type, name));
@@ -68,6 +70,7 @@ public:
   }
 
   BytecodeFunction * getFunction(std::string const & functionName) {
+    LOG("looking up a function named " << functionName);
     FunctionMap::iterator i = _functions.find(functionName);
     if (i == _functions.end()) {
       return _parent ? _parent->getFunction(functionName) : NULL;
@@ -77,6 +80,7 @@ public:
 
   BytecodeScope * createChildScope() {
     uint16_t newId = _all_scopes->size();
+    LOG("creating a child scope with id " << newId);
     if (newId >= ID_MAX) return NULL;
     BytecodeScope * newScope = new BytecodeScope(this, newId);
     _all_scopes->push_back(newScope);
@@ -86,7 +90,7 @@ public:
   ~BytecodeScope() {
     if (!_parent) { 
       for (std::vector<BytecodeScope *>::iterator i = _all_scopes->begin(); i != _all_scopes->end(); ++i) {
-        delete *i;
+        if (*i != this) delete *i;
       }
       delete _all_scopes;
     }
@@ -166,22 +170,29 @@ void visitIfNode(IfNode * ifNode) {
 }
 
 void visitBlockNode(BlockNode * blockNode) {
+  LOG("processing block node at " << blockNode->position());
+  LOG("adding block variables");
   for (Scope::VarIterator i(blockNode->scope()); i.hasNext();) {
     AstVar* var = i.next();
     _scope->addVariable(var->name(), var->type());
   }
+
+  LOG("adding block functions");
   for (Scope::FunctionIterator i(blockNode->scope()); i.hasNext();) {
     _scope->addFunction(new BytecodeFunction(i.next()));
   }
-
+ 
+  LOG("generating block's code");
   blockNode->visitChildren(this);
-
+  
+  LOG("generating block's functions");
   for (Scope::FunctionIterator i(blockNode->scope()); i.hasNext();) {
     visitFunctionNode(i.next()->node());
   }
 }
 
 void visitFunctionNode(FunctionNode * functionNode) {
+  LOG("generating code for function " << functionNode->name());
   BytecodeScope * childScope = _scope->createChildScope();
   for (uint32_t i = 0;  i != functionNode->parametersNumber(); ++i) {
     childScope->addVariable(functionNode->parameterName(i), functionNode->parameterType(i));
@@ -191,6 +202,7 @@ void visitFunctionNode(FunctionNode * functionNode) {
 }
 
 void visitReturnNode(ReturnNode * returnNode) {
+  LOG("processing return node at " << returnNode->position());
   if (returnNode->returnExpr()) {
     throw std::logic_error("NOT IMPLEMENTED");
   }
@@ -234,6 +246,7 @@ Status* BytecodeTranslatorImpl::translate(std::string const & program, Code** co
   rootScope.addFunction(new BytecodeFunction(parser.top()));
   ScopedBytecodeGenerator(&rootScope, NULL).visitFunctionNode(parser.top()->node());
   
+  LOG("TRANSLATION IS COMPLETE");
   //TODO check if everything's fine before setting code
   *code = translatedCode;
   return new Status;
