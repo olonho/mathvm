@@ -191,7 +191,10 @@ void visitFunctionNode(FunctionNode * functionNode) {
 }
 
 void visitReturnNode(ReturnNode * returnNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  if (returnNode->returnExpr()) {
+    throw std::logic_error("NOT IMPLEMENTED");
+  }
+  addInstruction(BC_RETURN);
 }
 
 void visitCallNode(CallNode * callNode) {
@@ -204,6 +207,11 @@ void visitNativeCallNode(NativeCallNode * NativeCallNode) {
 
 void visitPrintNode(PrintNode * printNode) {
   throw std::logic_error("NOT IMPLEMENTED");
+}
+
+private:
+void addInstruction(Instruction instruction) {
+  _current_function->bytecode()->addInsn(instruction);
 }
 
 private:
