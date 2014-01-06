@@ -1,9 +1,13 @@
 #include <mathvm.h>
 #include <visitors.h>
 #include <parser.h>
+#include <ast.h>
 
 #include <stdexcept>
 #include <memory>
+
+#include "InterpreterCodeImpl.h"
+
 
 namespace mathvm {
 
@@ -99,6 +103,10 @@ private:
   BytecodeScope(BytecodeScope* parent, uint16_t id) : _id(id),  _parent(parent), _code(parent->_code), _all_scopes(parent->_all_scopes) {
   }
   
+  BytecodeScope(BytecodeScope &);
+  
+  BytecodeScope & operator=(BytecodeScope const &);
+   
 private:
   uint16_t _id;
   BytecodeScope* _parent;
@@ -112,10 +120,9 @@ private:
 };
 
 
-
-class BytecodeGenerator : public AstVisitor {
+class ScopedBytecodeGenerator : public AstVisitor {
 public:
-BytecodeGenerator(AstFunction * function) {
+ScopedBytecodeGenerator(BytecodeScope * scope, BytecodeFunction * function) : _scope(scope), _current_function(function) {
 }
 
 void visitBinaryOpNode(BinaryOpNode * binaryOpNode) {
@@ -159,15 +166,28 @@ void visitIfNode(IfNode * ifNode) {
 }
 
 void visitBlockNode(BlockNode * blockNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  for (Scope::VarIterator i(blockNode->scope()); i.hasNext();) {
+    AstVar* var = i.next();
+    _scope->addVariable(var->name(), var->type());
+  }
+  for (Scope::FunctionIterator i(blockNode->scope()); i.hasNext();) {
+    _scope->addFunction(new BytecodeFunction(i.next()));
+  }
+
+  blockNode->visitChildren(this);
+
+  for (Scope::FunctionIterator i(blockNode->scope()); i.hasNext();) {
+    visitFunctionNode(i.next()->node());
+  }
 }
 
 void visitFunctionNode(FunctionNode * functionNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
-}
-
-void generateBytecode(BytecodeFunction* function) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  BytecodeScope * childScope = _scope->createChildScope();
+  for (uint32_t i = 0;  i != functionNode->parametersNumber(); ++i) {
+    childScope->addVariable(functionNode->parameterName(i), functionNode->parameterType(i));
+  }
+  ScopedBytecodeGenerator(childScope, _scope->getFunction(functionNode->name())).visitBlockNode(functionNode->body());
+  //TODO validate generated code ?
 }
 
 void visitReturnNode(ReturnNode * returnNode) {
@@ -185,6 +205,10 @@ void visitNativeCallNode(NativeCallNode * NativeCallNode) {
 void visitPrintNode(PrintNode * printNode) {
   throw std::logic_error("NOT IMPLEMENTED");
 }
+
+private:
+  BytecodeScope * _scope;
+  BytecodeFunction * _current_function;
 };
 
 Status* BytecodeTranslatorImpl::translate(std::string const & program, Code** code) {
@@ -197,8 +221,14 @@ Status* BytecodeTranslatorImpl::translate(std::string const & program, Code** co
     return 0;
   }
   
-  //TODO get code from translator.
-  return 0;
+  Code * translatedCode = new InterpreterCodeImpl;
+  BytecodeScope rootScope(translatedCode); 
+  rootScope.addFunction(new BytecodeFunction(parser.top()));
+  ScopedBytecodeGenerator(&rootScope, NULL).visitFunctionNode(parser.top()->node());
+  
+  //TODO check if everything's fine before setting code
+  *code = translatedCode;
+  return new Status;
 }
 
 }
