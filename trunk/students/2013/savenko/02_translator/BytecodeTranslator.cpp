@@ -23,6 +23,10 @@ public:
     _all_scopes->push_back(this);
   }
   
+  uint16_t stringConstant(std::string const & value) {
+    return _code->makeStringConstant(value);
+  }
+
   uint16_t addFunction(BytecodeFunction* function) {
     LOG("adding a function " << function->name() << " to scope " << _id);
     uint16_t id = _code->addFunction(function);
@@ -138,7 +142,9 @@ void visitUnaryOpNode(UnaryOpNode * unaryOpNode) {
 }
 
 void visitStringLiteralNode(StringLiteralNode * stringLiteralNode) {
- throw std::logic_error("NOT IMPLEMENTED");
+  uint16_t constantId = _scope->stringConstant(stringLiteralNode->literal());
+  addInstruction(BC_SLOAD);
+  addId(constantId);
 }
 
 void visitDoubleLiteralNode(DoubleLiteralNode * doubleLiteralNode) {
@@ -224,6 +230,10 @@ void visitPrintNode(PrintNode * printNode) {
 private:
 void addInstruction(Instruction instruction) {
   _current_function->bytecode()->addInsn(instruction);
+}
+
+void addId(uint16_t id) {
+  _current_function->bytecode()->addUInt16(id);
 }
 
 private:
