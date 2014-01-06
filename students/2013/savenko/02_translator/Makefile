@@ -3,7 +3,6 @@ VM_ROOT = ../../../..
 
 USER_OBJ = \
     $(OBJ)/main$(OBJ_SUFF)\
-    $(OBJ)/InterpreterCodeImpl$(OBJ_SUFF)\
     $(OBJ)/BytecodeTranslator$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
