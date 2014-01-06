@@ -6,6 +6,10 @@
 
 #include <mathvm.h>
 
+#include <execinfo.h>
+#include <signal.h>
+#include <cstdlib>
+
 using namespace mathvm;
 
 void runTranslator(std::string const & programText) {
@@ -26,8 +30,21 @@ void runTranslator(std::string const & programText) {
   cleanup:
   delete code;
 }
+
+#define TRACE_MAX 20
+
+void printStackTrace(int sig) {
+  void * traceEntries[TRACE_MAX];
+  size_t traceEntriesCount = backtrace(traceEntries, TRACE_MAX);
+
+  std::cout << "Error: signal " << sig << ":" << std::endl;
+  backtrace_symbols_fd(traceEntries, traceEntriesCount, 2);
+  std::exit(1);
+}
+
  
 int main(int argc, char** argv) {
+ signal(SIGABRT, printStackTrace);
  if (argc != 2) {
     std::cout << "usage: " << argv[0] << " <filename>" << std::endl;
     return 0;
