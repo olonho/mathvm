@@ -969,7 +969,7 @@ void JITCompiler::visitPrintNode(PrintNode *node) {
             break;
         case VT_STRING:
             printCall = c.call(imm((size_t)printString));
-            printCall->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, size_t>());
+            printCall->setPrototype(CALL_CONV_DEFAULT, FunctionBuilder1<void, int64_t>());
             printCall->setArgument(0, *vPrint.gp);
             if(!currentScope->inPrintNode) c.unuse(*vPrint.gp);
             break;
