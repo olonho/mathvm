@@ -148,11 +148,11 @@ void visitStringLiteralNode(StringLiteralNode * stringLiteralNode) {
 }
 
 void visitDoubleLiteralNode(DoubleLiteralNode * doubleLiteralNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  addDouble(doubleLiteralNode->literal());
 } 
 
 void visitIntLiteralNode(IntLiteralNode * intLiteralNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  addInt(intLiteralNode->literal());
 }
 
 void visitLoadNode(LoadNode * loadNode) {
@@ -229,11 +229,23 @@ void visitPrintNode(PrintNode * printNode) {
 
 private:
 void addInstruction(Instruction instruction) {
-  _current_function->bytecode()->addInsn(instruction);
+  bc()->addInsn(instruction);
 }
 
 void addId(uint16_t id) {
-  _current_function->bytecode()->addUInt16(id);
+  bc()->addUInt16(id);
+}
+
+void addInt(int64_t value) {
+  bc()->addInt64(value);
+}
+
+void addDouble(double value) {
+  bc()->addDouble(value);
+}
+
+Bytecode * bc() {
+  return _current_function->bytecode();
 }
 
 private:
