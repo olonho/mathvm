@@ -191,7 +191,21 @@ void visitLoadNode(LoadNode * loadNode) {
 }
 
 void visitStoreNode(StoreNode * storeNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  LOG("processing store node at " << storeNode->position());
+  storeNode->value()->visit(this);
+  VarType varType = storeNode->var()->type();
+  BytecodeScope::VarId varId = _scope->resolveVariable(storeNode->var()->name());
+  if (!_scope->isValidVarId(varId)) {
+    abort(std::string("Unresolved variable: ") + typeToName(varType) + " " + storeNode->var()->name(), storeNode->position());
+    return;
+  }
+  if (storeNode->op() != tASSIGN) {
+    addLoadVar(varId, storeNode->position());
+    addSwap();
+    addBinaryOperation(storeNode->op() == tINCRSET ? tADD : tSUB, varType, _last_expression_type, storeNode->position());
+  }
+  addCastTo(varType, storeNode->position());
+  addStoreVar(varId, varType, storeNode->position());
 }
 
 void visitForNode(ForNode * forNode) {
