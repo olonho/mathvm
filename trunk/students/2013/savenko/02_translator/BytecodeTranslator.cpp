@@ -232,7 +232,8 @@ void visitFunctionNode(FunctionNode * functionNode) {
   LOG("generating code for function " << functionNode->name());
   BytecodeScope * childScope = _scope->createChildScope();
   for (uint32_t i = 0;  i != functionNode->parametersNumber(); ++i) {
-    childScope->addVariable(functionNode->parameterName(i), functionNode->parameterType(i));
+    uint16_t varId = childScope->addVariable(functionNode->parameterName(i), functionNode->parameterType(i));
+    addStoreNonCtxVar(varId, functionNode->parameterType(i), functionNode->position());
   }
   ScopedBytecodeGenerator(childScope, _scope->getFunction(functionNode->name())).visitBlockNode(functionNode->body());
   //TODO validate generated code ?
@@ -247,7 +248,17 @@ void visitReturnNode(ReturnNode * returnNode) {
 }
 
 void visitCallNode(CallNode * callNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  LOG("processing call node at " << callNode->position());
+  for (uint32_t i = callNode->parametersNumber() - 1; i >= 0; --i) {
+    callNode->parameterAt(i)->visit(this);
+  }
+  uint16_t functionId = _scope->resolveFunction(callNode->name());
+  if (functionId < ID_MAX) {
+    addInstruction(BC_CALL);
+    addId(functionId);
+  } else {
+    abort(std::string("Unresolved function: ") + callNode->name() + ".", callNode->position());
+  }
 }
 
 void visitNativeCallNode(NativeCallNode * NativeCallNode) {
@@ -317,58 +328,66 @@ void addChangeSign(uint32_t position) {
 
 void addLoadVar(BytecodeScope::VarId varId, uint32_t position) {
   uint16_t scopeId = varId.first;
-  bool isCtxVar = scopeId != _scope->id();
   VarType varType = _scope->getVariable(varId)->type();
-  if (isCtxVar) {
+  if (isCtxVar(varId)) {
     addLoadCtxVar(scopeId, varId.second, varType, position);
   } else {
     addLoadNonCtxVar(varId.second, varType, position);
   }
 }
 
-void addLoadCtxVar(uint32_t scopeId, uint32_t varId, VarType type, uint32_t position) {
+void addLoadCtxVar(uint16_t scopeId, uint16_t varId, VarType type, uint32_t position) {
   switch (type) {
-    case VT_STRING: {
-      addInstruction(BC_LOADCTXSVAR);
-      break;
-    }
-    case VT_INT: {
-      addInstruction(BC_LOADCTXIVAR);
-      break;
-    }
-    case VT_DOUBLE: {
-      addInstruction(BC_LOADCTXDVAR);
-      break;
-    }
-    default: {
-      abort(std::string("Cannot load context variable of type: ") + typeToName(type), position);
-      return;
-    }
+    case VT_STRING: addInstruction(BC_LOADCTXSVAR); break;
+    case VT_INT: addInstruction(BC_LOADCTXIVAR); break;
+    case VT_DOUBLE: addInstruction(BC_LOADCTXDVAR); break;
+    default: abort(std::string("Cannot load context variable of type: ") + typeToName(type), position); return;
   }
   addId(scopeId);
   addId(varId);
 }
 
-void addLoadNonCtxVar(uint32_t varId, VarType type, uint32_t position) {
+void addLoadNonCtxVar(uint16_t varId, VarType type, uint32_t position) {
   switch (type) {
-    case VT_STRING: {
-      addInstruction(BC_LOADSVAR);
-      break;
-    }
-    case VT_INT: {
-      addInstruction(BC_LOADIVAR);
-      break;
-    }
-    case VT_DOUBLE: {
-      addInstruction(BC_LOADDVAR);
-      break;
-    }
-    default: {
-      abort(std::string("Cannot load variable of type: ") + typeToName(type), position);
-      return;
-    }
+    case VT_STRING: addInstruction(BC_LOADSVAR); break;
+    case VT_INT: addInstruction(BC_LOADIVAR); break;
+    case VT_DOUBLE: addInstruction(BC_LOADDVAR); break;
+    default: abort(std::string("Cannot load variable of type: ") + typeToName(type), position); return;
   }
   addId(varId);
+}
+
+void addStoreVar(BytecodeScope::VarId varId, VarType type, uint32_t position) {
+  if (isCtxVar(varId)) {
+    addStoreCtxVar(varId.first, varId.second, type, position);
+  } else {
+    addStoreNonCtxVar(varId.second, type, position);
+  }
+}
+
+void addStoreCtxVar(uint16_t scopeId, uint16_t varId, VarType type, uint32_t position) {
+  switch (type) {
+    case VT_STRING: addInstruction(BC_STORECTXSVAR); break;
+    case VT_INT: addInstruction(BC_STORECTXIVAR); break;
+    case VT_DOUBLE: addInstruction(BC_STORECTXDVAR); break;
+    default: abort(std::string("Cannot store context variable of type: ") + typeToName(type), position); return;
+  }
+  addId(scopeId);
+  addId(varId);
+}
+
+void addStoreNonCtxVar(uint16_t varId, VarType type, uint32_t position) {
+  switch (type) {
+    case VT_STRING: addInstruction(BC_STORESVAR); break;
+    case VT_INT: addInstruction(BC_STOREIVAR); break;
+    case VT_DOUBLE: addInstruction(BC_STOREDVAR); break;
+    default: abort(std::string("Cannot store variable of type: ") + typeToName(type), position); return;
+  }
+  addId(varId);
+}
+
+bool isCtxVar(BytecodeScope::VarId varId) {
+  return varId.first != _scope->id();
 }
 
 void addBinaryOperation(TokenKind op, VarType leftType, VarType rightType, uint32_t position) {
