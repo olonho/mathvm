@@ -145,14 +145,17 @@ void visitStringLiteralNode(StringLiteralNode * stringLiteralNode) {
   uint16_t constantId = _scope->stringConstant(stringLiteralNode->literal());
   addInstruction(BC_SLOAD);
   addId(constantId);
+  _last_expression_type = VT_STRING;
 }
 
 void visitDoubleLiteralNode(DoubleLiteralNode * doubleLiteralNode) {
   addDouble(doubleLiteralNode->literal());
+  _last_expression_type = VT_DOUBLE;
 } 
 
 void visitIntLiteralNode(IntLiteralNode * intLiteralNode) {
   addInt(intLiteralNode->literal());
+  _last_expression_type = VT_INT;
 }
 
 void visitLoadNode(LoadNode * loadNode) {
@@ -251,6 +254,7 @@ Bytecode * bc() {
 private:
   BytecodeScope * _scope;
   BytecodeFunction * _current_function;
+  VarType _last_expression_type;
 };
 
 Status* BytecodeTranslatorImpl::translate(std::string const & program, Code** code) {
