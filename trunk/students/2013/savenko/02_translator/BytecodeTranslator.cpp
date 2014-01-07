@@ -135,7 +135,12 @@ ScopedBytecodeGenerator(BytecodeScope * scope, BytecodeFunction * function) : _s
 }
 
 void visitBinaryOpNode(BinaryOpNode * binaryOpNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  LOG("processing binary op node at " << binaryOpNode->position());
+  binaryOpNode->left()->visit(this);
+  VarType leftType = _last_expression_type;
+  binaryOpNode->right()->visit(this);
+  VarType rightType = _last_expression_type;
+  addBinaryOperation(binaryOpNode->kind(), leftType, rightType, binaryOpNode->position());
 }
 
 void visitUnaryOpNode(UnaryOpNode * unaryOpNode) {
@@ -366,6 +371,141 @@ void addLoadNonCtxVar(uint32_t varId, VarType type, uint32_t position) {
   addId(varId);
 }
 
+void addBinaryOperation(TokenKind op, VarType leftType, VarType rightType, uint32_t position) {
+  switch (op) {
+    //int operands only
+    case tOR:
+    case tAND:
+    case tAOR:
+    case tAAND:
+    case tAXOR:
+    case tMOD: {
+      addCastBinaryOperationArgumentsTo(VT_INT, leftType, rightType, position);
+      addBinaryOperationInstruction(op, VT_INT, position);
+      break;
+    }
+    //int or double operands
+    case tEQ:
+    case tNEQ:
+    case tGT:
+    case tGE:
+    case tLT:
+    case tLE:
+    case tADD:
+    case tSUB:
+    case tMUL:
+    case tDIV: {
+      VarType argsType = leastCommonType(leftType, rightType);
+      addCastBinaryOperationArgumentsTo(argsType, leftType, rightType, position);
+      addBinaryOperationInstruction(op, argsType, position);
+      break; 
+    }
+    default: {
+      abort(std::string("Unknown binary operation kind: ") + tokenStr(op), position);
+      return;
+    }
+  }
+}
+
+void addCastBinaryOperationArgumentsTo(VarType type, VarType leftType, VarType rightType, uint32_t position) {
+  if (leftType != type) {
+    addSwap();
+    _last_expression_type = leftType;
+    addCastTo(type, position);
+    _last_expression_type = rightType;
+    addSwap();
+  }
+  if (rightType != type) {
+    addCastTo(type, position);
+    _last_expression_type = type;
+  }
+}
+
+void addCastTo(VarType type, uint32_t position) {
+  switch (type) {
+    case VT_INT: addCastToInt(position); break;
+    case VT_DOUBLE: addCastToDouble(position); break;
+    default: abort(std::string("No conversions to type ") + typeToName(type) + " available.", position); break;
+  }
+}
+
+void addCastToInt(uint32_t position) {
+  switch (_last_expression_type) {
+    case VT_INT: break;
+    case VT_STRING: addInstruction(BC_S2I); break;
+    case VT_DOUBLE: addInstruction(BC_D2I); break;
+    default: {
+      abort(std::string("No conversions from type ") + typeToName(_last_expression_type) + " to " + typeToName(VT_INT) + " available.", position); 
+      break;
+    }
+  }
+}
+
+void addCastToDouble(uint32_t position) {
+  switch (_last_expression_type) {
+    case VT_DOUBLE: break;
+    case VT_STRING: addInstruction(BC_S2I); addInstruction(BC_I2D); break;
+    case VT_INT: addInstruction(BC_I2D); break;
+    default: {
+      abort(std::string("No conversions from type ") + typeToName(_last_expression_type) + " to " + typeToName(VT_DOUBLE) + " available.", position);
+      break;
+    }
+  }
+}
+
+void addSwap() {
+  addInstruction(BC_SWAP);
+}
+
+void addBinaryOperationInstruction(TokenKind op, VarType operandsType, uint32_t position) {
+  switch (op) {
+    case tOR: 
+    case tAOR: addInstruction(BC_IAOR); _last_expression_type = VT_INT; break;
+    case tAND: 
+    case tAAND: addInstruction(BC_IAAND); _last_expression_type = VT_INT; break;
+    case tAXOR: addInstruction(BC_IAXOR); _last_expression_type = VT_INT; break;
+    case tEQ:
+    case tNEQ: {
+      addInstruction(operandsType == VT_INT ? BC_ICMP : BC_DCMP); 
+      _last_expression_type = VT_INT;
+      if (op == tEQ) addNegation(position);
+      break;
+    }
+    case tLT:
+    case tGT: {
+      addInstruction(operandsType == VT_INT ? BC_ICMP : BC_DCMP);
+      addInstruction(op == tGT ? BC_ILOAD1 : BC_ILOADM1);
+      _last_expression_type = VT_INT;
+      addInstruction(BC_ICMP);
+      addNegation(position);
+      break;
+    }
+    case tLE:
+    case tGE: {
+      addInstruction(operandsType == VT_INT ? BC_ICMP : BC_DCMP);
+      addInstruction(op == tGE ? BC_ILOADM1 : BC_ILOAD1);
+      addInstruction(BC_ICMP);
+      _last_expression_type = VT_INT;
+      break;
+    }
+    case tADD: addInstruction(operandsType == VT_INT ? BC_IADD : BC_DADD); _last_expression_type = operandsType; break;
+    case tSUB: addInstruction(operandsType == VT_INT ? BC_ISUB : BC_DSUB); _last_expression_type = operandsType; break;
+    case tMUL: addInstruction(operandsType == VT_INT ? BC_IMUL : BC_DMUL); _last_expression_type = operandsType; break;
+    case tDIV: addInstruction(operandsType == VT_INT ? BC_IDIV : BC_DDIV); _last_expression_type = operandsType; break;
+    case tMOD: addInstruction(BC_IMOD); _last_expression_type = VT_INT; break;
+    default: {
+      // should never be executed.
+      throw std::logic_error(std::string("Binary operation ") + tokenStr(op) + " is not supported.");
+    }
+  }
+}
+
+VarType leastCommonType(VarType t1, VarType t2) {
+  if (t1 == VT_STRING || t2 == VT_STRING) return VT_DOUBLE;
+  if (t1 == VT_DOUBLE || t2 == VT_DOUBLE) return VT_DOUBLE;
+  return VT_INT;
+}
+
 Bytecode * bc() {
   return _current_function->bytecode();
 }
@@ -378,6 +518,8 @@ void abort(std::string const & message, uint32_t position) {
   }
   //throw ?  
 }
+
+
 
 private:
   BytecodeScope * _scope;
