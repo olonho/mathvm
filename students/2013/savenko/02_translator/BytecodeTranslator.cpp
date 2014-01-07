@@ -16,6 +16,7 @@ uint16_t ID_MAX = 0xFFFF;
 class BytecodeScope {
   typedef std::map<std::string, uint16_t> FunctionMap;
   typedef std::map<std::string, uint16_t> VarMap;
+public:
   typedef std::pair<uint16_t, uint16_t>   VarId; // (scopeId, varId);
 
 public:
@@ -138,6 +139,7 @@ void visitBinaryOpNode(BinaryOpNode * binaryOpNode) {
 }
 
 void visitUnaryOpNode(UnaryOpNode * unaryOpNode) {
+  LOG("processing unary op node at " << unaryOpNode->position());
   unaryOpNode->visitChildren(this);
   switch (unaryOpNode->kind()) {
     case tNOT: {
@@ -173,7 +175,14 @@ void visitIntLiteralNode(IntLiteralNode * intLiteralNode) {
 }
 
 void visitLoadNode(LoadNode * loadNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  LOG("processing load node at " << loadNode->position());
+  AstVar const * v = loadNode->var();
+  BytecodeScope::VarId resolvedVarId = _scope->resolveVariable(v->name());
+  if (_scope->isValidVarId(resolvedVarId)) {
+    addLoadVar(resolvedVarId, loadNode->position());
+  } else {
+    abort(std::string("Unresolved variable: ") + typeToName(v->type()) + " " + v->name(), loadNode->position());
+  }
 }
 
 void visitStoreNode(StoreNode * storeNode) {
@@ -301,11 +310,68 @@ void addChangeSign(uint32_t position) {
   }
 }
 
+void addLoadVar(BytecodeScope::VarId varId, uint32_t position) {
+  uint16_t scopeId = varId.first;
+  bool isCtxVar = scopeId != _scope->id();
+  VarType varType = _scope->getVariable(varId)->type();
+  if (isCtxVar) {
+    addLoadCtxVar(scopeId, varId.second, varType, position);
+  } else {
+    addLoadNonCtxVar(varId.second, varType, position);
+  }
+}
+
+void addLoadCtxVar(uint32_t scopeId, uint32_t varId, VarType type, uint32_t position) {
+  switch (type) {
+    case VT_STRING: {
+      addInstruction(BC_LOADCTXSVAR);
+      break;
+    }
+    case VT_INT: {
+      addInstruction(BC_LOADCTXIVAR);
+      break;
+    }
+    case VT_DOUBLE: {
+      addInstruction(BC_LOADCTXDVAR);
+      break;
+    }
+    default: {
+      abort(std::string("Cannot load context variable of type: ") + typeToName(type), position);
+      return;
+    }
+  }
+  addId(scopeId);
+  addId(varId);
+}
+
+void addLoadNonCtxVar(uint32_t varId, VarType type, uint32_t position) {
+  switch (type) {
+    case VT_STRING: {
+      addInstruction(BC_LOADSVAR);
+      break;
+    }
+    case VT_INT: {
+      addInstruction(BC_LOADIVAR);
+      break;
+    }
+    case VT_DOUBLE: {
+      addInstruction(BC_LOADDVAR);
+      break;
+    }
+    default: {
+      abort(std::string("Cannot load variable of type: ") + typeToName(type), position);
+      return;
+    }
+  }
+  addId(varId);
+}
+
 Bytecode * bc() {
   return _current_function->bytecode();
 }
 
 void abort(std::string const & message, uint32_t position) {
+  LOG("Abort with message: " << message);
   // do not wipe the very first abort reason
   if (_status.isOk()) {
     _status = Status(message, position);
