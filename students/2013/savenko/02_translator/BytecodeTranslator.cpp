@@ -138,7 +138,21 @@ void visitBinaryOpNode(BinaryOpNode * binaryOpNode) {
 }
 
 void visitUnaryOpNode(UnaryOpNode * unaryOpNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  unaryOpNode->visitChildren(this);
+  switch (unaryOpNode->kind()) {
+    case tNOT: {
+      addNegation(unaryOpNode->position());
+      break;
+    }
+    case tSUB:  {
+      addChangeSign(unaryOpNode->position());
+      break;
+    }
+    default: {
+      abort(std::string("Invalid unary operator: ") + tokenStr(unaryOpNode->kind()), unaryOpNode->position());
+      break;
+    }
+  }
 }
 
 void visitStringLiteralNode(StringLiteralNode * stringLiteralNode) {
@@ -230,6 +244,10 @@ void visitPrintNode(PrintNode * printNode) {
   throw std::logic_error("NOT IMPLEMENTED");
 }
 
+Status getStatus() {
+  return _status;
+}
+
 private:
 void addInstruction(Instruction instruction) {
   bc()->addInsn(instruction);
@@ -247,14 +265,59 @@ void addDouble(double value) {
   bc()->addDouble(value);
 }
 
+void addNegation(uint32_t position) {
+  switch (_last_expression_type) {
+    case VT_INT: {
+      addInstruction(BC_INEG);
+      break;
+    }
+    case VT_DOUBLE: {
+      addInstruction(BC_DNEG);
+      break;
+    }
+    default: {
+      abort("Cannot negate a value of a non-numeric type.", position);
+      break;
+    }
+  }
+}
+
+void addChangeSign(uint32_t position) {
+  switch (_last_expression_type) {
+    case VT_INT: {
+      addInstruction(BC_ILOAD0);
+      addInstruction(BC_ISUB);
+      break;
+    }
+    case VT_DOUBLE: {
+      addInstruction(BC_DLOAD0);
+      addInstruction(BC_DSUB);
+      break;
+    }
+    default: {
+      abort("Cannot change sign of  a value of a non-numeric type.", position);
+      break;
+    }
+  }
+}
+
 Bytecode * bc() {
   return _current_function->bytecode();
+}
+
+void abort(std::string const & message, uint32_t position) {
+  // do not wipe the very first abort reason
+  if (_status.isOk()) {
+    _status = Status(message, position);
+  }
+  //throw ?  
 }
 
 private:
   BytecodeScope * _scope;
   BytecodeFunction * _current_function;
   VarType _last_expression_type;
+  Status _status;
 };
 
 Status* BytecodeTranslatorImpl::translate(std::string const & program, Code** code) {
