@@ -11,7 +11,7 @@ USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/BcTranslator$(OBJ_SUFF) \
-   $(OBJ)/InterpreterCodeImpl$(OBJ_SUFF)
+   $(OBJ)/CodeImpl$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
