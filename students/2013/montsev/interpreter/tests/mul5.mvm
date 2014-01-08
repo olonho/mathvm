@@ -1,0 +1,17 @@
+
+function double f(int max, double x1, double x2) {
+    double r = 1.0;
+
+    if (max > 1) {
+        r = r * x1;
+    }
+
+    if (max > 2) {
+        r = r * x2;
+    }
+    print(r, '\n');
+    return r;
+}
+
+//double res = f(2, 2.0, 3.0);
+print(f(2, 2.0, 3.0), '\n');

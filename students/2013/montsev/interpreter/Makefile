@@ -29,7 +29,7 @@ rebuild:
 
 .PHONY: test
 test: 
-	make && ../../../../tests/run.py -e ./build/debug/mvm -t ../../../../tests
+	make && ./run.py -e ./build/debug/mvm -t tests && ./run.py -e ./build/debug/mvm -t tests/additional/
 
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)

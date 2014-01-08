@@ -1,0 +1,11 @@
+
+function double f() {
+    function double b() {
+        int x = 2;
+        print(x, '\n');
+        return x;
+    }
+    return b();
+}
+
+print(f(), '\n');

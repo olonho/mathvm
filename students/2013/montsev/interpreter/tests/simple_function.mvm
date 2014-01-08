@@ -1,0 +1,8 @@
+
+function void f() {
+    print(1, '\n');
+}
+
+f();
+print();
+
