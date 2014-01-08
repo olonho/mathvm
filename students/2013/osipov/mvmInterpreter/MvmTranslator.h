@@ -8,8 +8,6 @@
 #ifndef MVMTRANSLATOR_H
 #define	MVMTRANSLATOR_H
 
-#include <fstream>
-#include <sstream>
 #include <stdexcept>
 #include <cstdlib>
 #include <tr1/memory>
@@ -21,13 +19,17 @@
 namespace mathvm {
     using namespace std;
 
+    struct VarMap;
+    
     struct Val {
         u_int16_t id;
         VarType type;
         string name;
         u_int16_t scopeId;
-    };
 
+        static Val define(AstNode* node, VarMap& vars, uint16_t scopeId, string const& name, VarType type);
+    };
+    
     struct Fun {
         u_int16_t id;
         Signature sign;
@@ -41,7 +43,7 @@ namespace mathvm {
 
         VarMap() : nextId(new uint16_t(0)) {
         }
-                        
+
         map<string, vector<Val> > varMap;
         std::tr1::shared_ptr<uint16_t> nextId;
     };
@@ -85,11 +87,6 @@ namespace mathvm {
 
         virtual Status* translate(const string& program, Code**code);
     };
-
-
-
-
-
 
 }
 
