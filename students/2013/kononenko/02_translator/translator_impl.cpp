@@ -254,7 +254,7 @@ void translator_impl::op_arithm(TokenKind op, VarType type1, VarType type2)
 
     bytecode()->addInsn(insn);
     
-    tos_type_ = VT_INT;
+    tos_type_ = type;
 }
 
 void translator_impl::op_comp(TokenKind op, VarType type1, VarType type2)
