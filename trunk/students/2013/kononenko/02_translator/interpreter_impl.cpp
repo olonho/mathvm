@@ -43,6 +43,7 @@ void interpreter::process_func()
         size_t length;
         const Instruction insn = func_->bytecode()->getInsn(pos);
         const char* name = bytecodeName(insn, &length);
+        (void)name;
 
         context_id_ = context_for_pos(pos);
         //if (func_->has_local_context(pos))
@@ -50,10 +51,6 @@ void interpreter::process_func()
 
         pos_ = pos + 1;
         
-        if (pos == 57)
-        {
-            int aaa = 5;
-        }
         return_ = false;
         process_insn(insn);
 
