@@ -12,8 +12,8 @@ options = Options()
 #options.executable = "./dist/Debug/GNU-Linux-x86/mymathvm"
 options.executable = "./dist/Release/GNU-Linux-x86/mymathvm"
 options.kind = 'debug'
-options.testdir = './tests'
-# options.testdir = './tests2'
+#options.testdir = './tests'
+options.testdir = './tests2'
 # options.testdir = './tests/additional'
 options.doublerun = False
 
@@ -68,14 +68,13 @@ def runTest(mvm, root, test, doublerun):
             result = runProg(mvm, expectFile)
         else:
             expectFile = os.path.join(root, test+'.expect')
-            print("run test: " + test)
+            print("run mvm: " + mvm)
             result = runProg(mvm, testFile)
         expect = readFile(expectFile)
 
        
         if expect == result:
-            # print 'Test "'+test+'" has PASSED'
-            print 'PASSED'
+            print 'Test "'+test+'" has PASSED'
         else:
             print 'Test "'+test+'" has FAILED'
             print 'Expected: '           
@@ -91,7 +90,6 @@ def runTest(mvm, root, test, doublerun):
             print out
             exit(1)
     except Exception, e:
-	print test
         print "Failed to execute the test " + test
         exit(1)
 
@@ -105,7 +103,7 @@ def main(argv):
   mvm = options.executable
   tests = glob.glob(os.path.join(testdir, '*.mvm'))
   for t in tests:
-    m = re.search(r"([\w-]+)\.mvm", t)
+    m = re.search(r"([\w]+)\.mvm", t)
     if m is None:
       continue
     t = m.group(1)

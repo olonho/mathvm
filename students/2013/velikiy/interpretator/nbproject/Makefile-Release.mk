@@ -91,137 +91,137 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/mymathvm: ${OBJECTFILES}
 ${OBJECTDIR}/libs/AsmJit/Assembler.o: libs/AsmJit/Assembler.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Assembler.o libs/AsmJit/Assembler.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Assembler.o libs/AsmJit/Assembler.cpp
 
 ${OBJECTDIR}/libs/AsmJit/AssemblerX86X64.o: libs/AsmJit/AssemblerX86X64.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/AssemblerX86X64.o libs/AsmJit/AssemblerX86X64.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/AssemblerX86X64.o libs/AsmJit/AssemblerX86X64.cpp
 
 ${OBJECTDIR}/libs/AsmJit/CodeGenerator.o: libs/AsmJit/CodeGenerator.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/CodeGenerator.o libs/AsmJit/CodeGenerator.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/CodeGenerator.o libs/AsmJit/CodeGenerator.cpp
 
 ${OBJECTDIR}/libs/AsmJit/Compiler.o: libs/AsmJit/Compiler.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Compiler.o libs/AsmJit/Compiler.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Compiler.o libs/AsmJit/Compiler.cpp
 
 ${OBJECTDIR}/libs/AsmJit/CompilerX86X64.o: libs/AsmJit/CompilerX86X64.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/CompilerX86X64.o libs/AsmJit/CompilerX86X64.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/CompilerX86X64.o libs/AsmJit/CompilerX86X64.cpp
 
 ${OBJECTDIR}/libs/AsmJit/CpuInfo.o: libs/AsmJit/CpuInfo.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/CpuInfo.o libs/AsmJit/CpuInfo.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/CpuInfo.o libs/AsmJit/CpuInfo.cpp
 
 ${OBJECTDIR}/libs/AsmJit/Defs.o: libs/AsmJit/Defs.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Defs.o libs/AsmJit/Defs.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Defs.o libs/AsmJit/Defs.cpp
 
 ${OBJECTDIR}/libs/AsmJit/DefsX86X64.o: libs/AsmJit/DefsX86X64.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/DefsX86X64.o libs/AsmJit/DefsX86X64.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/DefsX86X64.o libs/AsmJit/DefsX86X64.cpp
 
 ${OBJECTDIR}/libs/AsmJit/Logger.o: libs/AsmJit/Logger.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Logger.o libs/AsmJit/Logger.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Logger.o libs/AsmJit/Logger.cpp
 
 ${OBJECTDIR}/libs/AsmJit/MemoryManager.o: libs/AsmJit/MemoryManager.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/MemoryManager.o libs/AsmJit/MemoryManager.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/MemoryManager.o libs/AsmJit/MemoryManager.cpp
 
 ${OBJECTDIR}/libs/AsmJit/Operand.o: libs/AsmJit/Operand.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Operand.o libs/AsmJit/Operand.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Operand.o libs/AsmJit/Operand.cpp
 
 ${OBJECTDIR}/libs/AsmJit/OperandX86X64.o: libs/AsmJit/OperandX86X64.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/OperandX86X64.o libs/AsmJit/OperandX86X64.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/OperandX86X64.o libs/AsmJit/OperandX86X64.cpp
 
 ${OBJECTDIR}/libs/AsmJit/Platform.o: libs/AsmJit/Platform.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Platform.o libs/AsmJit/Platform.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Platform.o libs/AsmJit/Platform.cpp
 
 ${OBJECTDIR}/libs/AsmJit/Util.o: libs/AsmJit/Util.cpp 
 	${MKDIR} -p ${OBJECTDIR}/libs/AsmJit
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Util.o libs/AsmJit/Util.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/libs/AsmJit/Util.o libs/AsmJit/Util.cpp
 
 ${OBJECTDIR}/src/ast.o: src/ast.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/ast.o src/ast.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/ast.o src/ast.cpp
 
 ${OBJECTDIR}/src/bytecode.o: src/bytecode.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/bytecode.o src/bytecode.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/bytecode.o src/bytecode.cpp
 
 ${OBJECTDIR}/src/bytecodeCode.o: src/bytecodeCode.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/bytecodeCode.o src/bytecodeCode.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/bytecodeCode.o src/bytecodeCode.cpp
 
 ${OBJECTDIR}/src/bytecodeInterpretator.o: src/bytecodeInterpretator.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/bytecodeInterpretator.o src/bytecodeInterpretator.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/bytecodeInterpretator.o src/bytecodeInterpretator.cpp
 
 ${OBJECTDIR}/src/bytecodeTranslator.o: src/bytecodeTranslator.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/bytecodeTranslator.o src/bytecodeTranslator.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/bytecodeTranslator.o src/bytecodeTranslator.cpp
 
 ${OBJECTDIR}/src/interpreter.o: src/interpreter.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/interpreter.o src/interpreter.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/interpreter.o src/interpreter.cpp
 
 ${OBJECTDIR}/src/jit.o: src/jit.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/jit.o src/jit.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/jit.o src/jit.cpp
 
 ${OBJECTDIR}/src/main.o: src/main.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/main.o src/main.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/main.o src/main.cpp
 
 ${OBJECTDIR}/src/mathvm.o: src/mathvm.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/mathvm.o src/mathvm.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/mathvm.o src/mathvm.cpp
 
 ${OBJECTDIR}/src/parser.o: src/parser.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/parser.o src/parser.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/parser.o src/parser.cpp
 
 ${OBJECTDIR}/src/scanner.o: src/scanner.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/scanner.o src/scanner.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/scanner.o src/scanner.cpp
 
 ${OBJECTDIR}/src/translator.o: src/translator.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/translator.o src/translator.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/translator.o src/translator.cpp
 
 ${OBJECTDIR}/src/utils.o: src/utils.cpp 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} $@.d
-	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/utils.o src/utils.cpp
+	$(COMPILE.cc) -O2 -DPROD -Iinclude -Ilibs -MMD -MP -MF $@.d -o ${OBJECTDIR}/src/utils.o src/utils.cpp
 
 # Subprojects
 .build-subprojects:

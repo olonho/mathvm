@@ -160,7 +160,7 @@
       <itemPath>tests/run.py</itemPath>
       <itemPath>tests/sub.expect</itemPath>
       <itemPath>tests/sub.mvm</itemPath>
-      <itemPath>tests/var.mvm</itemPath>
+      <itemPath>tests/var.mvm_</itemPath>
       <itemPath>tests/while.expect</itemPath>
       <itemPath>tests/while.mvm</itemPath>
     </logicalFolder>
@@ -185,6 +185,328 @@
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
+    <conf name="Release" type="1">
+      <toolsSet>
+        <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <cTool>
+          <developmentMode>5</developmentMode>
+        </cTool>
+        <ccTool>
+          <developmentMode>5</developmentMode>
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>libs</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>PROD</Elem>
+          </preprocessorList>
+        </ccTool>
+        <fortranCompilerTool>
+          <developmentMode>5</developmentMode>
+        </fortranCompilerTool>
+        <asmTool>
+          <developmentMode>5</developmentMode>
+        </asmTool>
+      </compileType>
+      <item path="docs/history.txt" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="docs/notes.txt" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="docs/questions.txt" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="docs/todo.txt" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/ast.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/bytecode.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/bytecodeCode.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/bytecodeInterpretator.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/bytecodeTranslator.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/jit.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/mathvm.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/parser.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/scanner.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/visitors.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/ApiBegin.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/ApiEnd.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/AsmJit.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Assembler.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Assembler.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/AssemblerX86X64.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/AssemblerX86X64.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Build.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/CodeGenerator.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/CodeGenerator.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Compiler.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Compiler.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/CompilerX86X64.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/CompilerX86X64.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Config.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/CpuInfo.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/CpuInfo.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Defs.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Defs.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/DefsX86X64.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/DefsX86X64.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Logger.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Logger.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/MemoryManager.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/MemoryManager.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Operand.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Operand.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/OperandX86X64.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/OperandX86X64.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Platform.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Platform.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/README.txt" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Util.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Util.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="libs/AsmJit/Util_p.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/ast.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/bytecode.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/bytecodeCode.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/bytecodeInterpretator.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/bytecodeTranslator.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/interpreter.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/jit.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/main.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/mathvm.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/newfile" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/newfile1" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/parser.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/scanner.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/translator.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/utils.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="tests/add.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/add.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/3function.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/ackermann.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/ackermann.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/ackermann_closure.expect"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/additional/ackermann_closure.mvm"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/additional/casts.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/casts.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/closure.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/complex.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/complex.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/complex2.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/complex2.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fail/for_range.mvm"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/additional/fail/for_var.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fail/function-cast.mvm"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/additional/fail/function-return-void.mvm"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/additional/fail/if-fun.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fail/op_bin.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fail/op_not.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fail/op_streq.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fail/op_sub.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fail/range.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fail/vars.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fib.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fib.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/fib_closure.expect"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/additional/fib_closure.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/function-call.expect"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/additional/function-call.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/function-cast.expect"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/additional/function-cast.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/function.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/function.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/vars.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/additional/vars.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/assign.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/assign.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/astprint/run.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/bitwise.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/bitwise.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/div.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/div.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/expr.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/expr.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/for.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/for.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/function.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/function.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/if.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/if.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/literal.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/literal.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/mul.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/mul.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/newfile" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/optional/function_native.expect"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="tests/optional/function_native.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/optional/plot.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/perf/lissajous.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/perf/plot.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/perf/prime.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/run.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/sub.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/sub.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/var.mvm_" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/while.expect" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tests/while.mvm" ex="false" tool="3" flavor2="0">
+      </item>
+    </conf>
     <conf name="Debug" type="1">
       <toolsSet>
         <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
@@ -487,322 +809,7 @@
       </item>
       <item path="tests/sub.mvm" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="tests/var.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/while.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/while.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-    </conf>
-    <conf name="Release" type="1">
-      <toolsSet>
-        <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
-        <compilerSet>default</compilerSet>
-        <dependencyChecking>true</dependencyChecking>
-        <rebuildPropChanged>false</rebuildPropChanged>
-      </toolsSet>
-      <compileType>
-        <cTool>
-          <developmentMode>5</developmentMode>
-        </cTool>
-        <ccTool>
-          <developmentMode>5</developmentMode>
-        </ccTool>
-        <fortranCompilerTool>
-          <developmentMode>5</developmentMode>
-        </fortranCompilerTool>
-        <asmTool>
-          <developmentMode>5</developmentMode>
-        </asmTool>
-      </compileType>
-      <item path="docs/history.txt" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="docs/notes.txt" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="docs/questions.txt" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="docs/todo.txt" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/ast.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/bytecode.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/bytecodeCode.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/bytecodeInterpretator.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/bytecodeTranslator.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/jit.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/mathvm.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/parser.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/scanner.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="include/visitors.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/ApiBegin.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/ApiEnd.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/AsmJit.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Assembler.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Assembler.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/AssemblerX86X64.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/AssemblerX86X64.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Build.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/CodeGenerator.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/CodeGenerator.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Compiler.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Compiler.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/CompilerX86X64.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/CompilerX86X64.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Config.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/CpuInfo.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/CpuInfo.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Defs.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Defs.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/DefsX86X64.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/DefsX86X64.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Logger.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Logger.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/MemoryManager.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/MemoryManager.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Operand.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Operand.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/OperandX86X64.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/OperandX86X64.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Platform.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Platform.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/README.txt" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Util.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Util.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="libs/AsmJit/Util_p.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="src/ast.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/bytecode.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/bytecodeCode.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/bytecodeInterpretator.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/bytecodeTranslator.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/interpreter.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/jit.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/main.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/mathvm.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/newfile" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="src/newfile1" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="src/parser.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/scanner.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/translator.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="src/utils.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="tests/add.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/add.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/3function.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/ackermann.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/ackermann.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/ackermann_closure.expect"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/additional/ackermann_closure.mvm"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/additional/casts.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/casts.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/closure.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/complex.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/complex.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/complex2.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/complex2.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fail/for_range.mvm"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/additional/fail/for_var.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fail/function-cast.mvm"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/additional/fail/function-return-void.mvm"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/additional/fail/if-fun.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fail/op_bin.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fail/op_not.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fail/op_streq.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fail/op_sub.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fail/range.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fail/vars.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fib.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fib.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/fib_closure.expect"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/additional/fib_closure.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/function-call.expect"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/additional/function-call.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/function-cast.expect"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/additional/function-cast.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/function.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/function.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/vars.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/additional/vars.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/assign.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/assign.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/astprint/run.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/bitwise.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/bitwise.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/div.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/div.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/expr.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/expr.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/for.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/for.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/function.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/function.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/if.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/if.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/literal.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/literal.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/mul.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/mul.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/newfile" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/optional/function_native.expect"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="tests/optional/function_native.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/optional/plot.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/perf/lissajous.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/perf/plot.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/perf/prime.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/run.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/sub.expect" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/sub.mvm" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="tests/var.mvm" ex="false" tool="3" flavor2="0">
+      <item path="tests/var.mvm_" ex="false" tool="3" flavor2="0">
       </item>
       <item path="tests/while.expect" ex="false" tool="3" flavor2="0">
       </item>

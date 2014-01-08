@@ -22,76 +22,70 @@ namespace mathvm {
         }
 
         BytecodeCode* code = new BytecodeCode();
-        
+
         *code_ = code;
-        
+
         BytecodeAstVisitor visitor(code);
         visitor.visitAst(parser.top());
-        
-//        cout << "size::" << code->globalVars()->size() << endl;
-        
-        return visitor.status;
+
+        //        cout << "size::" << code->globalVars()->size() << endl;
+        if (visitor.status != NULL && visitor.status->isError()) {
+            return visitor.status;
+        }
+
+        return NULL;
+
     }
 
     void BytecodeAstVisitor::visitAst(AstFunction* fun) {
         size_t bci = 0;
         Scope::VarIterator varIt(fun->node()->body()->scope());
-        
+
         while (varIt.hasNext()) {
             AstVar* var = varIt.next();
-            bci++; // load instruction
             string name(var->name());
             code->globalVars()->insert(make_pair(name, bci));
-            bci += typeToSize(var->type());
+            bci++; // load instruction
         }
-//        cout << "my size:" << code->globalVars()->size() << endl;
-        
-        
-        visitAstFunction(fun);
-    }
 
-    void BytecodeAstVisitor::visitAstFunction(AstFunction* function) {
-        BytecodeFunction* fun = new BytecodeFunction(function);
 
-        map<string, uint16_t> paramIds;
+        BytecodeFunction* bfun = new BytecodeFunction(fun);
+        code->addFunction(bfun);
 
-        BytecodeFunction* prevFunction = currentFunction;
-        uint16_t prevContext = currentContext;
+        fillAstFunction(fun, bfun);
 
-        currentContext = code->addFunction(fun);
-        currentFunction = fun;
+        currentContext = 0; // I know it.
+        currentFunction = bfun;
 
         functionsStack.push_back(currentContext);
         contextsStack.push_back(currentContext);
 
+
+        fun->node()->visit(this);
+
+        // I will not drop something from stacks
+
+    }
+
+    void BytecodeAstVisitor::fillAstFunction(AstFunction* function, BytecodeFunction* fun) {
+
+        map<string, uint16_t> paramIds;
+        
         for (int i = 0; i < function->parametersNumber(); i++) {
             if (function->parameterType(i) == VT_DOUBLE) {
-                addInsn(BC_DLOAD);
-                paramIds[function->parameterName(i)] = current();
-                currentBytecode()->addDouble(0);
+                paramIds[function->parameterName(i)] = fun->sizeDoubles++;
             }
             if (function->parameterType(i) == VT_INT) {
-                addInsn(BC_ILOAD);
-                paramIds[function->parameterName(i)] = current();
-                currentBytecode()->addInt64(0);
+                paramIds[function->parameterName(i)] = fun->sizeInts++;
             }
             if (function->parameterType(i) == VT_STRING) {
-                addInsn(BC_SLOAD);
-                paramIds[function->parameterName(i)] = current();
-                addId(0);
+                paramIds[function->parameterName(i)] = fun->sizeStrings++;
             }
         }
+        
 
-        functionParamIds[currentContext] = paramIds;
-        contextVarIds[currentContext] = map<string, uint16_t>();
-
-        function->node()->visit(this);
-
-        currentFunction = prevFunction;
-        currentContext = prevContext;
-
-        functionsStack.pop_back();
-        contextsStack.pop_back();
+        functionParamIds[fun->id()] = paramIds;
+        contextVarIds[fun->id()] = map<string, uint16_t>();
 
     }
 
@@ -108,9 +102,37 @@ namespace mathvm {
         }
 
         Scope::FunctionIterator funIt(node->scope());
+        vector<pair<AstFunction*, BytecodeFunction*> > vfuns;
         while (funIt.hasNext()) {
-            AstFunction* fun = funIt.next();
-            visitAstFunction(fun);
+            AstFunction* function = funIt.next();
+            BytecodeFunction* fun = new BytecodeFunction(function);
+            vfuns.push_back(make_pair(function, fun));
+            code->addFunction(fun);
+            fillAstFunction(function, fun);
+        }
+
+        for (size_t i = 0; i < vfuns.size(); i++) {
+
+            AstFunction* function = vfuns[i].first;
+            BytecodeFunction* fun = vfuns[i].second;
+
+            BytecodeFunction* prevFunction = currentFunction;
+            uint16_t prevContext = currentContext;
+
+            currentContext = fun->id();
+            currentFunction = fun;
+
+            functionsStack.push_back(currentContext);
+            contextsStack.push_back(currentContext);
+
+            function->node()->visit(this);
+
+            currentFunction = prevFunction;
+            currentContext = prevContext;
+
+            functionsStack.pop_back();
+            contextsStack.pop_back();
+
         }
 
         for (uint32_t i = 0; i < node->nodes(); i++) {
@@ -120,22 +142,20 @@ namespace mathvm {
     }
 
     uint16_t BytecodeAstVisitor::allocateVar(AstVar& var) {
-        uint32_t beginIndex = current() + 1;
-        contextVarIds[currentContext][var.name()] = beginIndex;
         if (var.type() == VT_DOUBLE) {
-            addInsn(BC_DLOAD);
-            currentBytecode()->addDouble(0);
-            return beginIndex;
+            contextVarIds[currentContext][var.name()] = 
+                    currentFunction->sizeDoubles;
+            return currentFunction->sizeDoubles++;
         }
         if (var.type() == VT_INT) {
-            addInsn(BC_ILOAD);
-            currentBytecode()->addInt64(0);
-            return beginIndex;
+            contextVarIds[currentContext][var.name()] = 
+                    currentFunction->sizeInts;
+            return currentFunction->sizeInts++;
         }
         if (var.type() == VT_STRING) {
-            addInsn(BC_SLOAD);
-            addId(0);
-            return beginIndex;
+            contextVarIds[currentContext][var.name()] = 
+                    currentFunction->sizeStrings;
+            return currentFunction->sizeStrings++;
         }
         assert(false);
     }
@@ -188,9 +208,43 @@ namespace mathvm {
         assert((currentBytecode()->length()) != codeLenBefore);
     }
 
-    void BytecodeAstVisitor::ensureType(VarType ts, VarType td, uint32_t pos) {
+    void BytecodeAstVisitor::ensureType(VarType ts, VarType td, uint32_t pos,
+            uint16_t truePos, uint16_t falsePos) {
         if (ts == td || td == VT_VOID)
             return;
+        if (ts == VT_LOGIC) {
+            if (td == VT_STRING) {
+                throw logic_error("Convert bool to string? Are u serious?");
+            }
+
+            //            currentBytecode()->set(pos, BC_JA);
+            //            uint16_t cur =  current();
+            //            currentBytecode()->setUInt16(pos + 1, current());
+            //
+            addInsn(BC_JA); // skip for other code
+            addJump(current() + 10);
+            setJump(truePos, current());
+            setJump(falsePos, current() + 4); // ILOAD + JA + ID
+            if (td == VT_INT) {
+                addInsn(BC_ILOAD1);
+                addInsn(BC_JA);
+                addJump(pos);
+                addInsn(BC_ILOAD0);
+                addInsn(BC_JA);
+                addJump(pos);
+            }
+
+            if (td == VT_DOUBLE) {
+                addInsn(BC_DLOAD1);
+                addInsn(BC_JA);
+                addJump(pos);
+                addInsn(BC_DLOAD0);
+                addInsn(BC_JA);
+                addJump(pos);
+            }
+
+            return;
+        }
         if (ts == VT_INT && td == VT_DOUBLE) {
             int funId = currentFunction->id();
             int vv = currentBytecode()->get(pos);
@@ -220,36 +274,30 @@ namespace mathvm {
 
     void BytecodeAstVisitor::visitBinaryLogicOpNode(BinaryOpNode* node) {
 
-        if (node->kind() == tAND || node->kind() == tOR) {
-            node->left()->visit(this);
-            uint16_t leftTrueIdUnsettedPos = trueIdUnsettedPos;
-            uint16_t leftFalseIdUnsettedPos = falseIdUnsettedPos;
 
-            uint16_t rightBeginId = current();
-            node->right()->visit(this);
-            uint16_t rightTrueIdUnsettedPos = trueIdUnsettedPos;
-            uint16_t rightFalseIdUnsettedPos = falseIdUnsettedPos;
+        node->left()->visit(this);
+        uint16_t leftTrueIdUnsettedPos = trueIdUnsettedPos;
+        uint16_t leftFalseIdUnsettedPos = falseIdUnsettedPos;
 
-            addTrueFalseJumpRegion(BC_JA);
+        uint16_t rightBeginId = current();
+        node->right()->visit(this);
+        uint16_t rightTrueIdUnsettedPos = trueIdUnsettedPos;
+        uint16_t rightFalseIdUnsettedPos = falseIdUnsettedPos;
 
-            if (node->kind() == tAND) {
-                setJump(leftTrueIdUnsettedPos, rightBeginId);
-                // jump located before jump id
-                setJump(leftFalseIdUnsettedPos, falseIdUnsettedPos - 1);
-            } else {
-                setJump(leftTrueIdUnsettedPos, trueIdUnsettedPos - 1);
-                setJump(leftFalseIdUnsettedPos, rightBeginId);
-            }
+        addTrueFalseJumpRegion(BC_JA);
 
-            setJump(rightTrueIdUnsettedPos, trueIdUnsettedPos - 1);
-            setJump(rightFalseIdUnsettedPos, falseIdUnsettedPos - 1);
-            return;
+        if (node->kind() == tAND) {
+            setJump(leftTrueIdUnsettedPos, rightBeginId);
+            // jump located before jump id
+            setJump(leftFalseIdUnsettedPos, falseIdUnsettedPos - 1);
+        } else {
+            setJump(leftTrueIdUnsettedPos, trueIdUnsettedPos - 1);
+            setJump(leftFalseIdUnsettedPos, rightBeginId);
         }
 
-        assert(logicKindToJump.find(node->kind()) != logicKindToJump.end());
-        node->left()->visit(this);
-        node->right()->visit(this);
-        addTrueFalseJumpRegion(logicKindToJump[node->kind()]);
+        setJump(rightTrueIdUnsettedPos, trueIdUnsettedPos - 1);
+        setJump(rightFalseIdUnsettedPos, falseIdUnsettedPos - 1);
+        typesStack.push(VT_LOGIC);
 
     }
 
@@ -267,30 +315,51 @@ namespace mathvm {
         node->left()->visit(this);
         VarType leftType = topType();
         uint32_t leftCastPos = current();
-        addInsn(BC_INVALID); // there will be type cast
+
+        addCastSpace();
+
+
+        // if left was logic expr
+        uint16_t leftTj = trueIdUnsettedPos;
+        uint16_t leftFj = falseIdUnsettedPos;
 
         node->right()->visit(this);
         VarType rightType = topType();
 
         VarType maxType = max(leftType, rightType);
-        ensureType(leftType, maxType, leftCastPos);
-        ensureType(rightType, maxType);
-        addTypedOpInsn(maxType, node->kind());
-        typesStack.push(maxType);
+        if (maxType == VT_LOGIC)
+            maxType = VT_INT;
+        ensureType(leftType, maxType, leftCastPos, leftTj, leftFj);
+        ensureType(rightType, maxType, trueIdUnsettedPos, falseIdUnsettedPos);
+
+        if (logicCompareKinds.find(node->kind()) != logicCompareKinds.end()) {
+            //            return;
+            if (maxType == VT_INT) {
+                addInsn(BC_ICMP);
+            }
+            if (maxType == VT_DOUBLE) {
+                addInsn(BC_DCMP);
+            }
+            addInsn(BC_ILOAD0);
+            addTrueFalseJumpRegion(logicKindToJump[node->kind()]);
+            typesStack.push(VT_LOGIC);
+        } else {
+            addTypedOpInsn(maxType, node->kind());
+            typesStack.push(maxType);
+        }
+
     }
 
     void BytecodeAstVisitor::visitForNode_(ForNode* node) {
         uint16_t topVar = 0;
         if (node->var()->type() == VT_INT) {
-            addInsn(BC_ILOAD);
-            topVar = current();
-            currentBytecode()->addInt64(0);
+            topVar = currentFunction->sizeInts;
+            currentFunction->sizeInts++;
         }
 
         if (node->var()->type() == VT_DOUBLE) {
-            addInsn(BC_DLOAD);
-            topVar = current();
-            currentBytecode()->addDouble(0);
+            topVar = currentFunction->sizeDoubles;
+            currentFunction->sizeDoubles++;
         }
 
         assert(topVar != 0);
@@ -350,12 +419,11 @@ namespace mathvm {
             addId(findVarLocal(node->var()->name()));
         }
         addInsn(BC_JA);
-        addId(0);
-        setJump(current() - 2, forConditionId);
+        addJump(forConditionId);
 
         setTrueJump(bodyBegin);
         setFalseJump(current());
-        addInsn(BC_INVALID);
+        //        addInsn(BC_INVALID);
 
     }
 
@@ -372,7 +440,6 @@ namespace mathvm {
 
         setTrueJump(bodyBegin);
         setFalseJump(current());
-        addInsn(BC_INVALID);
 
         typesStack.push(VT_VOID);
     }
@@ -403,7 +470,7 @@ namespace mathvm {
         uint32_t ifExprEndId = current();
         setJump(thenEndId, (uint16_t) ifExprEndId);
         setJump(elseEndId, (uint16_t) ifExprEndId);
-        addInsn(BC_INVALID); // just idle
+        //        addInsn(BC_INVALID); // just idle
 
     }
 
@@ -425,6 +492,7 @@ namespace mathvm {
 
             if (stackI == 0)
                 break;
+
             stackI--;
 
         }
@@ -475,9 +543,13 @@ namespace mathvm {
     }
 
     void BytecodeAstVisitor::visitCallNode_(CallNode* node) {
+
         TranslatedFunction* fun = code->functionByName(node->name());
         if (fun == NULL) {
-            status = new Status("Undefined function call", node->position());
+            stringstream ss;
+            ss << "Undefined function call ";
+            ss << "with name " << node->name();
+            status = new Status(ss.str(), node->position());
             return;
         }
         if (node->parametersNumber() != fun->parametersNumber()) {
@@ -488,10 +560,10 @@ namespace mathvm {
             return;
         }
         assert(fun);
-        
+
         for (int i = node->parametersNumber() - 1; i >= 0; i--) {
             node->parameterAt(i)->visit(this);
-            ensureType(fun->parameterType(i));
+            ensureType(fun->parameterType(i), trueIdUnsettedPos, falseIdUnsettedPos);
         }
         addInsn(BC_CALL);
         addId(fun->id());
@@ -530,7 +602,7 @@ namespace mathvm {
         if (node->returnExpr() != NULL) {
             node->returnExpr()->visit(this);
             if (currentFunction->returnType() != VT_VOID)
-                ensureType(currentFunction->returnType());
+                ensureType(currentFunction->returnType(), trueIdUnsettedPos, falseIdUnsettedPos);
         }
         addInsn(BC_RETURN);
     }
@@ -539,7 +611,7 @@ namespace mathvm {
         pair<uint16_t, uint16_t> ids = findVar(node->var()->name());
         node->value()->visit(this);
         if (node->op() == tINCRSET || node->op() == tDECRSET) {
-            ensureType(topType(), node->var()->type());
+            ensureType(topType(), node->var()->type(), trueIdUnsettedPos, falseIdUnsettedPos);
             loadVar(node->var());
         }
         if (node->op() == tINCRSET) {
@@ -557,7 +629,7 @@ namespace mathvm {
             goto STORE_TO_VAR;
 
 STORE_TO_VAR:
-        ensureType(node->var()->type());
+        ensureType(node->var()->type(), trueIdUnsettedPos, falseIdUnsettedPos);
         const AstVar* var = node->var();
         if (var->type() == VT_DOUBLE) {
             if (ids.first != contextsStack.back())

@@ -144,6 +144,7 @@ namespace mathvm {
 
     TranslatedFunction::TranslatedFunction(AstFunction* function) :
     _id(INVALID_ID),
+    sizeDoubles(0), sizeInts(0), sizeStrings(0),
     _locals(0), _params(function->parametersNumber()),
     _name(function->name()) {
         _signature.push_back(SignatureElement(function->returnType(), "return"));

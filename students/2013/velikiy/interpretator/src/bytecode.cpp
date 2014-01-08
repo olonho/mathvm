@@ -25,7 +25,7 @@ namespace mathvm {
     void Bytecode::dump(ostream& out) const {
         size_t len = length();
         for (size_t bci = 0; bci < len;) {
-            size_t length;
+            size_t length; 
             Instruction insn = getInsn(bci);
             out << bci << ": ";
             const char* name = bytecodeName(insn, &length);
