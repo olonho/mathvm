@@ -619,18 +619,17 @@ private: // methods
 
         Label beginFor(bc());
         Label endFor(bc());
+        Label innerFor(bc());
         
         addStoreVarInsn(var);
+        addBranch(BC_JA, innerFor);
 
         bind(beginFor);
+        node->inExpr()->asBinaryOpNode()->right()->visit(this);
 
-        addInsn(BC_STOREIVAR3);
-        addInsn(BC_LOADIVAR3);
+        bind(innerFor);
         addLoadVarInsn(var);
-
         addBranch(BC_IFICMPG, endFor);
-
-        addInsn(BC_LOADIVAR3);
 
         node->body()->visit(this);
 
@@ -663,7 +662,7 @@ private: // methods
         node->ifExpr()->visit(this);
         addDirectCast(_lastType, VT_INT);
         checkVarType(VT_INT, _lastType);
-        
+
         Label elseIf(bc());
         Label endIf(bc());
         addInsn(BC_ILOAD0);
@@ -720,6 +719,19 @@ private: // methods
         }
     }
 
+    bool isPrimitiveExpression(AstNode* node) {
+        if (node->isLoadNode() || 
+            node->isIntLiteralNode() ||
+            node->isDoubleLiteralNode() ||
+            node->isStringLiteralNode() ||
+            node->isBinaryOpNode() ||
+            node->isUnaryOpNode()) {
+
+            return true;
+        }
+        return false;
+    }
+
     void visitBlockNode(BlockNode* node) {
 
         Scope* astScope = node->scope();
@@ -737,9 +749,12 @@ private: // methods
         processFunctions(astScope);
 
         for (uint32_t i = 0; i < size; ++i) {
-            node->nodeAt(i)->visit(this);
+            AstNode* currentNode = node->nodeAt(i);
+            currentNode->visit(this);
+            if (isPrimitiveExpression(currentNode)) {
+                addInsn(BC_POP);
+            }
         }
-
         _scope = savedScope;
     }
 
@@ -806,7 +821,7 @@ private: // methods
 
     void visitFunctionNode(FunctionNode* node) {
 
-        VarScope* saveScope = _scope;
+        VarScope* savedScope = _scope;
 
         VarScope* varscope = constructScope(_scope, 0);
 
@@ -827,7 +842,7 @@ private: // methods
             bc()->addInsn(BC_RETURN);
         }
         
-        _scope = saveScope;
+        _scope = savedScope;
     }
 
 };
