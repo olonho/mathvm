@@ -19,16 +19,16 @@ struct unsupported_insn
 
 void interpreter::interpret(interpreted *code)
 {
-    /*
+    std::ofstream s("dump.txt");
     for (size_t i = 0; i < code->num_functions(); ++i)
     {
-        cout << "Function " << i << endl << endl;
+        s << "Function " << i << endl << endl;
 
-        code->get_function(i)->bytecode()->dump(cout);
+        code->get_function(i)->bytecode()->dump(s);
         
-        cout << endl;
+        s << endl;
     }
-    */
+    s.close();
 
     code_ = code;
     func_ = code_->get_function(code_->get_top_function());
@@ -39,25 +39,50 @@ void interpreter::process_func()
 {
     for (size_t pos = 0; pos < func_->bytecode()->length();)
     {
+        jump_offset_ = 0;
         size_t length;
         const Instruction insn = func_->bytecode()->getInsn(pos);
         const char* name = bytecodeName(insn, &length);
 
-        if (func_->has_local_context(pos))
-            context_id_ = func_->local_context(pos);
+        context_id_ = context_for_pos(pos);
+        //if (func_->has_local_context(pos))
+          //  context_id_ = func_->local_context(pos);
 
         pos_ = pos + 1;
         
+        if (pos == 57)
+        {
+            int aaa = 5;
+        }
         return_ = false;
         process_insn(insn);
+
         if (return_)
         {
             return_ = false;
             break;
         }
+        
+        if ( jump_offset_ != 0 )
+        {
+            pos = pos_ + jump_offset_;
+            context_id_ = context_for_pos(pos);
+            continue;
+        }
 
         pos += length;
     }
+}
+
+context_id_t interpreter::context_for_pos(size_t pos) const
+{
+    for (int i = pos; i >= 0; --i)
+    {
+        if (func_->has_local_context(i))
+            return func_->local_context(i);
+    }
+
+    throw error("Context not found");
 }
 
 void interpreter::process_insn(Instruction insn)
@@ -112,6 +137,14 @@ void interpreter::process_insn(Instruction insn)
     case BC_STORECTXIVAR: process_store_ctx<i_t>(); break;
     case BC_STORECTXSVAR: process_store_ctx<s_t>(); break;
 
+    case BC_JA      : 
+    case BC_IFICMPNE: 
+    case BC_IFICMPE : 
+    case BC_IFICMPG : 
+    case BC_IFICMPGE: 
+    case BC_IFICMPL : 
+    case BC_IFICMPLE: process_jump(insn); break;
+    
     case BC_CALL: process_call(); break;
     case BC_RETURN: return_ = true; break;
 
@@ -207,7 +240,7 @@ void interpreter::process_unary(Instruction insn)
 template<typename T>
 void interpreter::process_print()
 {
-    cout << get_val<T>(stack_.top()) << endl;
+    cout << get_val<T>(stack_.top());
     stack_.pop();
 }
 
@@ -257,6 +290,40 @@ void interpreter::process_store_var(context_id_t context_id, var_id_t var_id)
     stack_.pop();
 }
 
+void interpreter::process_jump(Instruction insn)
+{
+    bool jump = insn == BC_JA;
+
+    if (insn != BC_JA)    
+    {
+        Var var2 = stack_.top();
+        stack_.pop();
+        Var var1 = stack_.top();
+        stack_.pop();
+
+        if (var1.type() != VT_INT || var2.type() != VT_INT)
+            throw error("Ints required for jump comparison");
+
+        i_t val1 = var1.getIntValue();
+        i_t val2 = var2.getIntValue();
+
+        switch (insn)
+        {
+        case BC_IFICMPNE: jump = val1 != val2; break;
+        case BC_IFICMPE : jump = val1 == val2; break;
+        case BC_IFICMPG : jump = val1 >  val2; break;
+        case BC_IFICMPGE: jump = val1 >= val2; break;
+        case BC_IFICMPL : jump = val1 <  val2; break;
+        case BC_IFICMPLE: jump = val1 <= val2; break;
+        }
+    }
+
+    if (jump)
+    {
+        jump_offset_ = read<int16_t>() - 2;
+    }
+}
+
 void interpreter::process_call()
 {
     function *old_func = func_; 
@@ -264,6 +331,7 @@ void interpreter::process_call()
     
     func_ = code_->get_function(id);
 
+   
     process_func();
 
     func_ = old_func;

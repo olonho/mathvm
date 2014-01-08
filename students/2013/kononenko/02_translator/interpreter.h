@@ -34,6 +34,7 @@ private:
     void process_func();
 
 private:
+    context_id_t context_for_pos(size_t pos) const;
     void process_insn(Instruction insn);
 
     template<typename T> void process_load();
@@ -53,6 +54,8 @@ private:
     template<typename T> void process_store_ctx();
     template<typename T> void process_store_var(context_id_t context_id, var_id_t var_id);
 
+    void process_jump(Instruction insn);
+    
     void process_call();
 
 private:
@@ -72,6 +75,7 @@ private:
     stack_t stack_;
 
     size_t pos_;
+    int32_t jump_offset_;
     context_id_t context_id_;
 
     bool return_;
