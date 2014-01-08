@@ -558,8 +558,9 @@ void translator_impl::process_var(bool store, AstVar const *var)
 
 function_id_t translator_impl::find_function(string const &name) const
 {
-    //AstFunction const * ast_fn = current_scope_->lookupFunction(name, true);
-    context_t const &context = current_context();
+    AstFunction const *ast_fn = current_scope_->lookupFunction(name, true);
+    function_id_t parent_fn_id = scope2fn_.at(ast_fn->owner());
+    context_t const &context = fn_contexts_.at(parent_fn_id);
     return context.functions.at(name);
 }
 
