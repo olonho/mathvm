@@ -217,7 +217,25 @@ void visitWhileNode(WhileNode * whileNode) {
 }
 
 void visitIfNode(IfNode * ifNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  LOG("processing if node at " << ifNode->position());
+  
+  ifNode->ifExpr()->visit(this);
+  addCastToInt(ifNode->ifExpr()->position());
+  addInstruction(BC_ILOAD0);
+
+  Label afterIfNode(bc());
+  if (ifNode->elseBlock()) {
+    Label thenBlock(bc());
+    addBranch(BC_IFICMPE, thenBlock);
+    ifNode->thenBlock()->visit(this);
+    addBranch(BC_JA, afterIfNode);
+    bindLabel(thenBlock);
+    ifNode->elseBlock()->visit(this);
+  } else {
+    addBranch(BC_IFICMPE, afterIfNode);
+    ifNode->thenBlock()->visit(this);
+  }
+  bindLabel(afterIfNode);
 }
 
 void visitBlockNode(BlockNode * blockNode) {
@@ -294,6 +312,14 @@ Status getStatus() {
 private:
 void addInstruction(Instruction instruction) {
   bc()->addInsn(instruction);
+}
+
+void addBranch(Instruction instruction, Label & label) {
+  bc()->addBranch(instruction, label);
+}
+
+void bindLabel(Label & label) {
+  bc()->bind(label);
 }
 
 void addPrint(uint32_t position) {
