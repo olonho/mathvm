@@ -5,7 +5,8 @@ USER_OBJ = \
     $(OBJ)/main$(OBJ_SUFF)\
     $(OBJ)/BytecodeTranslator$(OBJ_SUFF)
 
-USER_DEFS = -DDEBUG
+# uncomment to enable debug logging 
+# USER_DEFS = -DDEBUG
 
 include $(VM_ROOT)/common.mk
 
