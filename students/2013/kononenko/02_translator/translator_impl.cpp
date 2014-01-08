@@ -32,9 +32,46 @@ void translator_impl::visitWhileNode(WhileNode* node)
     tos_type_ = VT_VOID;
 }
 
-void translator_impl::visitForNode( ForNode* node )
+void translator_impl::visitForNode(ForNode* node)
 {
-    throw error("The method or operation is not implemented.");
+    const BinaryOpNode* expr = node->inExpr()->asBinaryOpNode();
+    if (expr->kind() != tRANGE)
+        throw error("Only range operators supported in for");
+
+    expr->left()->visit(this);
+    if (tos_type_ != VT_INT)
+        throw error("Only ints range supported in for");
+
+    if (node->var()->type() != VT_INT)
+        throw error("Only int var supported in for");
+
+    store_tos_var(node->var());
+
+    Label lbl_loop(bytecode()), lbl_after(bytecode());
+
+    
+    bytecode()->bind(lbl_loop);
+
+    load_tos_var(node->var());
+    assert(tos_type_ == VT_INT);
+
+    expr->right()->visit(this);
+    if (tos_type_ != VT_INT)
+        throw error("Only ints range supported in for");
+
+    bytecode()->addBranch(BC_IFICMPG, lbl_after);
+    
+    node->body()->visit(this);
+
+    load_tos_var(node->var());
+    bytecode()->addInsn(BC_ILOAD1);
+    bytecode()->addInsn(BC_IADD);
+    store_tos_var(node->var());
+
+    bytecode()->addBranch(BC_JA, lbl_loop);    
+    bytecode()->bind(lbl_after);
+
+    tos_type_ = VT_VOID;
 }
 
 void translator_impl::visitFunctionNode(FunctionNode* node)
@@ -475,9 +512,10 @@ std::pair<context_id_t, var_id_t> translator_impl::get_var_ids(AstVar const *var
     return std::make_pair(context.id, var_id);
 }
 
-void translator_impl::load_tos_var( AstVar const *var )
+void translator_impl::load_tos_var(AstVar const *var)
 {
     process_var(false, var);
+
 }
 
 void translator_impl::store_tos_var(AstVar const *var)
@@ -554,6 +592,9 @@ void translator_impl::process_var(bool store, AstVar const *var)
     if (!is_local)
         bytecode()->addInt16(ids.first);
     bytecode()->addInt16(ids.second);
+
+    if (!store)
+        tos_type_ = var->type();
 }
 
 function_id_t translator_impl::find_function(string const &name) const
