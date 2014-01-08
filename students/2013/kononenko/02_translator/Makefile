@@ -3,7 +3,7 @@ VM_ROOT = ../../../../
 
 USER_OBJ = \
 	$(OBJ)/main$(OBJ_SUFF) \
-	$(OBJ)/interpreter$(OBJ_SUFF) \
+	$(OBJ)/interpreter_impl$(OBJ_SUFF) \
 	$(OBJ)/code_impl$(OBJ_SUFF) \
 	$(OBJ)/translator_impl$(OBJ_SUFF)
 
