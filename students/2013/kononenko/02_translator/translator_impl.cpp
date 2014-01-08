@@ -13,9 +13,23 @@ void translator_impl::visitDoubleLiteralNode(DoubleLiteralNode* node)
     tos_type_ = VT_DOUBLE;
 }
 
-void translator_impl::visitWhileNode( WhileNode* node )
+void translator_impl::visitWhileNode(WhileNode* node)
 {
-    throw error("The method or operation is not implemented.");
+    Label lbl_loop(bytecode()), lbl_after(bytecode());
+
+    bytecode()->bind(lbl_loop);
+    node->whileExpr()->visit(this);
+
+    if (tos_type_ != VT_INT)
+        throw error("Condition for ints only");
+
+    bytecode()->addInsn(BC_ILOAD0);
+    bytecode()->addBranch(BC_IFICMPE, lbl_after);
+
+    node->loopBlock()->visit(this);
+    bytecode()->addBranch(BC_JA, lbl_loop);    
+    bytecode()->bind(lbl_after);
+    tos_type_ = VT_VOID;
 }
 
 void translator_impl::visitForNode( ForNode* node )
@@ -28,19 +42,11 @@ void translator_impl::visitFunctionNode(FunctionNode* node)
     context_t const &context = current_context();
     const function_id_t id = context.functions.at(node->name());
 
-//    fn_contexts_[]
-    
     const function_id_t old_id = dst_func_id_ ;
     dst_func_id_ = id;
 
     Signature const *old_signature =  signature_;
     signature_ = &node->signature();
-    
-    for (uint32_t i = 1; i < signature_->size(); ++i)
-    {
-
-    }
-    
     
     node->body()->visit(this);
     signature_ = old_signature;
@@ -139,6 +145,9 @@ void translator_impl::visitIfNode(IfNode* node)
     Label lbl_else(bytecode()), lbl_after(bytecode());
     node->ifExpr()->visit(this);
 
+    if (tos_type_ != VT_INT)
+        throw error("Condition for ints only");
+
     bytecode()->addInsn(BC_ILOAD0);
     bytecode()->addBranch(BC_IFICMPE, lbl_else);
 
@@ -151,7 +160,6 @@ void translator_impl::visitIfNode(IfNode* node)
 
     bytecode()->bind(lbl_after);
     tos_type_ = VT_VOID;
-
 }
 
 void translator_impl::visitNativeCallNode( NativeCallNode* node )
@@ -200,6 +208,13 @@ void translator_impl::visitBinaryOpNode(BinaryOpNode* node)
     case tGE :
     case tLT :
     case tLE : op_comp(op, type1, type2); break;
+    case tAND:
+    case tOR : op_andor(op, type1, type2); break;
+    case tAAND:
+    case tAOR :
+    case tAXOR: op_bitwise(op, type1, type2); break;
+
+    default: throw error("Unsupported binary op");
     }
 }
 
@@ -222,7 +237,6 @@ void translator_impl::op_arithm(TokenKind op, VarType type1, VarType type2)
         case tMOD: insn = BC_IMOD;  break;
         default: insn = BC_INVALID; break;
         }
-        tos_type_ = VT_INT;
     }
     else if (type == VT_DOUBLE)
     {
@@ -234,12 +248,13 @@ void translator_impl::op_arithm(TokenKind op, VarType type1, VarType type2)
         case tDIV: insn = BC_DDIV; break;
         default: insn = BC_INVALID; break;
         }
-        tos_type_ = VT_DOUBLE;
     }
 
     assert(insn != BC_INVALID);
 
     bytecode()->addInsn(insn);
+    
+    tos_type_ = VT_INT;
 }
 
 void translator_impl::op_comp(TokenKind op, VarType type1, VarType type2)
@@ -268,9 +283,40 @@ void translator_impl::op_comp(TokenKind op, VarType type1, VarType type2)
     bytecode()->bind(lbl_true);
     bytecode()->addInsn(BC_ILOAD1);
     bytecode()->bind(lbl_after);
-
 }
 
+void translator_impl::op_andor(TokenKind op, VarType type1, VarType type2)
+{
+    if (type1 != VT_INT || type2 != VT_INT)
+        throw error("and/or is for ints only");
+    const VarType type = type1;
+    
+    switch(op)
+    {
+    case tOR : bytecode()->addInsn(BC_IADD ); break;
+    case tAND: bytecode()->addInsn(BC_IMUL); break;
+    default: assert(false);
+    }
+
+    tos_type_ = type;
+}
+
+void translator_impl::op_bitwise(TokenKind op, VarType type1, VarType type2)
+{
+    if (type1 != VT_INT || type2 != VT_INT)
+        throw error("bitwise is for ints only");
+
+    const VarType type = type1;
+    switch(op)
+    {
+    case tAAND: bytecode()->addInsn(BC_IAAND); break;
+    case tAOR : bytecode()->addInsn(BC_IAOR ); break;
+    case tAXOR: bytecode()->addInsn(BC_IAXOR); break;
+    default: assert(false);
+    }
+
+    tos_type_ = type;
+}
 
 void translator_impl::visitStringLiteralNode(StringLiteralNode* node)
 {
@@ -311,13 +357,41 @@ void translator_impl::visitIntLiteralNode(IntLiteralNode* node)
 
 void translator_impl::visitStoreNode(StoreNode* node)
 {
-    node->value()->visit(this);
-
     const TokenKind op = node->op();
+
     if (op == tASSIGN)
-        store_tos_var(node->var());
+    {
+        node->value()->visit(this);
+        if (tos_type_ != node->var()->type())
+            throw error("Typecasts not supported yet");
+    }
+    else if (op == tINCRSET || op == tDECRSET)
+    {
+        load_tos_var(node->var()); 
+        node->value()->visit(this);
+
+        const VarType type = tos_type_;
+        if (type != VT_INT && type != VT_DOUBLE)
+            throw error("Unsupported type"); 
+        if (type != node->var()->type())
+            throw error("Typecasts not supported yet");
+        
+        Instruction insn;
+        switch(op)
+        {
+        case tINCRSET: insn = type == VT_INT ? BC_IADD : BC_DADD; break;
+        case tDECRSET: insn = type == VT_INT ? BC_ISUB : BC_DSUB; break;
+        default: assert(false);
+        }
+
+        bytecode()->addInsn(insn);
+        
+    tos_type_ = type;
+    }
     else
-        throw error("Unsupported store operation");
+        throw error("Unsupported store operation"); 
+    
+    store_tos_var(node->var());
 
     // a = b = 3
     load_tos_var(node->var());
@@ -380,8 +454,6 @@ void translator_impl::visitUnaryOpNode(UnaryOpNode* node)
     // Stays the same
     tos_type_ = type;
 }
-
-
 
 translator_impl::translator_impl()
     : dst_code_(NULL)

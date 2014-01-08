@@ -38,8 +38,11 @@ private:
     void prepare(AstFunction *top);
 
     
-    void op_arithm(TokenKind op, VarType type1, VarType type2);
-    void op_comp (TokenKind op, VarType type1, VarType type2);
+    void op_arithm (TokenKind op, VarType type1, VarType type2);
+    void op_comp   (TokenKind op, VarType type1, VarType type2);
+    void op_andor  (TokenKind op, VarType type1, VarType type2);
+    void op_bitwise(TokenKind op, VarType type1, VarType type2);
+
     Instruction make_instruction(TokenKind op, VarType type1, VarType type2);
     std::pair<context_id_t, var_id_t> get_var_ids(AstVar const *var, bool store, bool *out_is_local);
 
