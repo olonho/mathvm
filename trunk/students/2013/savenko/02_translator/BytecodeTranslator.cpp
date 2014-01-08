@@ -209,7 +209,53 @@ void visitStoreNode(StoreNode * storeNode) {
 }
 
 void visitForNode(ForNode * forNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  LOG("processing for node at " << forNode->position());
+
+  AstVar const * loopIdxVar = forNode->var();
+  BytecodeScope::VarId loopIdxVarId = _scope->resolveVariable(loopIdxVar->name());
+  if (!_scope->isValidVarId(loopIdxVarId)) {
+    abort(std::string("Unresolved variable: ") + typeToName(loopIdxVar->type()) + " " + loopIdxVar->name(), forNode->position());
+    return;
+  }
+
+  BinaryOpNode const * inExpr = dynamic_cast<BinaryOpNode const *>(forNode->inExpr());
+  if (inExpr->kind() != tRANGE) {
+    abort("Invalid range in for loop.", inExpr->position());
+    return;
+  }
+  
+  //initialize loop index variable
+  inExpr->left()->visit(this);
+  addCastToInt(inExpr->left()->position());
+  addInstruction(BC_ILOADM1);
+  addInstruction(BC_ISUB);
+  addCastTo(loopIdxVar->type(), inExpr->left()->position());
+  addStoreVar(loopIdxVarId, loopIdxVar->type(), inExpr->left()->position());
+  
+  Label loop(bc());
+  Label breakLoop(bc());
+  bindLabel(loop);
+
+  //assign new loop index variable value
+  addLoadVar(loopIdxVarId, inExpr->position());
+  addCastToInt(inExpr->position());
+  addInstruction(BC_ILOAD1);
+  addInstruction(BC_IADD);
+  addCastTo(loopIdxVar->type(), inExpr->left()->position());
+  addStoreVar(loopIdxVarId, loopIdxVar->type(), inExpr->left()->position());
+  
+  //check loop condition
+  inExpr->right()->visit(this);
+  addCastToInt(inExpr->position());
+  addLoadVar(loopIdxVarId, inExpr->position());
+  addCastToInt(inExpr->position());
+  addBranch(BC_IFICMPG, breakLoop);
+
+  //execute loop body
+  forNode->body()->visit(this);
+  addBranch(BC_JA, loop);
+
+  bindLabel(breakLoop);
 }
 
 void visitWhileNode(WhileNode * whileNode) {
@@ -399,6 +445,7 @@ void addLoadVar(BytecodeScope::VarId varId, uint32_t position) {
   } else {
     addLoadNonCtxVar(varId.second, varType, position);
   }
+  _last_expression_type = varType;
 }
 
 void addLoadCtxVar(uint16_t scopeId, uint16_t varId, VarType type, uint32_t position) {
