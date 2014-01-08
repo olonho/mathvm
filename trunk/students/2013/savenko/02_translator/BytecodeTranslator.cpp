@@ -280,7 +280,11 @@ void visitNativeCallNode(NativeCallNode * NativeCallNode) {
 }
 
 void visitPrintNode(PrintNode * printNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  LOG("processing print node at " << printNode->position());
+  for (uint32_t i = 0; i != printNode->operands(); ++i) {
+    printNode->operandAt(i)->visit(this);
+    addPrint(printNode->operandAt(i)->position());
+  }
 }
 
 Status getStatus() {
@@ -290,6 +294,15 @@ Status getStatus() {
 private:
 void addInstruction(Instruction instruction) {
   bc()->addInsn(instruction);
+}
+
+void addPrint(uint32_t position) {
+  switch (_last_expression_type) {
+    case VT_INT: addInstruction(BC_IPRINT); break;
+    case VT_DOUBLE: addInstruction(BC_DPRINT); break;
+    case VT_STRING: addInstruction(BC_SPRINT); break;
+    default: abort(std::string("Cannot print a value of type ") + typeToName(_last_expression_type), position); break;
+  }
 }
 
 void addId(uint16_t id) {
