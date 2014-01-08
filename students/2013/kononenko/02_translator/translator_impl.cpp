@@ -342,7 +342,7 @@ void translator_impl::visitReturnNode(ReturnNode* node)
     bytecode()->addInsn(BC_RETURN);
 }
 
-void translator_impl::visitUnaryOpNode( UnaryOpNode* node )
+void translator_impl::visitUnaryOpNode(UnaryOpNode* node)
 {
     node->operand()->visit(this);
     const VarType type = tos_type_;
@@ -363,21 +363,22 @@ void translator_impl::visitUnaryOpNode( UnaryOpNode* node )
         bytecode()->addInsn(BC_ILOAD1);
         bytecode()->bind(lbl_after);
     }
+    else if (node->kind() == tSUB)
+    {
+        switch(type)
+        {
+        case VT_INT   : bytecode()->addInsn(BC_INEG); break;
+        case VT_DOUBLE: bytecode()->addInsn(BC_DNEG); break;
+        default: throw error("Bad type");
+        }
+    }
     else
     {
         throw error("Unsupported unary op");
     }
 
-     /*Label put1(bc());
-     Label end(bc());
-     addInsn(BC_ILOAD0);
-     addBranch(BC_IFICMPE, put1);
-     addInsn(BC_ILOAD0);
-     addBranch(BC_JA, end);
-     bc()->bind(put1);
-     addInsn(BC_ILOAD1);
-     bc()->bind(end);
-     */
+    // Stays the same
+    tos_type_ = type;
 }
 
 
