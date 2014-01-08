@@ -46,7 +46,7 @@
     <ClCompile Include="code_impl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="interpreter.cpp">
+    <ClCompile Include="interpreter_impl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
