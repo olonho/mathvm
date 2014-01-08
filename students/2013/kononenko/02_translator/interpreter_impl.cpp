@@ -317,6 +317,7 @@ void interpreter::process_jump(Instruction insn)
         case BC_IFICMPGE: jump = val1 >= val2; break;
         case BC_IFICMPL : jump = val1 <  val2; break;
         case BC_IFICMPLE: jump = val1 <= val2; break;
+        default: assert(false);
         }
     }
 
