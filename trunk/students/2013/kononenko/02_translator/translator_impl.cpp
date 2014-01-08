@@ -497,6 +497,7 @@ Instruction translator_impl::get_var_insn(bool store, AstVar const *var, bool is
             case VT_INT   : return BC_STORECTXIVAR;
             case VT_DOUBLE: return BC_STORECTXDVAR;
             case VT_STRING: return BC_STORECTXSVAR;
+            default: assert(false);
             }
         }
         else
@@ -506,6 +507,7 @@ Instruction translator_impl::get_var_insn(bool store, AstVar const *var, bool is
             case VT_INT   : return BC_STOREIVAR;
             case VT_DOUBLE: return BC_STOREDVAR;
             case VT_STRING: return BC_STORESVAR;
+            default: assert(false);
             }
         }
     }
@@ -518,6 +520,7 @@ Instruction translator_impl::get_var_insn(bool store, AstVar const *var, bool is
             case VT_INT   : return BC_LOADCTXIVAR;
             case VT_DOUBLE: return BC_LOADCTXDVAR;
             case VT_STRING: return BC_LOADCTXSVAR;
+            default: assert(false);
             }
         }
         else
@@ -527,6 +530,7 @@ Instruction translator_impl::get_var_insn(bool store, AstVar const *var, bool is
             case VT_INT   : return BC_LOADIVAR;
             case VT_DOUBLE: return BC_LOADDVAR;
             case VT_STRING: return BC_LOADSVAR;
+            default: assert(false);
             }
         }
     }
