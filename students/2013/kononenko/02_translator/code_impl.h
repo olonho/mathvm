@@ -11,25 +11,17 @@ namespace mathvm
 struct function_impl
     : function
 {
-    function_impl()
+    function_impl(context_id_t id)
+        : context_id_(id)
     {
-        for(size_t i = 0; i < 8; ++i)
-        {
-            aaa[i] = 'a';
-            bbb[i] = 'b';
-        }
     }
     
     Bytecode const *bytecode() OVERRIDE { return &bytecode_; } 
-    bool has_local_context(size_t pos) OVERRIDE { return context_ids_.count(pos) != 0; }
-    context_id_t local_context(size_t pos) OVERRIDE { return context_ids_.at(pos); }
+    bool has_local_context(size_t pos) OVERRIDE { return true; }
+    context_id_t local_context(size_t pos) OVERRIDE { return context_id_; }
 
     void set_context(context_id_t id)
     {
-        const size_t pos = bytecode_.length();
-        context_ids_[pos] = id;
-//         const bool inserted = context_ids_.insert(make_pair(pos, id)).second;
-//         assert(inserted);
     }
     Bytecode *bytecode_dst()
     {
@@ -38,11 +30,7 @@ struct function_impl
 
 private:
     Bytecode bytecode_;
-    typedef map<size_t, context_id_t> context_ids_t;
-    
-    char aaa[8];
-    context_ids_t context_ids_;
-    char bbb[8];
+    context_id_t context_id_;
 };
 
 struct code_impl

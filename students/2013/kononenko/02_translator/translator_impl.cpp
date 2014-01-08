@@ -25,8 +25,10 @@ void translator_impl::visitForNode( ForNode* node )
 
 void translator_impl::visitFunctionNode(FunctionNode* node)
 {
-    context_t const &context = contexts_.at(current_scope_);
+    context_t const &context = current_context();
     const function_id_t id = context.functions.at(node->name());
+
+//    fn_contexts_[]
     
     const function_id_t old_id = dst_func_id_ ;
     dst_func_id_ = id;
@@ -74,7 +76,7 @@ void translator_impl::visitBlockNode(BlockNode* node)
     {
         AstFunction *fn = it.next();
         current_scope_ = node->scope();
-        dst_code_->get_function_dst(dst_func_id_)->set_context(contexts_.at(current_scope_).id);
+        dst_code_->get_function_dst(dst_func_id_)->set_context(current_context().id);
 
         fn->node()->visit(this);
     }
@@ -82,7 +84,9 @@ void translator_impl::visitBlockNode(BlockNode* node)
     for (uint32_t i = 0; i < node->nodes(); ++i)
     {
         current_scope_ = node->scope();
-        dst_code_->get_function_dst(dst_func_id_)->set_context(contexts_.at(current_scope_).id);
+        scope2fn_[current_scope_] = dst_func_id_;
+
+        dst_code_->get_function_dst(dst_func_id_)->set_context(current_context().id);
         tos_type_ = VT_VOID;
 
         return_ = false;
@@ -99,7 +103,7 @@ void translator_impl::visitBlockNode(BlockNode* node)
     }
 
     current_scope_ = node->scope();
-    dst_code_->get_function_dst(dst_func_id_)->set_context(contexts_.at(current_scope_).id);
+    dst_code_->get_function_dst(dst_func_id_)->set_context(current_context().id);
     //tos_type_ = VT_VOID;
     
     assert(current_scope_ == node->scope());
@@ -107,6 +111,7 @@ void translator_impl::visitBlockNode(BlockNode* node)
 
 void translator_impl::add_context(Scope *scope, context_id_t id)
 {
+#if (0)
     context_t context(id);
 
     for (Scope::VarIterator it(scope, false); it.hasNext();)
@@ -125,6 +130,7 @@ void translator_impl::add_context(Scope *scope, context_id_t id)
     }
 
     contexts_.insert(make_pair(scope, context));
+#endif
 }
 
 
@@ -278,10 +284,7 @@ void translator_impl::visitStringLiteralNode(StringLiteralNode* node)
 void translator_impl::visitCallNode(CallNode* node)
 {
     AstFunction *fn = current_scope_->lookupFunction(node->name(), true);
-    Scope *owner = fn->owner();
-
-    context_t const &context = contexts_.at(owner);
-    const function_id_t id = context.functions.at(node->name());
+    const function_id_t id = find_function(node->name());
 
     Signature const &signature = fn->node()->signature();
     
@@ -360,6 +363,10 @@ void translator_impl::visitUnaryOpNode( UnaryOpNode* node )
         bytecode()->addInsn(BC_ILOAD1);
         bytecode()->bind(lbl_after);
     }
+    else
+    {
+        throw error("Unsupported unary op");
+    }
 
      /*Label put1(bc());
      Label end(bc());
@@ -385,11 +392,12 @@ translator_impl::translator_impl()
 std::pair<context_id_t, var_id_t> translator_impl::get_var_ids(AstVar const *var, bool store, bool *out_is_local)
 {
     Scope const *scope = var->owner();
+    const function_id_t fn_id = scope2fn_.at(scope);
     
     if (out_is_local)
-        *out_is_local = (scope == current_scope_);
+        *out_is_local = (fn_id == dst_func_id_);
 
-    context_t const &context = contexts_.at(scope);
+    context_t const &context = fn_contexts_.at(fn_id);
     const var_id_t var_id = context.vars.at(var->name());
     return std::make_pair(context.id, var_id);
 }
@@ -473,8 +481,8 @@ void translator_impl::process_var(bool store, AstVar const *var)
 
 function_id_t translator_impl::find_function(string const &name) const
 {
-    AstFunction const * ast_fn = current_scope_->lookupFunction(name, true);
-    context_t const &context = contexts_.at(ast_fn->owner());
+    //AstFunction const * ast_fn = current_scope_->lookupFunction(name, true);
+    context_t const &context = current_context();
     return context.functions.at(name);
 }
 
@@ -485,14 +493,19 @@ void translator_impl::init()
     dst_func_id_ = -1;
     current_scope_ = NULL;
     signature_ = NULL;
-    contexts_.clear();
+    //contexts_.clear();
+    fn_contexts_.clear();
 }
 
 void translator_impl::prepare(AstFunction *top)
 {
     dst_code_ = new code_impl();
     current_scope_ = top->scope();
-    init_contexts(top->owner());
+
+    dst_func_id_ = -1;
+    fn_contexts_.insert(make_pair(dst_func_id_, context_t(dst_func_id_)));
+    prepare_scope(top->scope(), fn_contexts_.at(dst_func_id_), dst_func_id_);
+    //init_contexts(top->owner());
 }
 
 Status* translator_impl::translate(const string& program, Code **code)
@@ -524,6 +537,48 @@ void translator_impl::init_contexts(Scope *scope, uint32_t depth)
     {
         init_contexts(scope->childScopeAt(i), depth + 1);
     }
+}
+
+void translator_impl::prepare_scope(Scope *scope, context_t &context, function_id_t fn_id)
+{
+    assert(scope2fn_.count(scope) == 0);
+    scope2fn_[scope] = fn_id;
+
+    // add vars
+    for (Scope::VarIterator it(scope, false); it.hasNext();)
+    {
+        AstVar const *var = it.next();
+        const bool insertion = context.vars.insert(std::make_pair(var->name(), context.vars.size())).second;
+        assert(insertion);
+    }
+
+    // add functions
+    for (Scope::FunctionIterator it(scope, false); it.hasNext();)
+    {
+        AstFunction const *fn = it.next();
+        const function_id_t id = dst_code_->add_function();
+        const bool insertion = context.functions.insert(make_pair(fn->name(), id)).second;
+        assert(insertion);
+
+        assert(fn_contexts_.count(id) == 0);
+        fn_contexts_.insert(make_pair(id, context_t(id)));
+
+        Scope *fn_scope = fn->node()->body()->scope();
+        if (fn->name() != "<top>")
+            fn_scope = fn_scope->parent();
+        prepare_scope(fn_scope, fn_contexts_.at(id), id);
+    }
+
+    for (size_t i = 0; i < scope->childScopeNumber(); ++i)
+    {
+        Scope *child = scope->childScopeAt(i);
+        // isn't inner function scope
+        if (scope2fn_.count(child) == 0)
+            prepare_scope(child, context, fn_id);
+    }
+
+    //contexts_.insert(make_pair(scope, context));
+
 }
 
 } // namespace mathvm

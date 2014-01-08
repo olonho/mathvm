@@ -32,8 +32,9 @@ Status* code_impl::execute(vector<Var*>& vars)
 
 function_id_t code_impl::add_function()
 {
-    funcs_.push_back(function_impl());
-    return funcs_.size() - 1;
+    const function_id_t id = funcs_.size();
+    funcs_.push_back(function_impl(id));
+    return id;
 }
 
 function_impl *code_impl::get_function_dst(function_id_t id)
