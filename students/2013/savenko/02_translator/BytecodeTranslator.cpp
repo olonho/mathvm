@@ -213,7 +213,19 @@ void visitForNode(ForNode * forNode) {
 }
 
 void visitWhileNode(WhileNode * whileNode) {
-  throw std::logic_error("NOT IMPLEMENTED");
+  LOG("processing while node at " << whileNode->position());
+
+  Label breakLoop(bc());
+  Label loop(bc());
+  
+  bindLabel(loop);
+  whileNode->whileExpr()->visit(this);
+  addCastToInt(whileNode->whileExpr()->position());
+  addBranch(BC_IFICMPNE, breakLoop);
+  whileNode->loopBlock()->visit(this);
+  addBranch(BC_JA, loop);
+
+  bindLabel(breakLoop);
 }
 
 void visitIfNode(IfNode * ifNode) {
