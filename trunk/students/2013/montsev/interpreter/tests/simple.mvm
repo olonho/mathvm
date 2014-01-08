@@ -1,0 +1,12 @@
+
+int x;
+
+function double foo() {
+    function int bar() {
+        return 1;
+    }
+    return bar();
+}
+
+print(foo(), '\n');
+

@@ -367,6 +367,9 @@ private: // methods
         if (from == VT_INT && to == VT_DOUBLE) {
             addIntToDoubleConv();
             _lastType = VT_DOUBLE;
+        } else if (from == VT_DOUBLE && to == VT_INT) {
+            addDoubleToIntConv();
+            _lastType = VT_INT;
         }
     }
 
@@ -658,8 +661,9 @@ private: // methods
 
     void visitIfNode(IfNode* node) {
         node->ifExpr()->visit(this);
-        VarType exprType = _lastType;
-        checkVarType(exprType, VT_INT);
+        addDirectCast(_lastType, VT_INT);
+        checkVarType(VT_INT, _lastType);
+        
         Label elseIf(bc());
         Label endIf(bc());
         addInsn(BC_ILOAD0);
@@ -677,64 +681,66 @@ private: // methods
         bind(endIf);
     }
 
-    void visitBlockNode(BlockNode* node) {
-        // Block variables declarations
+    // Block visitor helpers
 
-        Scope* scope = node->scope();
-        Scope::VarIterator variter(scope);
+    void declareFunction(AstFunction* func) {
+        BytecodeFunction* bcFunction = new BytecodeFunction(func);
+        _code->addFunction(bcFunction);
+        _scope->declareFunction(func->name(), bcFunction);
+    }
 
-        uint32_t size = node->nodes();
+    void processFunction(AstFunction* func) {
+        BytecodeFunction* savedFunction = _bcFunction;
+        _bcFunction = _scope->resolveFunction(func->name());
+        func->node()->visit(this);
+        _bcFunction = savedFunction;
+    }
 
-        VarScope* varscope = constructScope(_scope, _scope->varCount());
+    void declareFunctions(Scope* astScope) {
+        Scope::FunctionIterator funciter(astScope);
+        while (funciter.hasNext()) {
+            declareFunction(funciter.next());
+        }
+    }
+
+    void processFunctions(Scope* astScope) {
+        Scope::FunctionIterator funciter(astScope);
+        while (funciter.hasNext()) {
+            processFunction(funciter.next());
+        }
+    }
+
+    void declareVariables(Scope* astScope, VarScope* varScope) {
+        Scope::VarIterator variter(astScope);
 
         while (variter.hasNext()) {
             AstVar* ptr = variter.next();
-            varscope->declareVar(ptr->name(), ptr->type(), _bcFunction->id());
-
+            varScope->declareVar(ptr->name(), ptr->type(), _bcFunction->id());
             _bcFunction->setLocalsNumber(_bcFunction->localsNumber() + 1);
         }
+    }
 
-        VarScope* saveScope = _scope;
-        _scope = varscope;
+    void visitBlockNode(BlockNode* node) {
 
-        // Block functions declarations
-        {
-            Scope::FunctionIterator funciter(scope);
-            while (funciter.hasNext()) {
-                AstFunction* func = funciter.next();
-                BytecodeFunction* bcFunction = new BytecodeFunction(func);
-                _code->addFunction(bcFunction);
+        Scope* astScope = node->scope();
 
-                _scope->declareFunction(func->name(), bcFunction);
-            }
-        }
+        uint32_t size = node->nodes();
 
-        BytecodeFunction* saveFunction = _bcFunction;
+        VarScope* varScope = constructScope(_scope, _scope->varCount());
 
-        {
-            Scope::FunctionIterator funciter(scope);
-            while (funciter.hasNext()) {
-                AstFunction* func = funciter.next();
-                _bcFunction = _scope->resolveFunction(func->name());
-                func->node()->visit(this);
-            }
-        }
-        
-        _bcFunction = saveFunction;
+        declareVariables(astScope, varScope);
 
+        VarScope* savedScope = _scope;
+        _scope = varScope;
+
+        declareFunctions(astScope);
+        processFunctions(astScope);
 
         for (uint32_t i = 0; i < size; ++i) {
             node->nodeAt(i)->visit(this);
-            if (node->nodeAt(i)->isCallNode() && 
-                scope->lookupFunction(
-                    node->nodeAt(i)->asCallNode()->name()
-                )->returnType() != VT_VOID) {
-
-                addInsn(BC_POP);
-            }
         }
 
-        _scope = saveScope;
+        _scope = savedScope;
     }
 
     void visitPrintNode(PrintNode* node) {
@@ -764,6 +770,7 @@ private: // methods
         if (params != f->parametersNumber()) {
             throw error("Invalid call. ");
         }
+
         if (params != 0) {
             for (int i = params - 1; i >= 0; --i) {
                 node->parameterAt(i)->visit(this);

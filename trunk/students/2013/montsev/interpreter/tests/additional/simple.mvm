@@ -1,0 +1,23 @@
+int x1;
+int y;
+int z;
+
+function int foo(int x) {
+    int r;
+    function int bar(int a) {
+        if (a <= 0) {
+            int x = baz();
+            return z;
+        }
+    }
+    function int baz() {
+        return 3;
+    }
+}
+
+x1 = 2;
+y = 2;
+z = 2;
+
+print(foo(2), '\n');
+print(x1, '\n', y, '\n', z, '\n');

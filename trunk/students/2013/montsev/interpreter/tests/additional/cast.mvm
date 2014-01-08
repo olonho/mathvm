@@ -1,0 +1,8 @@
+
+int x = 2;
+
+double y = x;
+
+int z = x;
+
+print(z, '\n', y, '\n', x, '\n', '\n');
