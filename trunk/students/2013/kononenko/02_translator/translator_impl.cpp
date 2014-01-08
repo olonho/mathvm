@@ -128,9 +128,24 @@ void translator_impl::add_context(Scope *scope, context_id_t id)
 }
 
 
-void translator_impl::visitIfNode( IfNode* node )
+void translator_impl::visitIfNode(IfNode* node)
 {
-    throw error("The method or operation is not implemented.");
+    Label lbl_else(bytecode()), lbl_after(bytecode());
+    node->ifExpr()->visit(this);
+
+    bytecode()->addInsn(BC_ILOAD0);
+    bytecode()->addBranch(BC_IFICMPE, lbl_else);
+
+    node->thenBlock()->visit(this);
+    bytecode()->addBranch(BC_JA, lbl_after);    
+
+    bytecode()->bind(lbl_else);
+    if (node->elseBlock()) 
+        node->elseBlock()->visit(this);    
+
+    bytecode()->bind(lbl_after);
+    tos_type_ = VT_VOID;
+
 }
 
 void translator_impl::visitNativeCallNode( NativeCallNode* node )
@@ -165,41 +180,89 @@ void translator_impl::visitBinaryOpNode(BinaryOpNode* node)
     const VarType type2 = tos_type_;
 
     const TokenKind op = node->kind();
-    const Instruction insn = make_instruction(op, type1, type2);
-    bytecode()->addInsn(insn);
+
+    switch(op)
+    {
+    case tADD:
+    case tSUB:
+    case tMUL:
+    case tDIV:
+    case tMOD: op_arithm(op, type1, type2); break;
+    case tEQ :
+    case tNEQ:
+    case tGT :
+    case tGE :
+    case tLT :
+    case tLE : op_comp(op, type1, type2); break;
+    }
 }
 
-
-Instruction translator_impl::make_instruction(TokenKind op, VarType type1, VarType type2)
+void translator_impl::op_arithm(TokenKind op, VarType type1, VarType type2)
 {
     if (type1 != type2)
         throw error("Typecasts not supported yet");
-    
+
     const VarType type = type1;
 
+    Instruction insn;
     if (type == VT_INT)
     {
         switch(op)
         {
-            case tADD: return BC_IADD;
-            case tSUB: return BC_ISUB;
-            case tMUL: return BC_IMUL;
-            case tDIV: return BC_IDIV;
-            case tMOD: return BC_IMOD;
+        case tADD: insn = BC_IADD;  break;
+        case tSUB: insn = BC_ISUB;  break;
+        case tMUL: insn = BC_IMUL;  break;
+        case tDIV: insn = BC_IDIV;  break;
+        case tMOD: insn = BC_IMOD;  break;
+        default: insn = BC_INVALID; break;
         }
+        tos_type_ = VT_INT;
     }
     else if (type == VT_DOUBLE)
     {
         switch(op)
         {
-        case tADD: return BC_DADD;
-        case tSUB: return BC_DSUB;
-        case tMUL: return BC_DMUL;
-        case tDIV: return BC_DDIV;
+        case tADD: insn = BC_DADD; break;
+        case tSUB: insn = BC_DSUB; break;
+        case tMUL: insn = BC_DMUL; break;
+        case tDIV: insn = BC_DDIV; break;
+        default: insn = BC_INVALID; break;
         }
+        tos_type_ = VT_DOUBLE;
     }
 
-    throw error("Wrong binary operation");
+    assert(insn != BC_INVALID);
+
+    bytecode()->addInsn(insn);
+}
+
+void translator_impl::op_comp(TokenKind op, VarType type1, VarType type2)
+{
+    if (type1 != VT_INT || type2 != VT_INT)
+        throw error("Comparison are supported for ints only");
+
+    Instruction insn;    
+
+    switch (op) {
+    case tEQ : insn = BC_IFICMPE ; break;
+    case tNEQ: insn = BC_IFICMPNE; break;
+    case tGT : insn = BC_IFICMPG ; break;
+    case tGE : insn = BC_IFICMPGE; break;
+    case tLT : insn = BC_IFICMPL ; break;
+    case tLE : insn = BC_IFICMPLE; break;
+    default  : insn = BC_INVALID ; break;
+    }    
+
+    assert(insn != BC_INVALID);
+
+    Label lbl_true(bytecode()), lbl_after(bytecode());
+    bytecode()->addBranch(insn, lbl_true);
+    bytecode()->addInsn(BC_ILOAD0);
+    bytecode()->addBranch(BC_JA, lbl_after);
+    bytecode()->bind(lbl_true);
+    bytecode()->addInsn(BC_ILOAD1);
+    bytecode()->bind(lbl_after);
+
 }
 
 
@@ -233,6 +296,7 @@ void translator_impl::visitCallNode(CallNode* node)
 
     bytecode()->addInsn(BC_CALL);
     bytecode()->addInt16(id);
+    tos_type_ = signature.at(0).first;
 }
 
 void translator_impl::visitIntLiteralNode(IntLiteralNode* node)
@@ -277,7 +341,36 @@ void translator_impl::visitReturnNode(ReturnNode* node)
 
 void translator_impl::visitUnaryOpNode( UnaryOpNode* node )
 {
-    throw error("The method or operation is not implemented.");
+    node->operand()->visit(this);
+    const VarType type = tos_type_;
+
+    if (node->kind() == tNOT)
+    {
+        if (type != VT_INT)
+            throw error("Bad type");
+
+        // There must be a better way
+        Label lbl_zero(bytecode()), lbl_after(bytecode());
+
+        bytecode()->addInsn(BC_ILOAD0);
+        bytecode()->addBranch(BC_IFICMPE, lbl_zero);
+        bytecode()->addInsn(BC_ILOAD0);
+        bytecode()->addBranch(BC_JA, lbl_after);
+        bytecode()->bind(lbl_zero);
+        bytecode()->addInsn(BC_ILOAD1);
+        bytecode()->bind(lbl_after);
+    }
+
+     /*Label put1(bc());
+     Label end(bc());
+     addInsn(BC_ILOAD0);
+     addBranch(BC_IFICMPE, put1);
+     addInsn(BC_ILOAD0);
+     addBranch(BC_JA, end);
+     bc()->bind(put1);
+     addInsn(BC_ILOAD1);
+     bc()->bind(end);
+     */
 }
 
 

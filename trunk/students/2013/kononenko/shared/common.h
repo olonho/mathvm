@@ -16,6 +16,8 @@ using std::stringstream;
 #include <string>
 using std::string;
 
+#include <fstream>
+
 #include <vector>
 using std::vector;
 
