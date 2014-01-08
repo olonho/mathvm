@@ -340,8 +340,8 @@ void visitReturnNode(ReturnNode * returnNode) {
 
 void visitCallNode(CallNode * callNode) {
   LOG("processing call node at " << callNode->position());
-  for (uint32_t i = callNode->parametersNumber() - 1; i >= 0; --i) {
-    callNode->parameterAt(i)->visit(this);
+  for (uint32_t i = callNode->parametersNumber(); i > 0; --i) {
+    callNode->parameterAt(i - 1)->visit(this);
   }
   uint16_t functionId = _scope->resolveFunction(callNode->name());
   if (functionId < ID_MAX) {
