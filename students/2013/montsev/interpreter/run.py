@@ -106,7 +106,7 @@ def main(argv):
   tests = glob.glob(os.path.join(testdir, '*.mvm'))
   if not options.run is None:
     result = runProg(mvm, options.run)
-    print result
+    print result,
     return
 
   for t in tests:
