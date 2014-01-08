@@ -256,7 +256,7 @@ void visitFunctionNode(FunctionNode * functionNode) {
 void visitReturnNode(ReturnNode * returnNode) {
   LOG("processing return node at " << returnNode->position());
   if (returnNode->returnExpr()) {
-    throw std::logic_error("NOT IMPLEMENTED");
+    returnNode->returnExpr()->visit(this);
   }
   addInstruction(BC_RETURN);
 }
