@@ -172,7 +172,7 @@ void interpreter::process_binary(Instruction insn)
     const T val1 = get_val<T>(stack_.top());
     stack_.pop();
 
-    const T res = process_binary_impl<T>(insn, val1, val2);
+    const T res = process_binary_impl(insn, val1, val2);
     stack_.push(create_val(res));
 }
 
