@@ -20,6 +20,13 @@ namespace mathvm {
     class DataBytecode : public Bytecode {
     public:
 
+        DataBytecode() {
+        }
+
+        DataBytecode(size_t size) {
+            _data.resize(size);
+        }
+
         int64_t popi() {
             return pop<int64_t>();
         }
@@ -64,23 +71,69 @@ namespace mathvm {
         }
 
         inline void dropToSize(size_t to) {
+//            if(_data.size() != to){
+//                size_t ooo = _data.size();
+//                cout << "FUCK YOU NOOB." << endl;
+//            }
+//            assert(_data.size() == to);
             _data.resize(to);
         }
-        
+
     };
 
-    struct FunctionContex {
-        map<uint16_t, double> dvars;
-        map<uint16_t, int64_t> ivars;
-        map<uint16_t, uint16_t> svars;
+    class FunctionContex {
+        double* ddata;
+        int64_t* idata;
+        uint16_t* sdata;
+
+    public:
+
+        inline FunctionContex(const BytecodeFunction* fun)  {
+            ddata = new double[fun->sizeDoubles];
+            idata = new int64_t[fun->sizeInts];
+            sdata = new uint16_t[fun->sizeStrings];
+        }
+
+        inline void setd(uint32_t id, double v) {
+            ddata[id] = v;
+        }
+
+        inline void seti(uint32_t id, int64_t v) {
+            idata[id] = v;
+        }
+
+        inline void sets(uint32_t id, uint16_t v) {
+            sdata[id] = v;
+        }
+
+        inline double getd(uint32_t id) {
+            return ddata[id];
+        }
+
+        inline int64_t geti(uint32_t id) {
+            return idata[id];
+        }
+
+        inline uint16_t gets(uint32_t id) {
+            return sdata[id];
+        }
+        
+        inline ~FunctionContex(){
+            delete[] ddata;
+            delete[] idata;
+            delete[] sdata;
+        }
+
     };
+
+    typedef map<uint16_t, FunctionContex*> OuterContexts;
 
     class BytecodeInterpretator {
         DataBytecode dstack;
         vector<const BytecodeFunction*> functions;
         vector<const string*> constants;
 
-        void execFunction(const BytecodeFunction* fun);
+        void execFunction(const BytecodeFunction* fun, OuterContexts contexts);
         void setRootVars(const BytecodeCode& code, vector<Var*>& vars);
 
         Status* execStatus;
@@ -88,6 +141,9 @@ namespace mathvm {
     public:
         Status* interpretate(const BytecodeCode& code, vector<Var*>& vars);
         ~BytecodeInterpretator();
+        
+        size_t callDepth;
+        
     };
 }
 

@@ -115,11 +115,12 @@ typedef enum {
 // there is the sense in order
 // low order type casts to higher one
 typedef enum {
-    VT_INT      = 1,
-    VT_DOUBLE   = 2,
-    VT_STRING   = 3,
-    VT_VOID     = 4,
-    VT_INVALID  = 5
+    VT_LOGIC    = 1, // It isn't BOOL. It is even not a real type.
+    VT_INT      = 2,
+    VT_DOUBLE   = 3,
+    VT_STRING   = 4,
+    VT_VOID     = 5,
+    VT_INVALID  = 6
 } VarType;
 
 inline VarType castTypes(VarType a, VarType b) {
@@ -133,6 +134,7 @@ inline VarType castTypes(VarType a, VarType b) {
         return VT_STRING;
     if(a == VT_INT || b == VT_INT)
         return VT_DOUBLE;
+    assert(false);
 }
 
 // Element 0 is return type.
@@ -272,6 +274,12 @@ public:
     }
     uint16_t id() const { return _id; }
     virtual void disassemble(ostream& out) const = 0;
+    
+    
+    size_t sizeDoubles;
+    size_t sizeInts;
+    size_t sizeStrings;
+    
 };
 
 class FunctionFilter {

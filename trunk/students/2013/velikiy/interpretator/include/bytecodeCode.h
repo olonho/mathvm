@@ -6,7 +6,7 @@
 #include "bytecode.h"
 
 namespace mathvm {
-
+    
     class BytecodeFunction : public TranslatedFunction {
         Bytecode _bytecode;
 
@@ -19,7 +19,7 @@ namespace mathvm {
         Bytecode* bytecode() {
             return &_bytecode;
         }
-        
+
         const Bytecode* bytecode() const {
             return &_bytecode;
         }
@@ -27,22 +27,23 @@ namespace mathvm {
         virtual void disassemble(ostream& out) const {
             _bytecode.dump(out);
         }
+
+
     };
 
     class BytecodeCode : public Code {
         map<string, uint16_t> globalVars_;
     public:
         virtual Status* execute(vector<Var*>& vars);
-        
-        
+
         inline map<string, uint16_t>* globalVars() {
             return &globalVars_;
         }
-        
+
         inline const map<string, uint16_t>* globalVars() const {
             return &globalVars_;
         }
-                
+
     };
 }
 

@@ -4,6 +4,7 @@ import subprocess
 import sys
 import os
 import optparse
+import time
 
 class Options:
   pass
@@ -12,8 +13,8 @@ options = Options()
 #options.executable = "./dist/Debug/GNU-Linux-x86/mymathvm"
 options.executable = "./dist/Release/GNU-Linux-x86/mymathvm"
 options.kind = 'debug'
-options.testdir = './tests'
-# options.testdir = './tests2'
+#options.testdir = './tests'
+options.testdir = './tests2'
 # options.testdir = './tests/additional'
 options.doublerun = False
 
@@ -59,6 +60,7 @@ diff = '/usr/bin/diff'
 
 def runTest(mvm, root, test, doublerun):
     try:
+        start = time.time()
         expectFile = None
         testFile = os.path.join(root, test+'.mvm')
         if doublerun:
@@ -75,7 +77,8 @@ def runTest(mvm, root, test, doublerun):
        
         if expect == result:
             # print 'Test "'+test+'" has PASSED'
-            print 'PASSED'
+            end = time.time()
+            print 'PASSED ' + str(end - start)
         else:
             print 'Test "'+test+'" has FAILED'
             print 'Expected: '           
@@ -91,7 +94,7 @@ def runTest(mvm, root, test, doublerun):
             print out
             exit(1)
     except Exception, e:
-	print test
+        print test
         print "Failed to execute the test " + test
         exit(1)
 

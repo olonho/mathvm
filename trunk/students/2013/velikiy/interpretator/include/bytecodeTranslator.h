@@ -26,8 +26,6 @@ namespace mathvm {
 
         virtual Status* translate(const string& program, Code** code);
         
-        
-
     };
 
     class BytecodeAstVisitor : public AstVisitor {
@@ -38,17 +36,18 @@ namespace mathvm {
         BytecodeFunction* currentFunction;
         Status* status;
         set<TokenKind> logicKinds;
+        set<TokenKind> logicCompareKinds;
         map<TokenKind, Instruction> logicKindToJump;
-        
+
     public:
 
         BytecodeAstVisitor(BytecodeCode* code_) : code(code_), status(NULL) {
-            logicKinds.insert(tEQ);
-            logicKinds.insert(tNEQ);
-            logicKinds.insert(tGT);
-            logicKinds.insert(tGE);
-            logicKinds.insert(tLT);
-            logicKinds.insert(tLE);
+            logicCompareKinds.insert(tEQ);
+            logicCompareKinds.insert(tNEQ);
+            logicCompareKinds.insert(tGT);
+            logicCompareKinds.insert(tGE);
+            logicCompareKinds.insert(tLT);
+            logicCompareKinds.insert(tLE);
             logicKinds.insert(tAND);
             logicKinds.insert(tOR);
 
@@ -70,16 +69,21 @@ namespace mathvm {
             setJump(falseIdUnsettedPos, to);
         }
         
+        inline void addJump(uint16_t to) {
+            addId(0);
+            setJump(current() - 2, to);
+        }
+
         inline void setJump(uint16_t jumpId, uint16_t to) {
             currentBytecode()->setInt16(jumpId, (uint16_t) to - jumpId);
         }
-        
+
         inline void addTypedSwap(VarType type) {
-            if(type == VT_INT)
+            if (type == VT_INT)
                 addInsn(BC_ISWAP);
-            if(type == VT_DOUBLE)
+            if (type == VT_DOUBLE)
                 addInsn(BC_DSWAP);
-            if(type == VT_STRING)
+            if (type == VT_STRING)
                 addInsn(BC_SSWAP);
         }
 
@@ -97,7 +101,7 @@ namespace mathvm {
 #undef VISITOR_FUNCTION
 
         void visitBinaryLogicOpNode(BinaryOpNode* node);
-        void visitAstFunction(AstFunction*);
+        void fillAstFunction(AstFunction*, BytecodeFunction*);
 
     private:
 
@@ -133,32 +137,45 @@ namespace mathvm {
         inline VarType topType() {
             return typesStack.top();
         }
-        
-        inline uint16_t findVarLocal(const string& name){
+
+        inline uint16_t findVarLocal(const string& name) {
             return findVar(name, true).second;
         }
-        
+
         pair<uint16_t, uint16_t> findVar(const string& name, bool onlyCurrentContext = false);
 
         void loadVar(const AstVar* var);
 
-        inline void ensureType(VarType td) {
-            ensureType(topType(), td);
+        inline void ensureType(VarType td, uint16_t truePos,
+                uint16_t falsePos) {
+            ensureType(topType(), td, truePos, falsePos);
         }
         
-        inline void ensureType(VarType ts, VarType td) {
-            addInsn(BC_INVALID);
-            ensureType(ts, td, current() - 1);
+        inline void addCastSpace() {
+            // check ensureType() after
+            addInsn(BC_INVALID); // basic cast
+//            addInsn(BC_INVALID); // or jump id
+//            addInsn(BC_INVALID); // if logic
+        }
+        
+        inline void ensureType(VarType ts, VarType td,
+                uint16_t truePos, uint16_t falsePos) {
+            addCastSpace();
+            // always look at addCastSpace()
+            ensureType(ts, td, current() - 1, truePos, falsePos);
         }
 
-        void ensureType(VarType ts, VarType td, uint32_t pos);
-        
-        
-        
+        void ensureType(VarType ts, VarType td, uint32_t pos,
+                uint16_t truePos, uint16_t falsePos);
+
+
+
         uint16_t currentContext; // aka function
         uint16_t trueIdUnsettedPos;
         uint16_t falseIdUnsettedPos;
         
+        
+
 
     };
 
