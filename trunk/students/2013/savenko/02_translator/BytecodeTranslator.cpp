@@ -370,6 +370,7 @@ Status getStatus() {
 
 private:
 void addInstruction(Instruction instruction) {
+  LOG("adding instruction: " << bytecodeName(instruction));
   bc()->addInsn(instruction);
 }
 
@@ -395,10 +396,12 @@ void addId(uint16_t id) {
 }
 
 void addInt(int64_t value) {
+  addInstruction(BC_ILOAD);
   bc()->addInt64(value);
 }
 
 void addDouble(double value) {
+  addInstruction(BC_DLOAD);
   bc()->addDouble(value);
 }
 
