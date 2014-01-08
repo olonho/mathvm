@@ -65,7 +65,7 @@ public:
   Var * getVariable(uint16_t scopeId, uint16_t varId) {
     if (scopeId >= _all_scopes->size()) return NULL;
     BytecodeScope * scope = (*_all_scopes)[scopeId];
-    if (scope->_variables.size() >= varId) return NULL;
+    if (varId >= scope->_variables.size()) return NULL;
     return scope->_variables[varId];
   }
   
@@ -105,7 +105,7 @@ public:
   }
   
   static bool isValidVarId(VarId varId) {
-    return !(varId.first == ID_MAX || varId.second == ID_MAX);
+    return !(varId.first >= ID_MAX || varId.second >= ID_MAX);
   }
 
 private:
@@ -321,11 +321,12 @@ void visitBlockNode(BlockNode * blockNode) {
 void visitFunctionNode(FunctionNode * functionNode) {
   LOG("generating code for function " << functionNode->name());
   BytecodeScope * childScope = _scope->createChildScope();
+  ScopedBytecodeGenerator codeGenerator(childScope, _scope->getFunction(functionNode->name()));
   for (uint32_t i = 0;  i != functionNode->parametersNumber(); ++i) {
     uint16_t varId = childScope->addVariable(functionNode->parameterName(i), functionNode->parameterType(i));
-    addStoreNonCtxVar(varId, functionNode->parameterType(i), functionNode->position());
+    codeGenerator.addStoreNonCtxVar(varId, functionNode->parameterType(i), functionNode->position());
   }
-  ScopedBytecodeGenerator(childScope, _scope->getFunction(functionNode->name())).visitBlockNode(functionNode->body());
+  codeGenerator.visitBlockNode(functionNode->body());
   //TODO validate generated code ?
 }
 
