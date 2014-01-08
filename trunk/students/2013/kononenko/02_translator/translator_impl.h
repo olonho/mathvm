@@ -19,6 +19,21 @@ struct translator_impl
 #undef VISITOR_FUNCTION
 
 private:
+    struct context_t
+    {
+        context_t(context_id_t id)
+            : id(id)
+        { }
+
+        context_id_t id;
+
+        typedef map<string, var_id_t> vars_t;
+        vars_t vars;
+
+        typedef map<string, function_id_t> functions_t;
+        functions_t functions;
+    };
+private:
     void init();
     void prepare(AstFunction *top);
 
@@ -29,6 +44,7 @@ private:
     std::pair<context_id_t, var_id_t> get_var_ids(AstVar const *var, bool store, bool *out_is_local);
 
     void add_context(Scope *scope, context_id_t id);
+    void prepare_scope(Scope *scope, context_t &dst_context, function_id_t fn_id);
     
     void load_tos_var(AstVar const *var);
     void store_tos_var(AstVar const *var);
@@ -38,6 +54,7 @@ private:
     function_id_t find_function(string const &name) const;
 
     void init_contexts(Scope *head, uint32_t depth = 0);
+    context_id_t new_context_id() const;
 
 private:
     Bytecode *bytecode()
@@ -45,20 +62,16 @@ private:
         return dst_code_->get_function_dst(dst_func_id_)->bytecode_dst();
     }
 
-    struct context_t
-    {
-        context_t(context_id_t id)
-            : id(id)
-        { }
-        
-        context_id_t id;
-        
-        typedef map<string, var_id_t> vars_t;
-        vars_t vars;
 
-        typedef map<string, function_id_t> functions_t;
-        functions_t functions;
-    };
+    context_t &current_context() 
+    {
+        return fn_contexts_.at(dst_func_id_);
+    }
+
+    const context_t &current_context() const
+    {
+        return fn_contexts_.at(dst_func_id_);
+    }
 
 private:
     VarType tos_type_;
@@ -71,9 +84,11 @@ private:
 
     bool return_;
     
-    typedef map<Scope const*, context_t> contexts_t;
-    contexts_t contexts_;
+    //typedef map<Scope const*, context_t> contexts_t;
+    //contexts_t contexts_;
 
+    map<function_id_t, context_t> fn_contexts_;
+    map<Scope const*, function_id_t> scope2fn_;
 
 };
 

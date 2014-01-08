@@ -170,9 +170,9 @@ void interpreter::process_load_val(T val)
 template<typename T>
 void interpreter::process_binary(Instruction insn)
 {
-    const T val1 = get_val<T>(stack_.top());
-    stack_.pop();
     const T val2 = get_val<T>(stack_.top());
+    stack_.pop();
+    const T val1 = get_val<T>(stack_.top());
     stack_.pop();
 
     const T res = process_binary_impl<T>(insn, val1, val2);
@@ -286,7 +286,12 @@ void interpreter::process_store_ctx()
 template<typename T>
 void interpreter::process_store_var(context_id_t context_id, var_id_t var_id)
 {
-    vars_.insert(std::make_pair(std::make_pair(context_id, var_id), stack_.top()));
+    const vars_t::key_type key = make_pair(context_id, var_id);
+    if (vars_.count(key) == 0)
+        vars_.insert(make_pair(key, stack_.top()));
+    else
+        vars_.at(key) = stack_.top();
+    
     stack_.pop();
 }
 
