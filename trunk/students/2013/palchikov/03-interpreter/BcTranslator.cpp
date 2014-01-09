@@ -70,6 +70,8 @@ void BcTranslator::visitFunctionDeclaration(AstFunction* node)
 
 	node->node()->visit(this);
 
+	bcFunction->setLocalsNumber(lastVarId);
+
 	currBytecode = saveBytecode;
 }
 
@@ -101,6 +103,7 @@ void BcTranslator::visitVariableDeclaration(AstVar* node)
 	} \
 	if (resType == VT_DOUBLE) { \
 		currBytecode->addInsn(BC_DLOAD0); \
+		currBytecode->addInsn(BC_SWAP); \
 		currBytecode->addInsn(BC_DCMP); \
 		resType = VT_INT; \
 	} \
@@ -108,6 +111,12 @@ void BcTranslator::visitVariableDeclaration(AstVar* node)
 
 #define COMPARE(cmp) \
 	visitNumBinOp(node); \
+	if (resType == VT_DOUBLE) { \
+		currBytecode->addInsn(BC_DLOAD0); \
+		currBytecode->addInsn(BC_SWAP); \
+		currBytecode->addInsn(BC_DCMP); \
+		resType = VT_INT; \
+	} \
 	Label ltrue(currBytecode); \
 	Label lend(currBytecode); \
 	currBytecode->addBranch(cmp, ltrue); \
@@ -119,7 +128,9 @@ void BcTranslator::visitVariableDeclaration(AstVar* node)
 
 void BcTranslator::visitBinaryOpNode(BinaryOpNode* node)
 {
-	switch (node->kind()) {
+	TokenKind op = node->kind();
+
+	switch (op) {
 	case tAND: {
 		IFLOGIC(node->left(), "invalid operand to && operator", else1, end1)
 			IFLOGIC(node->right(), "invalid operand to && operator", else2, end2)
@@ -495,6 +506,9 @@ void BcTranslator::visitFunctionNode(FunctionNode* node)
 
 void BcTranslator::visitReturnNode(ReturnNode* node)
 {
+	if (node->returnExpr()) {
+		node->returnExpr()->visit(this);
+	}
 	currBytecode->addInsn(BC_RETURN);
 }
 
@@ -631,39 +645,24 @@ void BcTranslator::visitNumBinOp(BinaryOpNode* node)
 	}
 	err += " operator";
 
-	node->left()->visit(this);
-	VarType leftType = resType;
-	if (!isNumType(leftType)) {
-		throw TranslateError(err, node->left()->position());
-	}
 	node->right()->visit(this);
 	VarType rightType = resType;
 	if (!isNumType(rightType)) {
 		throw TranslateError(err, node->right()->position());
 	}
+	node->left()->visit(this);
+	VarType leftType = resType;
+	if (!isNumType(leftType)) {
+		throw TranslateError(err, node->left()->position());
+	}
 
 	if (leftType == VT_INT && rightType == VT_DOUBLE) {
 		currBytecode->addInsn(BC_SWAP);
 		convertNum(VT_INT, VT_DOUBLE);
-		leftType = VT_DOUBLE;
-		op = invertCmpOp(op);
+		currBytecode->addInsn(BC_SWAP);
+		resType = VT_DOUBLE;
 	} else if (leftType == VT_DOUBLE && rightType == VT_INT) {
 		convertNum(VT_INT, VT_DOUBLE);
-		rightType = VT_DOUBLE;
+		resType = VT_DOUBLE;
 	}
-
-	if (leftType == VT_DOUBLE) {
-		currBytecode->addInsn(BC_DCMP);
-		currBytecode->addInsn(BC_ILOAD0);
-		op = invertCmpOp(op);
-	}
-}
-
-TokenKind BcTranslator::invertCmpOp(TokenKind op)
-{
-	if (op == tLT) op = tGT;
-	else if (op == tLE) op = tGE;
-	else if (op == tGT) op = tLT;
-	else if (op == tGE) op = tLE;
-	return op;
 }

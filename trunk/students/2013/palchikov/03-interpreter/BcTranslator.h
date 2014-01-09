@@ -40,7 +40,6 @@ private:
 	void convertNum(VarType from, VarType to);
 	void visitIntBinOp(BinaryOpNode* node);
 	void visitNumBinOp(BinaryOpNode* node);
-	TokenKind invertCmpOp(TokenKind op);
 
 	// Code implementation returned by translate()
 	CodeImpl* resultCode;
