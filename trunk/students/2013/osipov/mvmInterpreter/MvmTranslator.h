@@ -31,7 +31,7 @@ namespace mathvm {
         static Val define(VarMap& vars, uint16_t scopeId, AstVar* var) {
             return define(vars, scopeId, var -> name(), var -> type());
         }
-        
+
         static void unbound(VarMap& vars, Val const& v);
     };
 
@@ -112,7 +112,7 @@ namespace mathvm {
                 localVars.push_back(Val::define(vars, scopeId, vIt.next()));
             }
 
-            for(Scope::FunctionIterator fIt(node -> scope()); fIt.hasNext();) {
+            for (Scope::FunctionIterator fIt(node -> scope()); fIt.hasNext();) {
                 AstFunction* astFun = fIt.next();
                 Fun fun = {0, astFun -> node() -> signature(), 0, false};
                 if (astFun -> node() -> body() -> nodeAt(0) -> isNativeCallNode()) {
@@ -127,19 +127,44 @@ namespace mathvm {
                 funcs[astFun -> node() -> name()] = fun;
             }
 
-            for(Scope::FunctionIterator fIt(node -> scope()); fIt.hasNext();) {
+            for (Scope::FunctionIterator fIt(node -> scope()); fIt.hasNext();) {
                 fIt.next() -> node() -> visit(this);
             }
-            
+
             for (uint32_t i = 0; i < node -> nodes(); ++i) {
                 node -> nodeAt(i) -> visit(this);
             }
-            
+
             for (vector<Val>::iterator it = localVars.begin(); it != localVars.end(); ++it) {
                 Val::unbound(vars, *it);
             }
 
         }
+
+        virtual void visitStringLiteralNode(StringLiteralNode* node) {
+//            cout << "StringLiteralNode " << node -> literal() << endl;
+            uint16_t str = code -> makeStringConstant(node -> literal());
+            nextIns -> addInsn(BC_SLOAD);
+            nextIns -> addUInt16(str);
+            lastType = VT_STRING;
+        }
+
+        virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
+//            cout << "DoubleLiteralNode " << node->literal() << endl;
+            nextIns -> addInsn(BC_DLOAD);
+            nextIns -> addDouble(node -> literal());
+            lastType = VT_DOUBLE;
+        }
+
+        virtual void visitIntLiteralNode(IntLiteralNode* node) {
+//            cout << "IntLiteralNode " << node->literal() << endl;
+            nextIns -> addInsn(BC_ILOAD);
+            nextIns -> addInt64(node -> literal());
+            lastType = VT_INT;
+        }
+
+
+
     private:
 
         u_int16_t scopeId;
