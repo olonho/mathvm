@@ -172,6 +172,29 @@ void CodeImpl::executeBytecode(Bytecode* bc)
 			compStack.pop();
 			break;
 
+		case BC_LOADIVAR:
+		case BC_LOADDVAR:
+		case BC_LOADSVAR:
+			// these codes are not used by translator
+			// just a stub
+			varId = bc->getUInt16(ip + 1);
+			ip += sizeof(uint16_t);
+
+			val = args[varId];
+			compStack.push(val);
+			break;
+
+		case BC_STOREIVAR:
+		case BC_STOREDVAR:
+		case BC_STORESVAR:
+			varId = bc->getUInt16(ip + 1);
+			ip += sizeof(uint16_t);
+
+			val = compStack.top();
+			compStack.pop();
+			args.push_back(val);
+			break;
+
 		case BC_LOADCTXIVAR:
 		case BC_LOADCTXDVAR:
 		case BC_LOADCTXSVAR:
@@ -240,8 +263,16 @@ void CodeImpl::executeBytecode(Bytecode* bc)
 			return;
 
 		case BC_CALL:
-			executeBytecode(((BytecodeFunction*)functionById(bc->getUInt16(ip + 1)))->bytecode());
+			ctxId = bc->getUInt16(ip + 1);
 			ip += sizeof(uint16_t);
+
+			contexts[ctxId].push(args);
+			args.clear();
+
+			executeBytecode(((BytecodeFunction*)functionById(ctxId))->bytecode());
+
+			contexts[ctxId].pop();
+			break;
 
 		default:
 			// unimplemented
