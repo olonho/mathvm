@@ -10,9 +10,7 @@ public:
   virtual ~InterpreterCodeImpl() {
   }
 
-  virtual Status* execute(std::vector<Var*> & vars) {
-    return 0;
-  }
+  virtual Status* execute(std::vector<Var*> & vars);
 };
 
 }

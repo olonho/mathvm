@@ -702,12 +702,13 @@ Status* BytecodeTranslatorImpl::translate(std::string const & program, Code** co
   Code * translatedCode = new InterpreterCodeImpl;
   BytecodeScope rootScope(translatedCode); 
   rootScope.addFunction(new BytecodeFunction(parser.top()));
-  ScopedBytecodeGenerator(&rootScope, NULL).visitFunctionNode(parser.top()->node());
+  ScopedBytecodeGenerator codeGen(&rootScope, NULL);
+  codeGen.visitFunctionNode(parser.top()->node());
   
   LOG("TRANSLATION IS COMPLETE");
-  //TODO check if everything's fine before setting code
+ 
   *code = translatedCode;
-  return new Status;
+  return new Status(codeGen.getStatus());
 }
 
 }
