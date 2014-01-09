@@ -528,7 +528,6 @@ void BcTranslator::visitCallNode(CallNode* node)
 		VarType argType = arg->type();
 		CustomData* data = (CustomData*)arg->info();
 		uint16_t id = data->id;
-		uint16_t scopeId = data->scopeId;
 
 		if (argType == VT_INT && resType == VT_DOUBLE) {
 			convertNum(VT_DOUBLE, VT_INT);
@@ -537,15 +536,14 @@ void BcTranslator::visitCallNode(CallNode* node)
 		}
 
 		if (argType == VT_INT && resType == VT_INT) {
-			currBytecode->addInsn(BC_STORECTXIVAR);
+			currBytecode->addInsn(BC_STOREIVAR);
 		} else if (argType == VT_DOUBLE && resType == VT_DOUBLE) {
-			currBytecode->addInsn(BC_STORECTXDVAR);
+			currBytecode->addInsn(BC_STOREDVAR);
 		} else if (argType == VT_STRING && resType == VT_STRING) {
-			currBytecode->addInsn(BC_STORECTXSVAR);
+			currBytecode->addInsn(BC_STORESVAR);
 		} else {
 			throw TranslateError("argument type mismatch", node->position());
 		}
-		currBytecode->addUInt16(scopeId);
 		currBytecode->addUInt16(id);
 	}
 
