@@ -12,7 +12,6 @@
 #include <cstdlib>
 #include <tr1/memory>
 
-
 #include "mathvm.h"
 #include "ast.h"
 
@@ -20,16 +19,22 @@ namespace mathvm {
     using namespace std;
 
     struct VarMap;
-    
+
     struct Val {
         u_int16_t id;
         VarType type;
         string name;
         u_int16_t scopeId;
 
-        static Val define(AstNode* node, VarMap& vars, uint16_t scopeId, string const& name, VarType type);
+        static Val define(VarMap& vars, uint16_t scopeId, string const& name, VarType type);
+
+        static Val define(VarMap& vars, uint16_t scopeId, AstVar* var) {
+            return define(vars, scopeId, var -> name(), var -> type());
+        }
+        
+        static void unbound(VarMap& vars, Val const& v);
     };
-    
+
     struct Fun {
         u_int16_t id;
         Signature sign;
@@ -87,6 +92,67 @@ namespace mathvm {
 
         virtual Status* translate(const string& program, Code**code);
     };
+
+    class MvmTranslateVisitor : public AstVisitor {
+    public:
+
+        void accept(uint16_t _scopeId, MvmBytecode* _code, Bytecode* _nextIns, FunMap& _funcs, VarMap& _vars, VarType _returnType, BlockNode* node) {
+            scopeId = _scopeId;
+            code = _code;
+            nextIns = _nextIns;
+            vars = _vars;
+            funcs = _funcs;
+            returnType = _returnType;
+            lastType = VT_INVALID;
+
+            vector<Val> localVars;
+
+            Scope::VarIterator vIt(node -> scope());
+            while (vIt.hasNext()) {
+                localVars.push_back(Val::define(vars, scopeId, vIt.next()));
+            }
+
+            for(Scope::FunctionIterator fIt(node -> scope()); fIt.hasNext();) {
+                AstFunction* astFun = fIt.next();
+                Fun fun = {0, astFun -> node() -> signature(), 0, false};
+                if (astFun -> node() -> body() -> nodeAt(0) -> isNativeCallNode()) {
+                    NativeCallNode* native = (NativeCallNode*) astFun -> node() -> body() -> nodeAt(0);
+                    fun.id = code -> makeNativeFunction(native -> nativeName(), native -> nativeSignature(), 0);
+                    fun.isNative = true;
+                } else {
+                    BytecodeFunction* bcFun = new BytecodeFunction(astFun);
+                    fun.id = _code -> addFunction(bcFun);
+                    fun.body = bcFun -> bytecode();
+                }
+                funcs[astFun -> node() -> name()] = fun;
+            }
+
+            for(Scope::FunctionIterator fIt(node -> scope()); fIt.hasNext();) {
+                fIt.next() -> node() -> visit(this);
+            }
+            
+            for (uint32_t i = 0; i < node -> nodes(); ++i) {
+                node -> nodeAt(i) -> visit(this);
+            }
+            
+            for (vector<Val>::iterator it = localVars.begin(); it != localVars.end(); ++it) {
+                Val::unbound(vars, *it);
+            }
+
+        }
+    private:
+
+        u_int16_t scopeId;
+        MvmBytecode* code;
+        Bytecode* nextIns;
+        VarMap vars;
+        FunMap funcs;
+        VarType returnType;
+        VarType lastType;
+
+    };
+
+
 
 }
 
