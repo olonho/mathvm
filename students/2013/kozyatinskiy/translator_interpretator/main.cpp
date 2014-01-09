@@ -2,12 +2,29 @@
 #include <iostream>
 #include <fstream>
 #include <iterator>
+#include <ctime>
 
 #include <parser.h>
 #include <ast.h>
 
-#include "PrintVisitor.h"
-#include "MyInterpreter.h"
+#include "CompilerVisitor.h"
+#include "StackVisitor.h"
+#include "Interpreter.h"
+
+/*
+my vm have fake registers:
+op1, op2 - for binary, unary operations, if expression
+eax - for return value
+ebp - current frame base pointer
+esp - current top of stack
+
+IVAR0 - eax
+DVAR0 - eax
+SVAR0 - eax
+
+IVAR1 - ebp
+IVAR2 - esp
+*/
 
 using namespace mathvm;
 
@@ -24,8 +41,6 @@ int main(int argc, char* argv[])
 	input.unsetf(std::ios_base::skipws);
 	std::copy(std::istream_iterator<char>(input), std::istream_iterator<char>(), std::back_inserter(source_code));
 
-//	std::cout << source_code << std::endl;
-
 	Parser parser;
 	if (Status* s = parser.parseProgram(source_code))
 	{
@@ -33,28 +48,23 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 
-	AstFunction* top = parser.top();
+	AstFunction* f = parser.top();
 
-	MyProgram p;
-	PrintVisitor node_printer(std::cout, &p);
-	try
-	{
-		node_printer.process(top);
-		//p.dump(cout);
-		p.removeAllLabels();
-		//cout << "--------" << endl;
-		//p.dump(cout);
-		MyBytecode* bc = p.link();
-		//cout << "--------" << endl;
-		//bc->dump(cout);
+	StackVisitor sv;
+	sv.callStartFunction(f);
 
-		//cout << "------" << endl;
-		MyInterpreter interpreter(bc);
-		interpreter.run();
-	}
-	catch(const std::logic_error& e)
-	{
-		std::cout << e.what() << std::endl;
-	}
+	CompilerVisitor compiler;
+	compiler.visitStartFunction(f, sv.result());
+
+	const vector<Bytecode>& functions = compiler.bytecodes();
+	//for (size_t i = 0; i < functions.size(); ++i)
+	//{
+	//	cout << "function " << i << endl;
+	//	functions[i].dump(std::cout);
+	//}
+
+	Interpreter i;
+	i.execute(functions, compiler.literals());
+
 	return 0;
 }
