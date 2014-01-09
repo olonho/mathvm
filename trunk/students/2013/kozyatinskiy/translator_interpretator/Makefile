@@ -1,18 +1,16 @@
 ROOT   = .
 VM_ROOT = ../../../../
 
+OPT = 1
+
 USER_OBJ = \
 	$(OBJ)/main$(OBJ_SUFF) \
-	$(OBJ)/MyBytecode$(OBJ_SUFF) \
-	$(OBJ)/MyFuncScope$(OBJ_SUFF) \
-	$(OBJ)/MyInstruction$(OBJ_SUFF) \
-	$(OBJ)/MyInterpreter$(OBJ_SUFF) \
-	$(OBJ)/MyMemoryManager$(OBJ_SUFF) \
-	$(OBJ)/MyProgram$(OBJ_SUFF) \
-	$(OBJ)/MyTypeStack$(OBJ_SUFF) \
-	$(OBJ)/MyVarScope$(OBJ_SUFF) \
-	$(OBJ)/PrintVisitor$(OBJ_SUFF) \
-	$(OBJ)/StringStorage$(OBJ_SUFF)
+	$(OBJ)/CallStack$(OBJ_SUFF) \
+	$(OBJ)/CompilerVisitor$(OBJ_SUFF) \
+	$(OBJ)/Interpreter$(OBJ_SUFF) \
+	$(OBJ)/StackLayout$(OBJ_SUFF) \
+	$(OBJ)/StackVisitor$(OBJ_SUFF) \
+	$(OBJ)/VarsUtil$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
