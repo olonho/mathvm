@@ -142,7 +142,7 @@ namespace mathvm {
         }
 
         virtual void visitStringLiteralNode(StringLiteralNode* node) {
-//            cout << "StringLiteralNode " << node -> literal() << endl;
+            //            cout << "StringLiteralNode " << node -> literal() << endl;
             uint16_t str = code -> makeStringConstant(node -> literal());
             nextIns -> addInsn(BC_SLOAD);
             nextIns -> addUInt16(str);
@@ -150,17 +150,33 @@ namespace mathvm {
         }
 
         virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
-//            cout << "DoubleLiteralNode " << node->literal() << endl;
+            //            cout << "DoubleLiteralNode " << node->literal() << endl;
             nextIns -> addInsn(BC_DLOAD);
             nextIns -> addDouble(node -> literal());
             lastType = VT_DOUBLE;
         }
 
         virtual void visitIntLiteralNode(IntLiteralNode* node) {
-//            cout << "IntLiteralNode " << node->literal() << endl;
+            //            cout << "IntLiteralNode " << node->literal() << endl;
             nextIns -> addInsn(BC_ILOAD);
             nextIns -> addInt64(node -> literal());
             lastType = VT_INT;
+        }
+
+        virtual void visitPrintNode(PrintNode* node) {
+            //            cout << "PrintCallNode" << endl;
+            for (uint32_t i = 0; i < node -> operands(); ++i) {
+                node -> operandAt(i) -> visit(this);
+                switch (lastType) {
+                    case VT_STRING: nextIns -> addInsn(BC_SPRINT);
+                        break;
+                    case VT_DOUBLE: nextIns -> addInsn(BC_DPRINT);
+                        break;
+                    case VT_INT: nextIns -> addInsn(BC_IPRINT);
+                        break;
+                    default: throw std::runtime_error("Can't print expression of this type");
+                }
+            }
         }
 
 
