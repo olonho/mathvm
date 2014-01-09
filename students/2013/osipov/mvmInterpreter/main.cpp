@@ -15,7 +15,7 @@ using namespace std;
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        cerr << "Usage: " << argv[0] << "/path/to/program.mvm" << endl;
+        cerr << "Usage: " << argv[0] << "   /path/to/program.mvm" << endl;
         return 1;
     }
 
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
         delete translator;
         return 1;
     }
-
+    code -> disassemble(cout);
     delete translator;
     delete code;
     return 0;
