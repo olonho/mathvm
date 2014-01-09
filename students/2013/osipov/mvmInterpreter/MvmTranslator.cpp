@@ -4,7 +4,23 @@
 
 using namespace mathvm;
 
+void scopeEnter(Bytecode* nextIns, uint16_t scopeId) {
+    nextIns -> addInsn(BC_ILOAD1);
+    nextIns -> addInsn(BC_LOADIVAR);
+    nextIns -> addUInt16(scopeId);
+    nextIns -> addInsn(BC_IADD);
+    nextIns -> addInsn(BC_STOREIVAR);
+    nextIns -> addUInt16(scopeId);
+}
 
+void scopeExit(Bytecode* nextIns, uint16_t scopeId) {
+    nextIns -> addInsn(BC_LOADIVAR);
+    nextIns -> addUInt16(scopeId);
+    nextIns -> addInsn(BC_ILOADM1);
+    nextIns -> addInsn(BC_IADD);
+    nextIns -> addInsn(BC_STOREIVAR);
+    nextIns -> addUInt16(scopeId);
+}
 
 MvmTranslator::MvmTranslator() {
 }
@@ -23,6 +39,20 @@ void Val::store(Bytecode* dst) {
     dst -> addUInt16(id);
 }
 
+void Val::load(Bytecode* dst) {
+    switch (type) {
+        case VT_STRING: dst -> addInsn(BC_LOADCTXSVAR);
+            break;
+        case VT_DOUBLE: dst -> addInsn(BC_LOADCTXDVAR);
+            break;
+        case VT_INT: dst -> addInsn(BC_LOADCTXIVAR);
+            break;
+        default: throw std::runtime_error("Can't load val of this type");
+    }
+    dst -> addUInt16(scopeId);
+    dst -> addUInt16(id);
+}
+
 Val Val::define(VarMap& vars, uint16_t scopeId, string const& name, VarType type) {
     if (uint16_t(*vars.nextId + 1) < *vars.nextId) {
         throw std::runtime_error("Too many variables");
@@ -32,14 +62,28 @@ Val Val::define(VarMap& vars, uint16_t scopeId, string const& name, VarType type
     return val;
 }
 
-void Val::unbound(VarMap& vars, Val const& v) {
-    VarMap::iterator vmIt = vars.varMap.find(v.name);
+Val Val::fromScope(const VarMap& vars, const string& name) {
+    VarMap::c_iterator vmIt = vars.varMap.find(name);
+    if (vmIt == vars.varMap.end()) {
+        throw runtime_error("Variable not found!");
+    }
+    for (vector<Val>::const_reverse_iterator vIt = vmIt -> second.rbegin(); vIt != vmIt -> second.rend(); ++vIt) {
+        return *vIt;
+    }
+    throw runtime_error("Variable not found!");
+}
+
+void Val::unbound(VarMap& vars) {
+    VarMap::iterator vmIt = vars.varMap.find(name);
     if (vmIt == vars.varMap.end()) {
         throw std::runtime_error("Can't find variable");
     }
     for (vector<Val>::iterator vIt = vmIt -> second.begin(); vIt != vmIt -> second.end(); ++vIt) {
-        if (vIt -> scopeId == v.scopeId) vmIt -> second.erase(vIt);
+        if (vIt -> scopeId == scopeId) {
+            vmIt -> second.erase(vIt);
+        }
         return;
+
     }
     throw std::runtime_error("Can't find variable");
 }
