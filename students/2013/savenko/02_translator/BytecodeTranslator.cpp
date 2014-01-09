@@ -45,6 +45,10 @@ public:
     _variables_map[name] = newId;
     return newId;
   }
+  
+  uint16_t ownVarsCount() const {
+    return _variables.size();
+  }
 
   uint16_t id() const {
     return _id;
@@ -325,13 +329,14 @@ void visitBlockNode(BlockNode * blockNode) {
 void visitFunctionNode(FunctionNode * functionNode) {
   LOG("generating code for function " << functionNode->name());
   BytecodeScope * childScope = _scope->createChildScope();
-  ScopedBytecodeGenerator codeGenerator(childScope, _scope->getFunction(functionNode->name()));
+  BytecodeFunction * function = _scope->getFunction(functionNode->name());
+  ScopedBytecodeGenerator codeGenerator(childScope, function);
   for (uint32_t i = 0;  i != functionNode->parametersNumber(); ++i) {
     uint16_t varId = childScope->addVariable(functionNode->parameterName(i), functionNode->parameterType(i));
     codeGenerator.addStoreNonCtxVar(varId, functionNode->parameterType(i), functionNode->position());
   }
   codeGenerator.visitBlockNode(functionNode->body());
-  //TODO validate generated code ?
+  function->setLocalsNumber(childScope->ownVarsCount());
 }
 
 void visitReturnNode(ReturnNode * returnNode) {
