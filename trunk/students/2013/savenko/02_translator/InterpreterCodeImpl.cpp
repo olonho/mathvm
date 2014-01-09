@@ -11,15 +11,15 @@ public:
 Value() : _type(VT_INVALID), _type_ptr(0) {
 }
 
-Value(int64_t intValue) {
+Value(int64_t intValue) : _type(VT_INT), _type_ptr(&_type) {
   setInt(intValue);
 }
 
-Value(double doubleValue) {
+Value(double doubleValue) : _type(VT_DOUBLE), _type_ptr(&_type) {
   setDouble(doubleValue);
 }
 
-Value(char const * stringValue) {
+Value(char const * stringValue) : _type(VT_STRING), _type_ptr(&_type) {
   setString(stringValue);
 }
 
@@ -54,8 +54,8 @@ char const * getString() const {
 }
 
 void setType(VarType type) {
-  if (_type_ptr && type != _type) {
-    throw std::runtime_error("Value type cannot be changed");
+  if (_type_ptr) {
+    ensureType(type);
   } else { 
     _type = type;
     _type_ptr = &_type;
@@ -264,12 +264,12 @@ private:
         case BC_DCMP: cmp<double>(); break;
         case BC_ICMP: cmp<int64_t>(); break;
         case BC_JA: jump(); break;
-        case BC_IFICMPNE: cmp<int64_t>(); jumpIf(pop().getInt()); break;
-        case BC_IFICMPE: cmp<int64_t>(); jumpIf(!pop().getInt()); break;
-        case BC_IFICMPG: cmp<int64_t>(); jumpIf(pop().getInt() < 0); break;
-        case BC_IFICMPGE: cmp<int64_t>(); jumpIf(pop().getInt() <= 0); break;
-        case BC_IFICMPL: cmp<int64_t>(); jumpIf(pop().getInt() > 0); break;
-        case BC_IFICMPLE: cmp<int64_t>(); jumpIf(pop().getInt() >= 0); break;
+        case BC_IFICMPNE: jumpIf(cmp<int64_t>(false)); break;
+        case BC_IFICMPE: jumpIf(!cmp<int64_t>(false)); break;
+        case BC_IFICMPG: jumpIf(cmp<int64_t>(false) < 0); break;
+        case BC_IFICMPGE: jumpIf(cmp<int64_t>(false) <= 0); break;
+        case BC_IFICMPL: jumpIf(cmp<int64_t>(false) > 0); break;
+        case BC_IFICMPLE: jumpIf(cmp<int64_t>() >= 0); break;
         //DUMP is not used
         //STOP is not used
         case BC_CALL: call(); break;

@@ -15,7 +15,9 @@ using namespace mathvm;
 bool ensureOkStatus(Status * status) {
   bool isOk = true;
   if (status && status->isError()) {
-    std::cerr << "Error at " << status->getPosition() << ":" << std::endl;
+    if (Status::INVALID_POSITION != status->getPosition()) {
+      std::cerr << "Error at " << status->getPosition() << ":" << std::endl;
+    }
     std::cerr << status->getError() << std::endl;
     isOk = false;
   }
@@ -32,8 +34,8 @@ void runTranslator(std::string const & programText) {
     goto cleanup;
   }
   
+  code->disassemble(); 
   ensureOkStatus(code->execute(params));
-  //code->disassemble();
 
   cleanup:
   delete code;
