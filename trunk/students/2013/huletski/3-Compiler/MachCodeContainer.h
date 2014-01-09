@@ -37,6 +37,7 @@ public:
   virtual ~MachCodeContainer() {}
   virtual Status* execute(vector<Var*>& vars) {
     void (*program)() = function_cast<void (*)(void)>(m_asm_code);
+    assert(program && "Unable to get compiled program");
     program();
     //TODO: make status descriptive
     return NULL;
@@ -50,6 +51,7 @@ public:
   GeneratedMCF(BytecodeFunction* bc_func):
     TranslatedFunction(bc_func->name(), bc_func->signature()) {
     m_code = NULL;
+    m_ajFunc = 0;
   }
 
   void initECall(ECall *call) {

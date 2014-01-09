@@ -1,7 +1,8 @@
 ROOT   = .
 VM_ROOT = ./../../../..
 
-OPT=1
+WITH_SDL=true
+OPT=true
 
 USER_OBJ = \
    $(OBJ)/AstToMCConverter$(OBJ_SUFF)\

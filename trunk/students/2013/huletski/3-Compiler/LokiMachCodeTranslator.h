@@ -31,6 +31,8 @@ public: // methods
     AstInfoExtractor extractor(&converter);
     extractor.handle_function_definition(top_function);
     //std::cout << "------------------------------" << std::endl;
+    if (converter.errorStatus()) { return converter.errorStatus(); }
+    
     converter.convert(extractor.functions(), extractor.functions().size());
      
     *code = converter.code();
