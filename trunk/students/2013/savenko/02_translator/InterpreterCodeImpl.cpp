@@ -165,12 +165,16 @@ uint16_t nextId() {
   return nextTyped<uint16_t>();
 }
 
+int16_t nextOffset() {
+  return nextTyped<int16_t>();
+}
+
 bool isInstructionPointerValid() const {
   return _instruction_pointer < _bc->length();
 }
 
-void jump(uint16_t offset) {
-  _instruction_pointer = offset;
+void jump(int16_t offset) {
+  _instruction_pointer += offset;
 }
 
 private:
@@ -343,14 +347,15 @@ private:
   }
   
   void jump() {
-    ctx().jump(ctx().nextId());
+    int16_t offset = ctx().nextOffset();
+    ctx().jump(offset - sizeof(offset));
   }
   
   void jumpIf(bool what) {
     if (what) {
       jump();
     } else {
-      ctx().nextId();
+      ctx().nextOffset();
     }
   }
 
