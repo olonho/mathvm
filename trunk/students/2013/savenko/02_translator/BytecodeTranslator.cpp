@@ -351,25 +351,28 @@ void visitReturnNode(ReturnNode * returnNode) {
   LOG("processing return node at " << returnNode->position());
   if (returnNode->returnExpr()) {
     returnNode->returnExpr()->visit(this);
+    addCastTo(_current_function->returnType(), returnNode->position());
   }
   addInstruction(BC_RETURN);
 }
 
 void visitCallNode(CallNode * callNode) {
   LOG("processing call node at " << callNode->position());
+  
+  uint16_t functionId = _scope->resolveFunction(callNode->name());
+  BytecodeFunction * function = _scope->getFunction(callNode->name());
+  if (functionId >= ID_MAX || !function) {
+    abort(std::string("Unresolved function: ") + callNode->name() + ".", callNode->position());
+    return;
+  }
   for (uint32_t i = callNode->parametersNumber(); i > 0; --i) {
     callNode->parameterAt(i - 1)->visit(this);
+    addCastTo(function->parameterType(i - 1), callNode->parameterAt(i - 1)->position());
   }
-  uint16_t functionId = _scope->resolveFunction(callNode->name());
-  if (functionId < ID_MAX) {
-    addInstruction(BC_CALL);
-    addId(functionId);
-    BytecodeFunction * function = _scope->getFunction(callNode->name());
-    if (functionReturns(function)) {
-      _last_expression_type = function->returnType();
-    }
-  } else {
-    abort(std::string("Unresolved function: ") + callNode->name() + ".", callNode->position());
+  addInstruction(BC_CALL);
+  addId(functionId);
+  if (functionReturns(function)) {
+    _last_expression_type = function->returnType();
   }
 }
 
