@@ -7,13 +7,25 @@ using namespace mathvm;
 MvmTranslator::MvmTranslator() {
 }
 
-Val Val::define(AstNode* scope, VarMap& vars, uint16_t scopeId, string const& name, VarType type) {
+Val Val::define(VarMap& vars, uint16_t scopeId, string const& name, VarType type) {
     if (uint16_t(*vars.nextId + 1) < *vars.nextId) {
-        throw "Too many variables";
+        throw std::runtime_error("Too many variables");
     }
-    Val val = {++(*vars.nextId), type, name,  scopeId};
+    Val val = {++(*vars.nextId), type, name, scopeId};
     vars.varMap[name].push_back(val);
     return val;
+}
+
+void Val::unbound(VarMap& vars, Val const& v) {
+    VarMap::iterator vmIt = vars.varMap.find(v.name);
+    if (vmIt == vars.varMap.end()) {
+        throw std::runtime_error("Can't find variable");
+    }
+    for (vector<Val>::iterator vIt = vmIt -> second.begin(); vIt != vmIt -> second.end(); ++vIt) {
+        if (vIt -> scopeId == v.scopeId) vmIt -> second.erase(vIt);
+        return;
+    }
+    throw std::runtime_error("Can't find variable");
 }
 
 Status* MvmTranslator::translate(const string& program, Code**code) {
@@ -26,9 +38,9 @@ Status* MvmTranslator::translate(const string& program, Code**code) {
     *code = bcode;
     VarMap varMap;
     FunMap funMap;
-    Val scopeId = Val::define(parser.top() -> node() -> body(), varMap, 0, "$scopeId", VT_INT);
+    Val scopeId = Val::define(varMap, 0, "$scopeId", VT_INT);
     try {
-        //visitor
+        MvmTranslateVisitor().accept(scopeId.id, bcode, bcode -> getBytecode(), funMap, varMap, VT_VOID, parser.top() -> node() -> body());
     } catch (std::exception e) {
         return new Status(e.what());
     }
