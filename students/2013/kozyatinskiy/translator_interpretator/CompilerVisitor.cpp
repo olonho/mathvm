@@ -1,6 +1,8 @@
 #include "CompilerVisitor.h"
 
 #include <stdexcept>
+#include <limits>
+#include <cmath>
 
 #include "VarsUtil.h"
 
@@ -54,7 +56,7 @@ void CompilerVisitor::visitStartFunction(AstFunction* f, const map<AstFunction*,
 }
 
 
-const vector<Bytecode>& CompilerVisitor::bytecodes() const
+const vector<Bytecode_>& CompilerVisitor::bytecodes() const
 {
 	return bytecodes_;
 }
@@ -74,7 +76,7 @@ void CompilerVisitor::visitFunctionNode(FunctionNode* function)
 	functionId_[function->name()] = lastFunction_;
 	//cout << lastFunction_ << ":" << function->name() << endl;
 
-	bytecodes_.push_back(Bytecode());
+	bytecodes_.push_back(Bytecode_());
 	callStacks_.push_back(StackLayout(function->signature(), function->name(), lastFunction_, captured_[lastAstFunction_]));
 	parent_ = &callStacks_.back();
 
@@ -130,11 +132,15 @@ void CompilerVisitor::visitBlockNode(BlockNode* block)
 	// remove all local variables from layout
 
 	// hm =/
-	bc.add(PUSH_ESP);
-	bc.add(BC_ILOAD);
-	bc.addInt64(parametersSize);
-	bc.add(BC_ISUB);
-	bc.add(POP_ESP);
+	if (parametersSize)
+	{
+		bc.add(PUSH_ESP);
+		bc.add(BC_ILOAD);
+		bc.addInt64(parametersSize);
+		bc.add(BC_ISUB);
+		bc.add(POP_ESP);
+	}
+
 	sl.remLocalVars(block->scope()->variablesCount());
 
 	scopeStack_.pop_back();
@@ -231,11 +237,14 @@ void CompilerVisitor::visitCallNode(CallNode* callNode)
 	bc.add(BC_CALL);
 	bc.addInt16(functionId_[callNode->name()]);
 
-	bc.add(PUSH_ESP);
-	bc.add(BC_ILOAD);
-	bc.addInt64(parametersSize);
-	bc.add(BC_ISUB);
-	bc.add(POP_ESP);
+	if (parametersSize)
+	{
+		bc.add(PUSH_ESP);
+		bc.add(BC_ILOAD);
+		bc.addInt64(parametersSize);
+		bc.add(BC_ISUB);
+		bc.add(POP_ESP);
+	}
 
 	VarType returnType = f->node()->signature().front().first;
 	if (returnType != VT_VOID)
@@ -251,8 +260,15 @@ void CompilerVisitor::visitDoubleLiteralNode(DoubleLiteralNode* doubleLiteral)
 	Bytecode&    bc = bytecodes_[lastFunction_];
 	StackLayout& sl = callStacks_[lastFunction_];
 
-	bc.add(BC_DLOAD);
-	bc.addDouble(doubleLiteral->literal());
+	if (abs(doubleLiteral->literal()) < std::numeric_limits<double>::epsilon())
+	{
+		bc.add(BC_DLOAD0);
+	}
+	else
+	{
+		bc.add(BC_DLOAD);
+		bc.addDouble(doubleLiteral->literal());
+	}
 
 	sl.pushLocalVar(make_pair(VT_DOUBLE, ""));
 }
@@ -352,9 +368,24 @@ void CompilerVisitor::visitIntLiteralNode(IntLiteralNode* intLiteral)
 	Bytecode&    bc = bytecodes_[lastFunction_];
 	StackLayout& sl = callStacks_[lastFunction_];
 
-	bc.add(BC_ILOAD);
-	bc.addInt64(intLiteral->literal());
+	switch (intLiteral->literal())
+	{
+	case 0:
+		bc.add(BC_ILOAD0);
+		break;
 
+	case 1:
+		bc.add(BC_ILOAD1);
+		break;
+
+	case -1:
+		bc.add(BC_ILOADM1);
+		break;
+
+	default:
+		bc.add(BC_ILOAD);
+		bc.addInt64(intLiteral->literal());
+	}
 	sl.pushLocalVar(make_pair(VT_INT, ""));
 }
 
@@ -375,6 +406,8 @@ void CompilerVisitor::visitLoadNode(LoadNode* loadNode)
 void CompilerVisitor::visitNativeCallNode(NativeCallNode* nativeCall)
 {
 	Bytecode&    bc = bytecodes_[lastFunction_];
+
+	throw std::runtime_error("native call not implemented yet");
 
 	// todo: implement parameters cast
 	// todo: implement more info in literal

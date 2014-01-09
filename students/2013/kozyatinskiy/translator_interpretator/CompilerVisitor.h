@@ -12,13 +12,20 @@ using namespace mathvm;
 
 #include "StackLayout.h"
 
+class Bytecode_ : public Bytecode {
+public:
+    uint8_t * getData() {
+        return _data.data();
+    }
+};
+
 class CompilerVisitor : public AstVisitor
 {
 public:
 	CompilerVisitor();
 
 	void visitStartFunction(AstFunction* f, const map<AstFunction*, set<pair<VarType, string> > >& captured_);
-	const vector<Bytecode>& bytecodes() const;
+	const vector<Bytecode_>& bytecodes() const;
 	const vector<string>& literals() const;
 
 private:
@@ -40,7 +47,7 @@ private:
 	virtual void visitWhileNode(WhileNode* whileNode);
 
 private:
-	vector<Bytecode>    bytecodes_;
+	vector<Bytecode_>    bytecodes_;
 	vector<StackLayout> callStacks_;
 	vector<string>      stringLiterals;
 
