@@ -34,7 +34,7 @@ void runTranslator(std::string const & programText) {
     goto cleanup;
   }
   
-  code->disassemble(); 
+  //code->disassemble(); 
   ensureOkStatus(code->execute(params));
 
   cleanup:
