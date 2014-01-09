@@ -12,20 +12,28 @@
 
 using namespace mathvm;
 
+bool ensureOkStatus(Status * status) {
+  bool isOk = true;
+  if (status && status->isError()) {
+    std::cerr << "Error at " << status->getPosition() << ":" << std::endl;
+    std::cerr << status->getError() << std::endl;
+    isOk = false;
+  }
+  delete status;
+  return isOk;
+}
+
 void runTranslator(std::string const & programText) {
   std::auto_ptr<Translator> translator(new BytecodeTranslatorImpl);
   Code * code = NULL;
+  std::vector<Var *> params;
   
-  std::auto_ptr<Status> status(translator->translate(programText, &code));
-
-  if (status.get() != NULL && status->isError()) {
-    std::cerr << "Error at " << status->getPosition() << ":" << std::endl;
-    std::cerr << status->getError() << std::endl;
+  if (!ensureOkStatus(translator->translate(programText, &code))) {
     goto cleanup;
   }
   
-  //code->execute(//TODO add params);
-  code->disassemble();
+  ensureOkStatus(code->execute(params));
+  //code->disassemble();
 
   cleanup:
   delete code;
