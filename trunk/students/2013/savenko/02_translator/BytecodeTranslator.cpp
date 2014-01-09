@@ -231,7 +231,7 @@ void visitForNode(ForNode * forNode) {
   //initialize loop index variable
   inExpr->left()->visit(this);
   addCastToInt(inExpr->left()->position());
-  addInstruction(BC_ILOADM1);
+  addInstruction(BC_ILOAD1);
   addInstruction(BC_ISUB);
   addCastTo(loopIdxVar->type(), inExpr->left()->position());
   addStoreVar(loopIdxVarId, loopIdxVar->type(), inExpr->left()->position());
