@@ -66,12 +66,14 @@ void BcTranslator::visitFunctionDeclaration(AstFunction* node)
 		visitVariableDeclaration(params.next());
 	}
 
+	VarType saveRetType = retType;
 	retType = node->returnType();
 
 	node->node()->visit(this);
 
 	bcFunction->setLocalsNumber(lastVarId);
 
+	retType = saveRetType;
 	currBytecode = saveBytecode;
 }
 
@@ -508,6 +510,16 @@ void BcTranslator::visitReturnNode(ReturnNode* node)
 {
 	if (node->returnExpr()) {
 		node->returnExpr()->visit(this);
+
+		if (retType == VT_INT && resType == VT_DOUBLE) {
+			convertNum(VT_DOUBLE, VT_INT);
+		} else if (retType == VT_DOUBLE && resType == VT_INT) {
+			convertNum(VT_INT, VT_DOUBLE);
+		}
+
+		if (retType != resType) {
+			throw TranslateError("incorrect type of return expression", node->returnExpr()->position());
+		}
 	}
 	currBytecode->addInsn(BC_RETURN);
 }

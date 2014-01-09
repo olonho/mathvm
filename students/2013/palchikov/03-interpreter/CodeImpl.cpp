@@ -180,7 +180,7 @@ void CodeImpl::executeBytecode(Bytecode* bc)
 			varId = bc->getUInt16(ip + 1);
 			ip += sizeof(uint16_t);
 
-			val = args[varId];
+			val = calleeContext[varId];
 			compStack.push(val);
 			break;
 
@@ -192,7 +192,7 @@ void CodeImpl::executeBytecode(Bytecode* bc)
 
 			val = compStack.top();
 			compStack.pop();
-			args.push_back(val);
+			calleeContext.push_back(val);
 			break;
 
 		case BC_LOADCTXIVAR:
@@ -262,17 +262,21 @@ void CodeImpl::executeBytecode(Bytecode* bc)
 		case BC_RETURN:
 			return;
 
-		case BC_CALL:
+		case BC_CALL: {
 			ctxId = bc->getUInt16(ip + 1);
 			ip += sizeof(uint16_t);
 
-			contexts[ctxId].push(args);
-			args.clear();
+			TranslatedFunction* callee = functionById(ctxId);
+			calleeContext.resize(callee->parametersNumber() + callee->localsNumber());
 
-			executeBytecode(((BytecodeFunction*)functionById(ctxId))->bytecode());
+			contexts[ctxId].push(calleeContext);
+			calleeContext.clear();
+
+			executeBytecode(((BytecodeFunction*)callee)->bytecode());
 
 			contexts[ctxId].pop();
 			break;
+		}
 
 		default:
 			// unimplemented
