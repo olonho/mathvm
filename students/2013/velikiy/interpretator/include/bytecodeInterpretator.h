@@ -71,11 +71,6 @@ namespace mathvm {
         }
 
         inline void dropToSize(size_t to) {
-//            if(_data.size() != to){
-//                size_t ooo = _data.size();
-//                cout << "FUCK YOU NOOB." << endl;
-//            }
-//            assert(_data.size() == to);
             _data.resize(to);
         }
 
