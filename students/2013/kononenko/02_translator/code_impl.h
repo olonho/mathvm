@@ -17,8 +17,7 @@ struct function_impl
     }
     
     Bytecode const *bytecode() OVERRIDE { return &bytecode_; } 
-    bool has_local_context(size_t pos) OVERRIDE { return true; }
-    context_id_t local_context(size_t pos) OVERRIDE { return context_id_; }
+    context_id_t local_context() OVERRIDE { return context_id_; }
 
     void set_context(context_id_t id)
     {
