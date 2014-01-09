@@ -271,7 +271,8 @@ void visitWhileNode(WhileNode * whileNode) {
   bindLabel(loop);
   whileNode->whileExpr()->visit(this);
   addCastToInt(whileNode->whileExpr()->position());
-  addBranch(BC_IFICMPNE, breakLoop);
+  addInstruction(BC_ILOAD0);
+  addBranch(BC_IFICMPE, breakLoop);
   whileNode->loopBlock()->visit(this);
   addBranch(BC_JA, loop);
 
