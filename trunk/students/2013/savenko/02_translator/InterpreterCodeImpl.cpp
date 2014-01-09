@@ -100,6 +100,10 @@ int64_t Value::getTyped<int64_t>() const {
   return getInt();
 }
 
+template<>
+char const * Value::getTyped<char const *>() const {
+  return getString();
+}
 
 class FunctionContext {
 public:
@@ -137,6 +141,11 @@ double getDouble(uint16_t id) const {
 
 char const * getString(uint16_t id) const {
   return _vars[id].getString();
+}
+
+template<class T>
+T getTyped(uint16_t id) const {
+  return _vars[id].getTyped<T>();
 }
 
 uint16_t id() const {
@@ -264,12 +273,12 @@ private:
         case BC_STOREDVAR: ctx().setVar(ctx().nextId(), pop().getDouble()); break;
         case BC_STOREIVAR: ctx().setVar(ctx().nextId(), pop().getInt()); break;
         case BC_STORESVAR: ctx().setVar(ctx().nextId(), pop().getString()); break;
-        case BC_LOADCTXDVAR: push(ctx(ctx().nextId()).getDouble(ctx().nextId())); break;    
-        case BC_LOADCTXIVAR: push(ctx(ctx().nextId()).getInt(ctx().nextId())); break;    
-        case BC_LOADCTXSVAR: push(ctx(ctx().nextId()).getString(ctx().nextId())); break;
-        case BC_STORECTXDVAR: ctx(ctx().nextId()).setVar(ctx().nextId(), pop().getDouble()); break;
-        case BC_STORECTXIVAR: ctx(ctx().nextId()).setVar(ctx().nextId(), pop().getInt()); break;
-        case BC_STORECTXSVAR: ctx(ctx().nextId()).setVar(ctx().nextId(), pop().getString()); break;
+        case BC_LOADCTXDVAR: loadCtxVar<double>(); break;
+        case BC_LOADCTXIVAR: loadCtxVar<int64_t>(); break;
+        case BC_LOADCTXSVAR: loadCtxVar<char const *>(); break;
+        case BC_STORECTXDVAR: storeCtxVar<double>(); break;
+        case BC_STORECTXIVAR: storeCtxVar<int64_t>(); break;
+        case BC_STORECTXSVAR: storeCtxVar<char const *>(); break;
         case BC_DCMP: cmp<double>(); break;
         case BC_ICMP: cmp<int64_t>(); break;
         case BC_JA: jump(); break;
@@ -377,6 +386,18 @@ private:
       throw std::runtime_error("Sting to integer conversion failed.");
     }
     return result;
+  }
+  
+  template<class T>
+  void loadCtxVar() {
+    FunctionContext & c = ctx(ctx().nextId());
+    push(c.getTyped<T>(ctx().nextId()));    
+  }
+
+  template<class T>
+  void storeCtxVar() {
+    FunctionContext & c = ctx(ctx().nextId());
+    c.setVar(ctx().nextId(), pop().getTyped<T>());
   }
 
 private:
