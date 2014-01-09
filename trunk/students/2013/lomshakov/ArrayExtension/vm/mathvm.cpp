@@ -9,6 +9,18 @@ using namespace std;
 
 namespace mathvm {
 
+const VarType VarType::Int = VarType(VT_INT);
+const VarType VarType::Double = VarType(VT_DOUBLE);
+const VarType VarType::String = VarType(VT_STRING);
+const VarType VarType::Void = VarType(VT_VOID);
+const VarType VarType::Invalid = VarType(VT_INVALID);
+
+VarType VarType::Arrayref(VarType of, uint32_t dimension) {
+  assert(dimension > 0);
+  assert(of.tag() == VT_INT || of.tag() == VT_DOUBLE);
+  return VarType(VT_REF, of._type, dimension);
+}
+
 void Label::addRelocation(uint32_t bciOfRelocation) {
     _relocations.push_back(bciOfRelocation);
 }
@@ -56,6 +68,12 @@ void Bytecode::dump(ostream& out) const {
             case BC_STOREIVAR:
             case BC_LOADSVAR:
             case BC_STORESVAR:
+            case BC_LOADAVAR:
+            case BC_STOREAVAR:
+                out << name << " @" << getUInt16(bci + 1);
+                break;
+            case BC_IMULTIANEWARRYA:
+            case BC_DMULTIANEWARRYA:
                 out << name << " @" << getUInt16(bci + 1);
                 break;
             case BC_LOADCTXDVAR:
@@ -64,6 +82,8 @@ void Bytecode::dump(ostream& out) const {
             case BC_STORECTXIVAR:
             case BC_LOADCTXSVAR:
             case BC_STORECTXSVAR:
+            case BC_LOADCTXAVAR:
+            case BC_STORECTXAVAR:
                 out << name << " @" << getUInt16(bci + 1)
                     << ":" << getUInt16(bci + 3);
                 break;
@@ -97,7 +117,7 @@ void Bytecode::addBranch(Instruction insn, Label& target) {
 Var::Var(VarType type, const string& name) :
     _type(type) {
     _name = string(name);
-    switch (type) {
+    switch (type.tag()) {
     case VT_DOUBLE:
         setDoubleValue(0.0);
         break;
@@ -113,7 +133,7 @@ Var::Var(VarType type, const string& name) :
 }
 
 void Var::print() {
-    switch (_type) {
+    switch (_type.tag()) {
     case VT_DOUBLE:
         cout << getDoubleValue();
         break;
@@ -255,5 +275,4 @@ void ErrorInfoHolder::verror(uint32_t position, const char* format, va_list args
     va_end(args);
     throw this;
 }
-
 }

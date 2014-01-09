@@ -32,7 +32,7 @@ class Parser : public ErrorInfoHolder {
     CallNode* parseCall();
     AstNode *parseIndex();
     StoreNode* parseAssignment();
-    StoreByIndexNode* parseAssignmentByIndex(AstNode* left);
+    StoreByIndexNode* parseAssignmentByIndex(LoadByIndexNode* left);
     AstNode* parseExpression();
     AstNode* parseUnary();
     AstNode* parseNewExpr();

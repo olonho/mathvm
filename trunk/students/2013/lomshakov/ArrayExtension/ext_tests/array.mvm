@@ -1,7 +1,7 @@
 int[] a = new int[100];
 int[][] b = new int[2][3];
 double[][][] c = new double[1][2][3];
-string[] d = new string[2];
+
 
 
 int[] q = new int[11];
@@ -9,3 +9,8 @@ q[2] = 100;
 q = new int[22];
 int z = a[2];
 
+int[][] aa = new int[12][12];
+aa[2] = new int[22];
+
+
+function int[][] foo (int[] a, double[][] z) {}
