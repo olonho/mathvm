@@ -27,6 +27,6 @@ private:
 	bool stopped;
 
 	stack<Val> compStack;
-	vector<Val> args;
+	vector<Val> calleeContext;
 	vector<stack<vector<Val> > > contexts;
 };
