@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	code->disassemble();
+	//code->disassemble();
 
 	vector<Var*> vars;
 	status = code->execute(vars);
