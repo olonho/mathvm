@@ -40,7 +40,7 @@ public: //methods
     return m_err_status; // TODO: impl proper status
   }
 
-  AstToMCConverter():m_code(new MachCodeContainer()), m_active_assigments(0) {}
+  AstToMCConverter():m_code(new MachCodeContainer()), m_active_assigments(0), m_err_status(NULL) {}
   MachCodeContainer *code() { return m_code; }
   inline Status* errorStatus() { return m_err_status; }
   
@@ -51,10 +51,10 @@ public: //methods
     m_code->addFunction(fn);
     
     if (isFunctionNative(function)) {
-      void *code = dlsym(RTLD_DEFAULT, function->name().c_str());
+      const char * native_name = function->node()->body()->nodeAt(0)->asNativeCallNode()->nativeName().c_str();
+      void *code = dlsym(RTLD_DEFAULT, native_name);
       if (!code) {
-        m_err_status = new Status("Unable to locate code for native function " +
-                                  function->name());
+        logError("Unable to locate code for native function " + std::string(native_name));
       }
       fn->set_code(code);
     }
