@@ -22,6 +22,7 @@ namespace mathvm {
     struct Fun;
     struct VarMap;
     typedef map<string, Fun> FunMap;
+
     void scopeEnter(Bytecode* nextIns, uint16_t scopeId);
     void scopeExit(Bytecode* nextIns, uint16_t scopeId);
 
@@ -287,14 +288,304 @@ namespace mathvm {
             nextIns -> bind(end);
         }
 
+        virtual void visitWhileNode(WhileNode* node) {
+            //            cout << "WhileNode " << endl;
+            Label start(nextIns -> currentLabel());
+            Label end(nextIns);
 
+            // Condition
+            visitExpression(node -> whileExpr(), VT_INT);
+            nextIns -> addInsn(BC_ILOAD0);
+            nextIns -> addBranch(BC_IFICMPE, end);
+            // Body
+            node -> loopBlock() -> visit(this);
+            nextIns -> addBranch(BC_JA, start);
+
+            // Bind loop end 
+            nextIns -> bind(end);
+        }
+
+        virtual void visitForNode(ForNode* node) {
+            //            cout << "ForNode " << endl;
+
+            Val iter = Val::fromScope(vars, node -> var() -> name());
+            Val from = Val::define(vars, scopeId, "$from", VT_INT);
+            Val to = Val::define(vars, scopeId, "$to", VT_INT);
+
+
+            BinaryOpNode* range = (BinaryOpNode*) node -> inExpr();
+            if (range -> kind() != tRANGE) {
+                throw runtime_error("Expected range expression");
+
+            }
+
+            // From
+            visitExpression(range -> left(), VT_INT);
+            from.store(nextIns);
+            //To
+            visitExpression(range -> right(), VT_INT);
+            to.store(nextIns);
+
+            //For iter = From
+            from.load(nextIns);
+            iter.store(nextIns);
+
+            // Labels
+            Label start(nextIns -> currentLabel());
+            Label end(nextIns);
+
+            // iter <= To
+            to.load(nextIns);
+            iter.load(nextIns);
+            nextIns -> addBranch(BC_IFICMPG, end);
+
+            // Body
+            MvmTranslateVisitor().accept(scopeId, code, nextIns, funcs, vars, returnType, node -> body());
+
+            // iter += 1
+
+            iter.load(nextIns);
+            nextIns -> addInsn(BC_ILOAD1);
+            nextIns -> addInsn(BC_IADD);
+            iter.store(nextIns);
+
+            // Start
+            nextIns -> addBranch(BC_JA, start);
+
+            // Bind labels && clean scope
+            nextIns -> bind(end);
+            iter.unbound(vars);
+            from.unbound(vars);
+            to.unbound(vars);
+        }
+
+        virtual void visitReturnNode(ReturnNode* node) {
+            //            cout << "ReturnNode " << endl;
+            if (node -> returnExpr()) {
+                visitExpression(node -> returnExpr(), returnType);
+            } else {
+                checkType(returnType, VT_VOID);
+            }
+            nextIns -> addInsn(BC_RETURN);
+        }
+
+        virtual void visitUnaryOpNode(UnaryOpNode* node) {
+            //            cout << "UnaryOpNode " endl;
+            node -> operand() -> visit(this);
+            VarType type = lastType;
+            switch (node -> kind()) {
+                case tSUB:
+                {
+                    if (type != VT_INT || type != VT_DOUBLE) {
+                        throw runtime_error("Operand must be INT or DOUBLE");
+                    }
+                    nextIns -> addInsn(type == VT_INT ? BC_INEG : BC_DNEG);
+                    break;
+                }
+                case tNOT:
+                {
+                    checkType(type, VT_INT);
+                    flipIntBCGen();
+                    break;
+                }
+
+                default:
+                    throw runtime_error("Unknown Unary Operation");
+            }
+        }
+
+        virtual void visitBinaryOpNode(BinaryOpNode* node) {
+            //            cout << "BinaryOpNode " <<  endl;
+            node -> left()-> visit(this);
+            VarType left = lastType;
+            node -> right() -> visit(this);
+            VarType right = lastType;
+            VarType type = inferType(left, right);
+
+            switch (node -> kind()) {
+                case tGT:
+                case tGE:
+                case tLT:
+                case tLE:
+                case tEQ:
+                case tNEQ:
+                {
+                    if (type == VT_DOUBLE) {
+                        nextIns -> addInsn(BC_DCMP);
+                        nextIns -> addInsn(BC_ILOAD0);
+                    }
+                    genOrderOpsBc(node);
+                    break;
+                }
+                case tOR:
+                case tAND:
+                {
+                    checkType(left, VT_INT);
+                    checkType(right, VT_INT);
+                    genAndOrBc(node);
+                    break;
+                }
+                case tADD:
+                case tSUB:
+                case tMUL:
+                case tDIV:
+                {
+                    genArithmOpsBc(node, type);
+                    break;
+                }
+                case tMOD:
+                {
+                    checkType(left, VT_INT);
+                    checkType(right, VT_INT);
+                    nextIns -> addInsn(BC_IMOD);
+                    lastType = VT_INT;
+                    break;
+                }
+                case tINCRSET:
+                case tDECRSET:
+                {
+                    genAssignOpsBc(node, left, right, type);
+                    break;
+                }
+                default:
+                    throw runtime_error("Unknown Binary Operation");
+            }
+        }
 
     private:
+
+        void flipIntBCGen() {
+            Label alter(nextIns);
+            Label end(nextIns);
+            nextIns -> addInsn(BC_ILOAD0);
+            nextIns -> addBranch(BC_IFICMPE, alter);
+            nextIns -> addInsn(BC_ILOAD0);
+            nextIns -> addBranch(BC_JA, end);
+            nextIns -> bind(alter);
+            nextIns -> addInsn(BC_ILOAD1);
+            nextIns -> bind(end);
+        }
+
+        void genAndOrBc(BinaryOpNode* node) {
+            switch (node -> kind()) {
+                case tOR: nextIns -> addInsn(BC_IADD);
+                    break;
+                case tAND: nextIns -> addInsn(BC_IMUL);
+                    break;
+                default: runtime_error("Unknown Binary Operation");
+            }
+            Label alter(nextIns);
+            Label end(nextIns);
+            nextIns -> addInsn(BC_ILOAD0);
+            nextIns -> addBranch(BC_IFICMPE, alter);
+            nextIns -> addInsn(BC_ILOAD1);
+            nextIns -> addBranch(BC_JA, end);
+            nextIns -> bind(alter);
+            nextIns -> addInsn(BC_ILOAD0);
+            nextIns -> bind(end);
+            lastType = VT_INT;
+        }
+
+        void genOrderOpsBc(BinaryOpNode* node) {
+            Label alter(nextIns);
+            Label end(nextIns);
+            switch (node -> kind()) {
+                case tLT:
+                    nextIns -> addBranch(BC_IFICMPL, alter);
+                    break;
+                case tLE:
+                    nextIns -> addBranch(BC_IFICMPLE, alter);
+                    break;
+                case tGT:
+                    nextIns -> addBranch(BC_IFICMPG, alter);
+                    break;
+                case tGE:
+                    nextIns -> addBranch(BC_IFICMPGE, alter);
+                    break;
+                case tEQ:
+                    nextIns -> addBranch(BC_IFICMPE, alter);
+                    break;
+                case tNEQ:
+                    nextIns -> addBranch(BC_IFICMPNE, alter);
+                    break;
+                default: throw runtime_error("Unknown binary operator");
+            }
+            nextIns -> addInsn(BC_ILOAD0);
+            nextIns -> addBranch(BC_JA, end);
+            nextIns -> bind(alter);
+            nextIns -> addInsn(BC_ILOAD1);
+            nextIns -> bind(end);
+            lastType = VT_INT;
+        }
+
+        void genAssignOpsBc(BinaryOpNode* node, VarType left, VarType right, VarType type) {
+            if (!(node -> left() -> isLoadNode())) {
+                throw runtime_error("lvalue expected on left side");
+            }
+            LoadNode* lvalue = (LoadNode*) node -> left();
+            Val v = Val::fromScope(vars, lvalue -> var() -> name());
+            if (type != VT_INT || type != VT_DOUBLE) {
+                throw runtime_error("Operand must be INT or DOUBLE");
+            }
+            if (left == VT_INT && right != VT_INT) {
+                throw runtime_error("Incompatible types in assignment");
+            }
+            if (left == VT_DOUBLE) {
+                if (right == VT_INT) {
+                    nextIns -> addInsn(BC_I2D);
+                } else if (right != VT_DOUBLE) {
+                    throw runtime_error("Incompatible types in assignment");
+                }
+            }
+            switch (node -> kind()) {
+                case tINCRSET:
+                    nextIns -> addInsn(left == VT_INT ? BC_IADD : BC_DADD);
+                    break;
+                case tDECRSET:
+                    nextIns -> addInsn(left == VT_INT ? BC_ISUB : BC_DSUB);
+                    break;
+                default: throw runtime_error("Unknown Binary Operation");
+            }
+            v.store(nextIns);
+            v.load(nextIns);
+            lastType = left;
+        }
+
+        void genArithmOpsBc(BinaryOpNode* node, VarType type) {
+            switch (node -> kind()) {
+                case tADD: nextIns -> addInsn(type == VT_INT ? BC_IADD: BC_DADD);
+                    break;
+                case tSUB: nextIns -> addInsn(type == VT_INT ? BC_ISUB: BC_DSUB);
+                    break;
+                case tMUL: nextIns -> addInsn(type == VT_INT ? BC_IMUL: BC_DMUL);
+                    break;
+                case tDIV: nextIns -> addInsn(type == VT_INT ? BC_IDIV: BC_DDIV);
+                    break;
+                default: throw runtime_error("Unknown Unary Operation");
+            }
+            lastType = type;
+        }
 
         void checkType(VarType a, VarType b) {
             if (a != b) {
                 throw runtime_error("Type check failed!");
             }
+        }
+
+        VarType inferType(VarType left, VarType right) {
+            if (left == VT_INT && right == VT_INT) return VT_INT;
+            if (left == VT_DOUBLE && right == VT_DOUBLE) return VT_DOUBLE;
+            if (left == VT_INT && right == VT_DOUBLE) {
+                nextIns -> addInsn(BC_I2D);
+                return VT_DOUBLE;
+            }
+            if (left == VT_DOUBLE && right == VT_INT) {
+                nextIns -> addInsn(BC_SWAP);
+                nextIns -> addInsn(BC_I2D);
+                nextIns -> addInsn(BC_SWAP);
+                return VT_DOUBLE;
+            }
+            throw runtime_error("Can't infer operands type");
         }
 
         u_int16_t scopeId;
