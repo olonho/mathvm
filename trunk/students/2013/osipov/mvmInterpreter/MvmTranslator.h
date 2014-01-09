@@ -265,6 +265,30 @@ namespace mathvm {
             nextIns -> addUInt16(fun.id);
             lastType = fun.sign[0].first;
         }
+
+        virtual void visitIfNode(IfNode* node) {
+            //            cout << "IfNode " << std::endl;
+            Label alter(nextIns);
+            Label end(nextIns);
+
+
+            visitExpression(node -> ifExpr(), VT_INT);
+            nextIns -> addInsn(BC_ILOAD0);
+            nextIns -> addBranch(BC_IFICMPE, alter);
+
+            node -> thenBlock() -> visit(this);
+            // Jump to end
+            nextIns -> addBranch(BC_JA, end);
+
+            nextIns -> bind(alter);
+            if (node->elseBlock()) {
+                node->elseBlock()->visit(this);
+            }
+            nextIns -> bind(end);
+        }
+
+
+
     private:
 
         void checkType(VarType a, VarType b) {

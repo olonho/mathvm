@@ -4,7 +4,7 @@
 
 using namespace mathvm;
 
-void scopeEnter(Bytecode* nextIns, uint16_t scopeId) {
+void mathvm::scopeEnter(Bytecode* nextIns, uint16_t scopeId) {
     nextIns -> addInsn(BC_ILOAD1);
     nextIns -> addInsn(BC_LOADIVAR);
     nextIns -> addUInt16(scopeId);
@@ -13,7 +13,7 @@ void scopeEnter(Bytecode* nextIns, uint16_t scopeId) {
     nextIns -> addUInt16(scopeId);
 }
 
-void scopeExit(Bytecode* nextIns, uint16_t scopeId) {
+void mathvm::scopeExit(Bytecode* nextIns, uint16_t scopeId) {
     nextIns -> addInsn(BC_LOADIVAR);
     nextIns -> addUInt16(scopeId);
     nextIns -> addInsn(BC_ILOADM1);
@@ -106,3 +106,4 @@ Status* MvmTranslator::translate(const string& program, Code**code) {
     }
     return 0;
 }
+
