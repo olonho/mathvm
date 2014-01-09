@@ -270,8 +270,16 @@ void interpreter::process_load_var(context_id_t context_id, var_id_t var_id)
     const contexts_stack_t &cs = fn_contexts_stacks_.at(context_id);
     assert(!cs.empty());
     const context_t &context = cs.top();
-    Var const &var = context.vars.at(var_id);
-    stack_.push(var);
+
+    // Var not initialized
+    if (context.vars.count(var_id) == 0)
+    {
+        stack_.push(Var(var_type_t<T>::type(), ""));
+    }
+    else
+    {
+        stack_.push(context.vars.at(var_id));
+    }
 }
 
 template<typename T>

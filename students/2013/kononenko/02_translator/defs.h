@@ -29,6 +29,11 @@ inline Var create_val(i_t val) { Var var(VT_INT   , ""); var.setIntValue   (val)
 inline Var create_val(d_t val) { Var var(VT_DOUBLE, ""); var.setDoubleValue(val); return var; }
 inline Var create_val(s_t val) { Var var(VT_STRING, ""); var.setStringValue(val); return var; }
 
+template<typename T> struct var_type_t;
+template<> struct var_type_t<i_t> { inline static VarType type() { return VT_INT   ; } };
+template<> struct var_type_t<d_t> { inline static VarType type() { return VT_DOUBLE; } };
+template<> struct var_type_t<s_t> { inline static VarType type() { return VT_STRING; } };
+
 
 struct error
     : std::runtime_error
