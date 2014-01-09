@@ -14,7 +14,7 @@
 using namespace std;
 
 namespace mathvm {
-    
+
     struct ExecContext {
         size_t beforeBci;
         size_t bci;
@@ -89,11 +89,10 @@ namespace mathvm {
         size_t bci;
 
         stack<ExecContext> execStack;
-        
+
 
 EXECFUNCTION:
 
-//        cout << "call " << fun->id() << endl;
 
         context = new FunctionContex(fun);
         OuterContexts deeperContexts(contexts);
@@ -452,22 +451,22 @@ EXECFUNCTION:
 
                 case BC_CALL:
                     idv = b->getUInt16(bci + 1);
-                    // cout << "stack size: " << dstack.length() << endl;
 
-                    
-                    {
-                        ExecContext ec;
-                        ec.beforeBci = beforeBci;
-                        ec.bci = bci;
-                        ec.context = context;
-                        ec.fun = fun;
-                        ec.contexts = contexts;
-                        execStack.push(ec);
-                    }
+
+
+                {
+                    ExecContext ec;
+                    ec.beforeBci = beforeBci;
+                    ec.bci = bci;
+                    ec.context = context;
+                    ec.fun = fun;
+                    ec.contexts = contexts;
+                    execStack.push(ec);
+                }
 
                     fun = functions[idv];
                     contexts = deeperContexts;
-                    // execFunction(functions[idv], deeperContexts);
+
 
                     if (id == 1 && idv == 3) {
                         int ikkkasdf = 12;
@@ -478,22 +477,21 @@ EXECFUNCTION:
 
                     goto EXECFUNCTION;
 
-RETURNFROMEXE:  
-                    
-                    
-//                    cout << "exit " << fun->id() << "by " <<  execStack.top().fun->id() << endl;
-                    
+RETURNFROMEXE:
+
+
+
                     deeperContexts = contexts;
-                    
-                    {
-                        ExecContext ec = execStack.top();
-                        execStack.pop();
-                        beforeBci = ec.beforeBci;
-                        bci = ec.bci;
-                        context = ec.context;
-                        fun = ec.fun;
-                        contexts = ec.contexts;
-                    }
+
+                {
+                    ExecContext ec = execStack.top();
+                    execStack.pop();
+                    beforeBci = ec.beforeBci;
+                    bci = ec.bci;
+                    context = ec.context;
+                    fun = ec.fun;
+                    contexts = ec.contexts;
+                }
 
                     b = fun->bytecode();
                     insn = b->getInsn(bci);
@@ -518,7 +516,6 @@ RETURNFROMEXE:
         }
 
 RETURN:
-        //        cout << "stack after" << dstack.length() << endl;
 
         // dropping everything except return value
 
@@ -539,9 +536,8 @@ RETURN:
             d->pushid(idv);
 
         delete context;
-        
-//        cout << "exit " << fun->id() << endl;
-        
+
+
         if (!execStack.empty())
             goto RETURNFROMEXE;
 

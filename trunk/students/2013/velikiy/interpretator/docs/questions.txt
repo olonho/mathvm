@@ -1,0 +1,3 @@
+*** QUESTIONS ***
+* Double declaration in wrong order
+* 4 functions params
