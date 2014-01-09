@@ -6,6 +6,7 @@ using namespace mathvm;
 #include <cstring>
 
 #include "VarsUtil.h"
+#include "CompilerVisitor.h"
 
 template<typename T>
 VarType type();
@@ -22,12 +23,12 @@ public:
 	Interpreter();
 	~Interpreter();
 
-	void execute(const vector<Bytecode>& bytecodes, const vector<string>& literals);
+	void execute(const vector<Bytecode_>& bytecodes, const vector<string>& literals);
 
 private:
 	void call(int id);
 
-	vector<Bytecode> bytecodes_;
+	vector<Bytecode_> bytecodes_;
 	vector<string>   literals_;
 
 	int64_t ebp_;

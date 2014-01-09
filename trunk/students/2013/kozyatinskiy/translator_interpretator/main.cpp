@@ -11,21 +11,6 @@
 #include "StackVisitor.h"
 #include "Interpreter.h"
 
-/*
-my vm have fake registers:
-op1, op2 - for binary, unary operations, if expression
-eax - for return value
-ebp - current frame base pointer
-esp - current top of stack
-
-IVAR0 - eax
-DVAR0 - eax
-SVAR0 - eax
-
-IVAR1 - ebp
-IVAR2 - esp
-*/
-
 using namespace mathvm;
 
 int main(int argc, char* argv[])
@@ -48,23 +33,29 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 
-	AstFunction* f = parser.top();
+	try
+	{
+		AstFunction* f = parser.top();
 
-	StackVisitor sv;
-	sv.callStartFunction(f);
+		StackVisitor sv;
+		sv.callStartFunction(f);
 
-	CompilerVisitor compiler;
-	compiler.visitStartFunction(f, sv.result());
+		CompilerVisitor compiler;
+		compiler.visitStartFunction(f, sv.result());
 
-	const vector<Bytecode>& functions = compiler.bytecodes();
-	//for (size_t i = 0; i < functions.size(); ++i)
-	//{
-	//	cout << "function " << i << endl;
-	//	functions[i].dump(std::cout);
-	//}
+		const vector<Bytecode_>& functions = compiler.bytecodes();
+		//for (size_t i = 0; i < functions.size(); ++i)
+		//{
+		//	cout << "function " << i << endl;
+		//	functions[i].dump(std::cout);
+		//}
 
-	Interpreter i;
-	i.execute(functions, compiler.literals());
-
+		Interpreter i;
+		i.execute(functions, compiler.literals());
+	}
+	catch(std::exception& e)
+	{
+		cout << "fatal error: " << e.what() << endl;
+	}
 	return 0;
 }
