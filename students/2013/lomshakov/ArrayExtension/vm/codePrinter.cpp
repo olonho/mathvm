@@ -174,7 +174,7 @@ void CodePrinter::visitStoreByIndexNode(StoreByIndexNode *node) {
 }
 
 void CodePrinter::visitNewArrayInstanceNode(NewArrayInstanceNode *node) {
-  _out << "new " << typeToName(node->primitiveType());
+  _out << "new " << node->refType().of().toString();
   for (uint32_t i = 0; i < node->dimsCount(); ++i) {
     _out << "[";
     node->dimAt(i)->visit(this);

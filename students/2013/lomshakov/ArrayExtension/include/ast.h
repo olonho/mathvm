@@ -88,8 +88,8 @@ static inline bool isKeyword(const string& word) {
             DO(CallNode, "call")                \
             DO(NativeCallNode, "native call")   \
             DO(PrintNode, "print")              \
-            DO(LoadByIndexNode, "load by index")              \
-            DO(StoreByIndexNode, "store by index")\
+            DO(LoadByIndexNode, "load by index") \
+            DO(StoreByIndexNode, "store by index") \
             DO(NewArrayInstanceNode, "new array")
 
 #define FORWARD_DECLARATION(type, name) class type;
@@ -114,7 +114,6 @@ class CustomDataHolder {
  * Generally, every variable must be guaranteed to be available
  * for at least lifetime of its scope.
  */
-class AstArrayref;
 class AstVar : public CustomDataHolder {
     const string _name;
     VarType _type;
@@ -126,28 +125,6 @@ class AstVar : public CustomDataHolder {
     const string& name() const { return _name; }
     VarType type() const { return _type; }
     Scope* owner() const { return _owner; }
-    virtual bool isVar() const { return true; }
-    virtual AstVar* asVar() { return this; }
-    virtual bool isArrayRef() const { return false; }
-    virtual AstArrayref* asArrayRef() { return 0; }
-    virtual ~AstVar() {}
-};
-
-class AstArrayref : public AstVar {
-    uint32_t  _countDims;
-  public:
-    AstArrayref(const string& name, VarType valueType, uint32_t dimensions, Scope *owner) :
-    AstVar(name, getTypeArrayref(valueType, dimensions), owner), _countDims(dimensions) {
-      assert(dimensions > 0);
-    }
-
-    VarType primitiveType() const { return getPrimitiveType(type()); }
-    uint32_t countDimension() const { return _countDims; }
-
-    virtual bool isVar() const { return false; }
-    virtual AstVar* asVar() { return 0; }
-    virtual bool isArrayRef() const { return true; }
-    virtual AstArrayref*asArrayRef() { return this; }
 };
 
 class FunctionNode;
@@ -190,7 +167,6 @@ class Scope {
     Scope* childScopeAt(uint32_t index) { return _children[index]; }
     void addChildScope(Scope* scope) { _children.push_back(scope); }
 
-    bool declareArrayref(const string& name, VarType type, uint32_t dimensions);
     bool declareVariable(const string& name, VarType type);
     bool declareFunction(FunctionNode* node);
 
@@ -374,23 +350,21 @@ class DoubleLiteralNode : public AstNode {
     COMMON_NODE_FUNCTIONS(DoubleLiteralNode);
 };
 
-class NewArrayInstanceNode : public AstNode {
+class NewArrayInstanceNode: public AstNode {
     vector<AstNode*> _dimensions;
     VarType _refType;
   public:
-    NewArrayInstanceNode(uint32_t index, vector<AstNode*> dimensions, VarType valueType) :
-        AstNode(index), _dimensions(dimensions), _refType(getTypeArrayref(valueType, dimensions.size())) {
+    NewArrayInstanceNode(uint32_t index, vector<AstNode*> const& dimensions, VarType valueType) :
+        AstNode(index), _dimensions(dimensions), _refType(VarType::Arrayref(valueType, dimensions.size())) {
       assert(!_dimensions.empty());
     }
 
-    VarType primitiveType() const {
-      return getPrimitiveType(_refType);
-    }
     VarType refType() const {
       return _refType;
     }
-    uint32_t dimsCount() const {
-      return _dimensions.size();
+
+    uint16_t dimsCount() const {
+      return (uint16_t) _dimensions.size();
     }
 
     AstNode* dimAt(uint32_t position) const {
@@ -423,13 +397,51 @@ class LoadNode : public AstNode {
     COMMON_NODE_FUNCTIONS(LoadNode);
 };
 
+class LoadByIndexNode : public AstNode {
+    const AstVar* _arrayref;
+    vector<AstNode*> _idxs;
+    VarType _typeExpr;
+  public:
+    LoadByIndexNode(uint32_t index, const AstVar* arrayref, vector<AstNode*>& idxs) :
+    AstNode(index), _arrayref(arrayref), _idxs(idxs), _typeExpr(VarType::Invalid) {
+      assert(arrayref->type() == VT_REF && arrayref->type().dim() >= idxs.size());
+      uint32_t dim = arrayref->type().dim() - idxs.size();
+      _typeExpr = dim > 0 ? VarType::Arrayref(arrayref->type().of(), dim) : VarType(arrayref->type().of());
+    }
+
+    const AstVar* ref() const {
+      return _arrayref;
+    }
+
+
+    VarType type() const {
+      return _typeExpr;
+    }
+
+    uint32_t indexCount() const {
+      return _idxs.size();
+    }
+
+    AstNode* indexAt(uint32_t position) const {
+      return _idxs[position];
+    }
+
+    virtual void visitChildren(AstVisitor* visitor) const {
+      for (uint32_t i = 0; i < indexCount(); i++) {
+        indexAt(i)->visit(visitor);
+      }
+    }
+
+    COMMON_NODE_FUNCTIONS(LoadByIndexNode);
+};
+
 class StoreByIndexNode : public AstNode {
-    AstNode* _indexNode;
+    LoadByIndexNode* _indexNode;
     AstNode* _value;
     TokenKind _op;
   public:
     StoreByIndexNode(uint32_t index,
-                    AstNode* nodeIndex,
+                    LoadByIndexNode* nodeIndex,
                     AstNode* value,
                     TokenKind op) :
     AstNode(index), _indexNode(nodeIndex), _value(value), _op(op) {
@@ -437,7 +449,7 @@ class StoreByIndexNode : public AstNode {
         assert(_op == tASSIGN || _op == tINCRSET || _op == tDECRSET);
     }
 
-    AstNode* indexNode() const {
+    LoadByIndexNode* indexNode() const {
       return _indexNode;
     }
 
@@ -732,43 +744,6 @@ class FunctionNode : public AstNode {
     }
 
     COMMON_NODE_FUNCTIONS(FunctionNode);
-};
-
-class LoadByIndexNode : public AstNode {
-    const AstArrayref* _arrayref;
-    vector<AstNode*> _idxs;
-    VarType _typeExpr;
-  public:
-    LoadByIndexNode(uint32_t index, const AstArrayref* arrayref, vector<AstNode*>& idxs) :
-        AstNode(index), _arrayref(arrayref), _idxs(idxs) {
-      assert(arrayref->countDimension() >= idxs.size());
-      _typeExpr = getTypeArrayref(arrayref->primitiveType(), arrayref->countDimension() - idxs.size());
-    }
-
-    const AstArrayref* ref() const {
-      return _arrayref;
-    }
-
-
-    VarType type() {
-      return _typeExpr;
-    }
-
-    uint32_t indexCount() const {
-      return _idxs.size();
-    }
-
-    AstNode* indexAt(uint32_t position) const {
-      return _idxs[position];
-    }
-
-    virtual void visitChildren(AstVisitor* visitor) const {
-      for (uint32_t i = 0; i < indexCount(); i++) {
-        indexAt(i)->visit(visitor);
-      }
-    }
-
-    COMMON_NODE_FUNCTIONS(LoadByIndexNode);
 };
 
 class CallNode : public AstNode {

@@ -73,7 +73,7 @@ namespace mathvm {
         var = _var;
       } else {
         XMMVar _var(_.newXMM(VARIABLE_TYPE_XMM_1D));
-        _.movq(_var, getVarFromStack(astVar));
+        _.movq(_var, getVarFromStack(astVar));//qword_ptr(getVarAddressOnStack(astVar)));
         var = _var;
       }
 
@@ -205,7 +205,7 @@ namespace mathvm {
     log("end print node")
   }
 
-  void MachineCodeGenerator::visitStoreNode(StoreNode *node) {  /*qword_ptr(getVarAddressOnStack(astVar))*/
+  void MachineCodeGenerator::visitStoreNode(StoreNode *node) {
     log("store start")
     ++_assignmentCnt;
     AstBaseVisitor::visitStoreNode(node);
@@ -218,7 +218,7 @@ namespace mathvm {
 
     // set our var
     if (retVal.isXMMVar()) {
-      Mem var = getVarFromStack(astVar);
+      Mem var = getVarFromStack(astVar);//qword_ptr(getVarAddressOnStack(astVar));
       XMMVar val = static_cast<XMMVar&>(retVal);
       if (node->op() == tINCRSET)
         _.addsd(val, var);
@@ -233,7 +233,7 @@ namespace mathvm {
       _.movq(var, val);
     }
     if (retVal.isGPVar()) {
-      Mem var = getVarFromStack(astVar);
+      Mem var = getVarFromStack(astVar);//qword_ptr(getVarAddressOnStack(astVar));
       GPVar val = static_cast<GPVar&>(retVal);
       if (node->op() == tINCRSET)
         _.add(val, var);
@@ -286,7 +286,7 @@ namespace mathvm {
     if (popType() != VT_INT) throw runtime_error("unexpected type of begin expr into while");
     GPVar initialVal = popOperand<GPVar>();
 
-    Mem loopVar = getVarFromStack(node->var());
+    Mem loopVar = getVarFromStack(node->var());//qword_ptr(getVarAddressOnStack(node->var()));
     _.mov(loopVar, initialVal);
 
 
@@ -449,13 +449,13 @@ namespace mathvm {
     // magick work around for bug in AsmJit
     divider = _.newGP();
     _.setPriority(divider, 100);
-    vprolog();//      prolog();
+    vprolog();//prolog();
 
     // make body
     node->body()->visit(this);
 
 
-    vepilog();//    epilog();
+    vepilog();//epilog();
     appendReturn();
     _.endFunction();
 
@@ -536,7 +536,7 @@ namespace mathvm {
 #define GET_DISPLAY_DISPL(offset)\
   ((offset) * VCtx::DISPLAY_REC_SIZE)
 #define GET_VAR_DISPL(offset)\
-  ((offset) * MachCodeFunc::VAR_SIZE)
+  ((offset) * (MachCodeFunc::VAR_SIZE))
 
   void MachineCodeGenerator::vprolog() {
     log("Virt prolog")
@@ -576,17 +576,18 @@ namespace mathvm {
 
     uint32_t argsStartOffset = VCtx::ARGS_BEGIN_OFFSET;
     // load args to virtual stack
-    for (uint32_t i = 0; i != _currGenFunc->parametersNumber(); ++i) {
+    uint32_t n = _currGenFunc->parametersNumber();
+    for (uint32_t i = 0; i != n; ++i) {
       GPVar arg;
       XMMVar argD;
 
       if (_currGenFunc->parameterType(i) != VT_DOUBLE) {
-        arg = _.argGP(0);
+        arg = _.argGP(i);
       } else {
-        argD = _.argXMM(0);
+        argD = _.argXMM(i);
       }
 
-      // stackBase + vbp + offset * idx_arg
+      // stackBase + vbp + var_size * (idx_arg  + offset)
       GPVar offsetArg(_.newGP());
       _.mov(offsetArg, stackBase);
       _.add(offsetArg, vbp);

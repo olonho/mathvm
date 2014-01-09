@@ -111,7 +111,7 @@ Status* Parser::parseTopLevel() {
     assert(topBlock != 0);
     // Make pseudo-function for top level code.
     Signature signature;
-    signature.push_back(SignatureElement(VT_VOID, "return"));
+    signature.push_back(SignatureElement(VarType::Void, "return"));
     _topmostScope->declareFunction(
       new FunctionNode(0, AstFunction::top_name,
                        signature, topBlock));
@@ -138,11 +138,11 @@ AstNode* Parser::parseStatement() {
       } else if (currentTokenValue() == "print") {
           return parsePrint();
       } else if (currentTokenValue() == "int") {
-          return parseDeclaration(VT_INT);
+          return parseDeclaration(VarType::Int);
       } else if (currentTokenValue() == "double") {
-          return parseDeclaration(VT_DOUBLE);
+          return parseDeclaration(VarType::Double);
       } else if (currentTokenValue() == "string") {
-          return parseDeclaration(VT_STRING);
+          return parseDeclaration(VarType::String);
       } else if (currentTokenValue() == "return") {
           return parseReturn();
       } else {
@@ -194,10 +194,10 @@ AstNode *Parser::parseIndex() {
       ensureToken(tRBRACKET);
     }
 
-    return new LoadByIndexNode(tokenIndex, (AstArrayref const *) arrayref, idxs);
+    return new LoadByIndexNode(tokenIndex, arrayref, idxs);
 }
 
-StoreByIndexNode* Parser::parseAssignmentByIndex(AstNode* lhs) {
+StoreByIndexNode* Parser::parseAssignmentByIndex(LoadByIndexNode* lhs) {
     assert(lhs != 0);
     TokenKind op = currentToken();
     if (op == tASSIGN ||
@@ -266,13 +266,7 @@ PrintNode* Parser::parsePrint() {
 }
 
 static inline AstNode* defaultReturnExpr(VarType type) {
-    if (isArrayref(type)) {
-      vector<AstNode*> dims;
-      for (uint32_t i = 0; i < getCountDimensions(type); ++i)
-        dims.push_back(defaultReturnExpr(VT_INT));
-      return new NewArrayInstanceNode(0, dims, getPrimitiveType(type));
-    }
-    switch (type) {
+    switch (type.tag()) {
         case VT_INT:
             return new IntLiteralNode(0, 0);
         case VT_DOUBLE:
@@ -281,7 +275,13 @@ static inline AstNode* defaultReturnExpr(VarType type) {
             return new StringLiteralNode(0, "");
         case VT_VOID:
             return 0;
-      default:
+        case VT_REF: {
+            vector<AstNode*> dims;
+            for (uint32_t i = 0; i < type.dim(); ++i)
+              dims.push_back(defaultReturnExpr(VarType::Int));
+            return new NewArrayInstanceNode(0, dims, type.of());
+        }
+        default:
             assert(false);
             return 0;
     }
@@ -295,7 +295,7 @@ void Parser::parseArrayref(VarType& type) {
     ++dims;
   }
   if (dims != 0) {
-    type = getTypeArrayref(type, dims);
+    type = VarType::Arrayref(type, dims);
   }
 }
 
@@ -485,27 +485,10 @@ BlockNode* Parser::parseBlock(bool needBraces) {
 AstNode* Parser::parseDeclaration(VarType type) {
     // Skip type.
     ensureToken(tIDENT);
-    uint32_t countDimension = 0;
-    if (currentToken() == tLBRACKET) {
-      consumeToken();
-      ensureToken(tRBRACKET);
-      countDimension = 1;
-      while (currentToken() != tIDENT) {
-        ensureToken(tLBRACKET);
-        ensureToken(tRBRACKET);
-        ++countDimension;
-      }
-    }
-
+    parseArrayref(type);
     const string& var = currentTokenValue();
-    bool isSuccess = false;
-    if (countDimension == 0) {
-      isSuccess = _currentScope->declareVariable(var, type);
-    } else {
-      isSuccess = _currentScope->declareArrayref(var, type, countDimension);
-    }
 
-    if (!isSuccess) {
+    if (!_currentScope->declareVariable(var, type)) {
       error("Variable %s already declared", var.c_str());
     }
 
@@ -519,14 +502,14 @@ AstNode* Parser::parseDeclaration(VarType type) {
 
 static inline VarType toPrimitiveType(string const& value) {
     if (value == "int") {
-      return VT_INT;
+      return VarType::Int;
     } else if (value == "double") {
-      return VT_DOUBLE;
+      return VarType::Double;
     } else if (value == "string") {
-      return VT_STRING;
+      return VarType::String;
     }
 
-    return VT_INVALID;
+    return VarType::Invalid;
 }
 
 AstNode* Parser::parseNewExpr() {
@@ -618,7 +601,7 @@ AstNode* Parser::parseBinary(int minPrecedence) {
     // TODO fix
     // hack
     if (left->isLoadByIndexNode() && isAssignment(currentToken())) {
-      return parseAssignmentByIndex(left);
+      return parseAssignmentByIndex(left->asLoadByIndexNode());
     }
 
     int precedence = tokenPrecedence(currentToken());

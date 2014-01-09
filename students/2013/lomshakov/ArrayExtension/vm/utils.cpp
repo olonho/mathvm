@@ -59,38 +59,24 @@ void positionToLineOffset(const string& text,
 }
 
 string typeToName(VarType type) {
-  string suff = "";
-  if (isArrayref(type))
-    for (uint32_t i = 0; i < getCountDimensions(type); ++i) {
-      suff.append("[]");
-    }
-
-	switch (getPrimitiveType(type)) {
-		case VT_INT: return "int" + suff;
-		case VT_DOUBLE: return "double" + suff;
-		case VT_STRING: return "string" + suff;
-		case VT_VOID:
-      assert(suff.empty());
-      return "void";
-		default: return "invalid";
-	}
+  return type.toString();
 }
 
 
 VarType nameToType(const string& typeName) {
 	if (typeName == "int") {
-		return VT_INT;
+		return VarType::Int;
 	}
 	if (typeName == "double") {
-	   return VT_DOUBLE;
+	   return VarType::Double;
 	}
 	if (typeName == "string") {
-		return VT_STRING;
+		return VarType::String;
 	}
 	if (typeName == "void") {
-		return VT_VOID;
+		return VarType::Void;
 	}
-	return VT_INVALID;
+	return VarType::Invalid;
 }
 
 const char* bytecodeName(Instruction insn, size_t* length) {

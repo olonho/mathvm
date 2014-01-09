@@ -9,9 +9,12 @@ JIT_OBJ =
 endif
 
 USER_OBJ = \
-   $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/translator$(OBJ_SUFF)
+   $(OBJ)/InterpreterImpl$(OBJ_SUFF) \
+   $(OBJ)/BytecodeEmitter$(OBJ_SUFF)\
+   $(OBJ)/Translator$(OBJ_SUFF)\
+   $(OBJ)/BCTranslatorImpl$(OBJ_SUFF)\
+   $(OBJ)/MSMemoryManager$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 

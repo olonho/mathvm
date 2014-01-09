@@ -73,15 +73,6 @@ bool Scope::declareVariable(const string& name, VarType type) {
    return true;
 }
 
-
-bool Scope::declareArrayref(const string &name, VarType type, uint32_t dimensions) {
-    if (lookupVariable(name, false) != 0) {
-      return false;
-    }
-    _vars[name] = new AstArrayref(name, type, dimensions, this);
-    return true;
-}
-
 bool Scope::declareFunction(FunctionNode* node) {
     if (lookupFunction(node->name()) != 0) {
         return false;

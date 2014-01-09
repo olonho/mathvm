@@ -100,13 +100,21 @@ using namespace std;
         DO(CALL, "Call function, next two bytes - unsigned function id.", 3) \
         DO(CALLNATIVE, "Call native function, next two bytes - id of the native function.", 3)  \
         DO(RETURN, "Return to call location", 1) \
-        DO(BREAK, "Breakpoint for the debugger.", 1)\
-        DO(AILOAD, "", 1)\
-        DO(AISTORE, "",1)\
-        DO(INEWARRAY, "",1)\
-        DO(MULTIANEWARRYA, "",1)
-        //TODO double string ref
-        // think about hiw storage ref with its type
+        DO(BREAK, "Breakpoint for the debugger.", 1) \
+        DO(LOADAVAR, "Load arrayref from variable, whose 2-byte id is inlined to insn stream, push on TOS.", 3) \
+        DO(STOREAVAR, "Pop TOS and store to arrayref variable, whose 2-byte id is inlined to insn stream.", 3) \
+        DO(LOADCTXAVAR, "Load arrayref from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5) \
+        DO(STORECTXAVAR, "Pop TOS and store to arrayref variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
+        DO(IALOAD, "Load int from an topmost arrayref(lower) by index(upper), push on TOS.", 1) \
+        DO(DALOAD, "Load double from an topmost arrayref(lower) by index(upper), push on TOS.", 1) \
+        DO(AALOAD, "Load arrayref from an topmost arrayref(lower) by index(upper), push on TOS.", 1) \
+        DO(IASTORE, "Store int(upper) into an topmost arrayref(lower) by index(middle).", 1) \
+        DO(DASTORE, "Store double(upper) into an topmost arrayref(lower) by index(middle).", 1) \
+        DO(AASTORE, "Store arrayref(upper) into an topmost arrayref(lower) by index(middle).", 1) \
+        DO(INEWARRAY, "Pop TOS and create new array with count elements of int type, push on TOS.", 1) \
+        DO(DNEWARRAY, "Pop TOS and create new array with count elements of double type, push on TOS.", 1) \
+        DO(IMULTIANEWARRYA, "Create a new array of dimensions, whose 2-byte dimensions count is inlined to insn stream, with elements of int type; the sizes of each dimension is on stack.", 3) \
+        DO(DMULTIANEWARRYA, "Create a new array of dimensions, whose 2-byte dimensions count is inlined to insn stream, with elements of double type; the sizes of each dimension is on stack.", 3)
 
 typedef enum {
 #define ENUM_ELEM(b, d, l) BC_##b,
@@ -115,25 +123,79 @@ typedef enum {
     BC_LAST
 } Instruction;
 
-const uint32_t MASK_PRIMITIVE_TYPE = 7;
 typedef enum {
-    VT_INVALID = 0,
-    VT_VOID = 1,
-    VT_DOUBLE = 2,
-    VT_INT = 3,
-    VT_STRING = 4,
-    // type is encoded before 8
-    // after ext info about dimension, if it is arrayref
-} VarType;
+  VT_INVALID,
+  VT_VOID,
+  VT_DOUBLE,
+  VT_INT,
+  VT_STRING,
+  VT_REF
+} TypeTag;
 
+/* Notes: it introduces new type - Arrayref.
+ * It's memory address (64/32-bit).
+ */
+class VarType {
+  TypeTag _type;
+  TypeTag _of;
+  uint32_t _dim;
+public:
+  VarType(TypeTag type = VT_INVALID):
+  _type(type),
+  _of(VT_INVALID),
+  _dim(0) {
+    assert(type != VT_REF);
+  }
 
-inline VarType getTypeArrayref(VarType type, uint32_t dims) {
-  assert(dims <= (((uint32_t)(pow(2.,32.) - 1.)) >> 3));
-  return (VarType) ((uint32_t)type + (dims << 3));
-}
-inline VarType getPrimitiveType(VarType type) { return (VarType) ((uint32_t)type & MASK_PRIMITIVE_TYPE); }
-inline bool isArrayref(VarType type) { return ((uint32_t)type >> 3) != 0; }
-inline uint32_t getCountDimensions(VarType type) { return ((uint32_t)type >> 3); }
+  operator TypeTag() const {
+    return _type;
+  }
+
+  static VarType Arrayref(VarType of, uint32_t dimension);
+
+  TypeTag tag() const { return _type; }
+  VarType of() const { return VarType(_of); }
+  uint32_t dim() const { return _dim; }
+
+  string toString() {
+    switch (_type) {
+      case VT_REF: {
+        string suff = "";
+        for (uint32_t i = 0; i < _dim; ++i) {
+          suff.append("[]");
+        }
+        return primitiveToString(_of) + suff;
+      }
+      default: return primitiveToString(_type);
+    }
+  }
+
+  static const VarType
+      Int,
+      Double,
+      String,
+      Void,
+      Invalid;
+
+private:
+
+  VarType(TypeTag type, TypeTag primitiveType, uint32_t dimension):
+  _type(type),
+  _of(primitiveType),
+  _dim(dimension) {
+  }
+
+  string primitiveToString(TypeTag tag) const {
+    switch (tag) {
+      case VT_INT: return "int";
+      case VT_DOUBLE: return "double";
+      case VT_STRING: return "string";
+      case VT_VOID: return "void";
+      default: return "invalid";
+    }
+  }
+};
+
 
 
 // Element 0 is return type.
