@@ -4,7 +4,23 @@
 
 using namespace mathvm;
 
+
+
 MvmTranslator::MvmTranslator() {
+}
+
+void Val::store(Bytecode* dst) {
+    switch (type) {
+        case VT_STRING: dst -> addInsn(BC_STORECTXSVAR);
+            break;
+        case VT_DOUBLE: dst -> addInsn(BC_STORECTXDVAR);
+            break;
+        case VT_INT: dst -> addInsn(BC_STORECTXIVAR);
+            break;
+        default: throw std::runtime_error("Can't store val of this type");
+    }
+    dst -> addUInt16(scopeId);
+    dst -> addUInt16(id);
 }
 
 Val Val::define(VarMap& vars, uint16_t scopeId, string const& name, VarType type) {

@@ -26,6 +26,8 @@ namespace mathvm {
         string name;
         u_int16_t scopeId;
 
+        void store(Bytecode* dst);
+
         static Val define(VarMap& vars, uint16_t scopeId, string const& name, VarType type);
 
         static Val define(VarMap& vars, uint16_t scopeId, AstVar* var) {
@@ -54,6 +56,24 @@ namespace mathvm {
     };
 
     typedef map<string, Fun> FunMap;
+
+    void scopeEnter(Bytecode* nextIns, uint16_t scopeId) {
+        nextIns -> addInsn(BC_ILOAD1);
+        nextIns -> addInsn(BC_LOADIVAR);
+        nextIns -> addUInt16(scopeId);
+        nextIns -> addInsn(BC_IADD);
+        nextIns -> addInsn(BC_STOREIVAR);
+        nextIns -> addUInt16(scopeId);
+    }
+
+    void scopeExit(Bytecode* nextIns, uint16_t scopeId) {
+        nextIns -> addInsn(BC_LOADIVAR);
+        nextIns -> addUInt16(scopeId);
+        nextIns -> addInsn(BC_ILOADM1);
+        nextIns -> addInsn(BC_IADD);
+        nextIns -> addInsn(BC_STOREIVAR);
+        nextIns -> addUInt16(scopeId);
+    }
 
     class MvmBytecode : public Code {
         Bytecode* bytecode;
@@ -177,6 +197,30 @@ namespace mathvm {
                     default: throw std::runtime_error("Can't print expression of this type");
                 }
             }
+        }
+
+        virtual void visitBlockNode(BlockNode* node) {
+            //            cout << "BlockNode " << endl;
+            MvmTranslateVisitor().accept(scopeId, code, nextIns, funcs, vars, returnType, node);
+        }
+
+        virtual void visitFunctionNode(FunctionNode* node) {
+            //            cout << "FunctionNode " << std::endl;
+            Fun& fun = funcs[node -> name()];
+
+            if (fun.isNative) {
+                return;
+            }
+
+            Val newScope = Val::define(vars, scopeId, "$scopeId", VT_INT);
+
+            scopeEnter(fun.body, newScope.id);
+            for (uint32_t i = 0; i < node -> parametersNumber(); ++i) {
+                Val p = Val::define(vars, newScope.id, node -> parameterName(i), node->parameterType(i));
+                p.store(fun.body);
+            }
+            MvmTranslateVisitor().accept(scopeId, code, nextIns, funcs, vars, node -> returnType(), node -> body());
+            scopeExit(fun.body, newScope.id);
         }
 
 
