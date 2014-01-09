@@ -173,6 +173,10 @@ bool isInstructionPointerValid() const {
   return _instruction_pointer < _bc->length();
 }
 
+uint32_t ip() const {
+  return _instruction_pointer;
+}
+
 void jump(int16_t offset) {
   _instruction_pointer += offset;
 }
@@ -215,6 +219,7 @@ private:
   void interpret() {
     while (!stop()) {
       Instruction instruction(ctx().nextInstruction());
+      LOG("Instruction: " << bytecodeName(instruction, 0) << " at " << ctx().ip() - 1);
       switch (instruction) {
         case BC_DLOAD: push(ctx().nextDouble()); break;
         case BC_ILOAD: push(ctx().nextInt()); break;
