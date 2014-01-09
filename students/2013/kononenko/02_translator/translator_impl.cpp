@@ -152,30 +152,6 @@ void translator_impl::visitBlockNode(BlockNode* node)
     assert(current_scope_ == node->scope());
 }
 
-void translator_impl::add_context(Scope *scope, context_id_t id)
-{
-#if (0)
-    context_t context(id);
-
-    for (Scope::VarIterator it(scope, false); it.hasNext();)
-    {
-        AstVar const *var = it.next();
-        const bool insertion = context.vars.insert(std::make_pair(var->name(), context.vars.size())).second;
-        assert(insertion);
-    }
-
-    for (Scope::FunctionIterator it(scope, false); it.hasNext();)
-    {
-        AstFunction const *fn = it.next();
-        const function_id_t id = dst_code_->add_function();
-        const bool insertion = context.functions.insert(make_pair(fn->name(), id)).second;
-        assert(insertion);
-    }
-
-    contexts_.insert(make_pair(scope, context));
-#endif
-}
-
 
 void translator_impl::visitIfNode(IfNode* node)
 {
@@ -649,14 +625,6 @@ Status* translator_impl::translate(const string& program, Code **code)
     }
 }
 
-void translator_impl::init_contexts(Scope *scope, uint32_t depth)
-{
-    add_context(scope, depth);
-    for (uint32_t i = 0; i < scope->childScopeNumber(); ++i)
-    {
-        init_contexts(scope->childScopeAt(i), depth + 1);
-    }
-}
 
 void translator_impl::prepare_scope(Scope *scope, context_t &context, function_id_t fn_id)
 {

@@ -46,7 +46,6 @@ private:
     Instruction make_instruction(TokenKind op, VarType type1, VarType type2);
     std::pair<context_id_t, var_id_t> get_var_ids(AstVar const *var, bool store, bool *out_is_local);
 
-    void add_context(Scope *scope, context_id_t id);
     void prepare_scope(Scope *scope, context_t &dst_context, function_id_t fn_id);
     
     void load_tos_var(AstVar const *var);
@@ -56,7 +55,6 @@ private:
 
     function_id_t find_function(string const &name) const;
 
-    void init_contexts(Scope *head, uint32_t depth = 0);
     context_id_t new_context_id() const;
 
 private:

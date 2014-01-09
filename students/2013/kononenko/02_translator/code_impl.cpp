@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "code_impl.h"
-#include "interpreter.h"
+#include "interpreter_impl.h"
 
 namespace mathvm
 {

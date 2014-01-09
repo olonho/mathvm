@@ -3,9 +3,9 @@
 namespace mathvm
 {
 
-struct function
+struct function_t
 {
-    virtual ~function() {};
+    virtual ~function_t() {};
 
     virtual Bytecode const *bytecode() = 0;
     virtual bool has_local_context(size_t pos) = 0;

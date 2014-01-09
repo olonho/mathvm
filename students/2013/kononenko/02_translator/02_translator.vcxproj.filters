@@ -23,13 +23,13 @@
     <ClInclude Include="interpreted.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="interpreter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="defs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="function.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="interpreter_impl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

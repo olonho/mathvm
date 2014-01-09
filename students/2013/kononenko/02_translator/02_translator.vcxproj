@@ -78,7 +78,7 @@
     <ClInclude Include="defs.h" />
     <ClInclude Include="function.h" />
     <ClInclude Include="interpreted.h" />
-    <ClInclude Include="interpreter.h" />
+    <ClInclude Include="interpreter_impl.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="translator_impl.h" />
   </ItemGroup>
