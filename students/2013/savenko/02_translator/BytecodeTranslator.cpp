@@ -465,11 +465,13 @@ void addChangeSign(uint32_t position) {
   switch (_last_expression_type) {
     case VT_INT: {
       addInstruction(BC_ILOAD0);
+      addSwap();
       addInstruction(BC_ISUB);
       break;
     }
     case VT_DOUBLE: {
       addInstruction(BC_DLOAD0);
+      addSwap();
       addInstruction(BC_DSUB);
       break;
     }
