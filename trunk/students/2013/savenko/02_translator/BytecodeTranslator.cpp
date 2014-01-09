@@ -332,12 +332,19 @@ void visitFunctionNode(FunctionNode * functionNode) {
   BytecodeScope * childScope = _scope->createChildScope();
   BytecodeFunction * function = _scope->getFunction(functionNode->name());
   ScopedBytecodeGenerator codeGenerator(childScope, function);
-  for (uint32_t i = 0;  i != functionNode->parametersNumber(); ++i) {
-    uint16_t varId = childScope->addVariable(functionNode->parameterName(i), functionNode->parameterType(i));
-    codeGenerator.addStoreNonCtxVar(varId, functionNode->parameterType(i), functionNode->position());
+  try {
+    for (uint32_t i = 0;  i != functionNode->parametersNumber(); ++i) {
+      uint16_t varId = childScope->addVariable(functionNode->parameterName(i), functionNode->parameterType(i));
+      codeGenerator.addStoreNonCtxVar(varId, functionNode->parameterType(i), functionNode->position());
+    }
+    codeGenerator.visitBlockNode(functionNode->body());
+    function->setLocalsNumber(childScope->ownVarsCount());
+  } catch (std::runtime_error const & e) {
+    _status = codeGenerator.getStatus();
+    if (_current_function) {
+      throw;
+    }
   }
-  codeGenerator.visitBlockNode(functionNode->body());
-  function->setLocalsNumber(childScope->ownVarsCount());
 }
 
 void visitReturnNode(ReturnNode * returnNode) {
@@ -374,7 +381,7 @@ void visitPrintNode(PrintNode * printNode) {
   }
 }
 
-Status getStatus() {
+Status const & getStatus() const {
   return _status;
 }
 
@@ -683,7 +690,7 @@ void abort(std::string const & message, uint32_t position) {
   if (_status.isOk()) {
     _status = Status(message, position);
   }
-  //throw ?  
+  throw std::runtime_error(message);
 }
 
 
