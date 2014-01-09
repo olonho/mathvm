@@ -19,6 +19,7 @@ struct unsupported_insn
 
 void interpreter::interpret(interpreted *code)
 {
+#ifdef PRINT_DUMP
     std::ofstream s("dump.txt");
     for (size_t i = 0; i < code->num_functions(); ++i)
     {
@@ -29,6 +30,7 @@ void interpreter::interpret(interpreted *code)
         s << endl;
     }
     s.close();
+#endif
 
     code_ = code;
     func_ = code_->get_function(code_->get_top_function());
@@ -37,7 +39,7 @@ void interpreter::interpret(interpreted *code)
 
 void interpreter::process_func()
 {
-    context_id_ = func_->local_context(0);
+    context_id_ = func_->local_context();
     fn_contexts_stacks_[context_id_].push(context_t());
     
     for (size_t pos = 0; pos < func_->bytecode()->length();)
@@ -48,9 +50,6 @@ void interpreter::process_func()
         const char* name = bytecodeName(insn, &length);
         (void)name;
 
-//        context_id_ = context_for_pos(pos);
-        //if (func_->has_local_context(pos))
-          //  context_id_ = func_->local_context(pos);
 
         pos_ = pos + 1;
         
@@ -63,7 +62,7 @@ void interpreter::process_func()
             break;
         }
         
-        if ( jump_offset_ != 0 )
+        if (jump_offset_ != 0)
         {
             pos = pos_ + jump_offset_;
             continue;
@@ -77,16 +76,6 @@ void interpreter::process_func()
         fn_contexts_stacks_.erase(context_id_);
 }
 
-context_id_t interpreter::context_for_pos(size_t pos) const
-{
-    for (int i = pos; i >= 0; --i)
-    {
-        if (func_->has_local_context(i))
-            return func_->local_context(i);
-    }
-
-    throw error("Context not found");
-}
 
 void interpreter::process_insn(Instruction insn)
 {
@@ -97,7 +86,6 @@ void interpreter::process_insn(Instruction insn)
     case BC_SLOAD: process_load<s_t>(); break;
     case BC_DLOAD0: process_load_val<d_t>(0); break;
     case BC_ILOAD0: process_load_val<i_t>(0); break;
-    //case BC_SLOAD0: process_load_val<s_t>(constantById(zero_string_id_).c_str()); break;
     case BC_DLOAD1: process_load_val<d_t>(1); break;
     case BC_ILOAD1: process_load_val<i_t>(1); break;
     case BC_DLOADM1: process_load_val<d_t>(-1); break;
