@@ -6,13 +6,13 @@
 // macro
 
 #define PUSH_UNION(val) \
-    {_stack.push(val);}
+    {_computationStack.push(val);}
 
 #define PUSH(field, val) \
     { \
         Val v; \
         v.field = val; \
-        _stack.push(v); \
+        _computationStack.push(v); \
     } 
 
 #define PUSH_INT(val) \
@@ -25,17 +25,17 @@
     PUSH(sval, val)
 
 #define CHECK_STACK \
-    if (_stack.empty()) {throw stackUnderFlowError(_fid, _ip);}
+    if (_computationStack.empty()) {throw stackUnderFlowError(_fid, _ip);}
 
 #define POP_UNION(var) \
     CHECK_STACK; \
-    Val var = _stack.top(); \
-    _stack.pop(); 
+    Val var = _computationStack.top(); \
+    _computationStack.pop(); 
 
 #define POP(var, field) \
     CHECK_STACK; \
-    var = _stack.top().field; \
-    _stack.pop();
+    var = _computationStack.top().field; \
+    _computationStack.pop();
 
 #define BINARY_OP(pusher, type, field, op) \
     { \
@@ -51,6 +51,17 @@
         POP(top, field); \
         pusher(op top); \
     }
+
+#define CMPX(comparator) \
+    { \
+        DECL_AND_POP(int64_t, ival); \
+        int16_t offset = _bc->getInt16(_ip + 1); \
+        if (comparator) { \
+            _ip += offset + 1; \
+            continue; \
+        } \
+    }
+
 
 // utils
 
@@ -76,9 +87,9 @@ void CodeImpl::initialize() {
     Code::FunctionIterator it(this);
     while (it.hasNext()) {
         TranslatedFunction* f = it.next();
-        FStack s;
-        s.push(VStack(f->localsNumber() + f->parametersNumber()));
-        _cStack.push_back(s);
+        ContextStack s;
+        s.push(VariableStack(f->localsNumber() + f->parametersNumber()));
+        _functions.push_back(s);
     }
 
     _bc = ((BytecodeFunction*)functionById(0))->bytecode();
@@ -88,7 +99,7 @@ void CodeImpl::initialize() {
 // checkers
 
 void CodeImpl::validate() {
-    if (_cStack.empty()) {
+    if (_functions.empty()) {
         throw error("There is no top function. ");
     }
 }
@@ -115,166 +126,61 @@ void CodeImpl::executeMachine() {
         size_t length;
         bytecodeName(insn, &length);
         switch (insn) {
-            case BC_INVALID: {
-                throw invalidBytecodeError(_fid, _ip);
-                break;
-            }
-         
-            case BC_DLOAD: {
-                PUSH_DOUBLE(_bc->getDouble(_ip + 1));
-                break;
-            }
-         
-            case BC_ILOAD: {
-                PUSH_INT(_bc->getInt64(_ip + 1));
-                break;
-            }
-         
-            case BC_SLOAD: {
-                PUSH_STRING(_bc->getUInt16(_ip + 1));
-                break;
-            }
-         
-            case BC_DLOAD0: {
-                PUSH_DOUBLE(0);
-                break;
-            }
-         
-            case BC_ILOAD0: {
-                PUSH_INT(0);
-                break;
-            }
-         
-            case BC_SLOAD0: {
-                PUSH_STRING(0);
-                break;
-            }
-         
-            case BC_DLOAD1: {
-                PUSH_DOUBLE(1);
-                break;
-            }
-         
-            case BC_ILOAD1: {
-                PUSH_INT(1);
-                break;
-            }
-         
-            case BC_DLOADM1: {
-                PUSH_DOUBLE(-1);
-                break;
-            }
-         
-            case BC_ILOADM1: {
-                PUSH_INT(-1);
-                break;
-            }
-         
-            case BC_DADD: {
-                BINARY_OP(PUSH_DOUBLE, double, dval, +);
-                break;
-            }
-         
-            case BC_IADD: {
-                BINARY_OP(PUSH_INT, int64_t, ival, +);
-                break;
-            }
-         
-            case BC_DSUB: {
-                BINARY_OP(PUSH_DOUBLE, double, dval, -);
-                break;
-            }
-         
-            case BC_ISUB: {
-                BINARY_OP(PUSH_INT, int64_t, ival, -);
-                break;
-            }
-         
-            case BC_DMUL: {
-                BINARY_OP(PUSH_DOUBLE, double, dval, *);
-                break;
-            }
-         
-            case BC_IMUL: {
-                BINARY_OP(PUSH_INT, int64_t, ival, *);
-                break;
-            }
-         
-            case BC_DDIV: {
-                BINARY_OP(PUSH_DOUBLE, double, dval, /);
-                break;
-            }
-         
-            case BC_IDIV: {
-                BINARY_OP(PUSH_INT, int64_t, ival, /);
-                break;
-            }
-         
-            case BC_IMOD: {
-                BINARY_OP(PUSH_INT, int64_t, ival, %);
-                break;
-            }
-         
-            case BC_DNEG: {
-                UNARY_OP(PUSH_DOUBLE, double, dval, -);
-                break;
-            }
-         
-            case BC_INEG: {
-                UNARY_OP(PUSH_INT, int64_t, ival, -);
-                break;
-            }
-         
-            case BC_IAOR: {
-                BINARY_OP(PUSH_INT, int64_t, ival, |);
-                break;
-            }
-         
-            case BC_IAAND: {
-                BINARY_OP(PUSH_INT, int64_t, ival, &);
-                break;
-            }
-         
-            case BC_IAXOR: {
-                BINARY_OP(PUSH_INT, int64_t, ival, ^);
-                break;
-            }
-         
+            case BC_INVALID: throw invalidBytecodeError(_fid, _ip); break;
+            case BC_DLOAD: PUSH_DOUBLE(_bc->getDouble(_ip + 1)); break;
+            case BC_ILOAD: PUSH_INT(_bc->getInt64(_ip + 1)); break;
+            case BC_SLOAD: PUSH_STRING(_bc->getUInt16(_ip + 1)); break;
+            case BC_DLOAD0: PUSH_DOUBLE(0); break;
+            case BC_ILOAD0: PUSH_INT(0); break;
+            case BC_SLOAD0: PUSH_STRING(0); break;
+            case BC_DLOAD1: PUSH_DOUBLE(1); break;
+            case BC_ILOAD1: PUSH_INT(1); break;
+            case BC_DLOADM1: PUSH_DOUBLE(-1); break;
+            case BC_ILOADM1: PUSH_INT(-1); break;
+            case BC_DADD: BINARY_OP(PUSH_DOUBLE, double, dval, +); break;
+            case BC_IADD: BINARY_OP(PUSH_INT, int64_t, ival, +); break;
+            case BC_DSUB: BINARY_OP(PUSH_DOUBLE, double, dval, -); break;
+            case BC_ISUB: BINARY_OP(PUSH_INT, int64_t, ival, -); break;
+            case BC_DMUL: BINARY_OP(PUSH_DOUBLE, double, dval, *); break;
+            case BC_IMUL: BINARY_OP(PUSH_INT, int64_t, ival, *); break;
+            case BC_DDIV: BINARY_OP(PUSH_DOUBLE, double, dval, /); break;
+            case BC_IDIV: BINARY_OP(PUSH_INT, int64_t, ival, /); break;
+            case BC_IMOD: BINARY_OP(PUSH_INT, int64_t, ival, %); break;
+            case BC_DNEG: UNARY_OP(PUSH_DOUBLE, double, dval, -); break;
+            case BC_INEG: UNARY_OP(PUSH_INT, int64_t, ival, -); break;
+            case BC_IAOR: BINARY_OP(PUSH_INT, int64_t, ival, |); break;
+            case BC_IAAND: BINARY_OP(PUSH_INT, int64_t, ival, &); break;
+            case BC_IAXOR: BINARY_OP(PUSH_INT, int64_t, ival, ^); break;
             case BC_IPRINT: {
                 int64_t val;
                 POP(val, ival);
                 cout << val;
                 break;
             }
-         
             case BC_DPRINT: {
                 double val;
                 POP(val, dval);
                 cout << val;
                 break;
             }
-         
             case BC_SPRINT: {
                 uint16_t id;
                 POP(id, sval);
                 cout << constantById(id);
                 break;
             }
-         
             case BC_I2D: {
                 int64_t top;
                 POP(top, ival);
                 PUSH_DOUBLE(top);
                 break;
             }
-         
             case BC_D2I: {
                 double top;
                 POP(top, dval);
                 PUSH_INT(top);
                 break;
             }
-         
             case BC_S2I: {
                 uint16_t id;
                 POP(id, sval);
@@ -286,7 +192,6 @@ void CodeImpl::executeMachine() {
                 PUSH_INT(res);
                 break;
             }
-         
             case BC_SWAP: {
                 POP_UNION(upper);
                 POP_UNION(lower);
@@ -294,10 +199,9 @@ void CodeImpl::executeMachine() {
                 PUSH_UNION(upper);
                 break;
             }
-         
             case BC_POP: {
                 CHECK_STACK;
-                _stack.pop();
+                _computationStack.pop();
                 break;
             }
 
@@ -344,11 +248,10 @@ void CodeImpl::executeMachine() {
             #define CASE_ELEM(insn) \
                 case BC_##insn##VAR: { \
                     uint16_t id = _bc->getUInt16(_ip + 1); \
-                    Val val = _cStack[_fid].top()[id]; \
+                    Val val = _functions[_fid].top()[id]; \
                     PUSH_UNION(val); \
                     break; \
                 }
-
 
             #define FOR_VARS(DO, prefix) \
                 DO(prefix##D) \
@@ -365,7 +268,7 @@ void CodeImpl::executeMachine() {
                 case BC_##insn##VAR: { \
                     uint16_t id = _bc->getUInt16(_ip + 1); \
                     POP_UNION(var); \
-                    _cStack[_fid].top()[id] = var; \
+                    _functions[_fid].top()[id] = var; \
                     break; \
                 } 
 
@@ -379,7 +282,7 @@ void CodeImpl::executeMachine() {
                 case BC_##insn##VAR: { \
                     uint16_t id = _bc->getUInt16(_ip + 1); \
                     uint16_t ctx = _bc->getUInt16(_ip + 3); \
-                    Val val = _cStack[ctx].top()[id]; \
+                    Val val = _functions[ctx].top()[id]; \
                     PUSH_UNION(val); \
                     break; \
                 }
@@ -395,7 +298,7 @@ void CodeImpl::executeMachine() {
                     uint16_t id = _bc->getUInt16(_ip + 1); \
                     uint16_t ctx = _bc->getUInt16(_ip + 3); \
                     POP_UNION(var); \
-                    _cStack[ctx].top()[id] = var; \
+                    _functions[ctx].top()[id] = var; \
                     break; \
                 }
 
@@ -415,94 +318,32 @@ void CodeImpl::executeMachine() {
                 PUSH_INT(compare(upper, lower));
                 break;
             }
-         
             case BC_ICMP: {
                 DECL_AND_POP(int64_t, ival);
                 PUSH_INT(compare(upper, lower));
                 break;
             }
-         
             case BC_JA: {
                 int16_t offset = _bc->getInt16(_ip + 1);
                 _ip += offset + 1;
                 continue;
             }
-         
-            case BC_IFICMPNE: {
-                DECL_AND_POP(int64_t, ival);
-                int16_t offset = _bc->getInt16(_ip + 1);
-                if (upper != lower) {
-                    _ip += offset + 1;
-                    continue;
-                }
-                break;
-            }
-         
-            case BC_IFICMPE: {
-                DECL_AND_POP(int64_t, ival);
-                int16_t offset = _bc->getInt16(_ip + 1);
-                if (upper == lower) {
-                    _ip += offset + 1; 
-                    continue;
-                }
-                break;
-            }
-         
-            case BC_IFICMPG: {
-                DECL_AND_POP(int64_t, ival);
-                int16_t offset = _bc->getInt16(_ip + 1);
-                if (upper > lower) {
-                    _ip += offset + 1;
-                    continue;
-                }
-
-                break;
-            }
-         
-            case BC_IFICMPGE: {
-                DECL_AND_POP(int64_t, ival);
-                int16_t offset = _bc->getInt16(_ip + 1);
-                if (upper >= lower) {
-                    _ip += offset + 1; 
-                    continue;
-                }
-                break;
-            }
-         
-            case BC_IFICMPL: {
-                DECL_AND_POP(int64_t, ival);
-                int16_t offset = _bc->getInt16(_ip + 1);
-                if (upper < lower) {
-                    _ip += offset + 1;
-                }
-                break;
-            }
-         
-            case BC_IFICMPLE: {
-                DECL_AND_POP(int64_t, ival);
-                int16_t offset = _bc->getInt16(_ip + 1);
-                if (upper <= lower) {
-                    _ip += offset + 1; 
-                }
-                break;
-            }
+            case BC_IFICMPNE: CMPX(upper != lower); break; 
+            case BC_IFICMPE: CMPX(upper == lower); break;
+            case BC_IFICMPG: CMPX(upper > lower); break;
+            case BC_IFICMPGE: CMPX(upper >= lower); break;
+            case BC_IFICMPL: CMPX(upper < lower); break;
+            case BC_IFICMPLE: CMPX(upper <= lower); break;
          
             #undef DECL_AND_POP
 
-            case BC_STOP: {
-                throw notImplementedError(_fid, _ip);
-                break;
-            }
-         
-            case BC_DUMP: {
-                throw notImplementedError(_fid, _ip);
-                break;
-            }
-         
+            case BC_STOP: throw notImplementedError(_fid, _ip); break;
+            case BC_DUMP: throw notImplementedError(_fid, _ip); break;
+
             case BC_CALL: {
                 uint16_t callId = _bc->getUInt16(_ip + 1);
-                _cStack[callId].push(VStack(_cStack[callId].top()));
-                _stackTrace.push(make_pair(_fid, _ip + 3));
+                _functions[callId].push(VariableStack(_functions[callId].top()));
+                _functionStackTrace.push(make_pair(_fid, _ip + 3));
 
                 _ip = 0;
                 _fid = callId;
@@ -510,28 +351,23 @@ void CodeImpl::executeMachine() {
                 continue;
             }
          
-            case BC_CALLNATIVE: {
-                throw notImplementedError(_fid, _ip);
-                break;
-            }
+            case BC_CALLNATIVE: throw notImplementedError(_fid, _ip); break;
          
             case BC_RETURN: {
                 if (_fid == 0) {
                     next = false;
                     continue;
                 }
-
-                if (_stackTrace.empty()) {
+                if (_functionStackTrace.empty()) {
                     throw stackUnderFlowError(_fid, _ip);
                 }
 
-                pair<uint16_t, uint32_t> top = _stackTrace.top();
+                pair<uint16_t, uint32_t> top = _functionStackTrace.top();
                 uint16_t retId = top.first;
                 uint32_t retIp = top.second;
 
-                _stackTrace.pop();
-
-                _cStack[_fid].pop();
+                _functionStackTrace.pop();
+                _functions[_fid].pop();
 
                 _bc = ((BytecodeFunction*)functionById(retId))->bytecode();
 
@@ -540,10 +376,7 @@ void CodeImpl::executeMachine() {
                 continue;
             }
        
-            case BC_BREAK: {
-                throw notImplementedError(_fid, _ip);
-                break;
-            }
+            case BC_BREAK: throw notImplementedError(_fid, _ip); break;
      
             default: throw invalidBytecodeError(_fid, _ip);
         }
@@ -567,3 +400,4 @@ Status* CodeImpl::execute(vector<Var*> & vars) {
 #undef POP_UNION
 #undef POP
 #undef BINARY_OP
+#undef CMPX

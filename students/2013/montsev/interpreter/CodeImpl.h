@@ -17,8 +17,8 @@ private: // structs
 
 private: // typedefs
     typedef stack<Val> Stack;
-    typedef vector<Val> VStack;
-    typedef stack<VStack> FStack;
+    typedef vector<Val> VariableStack;
+    typedef stack<VariableStack> ContextStack;
 
 public:
     CodeImpl(): _fid(0), _ip(0) {}
@@ -48,9 +48,9 @@ private: // fields
 
     Bytecode* _bc;
 
-    Stack _stack;
-    vector<FStack> _cStack;
-    stack<pair<uint16_t, uint32_t> > _stackTrace;
+    Stack _computationStack;
+    vector<ContextStack> _functions;
+    stack<pair<uint16_t, uint32_t> > _functionStackTrace;
 
     vector<Val> _dReg;
     vector<Val> _iReg;

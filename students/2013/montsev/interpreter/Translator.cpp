@@ -220,6 +220,12 @@ private: // methods
         }
     }
 
+    void checkRangeExpr(AstNode* node) {
+        if (!node->isBinaryOpNode() || !node->asBinaryOpNode()->kind() == tRANGE) {
+            throw error("Invalid range expression. ");
+        }
+    }
+
     // utils
 
     VarScope* constructScope(VarScope* parent, size_t vars) {
@@ -610,11 +616,12 @@ private: // methods
     void visitForNode(ForNode* node) {
         // IVAR3 - general purpose register
         
-        checkNotNull((void*) node->var(), "Invalid for expression. ");
+        checkNotNull((void*) node->var(), "Invalid for statement. ");
 
         Var var(_scope->resolveName(node->var()->name()));
         checkVarType(var.type, VT_INT);
 
+        checkRangeExpr(node->inExpr());
         node->inExpr()->visit(this);
 
         Label beginFor(bc());
