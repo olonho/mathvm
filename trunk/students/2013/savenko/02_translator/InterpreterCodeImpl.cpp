@@ -8,62 +8,43 @@ namespace mathvm {
 
 class Value {
 public:
-Value() : _type(VT_INVALID), _type_ptr(0) {
+Value() {
 }
 
-Value(int64_t intValue) : _type(VT_INT), _type_ptr(&_type) {
+Value(int64_t intValue) {
   setInt(intValue);
 }
 
-Value(double doubleValue) : _type(VT_DOUBLE), _type_ptr(&_type) {
+Value(double doubleValue) {
   setDouble(doubleValue);
 }
 
-Value(char const * stringValue) : _type(VT_STRING), _type_ptr(&_type) {
+Value(char const * stringValue) {
   setString(stringValue);
 }
 
 void setInt(int64_t intValue) {
-  setType(VT_INT);
   _intValue = intValue;
 }
 
 int64_t getInt() const {
-  ensureType(VT_INT);
   return _intValue;
 }
 
 void setDouble(double doubleValue) {
-  setType(VT_DOUBLE);
   _doubleValue = doubleValue;
 }
 
 double getDouble() const {
-  ensureType(VT_DOUBLE);
   return _doubleValue;
 }
 
 void setString(char const * stringValue) {
-  setType(VT_STRING);
   _stringValue = stringValue;
 }
 
 char const * getString() const {
-  ensureType(VT_STRING);
   return _stringValue;
-}
-
-void setType(VarType type) {
-  if (_type_ptr) {
-    ensureType(type);
-  } else { 
-    _type = type;
-    _type_ptr = &_type;
-  }
-}
-
-VarType const * getType() const {
-  return _type_ptr;
 }
 
 template<class T>
@@ -72,17 +53,6 @@ T getTyped() const {
 }
 
 private:
-void ensureType(VarType t) const {
-  if (!_type_ptr || t != _type) {
-    throw std::runtime_error(std::string("Using value of type ") + 
-      typeToName(_type) + " as " + 
-      typeToName(t) + " without a cast.");
-  }
-}
-
-private:
-  VarType _type;
-  VarType const * _type_ptr;
   union {
     double _doubleValue;
     int64_t _intValue;
@@ -113,7 +83,7 @@ FunctionContext()
 }
 
 FunctionContext(BytecodeFunction * function) 
-  : _id(function->scopeId()), 
+  : _id(function->id()), 
     _vars(function->localsNumber()),
     _bc(function->bytecode()),
     _instruction_pointer(0) {
@@ -310,8 +280,9 @@ private:
   }
   
   FunctionContext & ctx(uint16_t id) {
-    LOG("Looking up context with id: " << id);
+    LOG("Looking up context with id: " << id << " through contexts stack:");
     for (std::vector<FunctionContext>::reverse_iterator i = _contexts.rbegin(); i != _contexts.rend(); ++i) {
+      LOG(i->id());
       if (i->id() == id) {
         return *i;
       }
@@ -339,9 +310,11 @@ private:
 
   void call(uint16_t functionId) {
     _contexts.push_back(FunctionContext(dynamic_cast<BytecodeFunction *>(_code->functionById(functionId))));
+    LOG("Added context with id: " << ctx().id());
   }
   
   void ret() {
+    LOG("Popping context with id: " << ctx().id());
     _contexts.pop_back();
   }
   
