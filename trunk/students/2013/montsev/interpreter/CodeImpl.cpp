@@ -121,7 +121,7 @@ void CodeImpl::executeMachine() {
 
     bool next = true;
 
-    while (next) {
+    while (next && _ip < _bc->length()) {
         Instruction insn = _bc->getInsn(_ip);
         size_t length;
         bytecodeName(insn, &length);

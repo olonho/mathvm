@@ -1,0 +1,9 @@
+
+function int f() {
+    10;
+    return 1;
+}
+
+int x = 1;
+print(f() + x, '\n');
+print(x + f(), '\n');
