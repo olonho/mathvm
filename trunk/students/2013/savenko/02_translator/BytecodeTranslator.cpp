@@ -364,6 +364,10 @@ void visitCallNode(CallNode * callNode) {
   if (functionId < ID_MAX) {
     addInstruction(BC_CALL);
     addId(functionId);
+    BytecodeFunction * function = _scope->getFunction(callNode->name());
+    if (functionReturns(function)) {
+      _last_expression_type = function->returnType();
+    }
   } else {
     abort(std::string("Unresolved function: ") + callNode->name() + ".", callNode->position());
   }
@@ -419,11 +423,7 @@ void addPopUnusedValue(AstNode * lastStatement) {
   if (!pushesValueToStack && lastStatement->isCallNode()) {
     std::string const & functionName = lastStatement->asCallNode()->name();
     BytecodeFunction * function  = _scope->getFunction(functionName);
-    pushesValueToStack = function && (
-      function->returnType() == VT_INT ||
-      function->returnType() == VT_DOUBLE ||
-      function->returnType() == VT_STRING
-    );
+    pushesValueToStack = function && functionReturns(function);
   }
   if (pushesValueToStack) {
     addInstruction(BC_POP);
@@ -678,6 +678,12 @@ VarType leastCommonType(VarType t1, VarType t2) {
   if (t1 == VT_STRING || t2 == VT_STRING) return VT_DOUBLE;
   if (t1 == VT_DOUBLE || t2 == VT_DOUBLE) return VT_DOUBLE;
   return VT_INT;
+}
+
+bool functionReturns(BytecodeFunction * function) {
+  return function->returnType() == VT_INT ||
+    function->returnType() == VT_DOUBLE ||
+    function->returnType() == VT_STRING;
 }
 
 Bytecode * bc() {
