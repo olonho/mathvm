@@ -500,7 +500,7 @@ void addLoadCtxVar(uint16_t scopeId, uint16_t varId, VarType type, uint32_t posi
     case VT_DOUBLE: addInstruction(BC_LOADCTXDVAR); break;
     default: abort(std::string("Cannot load context variable of type: ") + typeToName(type), position); return;
   }
-  addId(scopeId);
+  addId(scopeId - 1);
   addId(varId);
 }
 
@@ -529,7 +529,7 @@ void addStoreCtxVar(uint16_t scopeId, uint16_t varId, VarType type, uint32_t pos
     case VT_DOUBLE: addInstruction(BC_STORECTXDVAR); break;
     default: abort(std::string("Cannot store context variable of type: ") + typeToName(type), position); return;
   }
-  addId(scopeId);
+  addId(scopeId - 1);
   addId(varId);
 }
 

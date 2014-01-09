@@ -301,7 +301,13 @@ private:
   }
   
   FunctionContext & ctx(uint16_t id) {
-    return _contexts[id];
+    LOG("Looking up context with id: " << id);
+    for (std::vector<FunctionContext>::reverse_iterator i = _contexts.rbegin(); i != _contexts.rend(); ++i) {
+      if (i->id() == id) {
+        return *i;
+      }
+    }
+    throw std::runtime_error("Could not find a context");
   }
 
   bool stop() {
