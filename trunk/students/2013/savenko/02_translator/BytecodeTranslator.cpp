@@ -310,8 +310,12 @@ void visitBlockNode(BlockNode * blockNode) {
   }
  
   LOG("generating block's code");
-  blockNode->visitChildren(this);
-  
+  for (uint32_t i = 0; i != blockNode->nodes(); ++i) {
+    AstNode * blockElement = blockNode->nodeAt(i);
+    blockElement->visit(this);
+    addPopUnusedValue(blockElement);
+  }
+
   LOG("generating block's functions");
   for (Scope::FunctionIterator i(blockNode->scope()); i.hasNext();) {
     visitFunctionNode(i.next()->node());
@@ -388,6 +392,28 @@ void addPrint(uint32_t position) {
     case VT_DOUBLE: addInstruction(BC_DPRINT); break;
     case VT_STRING: addInstruction(BC_SPRINT); break;
     default: abort(std::string("Cannot print a value of type ") + typeToName(_last_expression_type), position); break;
+  }
+}
+
+void addPopUnusedValue(AstNode * lastStatement) {
+  bool pushesValueToStack = 
+    lastStatement->isBinaryOpNode() ||
+    lastStatement->isUnaryOpNode() ||
+    lastStatement->isStringLiteralNode() ||
+    lastStatement->isDoubleLiteralNode() ||
+    lastStatement->isIntLiteralNode() ||
+    lastStatement->isLoadNode();
+  if (!pushesValueToStack && lastStatement->isCallNode()) {
+    std::string const & functionName = lastStatement->asCallNode()->name();
+    BytecodeFunction * function  = _scope->getFunction(functionName);
+    pushesValueToStack = function && (
+      function->returnType() == VT_INT ||
+      function->returnType() == VT_DOUBLE ||
+      function->returnType() == VT_STRING
+    );
+  }
+  if (pushesValueToStack) {
+    addInstruction(BC_POP);
   }
 }
 
