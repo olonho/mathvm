@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "interpreter.h"
+#include "interpreter_impl.h"
 
 namespace mathvm
 {
@@ -37,6 +37,9 @@ void interpreter::interpret(interpreted *code)
 
 void interpreter::process_func()
 {
+    context_id_ = func_->local_context(0);
+    fn_contexts_stacks_[context_id_].push(context_t());
+    
     for (size_t pos = 0; pos < func_->bytecode()->length();)
     {
         jump_offset_ = 0;
@@ -45,7 +48,7 @@ void interpreter::process_func()
         const char* name = bytecodeName(insn, &length);
         (void)name;
 
-        context_id_ = context_for_pos(pos);
+//        context_id_ = context_for_pos(pos);
         //if (func_->has_local_context(pos))
           //  context_id_ = func_->local_context(pos);
 
@@ -63,12 +66,15 @@ void interpreter::process_func()
         if ( jump_offset_ != 0 )
         {
             pos = pos_ + jump_offset_;
-            context_id_ = context_for_pos(pos);
             continue;
         }
 
         pos += length;
     }
+
+    fn_contexts_stacks_.at(context_id_).pop();
+    if (fn_contexts_stacks_.at(context_id_).empty())
+        fn_contexts_stacks_.erase(context_id_);
 }
 
 context_id_t interpreter::context_for_pos(size_t pos) const
@@ -261,7 +267,10 @@ void interpreter::process_load_ctx()
 template<typename T>
 void interpreter::process_load_var(context_id_t context_id, var_id_t var_id)
 {
-    Var const &var = vars_.at(std::make_pair(context_id, var_id));
+    const contexts_stack_t &cs = fn_contexts_stacks_.at(context_id);
+    assert(!cs.empty());
+    const context_t &context = cs.top();
+    Var const &var = context.vars.at(var_id);
     stack_.push(var);
 }
 
@@ -283,11 +292,14 @@ void interpreter::process_store_ctx()
 template<typename T>
 void interpreter::process_store_var(context_id_t context_id, var_id_t var_id)
 {
-    const vars_t::key_type key = make_pair(context_id, var_id);
-    if (vars_.count(key) == 0)
-        vars_.insert(make_pair(key, stack_.top()));
+    contexts_stack_t &cs = fn_contexts_stacks_.at(context_id);
+    assert(!cs.empty());
+    context_t &context = cs.top();
+
+    if (context.vars.count(var_id) == 0)
+        context.vars.insert(make_pair(var_id, stack_.top()));
     else
-        vars_.at(key) = stack_.top();
+        context.vars.at(var_id) = stack_.top();
     
     stack_.pop();
 }
@@ -329,13 +341,13 @@ void interpreter::process_jump(Instruction insn)
 
 void interpreter::process_call()
 {
-    function *old_func = func_; 
+    function_t *old_func = func_; 
     const function_id_t id = read<function_id_t>();
     
     func_ = code_->get_function(id);
-
-   
+    context_id_t old_context_id = context_id_;   
     process_func();
+    context_id_ = old_context_id;
 
     func_ = old_func;
 }
