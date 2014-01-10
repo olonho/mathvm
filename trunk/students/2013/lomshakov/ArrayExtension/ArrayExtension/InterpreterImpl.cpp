@@ -176,9 +176,18 @@ namespace mathvm {
   void InterpreterImpl::executeIMULTIANEWARRYA() {
     uint16_t countDims = getNextUInt16();
     vector<int64_t> dims;
-    for (uint16_t i = 0; i != countDims; ++i)
-      dims.push_back(currentStack().popIntValue());
+    size_t size = sizeof(int64_t);
+    size_t hsize = 0;
+    dims.push_back(currentStack().popIntValue()), size *= dims.back();
+    for (uint16_t i = 1; i != countDims; ++i)
+      dims.push_back(currentStack().popIntValue()), size *= dims.back(), hsize += dims.back() * sizeof(sysint_t);
+    size += hsize;
 
+    if (MSMemoryManager::mm().getFreeMem() < size) {
+      MSMemoryManager::mm().collect();
+      if (MSMemoryManager::mm().getFreeMem() < size)
+        throw runtime_error("Out of memory");
+    }
     void * ptr = allocateMultiArray(dims, VT_INT, dims.size() - 1);
 
     currentStack().pushRefValue(ptr);
@@ -187,9 +196,18 @@ namespace mathvm {
   void InterpreterImpl::executeDMULTIANEWARRYA() {
     uint16_t countDims = getNextUInt16();
     vector<int64_t> dims;
-    for (uint16_t i = 0; i != countDims; ++i)
-      dims.push_back(currentStack().popIntValue());
+    size_t size = sizeof(double);
+    size_t hsize = 0;
+    dims.push_back(currentStack().popIntValue()), size *= dims.back();
+    for (uint16_t i = 1; i != countDims; ++i)
+      dims.push_back(currentStack().popIntValue()), size *= dims.back(), hsize += dims.back() * sizeof(sysint_t);
+    size += hsize;
 
+    if (MSMemoryManager::mm().getFreeMem() < size) {
+      MSMemoryManager::mm().collect();
+      if (MSMemoryManager::mm().getFreeMem() < size)
+        throw runtime_error("Out of memory");
+    }
     void * ptr = allocateMultiArray(dims, VT_DOUBLE, dims.size() - 1);
 
     currentStack().pushRefValue(ptr);

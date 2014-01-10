@@ -18,7 +18,7 @@ namespace mathvm {
 
     BytecodeEmitter::getInstance().emitCode(parser.top(), *code);
 
-    (*code)->disassemble(std::cout);
+//    (*code)->disassemble(std::cout);
 
     return new Status();
   }

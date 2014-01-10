@@ -11,11 +11,19 @@
 #include <assert.h>
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
 #include "mathvm.h"
 #include "InterpreterImpl.h"
 
 #define ssysint_t int64_t
 #define MAX_HEAP_SZ (1024 * 2)
+
+#define  MM_VERBOSE
+#ifdef MM_VERBOSE
+#define log(A,...)  printf(A,##__VA_ARGS__);
+#else
+#define log(A,...)
+#endif
 
 namespace mathvm {
 
@@ -74,11 +82,13 @@ public:
 
   inline
   void* alloc(RefMetaData info) {
+    log("allocate used: %u  +%u\n", (uint32_t)_allUsedMem, (uint32_t)info.size())
     _allUsedMem += info.size();
     if (_allUsedMem > MAX_HEAP_SZ)
       collect();
 
-    assert(_allUsedMem <= MAX_HEAP_SZ);
+    if (_allUsedMem > MAX_HEAP_SZ)
+      throw runtime_error("Out of memory");
 
     void * mem = malloc((size_t) info.size());
     memset(mem, 0, info.size());
@@ -88,15 +98,18 @@ public:
     return mem;
   }
 
+  uint64_t getFreeMem() const { return MAX_HEAP_SZ - _allUsedMem; }
+
+
   static MSMemoryManager & mm();
 
   void setClient(InterpreterImpl *interpreter) {
     _interpreter = interpreter;
   }
 
-private:
   inline
   void collect() {
+    log("collect garbage...\n")
     assert(_interpreter != 0);
     set<ssysint_t> rs = _interpreter->buildRootSet();
     for (set<ssysint_t>::iterator i = rs.begin(); i != rs.end(); ++i)
@@ -111,7 +124,7 @@ private:
       if (!metaData.elementPrimitiveType()) {
 
         for (size_t i = 0; i != metaData.countElement; ++i) {
-          ssysint_t oo = o + i * metaData.elementSize();
+          ssysint_t oo = *(sysint_t *)(void *)(o + i * metaData.elementSize());
           RefMetaData& newRoot = _allocatedAddresses[oo];
           if (!newRoot.reached) {
             newRoot.reached = true;
@@ -133,6 +146,7 @@ private:
       }
     }
   }
+private:
 
   inline
   void mark(ssysint_t address) {
@@ -144,6 +158,7 @@ private:
     size_t sz = inf.second.size();
     assert(_allUsedMem >= sz);
     _allUsedMem -= sz;
+    log("free free: %u used: %u count: %u\n", (uint32_t)sz, (uint32_t)_allUsedMem, inf.second.countElement)
 
     free((void*)inf.first);
   }
