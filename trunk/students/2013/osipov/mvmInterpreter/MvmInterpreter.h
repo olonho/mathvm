@@ -18,6 +18,15 @@
 namespace mathvm {
     using namespace std;
 
+
+    /// Bitwise
+
+    int64_t bwOr(int64_t v1, int64_t v2);
+
+    int64_t bwAnd(int64_t v1, int64_t v2);
+
+    int64_t bwXor(int64_t v1, int64_t v2);
+
     class MvmBytecode : public Code {
     public:
 
@@ -159,7 +168,7 @@ namespace mathvm {
             res.setIntValue(f(v.getIntValue()));
             vStk.push_back(res);
         }
-        
+
         template <class unOp>
         void dUnary(unOp f, u_int32_t pos) {
             Var v(pop(vStk));
@@ -177,9 +186,9 @@ namespace mathvm {
         }
 
         void checkType(VarType a, VarType b) {
-//            if (a != b) {
-//                throw runtime_error("Type check failed!");
-//            }
+            //            if (a != b) {
+            //                throw runtime_error("Type check failed!");
+            //            }
         }
 
         size_t getLength(Instruction i) {
@@ -262,13 +271,13 @@ namespace mathvm {
                         iUnary(negate<int64_t>(), nextIns);
                         break;
                     case BC_IAOR:
-                        iBinary(logical_or<int64_t>(), nextIns);
+                        iBinary(bwOr, nextIns);
                         break;
                     case BC_IAAND:
-                        iBinary(logical_and<int64_t>(), nextIns);
+                        iBinary(bwAnd, nextIns);
                         break;
                     case BC_IAXOR:
-                        iBinary(logical_or<int64_t>(), nextIns);
+                        iBinary(bwXor, nextIns);
                         break;
                     case BC_IPRINT:
                     {
