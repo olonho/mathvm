@@ -15,6 +15,8 @@
 #include "mathvm.h"
 #include "ast.h"
 
+#include "MvmInterpreter.h"
+
 namespace mathvm {
     using namespace std;
 
@@ -41,6 +43,9 @@ namespace mathvm {
         static Val define(VarMap& vars, uint16_t scopeId, AstVar* var) {
             return define(vars, scopeId, var -> name(), var -> type());
         }
+
+        static Val defScope(VarMap& vars, Bytecode* nextIns);
+
 
         static Val fromScope(const VarMap& vars, const string& name);
     };
@@ -69,33 +74,6 @@ namespace mathvm {
 
         map<string, vector<Val> > varMap;
         std::tr1::shared_ptr<uint16_t> nextId;
-    };
-
-    class MvmBytecode : public Code {
-        Bytecode* bytecode;
-
-    public:
-
-        MvmBytecode() : bytecode(new Bytecode()) {
-        }
-
-        ~MvmBytecode() {
-            delete bytecode;
-        }
-
-        virtual Status* execute(vector<Var*>& vars) {
-            return 0;
-        }
-
-        virtual void disassemble(ostream& out = cout, FunctionFilter* filter = 0) {
-            Code::disassemble(out, filter);
-            bytecode -> dump(out);
-        }
-
-        Bytecode* getBytecode() {
-            return bytecode;
-        }
-
     };
 
     class MvmTranslator : public Translator {
@@ -208,7 +186,7 @@ namespace mathvm {
                 return;
             }
 
-            Val newScope = Val::define(vars, scopeId, "$scopeId", VT_INT);
+            Val newScope = Val::defScope(vars, nextIns);
 
             scopeEnter(fun.body, newScope.id);
             for (uint32_t i = 0; i < node -> parametersNumber(); ++i) {
@@ -216,7 +194,6 @@ namespace mathvm {
                 p.store(fun.body);
             }
             MvmTranslateVisitor().accept(scopeId, code, nextIns, funcs, vars, node -> returnType(), node -> body());
-            scopeExit(fun.body, newScope.id);
         }
 
         virtual void visitStoreNode(StoreNode* node) {
@@ -335,8 +312,8 @@ namespace mathvm {
             Label end(nextIns);
 
             // iter <= To
-            to.load(nextIns);
             iter.load(nextIns);
+            to.load(nextIns);
             nextIns -> addBranch(BC_IFICMPG, end);
 
             // Body
@@ -354,7 +331,6 @@ namespace mathvm {
 
             // Bind labels && clean scope
             nextIns -> bind(end);
-            iter.unbound(vars);
             from.unbound(vars);
             to.unbound(vars);
         }
@@ -366,6 +342,7 @@ namespace mathvm {
             } else {
                 checkType(returnType, VT_VOID);
             }
+            scopeExit(nextIns, scopeId);
             nextIns -> addInsn(BC_RETURN);
         }
 
@@ -434,10 +411,28 @@ namespace mathvm {
                     break;
                 }
                 case tMOD:
+                case tAOR:
+                case tAXOR:
+                case tAAND:
                 {
                     checkType(left, VT_INT);
                     checkType(right, VT_INT);
-                    nextIns -> addInsn(BC_IMOD);
+                    switch (node -> kind()) {
+                        case tMOD:
+                            nextIns -> addInsn(BC_IMOD);
+                            break;
+                        case tAOR:
+                            nextIns -> addInsn(BC_IAOR);
+                            break;
+                        case tAXOR:
+                            nextIns -> addInsn(BC_IAXOR);
+                            break;
+                        case tAAND:
+                            nextIns -> addInsn(BC_IAAND);
+                            break;
+                        default: throw runtime_error("Unknown Binary Operation");
+                            ;
+                    }
                     lastType = VT_INT;
                     break;
                 }
@@ -575,11 +570,11 @@ namespace mathvm {
         VarType inferType(VarType left, VarType right) {
             if (left == VT_INT && right == VT_INT) return VT_INT;
             if (left == VT_DOUBLE && right == VT_DOUBLE) return VT_DOUBLE;
-            if (left == VT_INT && right == VT_DOUBLE) {
+            if (left == VT_DOUBLE && right == VT_INT) {
                 nextIns -> addInsn(BC_I2D);
                 return VT_DOUBLE;
             }
-            if (left == VT_DOUBLE && right == VT_INT) {
+            if (left == VT_INT && right == VT_DOUBLE) {
                 nextIns -> addInsn(BC_SWAP);
                 nextIns -> addInsn(BC_I2D);
                 nextIns -> addInsn(BC_SWAP);
