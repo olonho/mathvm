@@ -23,7 +23,7 @@
 //    return 1;
 //  }
 //
-//  const char* text = loadFile("/Users/vlomshakov/Documents/vadik/VirtualMachine/mathvm/students/2013/lomshakov/ArrayExtension/ext_tests/array.mvm");//script);
+//  const char* text = loadFile("/Users/vlomshakov/Documents/vadik/VirtualMachine/mathvm/students/2013/lomshakov/ArrayExtension/ext_tests/array_syntax.mvm");//script);
 //  if (text == 0) {
 //    printf("Cannot read file: %s\n", script);
 //    return 1;
@@ -75,19 +75,17 @@ int main(int argc, char** argv) {
   }
 
   const char* expr =
-//      "double[][] a = new double[12][11];"
-//      "a[0][0] = 1.13333;"
-//          "a[0][1] = 1.13333;"
-//          "a[1][0] = 1.13333;"
-//      "print('Hello, a[0]=', a[0][0], a[1][0], a[0][1], '\n');"
-  "int[] a;"
-  "int i;"
-  "for (i in 0..10) {"
-  " a = new int[128];"
-  "}"
+//  "int[] a;"
+//  "int i;"
+//  "for (i in 0..10) {"
+//  " a = new int[128];"
+//  "}"
+  "int[][] aa = new int[12][12];"
+   "aa[2] = new int[22];"
   ;
   bool isDefaultExpr = true;
 
+//  script = "/Users/vlomshakov/Documents/vadik/VirtualMachine/mathvm/students/2013/lomshakov/ArrayExtension/ext_tests/array_syntax.mvm";
   if (script != NULL) {
     expr = loadFile(script);
     if (expr == 0) {
@@ -112,25 +110,12 @@ int main(int argc, char** argv) {
     assert(code != 0);
     vector<Var*> vars;
 
-    if (isDefaultExpr) {
-      Var* xVar = new Var(VT_DOUBLE, "x");
-      Var* yVar = new Var(VT_DOUBLE, "y");
-      vars.push_back(xVar);
-      vars.push_back(yVar);
-      xVar->setDoubleValue(42.0);
-    }
     Status* execStatus = code->execute(vars);
     if (execStatus->isError()) {
       printf("Cannot execute expression: error: %s\n",
           execStatus->getError().c_str());
-    } else {
-//      if (isDefaultExpr) {
-//        printf("x evaluated to %f\n", vars[0]->getDoubleValue());
-//        for (uint32_t i = 0; i < vars.size(); i++) {
-//          delete vars[i];
-//        }
-//      }
     }
+
     delete code;
     delete execStatus;
   }
