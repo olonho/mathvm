@@ -120,3 +120,14 @@ Status* MvmTranslator::translate(const string& program, Code**code) {
     return 0;
 }
 
+int64_t mathvm::bwOr(int64_t v1, int64_t v2) {
+    return v1 | v2;
+}
+
+int64_t mathvm::bwAnd(int64_t v1, int64_t v2) {
+    return v1 & v2;
+}
+
+int64_t mathvm::bwXor(int64_t v1, int64_t v2) {
+    return v1 ^ v2;
+}
