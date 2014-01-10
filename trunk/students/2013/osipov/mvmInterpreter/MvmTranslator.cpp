@@ -64,10 +64,10 @@ Val Val::define(VarMap& vars, uint16_t scopeId, string const& name, VarType type
 
 Val Val::defScope(VarMap& vars, Bytecode* nextIns) {
     if (uint16_t(*vars.nextId + 1) < *vars.nextId) {
-        throw std::runtime_error("Too many variables");
+        throw runtime_error("Too many variables");
     }
     Val scope = {(*vars.nextId)++, VT_INT, "$scope", 0};
-    vars.varMap["@scope"].push_back(scope);
+    vars.varMap["$scope"].push_back(scope);
     nextIns -> addInsn(BC_ILOAD0);
     nextIns -> addInsn(BC_STOREIVAR);
     nextIns -> addUInt16(scope.id);
@@ -88,7 +88,7 @@ Val Val::fromScope(const VarMap& vars, const string& name) {
 void Val::unbound(VarMap& vars) {
     VarMap::iterator vmIt = vars.varMap.find(name);
     if (vmIt == vars.varMap.end()) {
-        throw std::runtime_error("Can't find variable");
+        throw runtime_error("Can't find variable");
     }
     for (vector<Val>::iterator vIt = vmIt -> second.begin(); vIt != vmIt -> second.end(); ++vIt) {
         if (vIt -> scopeId != scopeId) {
@@ -97,7 +97,7 @@ void Val::unbound(VarMap& vars) {
         vmIt -> second.erase(vIt);
         return;
     }
-    throw std::runtime_error("Can't find variable");
+    throw runtime_error("Can't find variable");
 }
 
 Status* MvmTranslator::translate(const string& program, Code**code) {
