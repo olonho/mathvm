@@ -25,13 +25,13 @@ int main(int argc, char** argv) {
 
     Translator* translator = new MvmTranslator();
 
-    cout << "------ Program ------" << endl;
-    cout << program << endl;
-    cout << "---------------------" << endl;
-
-    cout << "------ Expected ------" << endl;
-    cout << expected << endl;
-    cout << "---------------------" << endl;
+//    cout << "------ Program ------" << endl;
+//    cout << program << endl;
+//    cout << "---------------------" << endl;
+//
+//    cout << "------ Expected ------" << endl;
+//    cout << expected << endl;
+//    cout << "---------------------" << endl;
 
 
     Code* code;
@@ -43,12 +43,12 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    cout << "------ Bytecode ------" << endl;
-    code -> disassemble(cout);
-    cout << "---------------------" << endl;
+//    cout << "------ Bytecode ------" << endl;
+//    code -> disassemble(cout);
+//    cout << "---------------------" << endl;
 
 
-    cout << "------ Interpretation ------" << endl;
+//    cout << "------ Interpretation ------" << endl;
     vector<Var*> env;
     if (Status * s = code -> execute(env)) {
         std::cerr << "Interpret error: " << s -> getError() << endl;
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
         delete translator;
         return 1;
     }
-    cout << "---------------------" << endl;
+//   cout << "---------------------" << endl;
     delete translator;
     delete code;
     return 0;
