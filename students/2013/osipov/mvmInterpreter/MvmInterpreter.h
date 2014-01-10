@@ -94,8 +94,8 @@ namespace mathvm {
             if (varValues.empty()) {
                 varValues.push_back(vStk.back());
             }
-            while (varValues.size() <= scope) {
-                varValues.push_back(varValues.back());
+            if (varValues.size() <= scope) {
+                varValues.resize(scope + 1, varValues.back());
             }
             vStk.push_back(env[id][scope]);
         };
@@ -122,8 +122,8 @@ namespace mathvm {
             if (varValues.empty()) {
                 varValues.push_back(Var(VT_INT, ""));
             }
-            if (varValues.size() <= scopeId) {
-                varValues.resize(scopeId + 1, varValues.back());
+            if (varValues.size() <= scope) {
+                varValues.resize(scope + 1, varValues.back());
             }
             varValues[scope] = vStk.back();
             vStk.pop_back();
