@@ -15,13 +15,13 @@ using namespace mathvm;
 using namespace std;
 
 int main(int argc, char** argv) {
-    if (argc != 3) {
+    if (argc < 2) {
         cerr << "Usage: " << argv[0] << "   /path/to/program.mvm  /path/to/expected" << endl;
         return 1;
     }
 
     string program(loadFile(argv[1]));
-    string expected(loadFile(argv[2]));
+//    string expected(loadFile(argv[2]));
 
     Translator* translator = new MvmTranslator();
 
@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 
     Code* code;
     if (Status * s = translator -> translate(program, &code)) {
-        cerr << "Translate Error: " << s -> getError() << endl;
+        cerr << "Translate Error: " << s -> getError()    << endl;
         delete s;
         delete code;
         delete translator;
