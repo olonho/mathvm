@@ -114,7 +114,7 @@ Status* MvmTranslator::translate(const string& program, Code**code) {
     try {
         MvmTranslateVisitor().accept(scopeId.id, bcode, bcode -> getBytecode(), funMap, varMap, VT_VOID, parser.top() -> node() -> body());
         bcode -> getBytecode() -> addInsn(BC_STOP);
-    } catch (std::exception e) {
+    } catch (std::runtime_error e) {
         return new Status(e.what());
     }
     return 0;

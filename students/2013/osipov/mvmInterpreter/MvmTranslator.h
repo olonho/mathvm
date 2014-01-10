@@ -347,13 +347,14 @@ namespace mathvm {
         }
 
         virtual void visitUnaryOpNode(UnaryOpNode* node) {
-            //            cout << "UnaryOpNode " endl;
+            //            cout << "UnaryOpNode " <<  endl;
+
             node -> operand() -> visit(this);
             VarType type = lastType;
             switch (node -> kind()) {
                 case tSUB:
                 {
-                    if (type != VT_INT || type != VT_DOUBLE) {
+                    if (type != VT_INT && type != VT_DOUBLE) {
                         throw runtime_error("Operand must be INT or DOUBLE");
                     }
                     nextIns -> addInsn(type == VT_INT ? BC_INEG : BC_DNEG);
