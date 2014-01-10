@@ -193,7 +193,7 @@ namespace mathvm {
                 Val p = Val::define(vars, newScope.id, node -> parameterName(i), node->parameterType(i));
                 p.store(fun.body);
             }
-            MvmTranslateVisitor().accept(scopeId, code, nextIns, funcs, vars, node -> returnType(), node -> body());
+            MvmTranslateVisitor().accept(newScope.id, code, fun.body, funcs, vars, node -> returnType(), node -> body());
         }
 
         virtual void visitStoreNode(StoreNode* node) {
