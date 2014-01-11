@@ -17,6 +17,8 @@ roadmap:
 2. instruction jit
 */
 
+class MyCompiler;
+
 template<> inline VarType type<int64_t>(){ return VT_INT; }
 template<> inline VarType type<int64_t*>(){ return VT_STRING; }
 template<> inline VarType type<double>(){ return VT_DOUBLE; }
@@ -29,8 +31,11 @@ public:
 	Interpreter();
 	~Interpreter();
 
-	void execute(const vector<Bytecode_>& bytecodes, const vector<string>& literals);
+	void execute(const vector<pair<VarType, Bytecode_> >& bytecodes, const vector<string>& literals);
 
+	const vector<int>& callsCount() const { return callsCount_; }
+
+	void setCompiler(MyCompiler* _compiler);
 private:
 	// fst - esp, snd - function ptr
 	typedef double  (*DoubleCall)(void*, void*);
@@ -38,19 +43,27 @@ private:
 	typedef char*   (*StringCall)(void*, void*);
 	typedef void    (*VoidCall)(void*, void*);
 
+	typedef int8_t* (*InstWrapper)(int8_t*);
+
 	DoubleCall doubleCallWrapper;
 	IntCall    intCallWrapper;
 	StringCall stringCallWrapper;
 	VoidCall   voidCallWrapper;
 
+	InstWrapper icmpWrapper;
+	InstWrapper iload0Wrapper;
+
 	void call(int id);
 
-	vector<Bytecode_> bytecodes_;
-	vector<string>   literals_;
+	vector<pair<VarType, Bytecode_> > bytecodes_;
+	vector<string>    literals_;
 	vector<pair<void*, VarType> > resolved_;
+	vector<int>       callsCount_;
 	int8_t* ebp_;
 	int8_t* esp_;
-	uint8_t* eip_;
+	const uint8_t* eip_;
+
+	MyCompiler* compiler_;
 
 	vector<int16_t> functions_;
 
@@ -61,7 +74,7 @@ private:
 	int8_t* stack_;
 
 	template<typename T>
-	T* popValue()
+	inline T* popValue()
 	{
 		int8_t* tmp = esp_;
 		esp_ += sizeof(T);
@@ -69,7 +82,7 @@ private:
 	}
 
 	template <typename T>
-	void pushValue(T val)
+	inline void pushValue(T val)
 	{
 		esp_ -= sizeof(T);
 		memcpy(esp_, &val, sizeof(T));
