@@ -11,6 +11,8 @@
 #include <AsmJit/AsmJit.h>
 using namespace AsmJit;
 
+//#define WIN
+
 #ifndef WIN
 #include <dlfcn.h>
 #define ASSEMBLER Assembler
@@ -144,12 +146,11 @@ void Interpreter::call(int id)
 				pair<void*, VarType>& func = resolved_[id];
 				if (!func.first)
 				{
-					//cout << endl<<func.first << "resolving... " << id  << endl;
 					string name = literals_[id];
-					void* f = dlsym(RTLD_DEFAULT, name.c_str());
+					void* f = dlsym(RTLD_DEFAULT, name.c_str() + 1);
 					if (!f)
 						throw std::invalid_argument("can't resolve function");
-					switch(*name.rbegin())
+					switch(*name.begin())
 					{
 						case 'v':
 							func = make_pair(f, VT_VOID);
@@ -166,7 +167,6 @@ void Interpreter::call(int id)
 						default: break;
 					}
 				}
-				//cout << endl << func.first << "after resolving... " << id  << endl;
 				switch(func.second)
 				{
 					case VT_VOID:
@@ -176,7 +176,6 @@ void Interpreter::call(int id)
 						ieax = intCallWrapper(stack_ + esp_, func.first);
 						break;
 					case VT_DOUBLE:
-						resolved_[id].first = func.first;
 						deax = doubleCallWrapper(stack_ + esp_, func.first);
 						break;
 					case VT_STRING:
@@ -184,7 +183,6 @@ void Interpreter::call(int id)
 						break;
 					default: break;
 				}
-				//cout << endl << func.first << "after call... " << id  << endl;
 			}
 			break;
 
