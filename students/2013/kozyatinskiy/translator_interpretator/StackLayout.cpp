@@ -10,19 +10,19 @@ uint32_t mixTypeAndOffset(int type, int16_t offset)
 StackLayout::StackLayout(const Signature& _signature, const string& _name, int16_t _id,
 		const set<VarID>& _captured) : signature_(_signature)
 {
-	int16_t offset = -16;
+	int16_t offset = 16;
 
 	for (size_t i = signature_.size() - 1; i > 0; --i)
 	{
-		offset -= sizeOfType(signature_[i].first);
 		offsets_.push_front(make_pair(signature_[i], offset));
+		offset += sizeOfType(signature_[i].first);
 	}
 
 	set<VarID>::const_iterator it;
 	for (it = _captured.begin(); it != _captured.end(); ++it)
 	{
-		offset -= PointerSize;
 		capturedOffsets_.push_front(make_pair(*it, offset));
+		offset += PointerSize;
 	}
 }
 
@@ -38,16 +38,16 @@ void StackLayout::addLocalVars(Scope* scope)
 	int16_t offset = 0;
 	int16_t lastOffset = 0;
 	if (!offsets_.empty())
-		lastOffset += sizeOfType(offsets_.back().first.first) + offsets_.back().second;
+		lastOffset = offsets_.front().second;
 
-	if (lastOffset > offset)
+	if (lastOffset < offset)
 		offset = lastOffset;
 
 	while(varIt.hasNext())
 	{
 		AstVar* var = varIt.next();
+		offset -= sizeOfType(var->type());
 		offsets_.push_back(make_pair(make_pair(var->type(), var->name()), offset));
-		offset += sizeOfType(var->type());
 	}
 }
 
@@ -65,11 +65,12 @@ void StackLayout::pushLocalVar(VarID var)
 	int16_t offset = 0;
 	int16_t lastOffset = 0;
 	if (!offsets_.empty())
-		lastOffset += sizeOfType(offsets_.back().first.first) + offsets_.back().second;
+		lastOffset = offsets_.front().second;
 
-	if (lastOffset > offset)
+	if (lastOffset < offset)
 		offset = lastOffset;
 
+	offset -= sizeof(var.first);
 	offsets_.push_back(make_pair(var, offset));
 }
 
@@ -123,13 +124,13 @@ uint32_t StackLayout::getStoreOffset(VarID var) const
 	while (it != offsets_.rend() && it->first != var)
 		++it;
 	if (it != offsets_.rend())
-		return 0 << 30 | it->second;
+		return mixTypeAndOffset(0, it->second);
 
 	it = capturedOffsets_.rbegin();
 	while (it != capturedOffsets_.rend() && it->first != var)
 		++it;
 	if (it != capturedOffsets_.rend())
-		return 3 << 30 | it->second;
+		return mixTypeAndOffset(3, it->second);
 
 	return 0;
 }

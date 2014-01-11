@@ -15,7 +15,7 @@ template<> inline VarType type<int64_t>(){ return VT_INT; }
 template<> inline VarType type<int64_t*>(){ return VT_STRING; }
 template<> inline VarType type<double>(){ return VT_DOUBLE; }
 template<> inline VarType type<double*>(){ return VT_STRING; }
-template<> inline VarType type<string*>(){ return VT_STRING; }
+template<> inline VarType type<char*>(){ return VT_STRING; }
 
 class Interpreter
 {
@@ -26,44 +26,48 @@ public:
 	void execute(const vector<Bytecode_>& bytecodes, const vector<string>& literals);
 
 private:
+	// fst - esp, snd - function ptr
+	typedef double  (*DoubleCall)(void*, void*);
+	typedef int64_t (*IntCall)(void*, void*);
+	typedef char*   (*StringCall)(void*, void*);
+	typedef void    (*VoidCall)(void*, void*);
+
+	DoubleCall doubleCallWrapper;
+	IntCall    intCallWrapper;
+	StringCall stringCallWrapper;
+	VoidCall   voidCallWrapper;
+
 	void call(int id);
 
 	vector<Bytecode_> bytecodes_;
 	vector<string>   literals_;
-
+	vector<pair<void*, VarType> > resolved_;
 	int64_t ebp_;
 	int64_t esp_;
 	int64_t eip_;
 
-	//int lastType_;
-	//vector<VarType> types_;
 	vector<int16_t> functions_;
 
 	double deax, dvar1, dvar2, dvar3;
 	int64_t ieax, ivar3;
-	string *seax, *svar1, *svar2, *svar3;
-
-	string emptyString_;
+	char *seax, *svar1, *svar2, *svar3;
 
 	int8_t* stack_;
-	//vector<int8_t> stack_;
 
 	template<typename T>
 	T* popValue()
 	{
-		//lastType_--;
-		esp_ -= sizeof(T);
+		int64_t tmp = esp_;
+		esp_ += sizeof(T);
 		DEBUG_DO(cout << esp_ << ".." << esp_ + sizeof(T) << " pop value:" << *((T*)(stack_ + esp_)) << std::endl);
-		return reinterpret_cast<T*>(stack_ + esp_);
+		return reinterpret_cast<T*>(stack_ + tmp);
 	}
 
 	template <typename T>
 	void pushValue(T val)
 	{
+		esp_ -= sizeof(T);
 		memcpy(stack_ + esp_, &val, sizeof(T));
-		//*((T*)(&stack_[0] + esp_)) = val;
-		//types_[++lastType_] = type<T>();
-		esp_ += sizeof(T);
 		DEBUG_DO(cout << esp_ - sizeof(T) << ".." << esp_ << " push value:" << val <<std::endl);
 	}
 };

@@ -38,7 +38,7 @@
 
 #define FOR_IF_OPNODE_AND_OR(DO) \
 	DO(AND) \
-	DO(OR)  
+	DO(OR)
 
 
 CompilerVisitor::CompilerVisitor():elseLabel_(0), thenLabel_(0), parent_(0)
@@ -122,22 +122,12 @@ void CompilerVisitor::visitBlockNode(BlockNode* block)
 
 	block->visitChildren(this);
 
-	// remove all local variables from stack
-	//varIt = block->scope();
-	//while(varIt.hasNext())
-	//{
-	//	AstVar* var = varIt.next();
-	//	bc.add(BC_POP);
-	//}
-	// remove all local variables from layout
-
-	// hm =/
 	if (parametersSize)
 	{
 		bc.add(PUSH_ESP);
 		bc.add(BC_ILOAD);
 		bc.addInt64(parametersSize);
-		bc.add(BC_ISUB);
+		bc.add(BC_IADD);
 		bc.add(POP_ESP);
 	}
 
@@ -197,24 +187,31 @@ void CompilerVisitor::visitCallNode(CallNode* callNode)
 	// compile function
 	int tmpLastFunction = lastFunction_;
 	StackLayout* tmpParent = parent_;
-	
+
 	AstFunction* f = scopeStack_.back()->lookupFunction(callNode->name());
-	if (already_.find(f) == already_.end())
+	NativeCallNode* nativeCall = 0;
+	if (f->node()->body()->nodes() && f->node()->body()->nodeAt(0)->asNativeCallNode())
+		nativeCall = f->node()->body()->nodeAt(0)->asNativeCallNode();
+
+	if (!nativeCall && already_.find(f) == already_.end())
 	{
 		already_.insert(f);
 		lastAstFunction_ = f;
 		f->node()->visit(this);
 	}
-	
+
 	parent_ = tmpParent;
 	lastFunction_ = tmpLastFunction;
 
 	int parametersSize = 0;
 	// push captured pointers
-	set<pair<VarType, string> >::reverse_iterator cit;
-	for (cit = captured_[f].rbegin(); cit != captured_[f].rend(); ++cit)
-		loadVar(&bc, cit->first, sl.getLoadOffsetAsPtr(*cit));
-	parametersSize += PointerSize * captured_[f].size();
+	if (!nativeCall)
+	{
+		set<pair<VarType, string> >::reverse_iterator cit;
+		for (cit = captured_[f].rbegin(); cit != captured_[f].rend(); ++cit)
+			loadVar(&bc, cit->first, sl.getLoadOffsetAsPtr(*cit));
+		parametersSize += PointerSize * captured_[f].size();
+	}
 
 	// check parameters
 	if (callNode->parametersNumber() != f->node()->signature().size() - 1)
@@ -234,15 +231,20 @@ void CompilerVisitor::visitCallNode(CallNode* callNode)
 		parametersSize += sizeOfType(to);
 	}
 
-	bc.add(BC_CALL);
-	bc.addInt16(functionId_[callNode->name()]);
+	if (!nativeCall)
+	{
+		bc.add(BC_CALL);
+		bc.addInt16(functionId_[callNode->name()]);
+	}
+	else 
+		nativeCall->visit(this);
 
 	if (parametersSize)
 	{
 		bc.add(PUSH_ESP);
 		bc.add(BC_ILOAD);
 		bc.addInt64(parametersSize);
-		bc.add(BC_ISUB);
+		bc.add(BC_IADD);
 		bc.add(POP_ESP);
 	}
 
@@ -407,18 +409,29 @@ void CompilerVisitor::visitNativeCallNode(NativeCallNode* nativeCall)
 {
 	Bytecode&    bc = bytecodes_[lastFunction_];
 
-	throw std::runtime_error("native call not implemented yet");
-
-	// todo: implement parameters cast
-	// todo: implement more info in literal
-
 	nativeCall->visitChildren(this);
 
 	bc.add(BC_CALLNATIVE);
 
 	int id = stringLiterals.size();
 	stringLiterals.push_back(nativeCall->nativeName());
-
+	switch (nativeCall->nativeSignature().front().first)
+	{
+	case VT_VOID:
+		stringLiterals.back().append("\0v");
+		break;
+	case VT_INT:
+		stringLiterals.back().append("\0i");
+		break;
+	case VT_DOUBLE:
+		stringLiterals.back().append("\0d");
+		break;
+	case VT_STRING:
+		stringLiterals.back().append("\0s");
+		break;
+	default:
+		throw std::invalid_argument("unsupported return type");
+	}
 	bc.addInt16(static_cast<int16_t>(id));
 }
 
