@@ -11,6 +11,12 @@ using namespace mathvm;
 template<typename T>
 VarType type();
 
+/*
+roadmap:
+1. esp,eip to int*
+2. instruction jit
+*/
+
 template<> inline VarType type<int64_t>(){ return VT_INT; }
 template<> inline VarType type<int64_t*>(){ return VT_STRING; }
 template<> inline VarType type<double>(){ return VT_DOUBLE; }
@@ -42,9 +48,9 @@ private:
 	vector<Bytecode_> bytecodes_;
 	vector<string>   literals_;
 	vector<pair<void*, VarType> > resolved_;
-	int64_t ebp_;
-	int64_t esp_;
-	int64_t eip_;
+	int8_t* ebp_;
+	int8_t* esp_;
+	uint8_t* eip_;
 
 	vector<int16_t> functions_;
 
@@ -57,18 +63,16 @@ private:
 	template<typename T>
 	T* popValue()
 	{
-		int64_t tmp = esp_;
+		int8_t* tmp = esp_;
 		esp_ += sizeof(T);
-		DEBUG_DO(cout << esp_ << ".." << esp_ + sizeof(T) << " pop value:" << *((T*)(stack_ + esp_)) << std::endl);
-		return reinterpret_cast<T*>(stack_ + tmp);
+		return reinterpret_cast<T*>(tmp);
 	}
 
 	template <typename T>
 	void pushValue(T val)
 	{
 		esp_ -= sizeof(T);
-		memcpy(stack_ + esp_, &val, sizeof(T));
-		DEBUG_DO(cout << esp_ - sizeof(T) << ".." << esp_ << " push value:" << val <<std::endl);
+		memcpy(esp_, &val, sizeof(T));
 	}
 };
 

@@ -52,8 +52,6 @@ using namespace AsmJit;
 	DO(D, 2, double, dvar2) \
 	DO(D, 3, double, dvar3) \
 	DO(I, 0, int64_t, ieax) \
-	DO(I, 1, int64_t, ebp_) \
-	DO(I, 2, int64_t, esp_) \
 	DO(I, 3, int64_t, ieax) \
 	DO(S, 0, char*, seax) \
 	DO(S, 1, char*, svar1) \
@@ -109,45 +107,43 @@ void Interpreter::execute(const vector<Bytecode_>& bytecodes, const vector<strin
 	bytecodes_ = bytecodes;
 	literals_  = literals;
 	resolved_.resize(literals_.size());
-	esp_ = StackSize - 1024;
+	esp_ = stack_ + StackSize - 1024;
 	eip_ = 0;
-	ebp_ = 0;
+	ebp_ = esp_;
 	call(0);
 }
 
 void Interpreter::call(int id)
 {
-	int currentId = id;
-	uint8_t* bc = bytecodes_[id].getData();
+	eip_ = bytecodes_[id].getData();
 
 	while (true)
 	{
-		//cout << bytecodeName((Instruction)*(bc + eip_)) << endl;
-		switch (*(bc + eip_))
+		//cout << bytecodeName((Instruction)*(eip_)) << endl;
+		switch (*eip_)
 		{
 		case BC_STOP:
 			return;
 
 		case BC_CALL:
 			{
-				int16_t id = *(int16_t*)(bc + (++eip_));
+				int16_t id = *(int16_t*)(++eip_);
 				eip_ += 2;
-				int64_t cur_eip = (int64_t)eip_ << 32 | currentId; 
+				uint64_t cur_eip = (uint64_t)eip_; 
 				pushValue(cur_eip);
-				eip_ = 0;
-				currentId = id;
-				bc = bytecodes_[id].getData();
+				eip_ = bytecodes_[id].getData();
 			}
 			break;
 		case BC_CALLNATIVE:
 			{
-				int16_t id = *(int16_t*)(bc + (++eip_));
+				int16_t id = *(int16_t*)(++eip_);
 				eip_ += 2;
 				pair<void*, VarType>& func = resolved_[id];
 				if (!func.first)
 				{
 					string name = literals_[id];
-					void* f = dlsym(RTLD_DEFAULT, name.c_str() + 1);
+					//void* f = static_cast<double(*)(double)>(&sqrt);
+					void* f = dlsym(RTLD_DEFAULT, name.c_str() + 1);					
 					if (!f)
 						throw std::invalid_argument("can't resolve function");
 					switch(*name.begin())
@@ -170,16 +166,16 @@ void Interpreter::call(int id)
 				switch(func.second)
 				{
 					case VT_VOID:
-						voidCallWrapper(stack_ + esp_, func.first);
+						voidCallWrapper(esp_, func.first);
 						break;
 					case VT_INT:
-						ieax = intCallWrapper(stack_ + esp_, func.first);
+						ieax = intCallWrapper(esp_, func.first);
 						break;
 					case VT_DOUBLE:
-						deax = doubleCallWrapper(stack_ + esp_, func.first);
+						deax = doubleCallWrapper(esp_, func.first);
 						break;
 					case VT_STRING:
-						seax = stringCallWrapper(stack_ + esp_, func.first);
+						seax = stringCallWrapper(esp_, func.first);
 						break;
 					default: break;
 				}
@@ -203,22 +199,21 @@ void Interpreter::call(int id)
 		case BC_DLOAD:
 			{
 				eip_++;
-				pushValue(*(double*)(bc + eip_));
+				pushValue(*(double*)(eip_));
 				eip_ += 8;
 			}
 			break;
 		case BC_ILOAD:
 			{
 				eip_++;
-				int64_t val = (*(int64_t*)(bc + eip_));
-				pushValue(val);
+				pushValue(*(int64_t*)(eip_));
 				eip_ += 8;
 			}
 			break;
 		case BC_SLOAD:
 			{
 				eip_++;
-				pushValue(literals_[*(int16_t*)(bc + eip_)].c_str());
+				pushValue(literals_[*(int16_t*)(eip_)].c_str());
 				eip_ += 2;
 			}
 			break;
@@ -270,13 +265,34 @@ void Interpreter::call(int id)
 		FOR_VAR(VAR)
 #undef VAR
 
+		case BC_LOADIVAR1:
+			pushValue<int64_t>((int64_t)(ebp_));
+			++eip_;
+			break;
+
+		case BC_STOREIVAR1:
+			ebp_ = (int8_t*)*(popValue<int64_t>());
+			++eip_;
+			break;
+
+		case BC_LOADIVAR2:
+			pushValue<int64_t>((int64_t)(esp_));
+			++eip_;
+			break;
+
+		case BC_STOREIVAR2:
+			esp_ = (int8_t*)*(popValue<int64_t>());
+			++eip_;
+			break;
+
+
 #define IF(Suffix, Op) \
 		case BC_IFICMP##Suffix: \
 			{ \
 				int64_t* top1 = popValue<int64_t>(); \
 				int64_t* top2 = popValue<int64_t>(); \
 				++eip_; \
-				int16_t offset = *(int16_t*)(bc + eip_); \
+				int16_t offset = *(int16_t*)(eip_); \
 				if (*top1 Op *top2) \
 					eip_ += offset; \
 				else \
@@ -324,7 +340,7 @@ void Interpreter::call(int id)
 		case BC_JA:
 			{
 				++eip_;
-				int16_t offset = *(int16_t*)(bc + eip_);
+				int16_t offset = *(int16_t*)(eip_);
 				eip_ += offset;
 			}
 			break;
@@ -332,15 +348,13 @@ void Interpreter::call(int id)
 			{
 				//cout << "return" << endl;
 				int64_t val = *popValue<int64_t>();
-				eip_ = val >> 32;
-				currentId = (val << 32) >> 32;
-				bc = bytecodes_[currentId].getData();
+				eip_ = (uint8_t*)(val);
 			}
 			break;
 #define VAR(Prefix, Type) \
 		case BC_LOADCTX##Prefix##VAR: \
 			{ \
-				int32_t offset = *(int32_t*)(bc + (++eip_)); \
+				int32_t offset = *(int32_t*)(++eip_); \
 				eip_ += 4; \
 				 \
 				int type = (offset >> 30) & 3; \
@@ -351,19 +365,19 @@ void Interpreter::call(int id)
 				DEBUG_DO(cout << "load " << realOffset << ":" << type << ":" << ebp_ << endl;) \
 				switch (type){ \
 				/* load value from stack as value*/ \
-				case 0: pushValue(*(Type*)(stack_ + (ebp_ + realOffset))); break; \
+				case 0: pushValue(*(Type*)(ebp_ + realOffset)); break; \
 				/* load ptr of stack value */ \
-				case 1:	pushValue((Type*)(stack_ + (ebp_ + realOffset))); break; \
+				case 1:	pushValue((Type*)(ebp_ + realOffset)); break; \
 				/* load value by ptr in stack*/ \
-				case 2:	pushValue(**(Type**)(stack_ + (ebp_ + realOffset))); break; \
+				case 2:	pushValue(**(Type**)(ebp_ + realOffset)); break; \
 				/* load ptr by ptr */ \
-				case 3:	pushValue(*(Type**)(stack_ + (ebp_ + realOffset))); break; \
+				case 3:	pushValue(*(Type**)(ebp_ + realOffset)); break; \
 				} \
 			} \
 			break; \
 		case BC_STORECTX##Prefix##VAR: \
 			{ \
-				uint32_t offset = *(uint32_t*)(bc + (++eip_)); \
+				uint32_t offset = *(uint32_t*)(++eip_); \
 				eip_ += 4; \
 				 /*printf("store ebp: %d id: %d\n", ebp_, id);*/ \
 				 \
@@ -374,9 +388,9 @@ void Interpreter::call(int id)
 				\
 				DEBUG_DO(cout << "store " << realOffset << ":" << type << ":" << ebp_ << endl;) \
 				if (type == 0) \
-					memcpy(stack_ + (ebp_ + realOffset), popValue< Type >(), sizeof(Type)); \
+					memcpy(ebp_ + realOffset, popValue< Type >(), sizeof(Type)); \
 				else \
-					memcpy(*(Type**)(stack_ + (ebp_ + realOffset)), popValue< Type >(), sizeof(Type)); \
+					memcpy(*(Type**)(ebp_ + realOffset), popValue< Type >(), sizeof(Type)); \
 			} \
 			break;
 	FOR_VALUE_TYPE(VAR)
