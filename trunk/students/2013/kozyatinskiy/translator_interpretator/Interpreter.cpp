@@ -6,7 +6,21 @@
 #include "CompilerVisitor.h"
 
 #include <cstdio>
+#include <cmath>
 #include <stdexcept>
+#include <AsmJit/AsmJit.h>
+using namespace AsmJit;
+
+#ifndef WIN
+#include <dlfcn.h>
+#define ASSEMBLER Assembler
+#define IFST rdi
+#define ISND rsi
+#else
+#define ASSEMBLER X86Assembler
+#define IFST rcx
+#define ISND rdx
+#endif
 
 #define FOR_COMMON_OP(DO) \
 	DO(ADD, +) \
@@ -18,7 +32,7 @@
 #define FOR_CONST_LOAD(DO) \
 	DO(I, 0, static_cast<int64_t>(0)) \
 	DO(D, 0, 0.0) \
-	DO(S, 0, &emptyString_) \
+	DO(S, 0, "") \
 	DO(D, 1, 1.0) \
 	DO(I, 1, static_cast<int64_t>(1)) \
 	DO(D, M1, -1.0) \
@@ -39,10 +53,10 @@
 	DO(I, 1, int64_t, ebp_) \
 	DO(I, 2, int64_t, esp_) \
 	DO(I, 3, int64_t, ieax) \
-	DO(S, 0, string*, seax) \
-	DO(S, 1, string*, svar1) \
-	DO(S, 2, string*, svar2) \
-	DO(S, 3, string*, svar3)
+	DO(S, 0, char*, seax) \
+	DO(S, 1, char*, svar1) \
+	DO(S, 2, char*, svar2) \
+	DO(S, 3, char*, svar3)
 
 #define FOR_IF(DO) \
 	DO(NE, !=) \
@@ -50,7 +64,7 @@
 	DO(G, >) \
 	DO(GE, >=) \
 	DO(L, <) \
-	DO(LE, <=)	
+	DO(LE, <=)
 
 #define FOR_VALUE_TYPE(DO) \
 	DO(D, double) \
@@ -59,11 +73,13 @@
 #define FOR_PRINT(DO) \
 	DO(D, double, cout << scientific << *top) \
 	DO(I, int64_t, printf("%ld", *top)) \
-	DO(S, string*, cout << **top)
+	DO(S, char*, cout << string(*top))
 
-Interpreter::Interpreter()
+const int StackSize = 16 * 1024 * 1024;
+
+Interpreter::Interpreter():doubleCallWrapper(0), intCallWrapper(0), stringCallWrapper(0)
 {
-	stack_ = new int8_t[16 * 1024 * 1024];
+	stack_ = new int8_t[StackSize];
 }
 
 Interpreter::~Interpreter()
@@ -73,10 +89,25 @@ Interpreter::~Interpreter()
 
 void Interpreter::execute(const vector<Bytecode_>& bytecodes, const vector<string>& literals)
 {
+	ASSEMBLER save;
+
+	save.push(r12);
+	save.mov(r12, rsp);
+	save.mov(rsp, IFST);
+	save.call(ISND);
+	save.mov(rsp, r12);
+	save.pop(r12);
+	save.ret();
+
+	doubleCallWrapper = reinterpret_cast<DoubleCall>(save.make());
+	intCallWrapper    = reinterpret_cast<IntCall>(doubleCallWrapper);
+	stringCallWrapper = reinterpret_cast<StringCall>(doubleCallWrapper);
+	voidCallWrapper   = reinterpret_cast<VoidCall>(doubleCallWrapper);
+
 	bytecodes_ = bytecodes;
 	literals_  = literals;
-	//stack_.resize(16 * 1024 * 1024);
-	esp_ = 0;
+	resolved_.resize(literals_.size());
+	esp_ = StackSize - 1024;
 	eip_ = 0;
 	ebp_ = 0;
 	call(0);
@@ -89,7 +120,7 @@ void Interpreter::call(int id)
 
 	while (true)
 	{
-		DEBUG_DO(cout << bytecodeName(*(bc + eip_)) << endl;)
+		//cout << bytecodeName((Instruction)*(bc + eip_)) << endl;
 		switch (*(bc + eip_))
 		{
 		case BC_STOP:
@@ -106,6 +137,57 @@ void Interpreter::call(int id)
 				bc = bytecodes_[id].getData();
 			}
 			break;
+		case BC_CALLNATIVE:
+			{
+				int16_t id = *(int16_t*)(bc + (++eip_));
+				eip_ += 2;
+				pair<void*, VarType>& func = resolved_[id];
+				if (!func.first)
+				{
+					//cout << endl<<func.first << "resolving... " << id  << endl;
+					string name = literals_[id];
+					void* f = dlsym(RTLD_DEFAULT, name.c_str());
+					if (!f)
+						throw std::invalid_argument("can't resolve function");
+					switch(*name.rbegin())
+					{
+						case 'v':
+							func = make_pair(f, VT_VOID);
+							break;
+						case 'i':
+							func = make_pair(f, VT_INT);
+							break;
+						case 'd':
+							func = make_pair(f, VT_DOUBLE);
+							break;
+						case 's':
+							func = make_pair(f, VT_STRING);
+							break;
+						default: break;
+					}
+				}
+				//cout << endl << func.first << "after resolving... " << id  << endl;
+				switch(func.second)
+				{
+					case VT_VOID:
+						voidCallWrapper(stack_ + esp_, func.first);
+						break;
+					case VT_INT:
+						ieax = intCallWrapper(stack_ + esp_, func.first);
+						break;
+					case VT_DOUBLE:
+						resolved_[id].first = func.first;
+						deax = doubleCallWrapper(stack_ + esp_, func.first);
+						break;
+					case VT_STRING:
+						seax = stringCallWrapper(stack_ + esp_, func.first);
+						break;
+					default: break;
+				}
+				//cout << endl << func.first << "after call... " << id  << endl;
+			}
+			break;
+
 		case BC_D2I:
 			{
 				int64_t res = static_cast<int64_t>(*popValue<double>());
@@ -138,7 +220,7 @@ void Interpreter::call(int id)
 		case BC_SLOAD:
 			{
 				eip_++;
-				pushValue(&literals_[*(int16_t*)(bc + eip_)]);
+				pushValue(literals_[*(int16_t*)(bc + eip_)].c_str());
 				eip_ += 2;
 			}
 			break;
@@ -301,21 +383,11 @@ void Interpreter::call(int id)
 			break;
 	FOR_VALUE_TYPE(VAR)
 #undef VAR
-		case BC_LOADSVAR:
+		default:
 			{
-				int16_t id = *(int16_t*)(bc + (++eip_));
-				eip_ += 2;
-
-				if (((1 << 14) & id))
-					id = id | (1 << 15);
-				else
-					id = id << 1 >> 1;
-
-				pushValue((string*)(stack_ + (ebp_ + id)));
+				throw std::invalid_argument("unsupported instruction");
 			}
 			break;
-		default:
-			throw std::invalid_argument("unsupported instruction");
 		}
 	}
 }
