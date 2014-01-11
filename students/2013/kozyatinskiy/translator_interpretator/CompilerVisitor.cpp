@@ -414,20 +414,19 @@ void CompilerVisitor::visitNativeCallNode(NativeCallNode* nativeCall)
 	bc.add(BC_CALLNATIVE);
 
 	int id = stringLiterals.size();
-	stringLiterals.push_back(nativeCall->nativeName());
 	switch (nativeCall->nativeSignature().front().first)
 	{
 	case VT_VOID:
-		stringLiterals.back().append("\0v");
+		stringLiterals.push_back("v" + nativeCall->nativeName());
 		break;
 	case VT_INT:
-		stringLiterals.back().append("\0i");
+		stringLiterals.push_back("i" + nativeCall->nativeName());
 		break;
 	case VT_DOUBLE:
-		stringLiterals.back().append("\0d");
+		stringLiterals.push_back("d" + nativeCall->nativeName());
 		break;
 	case VT_STRING:
-		stringLiterals.back().append("\0s");
+		stringLiterals.push_back("s" + nativeCall->nativeName());
 		break;
 	default:
 		throw std::invalid_argument("unsupported return type");
