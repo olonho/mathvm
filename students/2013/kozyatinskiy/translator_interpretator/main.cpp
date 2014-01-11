@@ -45,11 +45,11 @@ int main(int argc, char* argv[])
 		compiler.visitStartFunction(f, sv.result());
 
 		const vector<Bytecode_>& functions = compiler.bytecodes();
-//		for (size_t i = 0; i < functions.size(); ++i)
-//		{
-//			cout << "function " << i << endl;
-//			functions[i].dump(std::cout);
-//		}
+		//for (size_t i = 0; i < functions.size(); ++i)
+		//{
+		//	cout << "function " << i << endl;
+		//	functions[i].dump(std::cout);
+		//}
 
 		Interpreter i;
 		i.execute(functions, compiler.literals());
