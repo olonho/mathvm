@@ -10,6 +10,7 @@
 #include "CompilerVisitor.h"
 #include "StackVisitor.h"
 #include "Interpreter.h"
+#include "MyCompiler.h"
 
 using namespace mathvm;
 
@@ -44,15 +45,22 @@ int main(int argc, char* argv[])
 
 		compiler.visitStartFunction(f, sv.result());
 
-		const vector<Bytecode_>& functions = compiler.bytecodes();
+		const vector<pair<VarType, Bytecode_> >& functions = compiler.bytecodes();
 		//for (size_t i = 0; i < functions.size(); ++i)
 		//{
 		//	cout << "function " << i << endl;
-		//	functions[i].dump(std::cout);
+		//	functions[i].second.dump(std::cout);
 		//}
 
-		Interpreter i;
-		i.execute(functions, compiler.literals());
+		Interpreter interp;
+		MyCompiler jit;
+		interp.setCompiler(&jit);
+		interp.execute(functions, compiler.literals());
+
+		//for(size_t i = 0; i < interp.callsCount().size(); ++i)
+		//{
+		//	cout << i << " : " << interp.callsCount()[i] << endl;
+		//}
 	}
 	catch(std::exception& e)
 	{

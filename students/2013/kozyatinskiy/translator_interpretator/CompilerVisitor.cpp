@@ -40,7 +40,6 @@
 	DO(AND) \
 	DO(OR)
 
-
 CompilerVisitor::CompilerVisitor():elseLabel_(0), thenLabel_(0), parent_(0)
 {
 	bytecodes_.reserve(4096);
@@ -56,7 +55,7 @@ void CompilerVisitor::visitStartFunction(AstFunction* f, const map<AstFunction*,
 }
 
 
-const vector<Bytecode_>& CompilerVisitor::bytecodes() const
+const vector<pair<VarType, Bytecode_> >& CompilerVisitor::bytecodes() const
 {
 	return bytecodes_;
 }
@@ -76,11 +75,11 @@ void CompilerVisitor::visitFunctionNode(FunctionNode* function)
 	functionId_[function->name()] = lastFunction_;
 	//cout << lastFunction_ << ":" << function->name() << endl;
 
-	bytecodes_.push_back(Bytecode_());
+	bytecodes_.push_back(make_pair(function->signature().front().first, Bytecode_()));
 	callStacks_.push_back(StackLayout(function->signature(), function->name(), lastFunction_, captured_[lastAstFunction_]));
 	parent_ = &callStacks_.back();
 
-	Bytecode& bc = bytecodes_[lastFunction_];
+	Bytecode& bc = bytecodes_[lastFunction_].second;
 	// save context
 	bc.add(PUSH_EBP);	// push(ebp) - save ebp
 	bc.add(PUSH_ESP);	// mov(ebp, esp)
@@ -97,7 +96,7 @@ void CompilerVisitor::visitFunctionNode(FunctionNode* function)
 void CompilerVisitor::visitBlockNode(BlockNode* block)
 {
 	int tmpLastFunction = lastFunction_;
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	scopeStack_.push_back(block->scope());
@@ -117,7 +116,7 @@ void CompilerVisitor::visitBlockNode(BlockNode* block)
 
 	// process body
 	lastFunction_ = tmpLastFunction;
-	bc = bytecodes_[lastFunction_];
+	bc = bytecodes_[lastFunction_].second;
 	sl = callStacks_[lastFunction_];
 
 	block->visitChildren(this);
@@ -139,7 +138,7 @@ void CompilerVisitor::visitBlockNode(BlockNode* block)
 
 void CompilerVisitor::visitBinaryOpNode(BinaryOpNode* opNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	if (opNode->kind() == tAND || opNode->kind() == tOR)
@@ -181,7 +180,7 @@ void CompilerVisitor::visitBinaryOpNode(BinaryOpNode* opNode)
 
 void CompilerVisitor::visitCallNode(CallNode* callNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	// compile function
@@ -259,7 +258,7 @@ void CompilerVisitor::visitCallNode(CallNode* callNode)
 
 void CompilerVisitor::visitDoubleLiteralNode(DoubleLiteralNode* doubleLiteral)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	if (abs(doubleLiteral->literal()) < std::numeric_limits<double>::epsilon())
@@ -278,7 +277,7 @@ void CompilerVisitor::visitDoubleLiteralNode(DoubleLiteralNode* doubleLiteral)
 
 void CompilerVisitor::visitForNode(ForNode* forNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 
 	// prepare variable
 	const AstVar* var = forNode->var();
@@ -333,7 +332,7 @@ void CompilerVisitor::visitForNode(ForNode* forNode)
 
 void CompilerVisitor::visitIfNode(IfNode* ifNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 
 	Label elseLabel(&bc);
 	Label thenLabel(&bc);
@@ -367,7 +366,7 @@ void CompilerVisitor::visitIfNode(IfNode* ifNode)
 
 void CompilerVisitor::visitIntLiteralNode(IntLiteralNode* intLiteral)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	switch (intLiteral->literal())
@@ -394,7 +393,7 @@ void CompilerVisitor::visitIntLiteralNode(IntLiteralNode* intLiteral)
 
 void CompilerVisitor::visitLoadNode(LoadNode* loadNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	const AstVar* var = loadNode->var();
@@ -407,7 +406,7 @@ void CompilerVisitor::visitLoadNode(LoadNode* loadNode)
 
 void CompilerVisitor::visitNativeCallNode(NativeCallNode* nativeCall)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 
 	nativeCall->visitChildren(this);
 
@@ -437,7 +436,7 @@ void CompilerVisitor::visitNativeCallNode(NativeCallNode* nativeCall)
 
 void CompilerVisitor::visitPrintNode(PrintNode* printNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	for (size_t i = 0; i < printNode->operands(); ++i)
@@ -454,7 +453,7 @@ void CompilerVisitor::visitPrintNode(PrintNode* printNode)
 
 void CompilerVisitor::visitReturnNode(ReturnNode* returnNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	if (returnNode->returnExpr())
@@ -479,7 +478,7 @@ void CompilerVisitor::visitReturnNode(ReturnNode* returnNode)
 
 void CompilerVisitor::visitStoreNode(StoreNode* storeNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	if (storeNode->op() == tINCRSET || storeNode->op() == tDECRSET)
@@ -507,7 +506,7 @@ void CompilerVisitor::visitStoreNode(StoreNode* storeNode)
 
 void CompilerVisitor::visitStringLiteralNode(StringLiteralNode* stringLiteral)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	int16_t id = static_cast<int16_t>(stringLiterals.size());
@@ -523,7 +522,7 @@ void CompilerVisitor::visitStringLiteralNode(StringLiteralNode* stringLiteral)
 
 void CompilerVisitor::visitUnaryOpNode(UnaryOpNode* opNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	if (opNode->kind() == tNOT)
@@ -568,7 +567,7 @@ void CompilerVisitor::visitUnaryOpNode(UnaryOpNode* opNode)
 
 void CompilerVisitor::visitWhileNode(WhileNode* whileNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 
 	Label beforeLabel(&bc);
 	Label elseLabel(&bc);
@@ -597,7 +596,7 @@ void CompilerVisitor::visitWhileNode(WhileNode* whileNode)
 
 void CompilerVisitor::visitIntBinOpNode(BinaryOpNode* opNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 
 	switch(opNode->kind())
@@ -642,7 +641,7 @@ void CompilerVisitor::visitIntBinOpNode(BinaryOpNode* opNode)
 
 void CompilerVisitor::visitDoubleBinOpNode(BinaryOpNode* opNode)
 {
-	Bytecode&    bc = bytecodes_[lastFunction_];
+	Bytecode&    bc = bytecodes_[lastFunction_].second;
 	StackLayout& sl = callStacks_[lastFunction_];
 	
 	switch(opNode->kind())

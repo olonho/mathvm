@@ -10,7 +10,9 @@ USER_OBJ = \
 	$(OBJ)/Interpreter$(OBJ_SUFF) \
 	$(OBJ)/StackLayout$(OBJ_SUFF) \
 	$(OBJ)/StackVisitor$(OBJ_SUFF) \
-	$(OBJ)/VarsUtil$(OBJ_SUFF)
+	$(OBJ)/VarsUtil$(OBJ_SUFF) \
+	$(OBJ)/MyCompiler$(OBJ_SUFF) \
+	$(OBJ)/InstAsm$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 

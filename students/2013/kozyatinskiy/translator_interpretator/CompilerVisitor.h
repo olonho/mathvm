@@ -14,7 +14,7 @@ using namespace mathvm;
 
 class Bytecode_ : public Bytecode {
 public:
-    uint8_t * getData() {
+    const uint8_t * getData() const{
         return _data.data();
     }
 };
@@ -25,7 +25,7 @@ public:
 	CompilerVisitor();
 
 	void visitStartFunction(AstFunction* f, const map<AstFunction*, set<pair<VarType, string> > >& captured_);
-	const vector<Bytecode_>& bytecodes() const;
+	const vector<pair<VarType, Bytecode_> >& bytecodes() const;
 	const vector<string>& literals() const;
 
 private:
@@ -47,7 +47,7 @@ private:
 	virtual void visitWhileNode(WhileNode* whileNode);
 
 private:
-	vector<Bytecode_>    bytecodes_;
+	vector<pair<VarType, Bytecode_> >    bytecodes_;
 	vector<StackLayout> callStacks_;
 	vector<string>      stringLiterals;
 
