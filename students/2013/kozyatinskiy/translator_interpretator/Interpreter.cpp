@@ -149,7 +149,7 @@ void Interpreter::call(int id)
 				// compile on second call
 				if (compiler_ && callsCount_[id])
 				{
-					void* f = compiler_->compile(bytecodes_[id].second, id);
+					void* f = compiler_->compile(bytecodes_[id].second, id, literals_);
 					if (f)
 					{
 						switch(bytecodes_[id].first)

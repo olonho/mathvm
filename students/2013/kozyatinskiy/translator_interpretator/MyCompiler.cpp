@@ -1,5 +1,8 @@
 #include "MyCompiler.h"
 
+#include <iostream>
+#include <string>
+
 #include <AsmJit/AsmJit.h>
 using namespace AsmJit;
 
@@ -9,10 +12,12 @@ using namespace AsmJit;
 #define ASSEMBLER Assembler
 #define IFST rdi
 #define ISND rsi
+#define DFST xmm0
 #else
 #define ASSEMBLER X86Assembler
 #define IFST rcx
 #define ISND rdx
+#define DFST xmm0
 #endif
 
 
@@ -26,7 +31,7 @@ MyCompiler::~MyCompiler(void)
 }
 
 
-void* MyCompiler::compile(const Bytecode_& bc, int16_t id)
+void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>& literals)
 {
 	if (cache_[id])
 		return cache_[id];
@@ -65,6 +70,27 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id)
 			++inst;
 			break;
 
+		case BC_IPRINT:
+			a.mov(IFST, dword_ptr(rsp));
+			a.call(reinterpret_cast<void*>(&iprint));
+			a.add(rsp, 8);
+			++inst;
+			break;
+
+		case BC_SPRINT:
+			a.mov(IFST, dword_ptr(rsp));
+			a.call(reinterpret_cast<void*>(&sprint));
+			a.add(rsp, 8);
+			++inst;
+			break;
+
+		case BC_DPRINT:
+			a.movsd(xmm0, mmword_ptr(rsp));
+			a.call(reinterpret_cast<void*>(&dprint));
+			a.add(rsp, 8);
+			++inst;
+			break;
+
 		case BC_LOADIVAR2:
 			if (*(++inst) == BC_STOREIVAR1)
 			{
@@ -87,12 +113,44 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id)
 				 
 				int type = (offset >> 30) & 3;
 
-				if (type != 0)
-					return cantCompile(BC_LOADCTXIVAR, id);
+				//if (type != 0)
+				//	return cantCompile(BC_LOADCTXIVAR, id);
 
 				offset = offset << 16 >> 16;
 
-				a.push(qword_ptr(rbp, offset));
+				if (type == 0 || type == 3)
+					a.push(qword_ptr(rbp, offset));
+				else if (type == 1)
+				{
+					a.push(rbp);
+					a.add(rsp, offset);
+				}else if (type == 2)
+				{
+					a.mov(r10, qword_ptr(rbp, offset));
+					a.push(qword_ptr(r10));
+				}
+			}
+			break;
+
+		case BC_STORECTXIVAR:
+			{
+				int32_t offset = *(int32_t*)(++inst);
+				inst += 4;
+				 
+				int type = (offset >> 30) & 3;
+
+				//if (type != 0)
+				//	return cantCompile(BC_STORECTXIVAR, id);
+
+				offset = offset << 16 >> 16;
+
+				if (type == 0)
+					a.pop(qword_ptr(rbp, offset));
+				else
+				{
+					a.mov(r10, qword_ptr(rbp, offset));
+					a.pop(qword_ptr(r10));
+				}
 			}
 			break;
 
@@ -114,11 +172,11 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id)
 				a.je(eq);
 				
 				a.push(1l);
-				a.ja(after);
+				a.jmp(after);
 				
 				a.bind(lt);
 				a.push(-1l);
-				a.ja(after);
+				a.jmp(after);
 				
 				a.bind(eq);
 				a.push(0l);
@@ -146,6 +204,57 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id)
 			}
 			break;
 
+		case BC_IFICMPGE:
+			{
+				int16_t offset = *(int16_t*)(++inst);
+				if (offset < 0)
+					return cantCompile(BC_IFICMPGE, id);
+
+				AsmJit::Label dest = a.newLabel();
+				a.pop(r11);
+				a.pop(r10);
+				a.cmp(r10, r11);
+				a.jge(dest);
+
+				labels[inst - fst + offset].push_back(dest);
+				inst += 2;
+			}
+			break;
+
+		case BC_IFICMPG:
+			{
+				int16_t offset = *(int16_t*)(++inst);
+				if (offset < 0)
+					return cantCompile(BC_IFICMPG, id);
+
+				AsmJit::Label dest = a.newLabel();
+				a.pop(r11);
+				a.pop(r10);
+				a.cmp(r10, r11);
+				a.jg(dest);
+
+				labels[inst - fst + offset].push_back(dest);
+				inst += 2;
+			}
+			break;
+
+		case BC_IFICMPLE:
+			{
+				int16_t offset = *(int16_t*)(++inst);
+				if (offset < 0)
+					return cantCompile(BC_IFICMPLE, id);
+
+				AsmJit::Label dest = a.newLabel();
+				a.pop(r11);
+				a.pop(r10);
+				a.cmp(r10, r11);
+				a.jle(dest);
+
+				labels[inst - fst + offset].push_back(dest);
+				inst += 2;
+			}
+			break;
+
 		case BC_ILOAD1:
 			a.push(1l);
 			++inst;
@@ -153,9 +262,8 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id)
 
 		case BC_IADD:
 			a.pop(r10);
-			a.pop(r11);
-			a.add(r10, r11);
-			a.push(r10);
+			a.add(r10, qword_ptr(rsp));
+			a.mov(qword_ptr(rsp), r10);
 
 			++inst;
 			break;
@@ -184,6 +292,8 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id)
 
 				AsmJit::Label dest = a.newLabel();
 				labels[inst - fst + offset].push_back(dest);
+
+				a.jmp(dest);
 				inst += 2;
 			}
 			break;
@@ -216,6 +326,56 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id)
 			}
 			break;
 
+		case BC_SLOAD:
+			{
+				int64_t id = *(int16_t*)(++inst);
+				inst += 2;
+				a.push((int64_t)literals[id].c_str());
+			}
+			break;
+
+		case BC_DLOAD:
+			{
+				uint32_t m[2];
+				m[1] = *(uint32_t*)(inst);
+				inst += 4;
+				m[0] = *(uint32_t*)(inst);
+				inst += 4;
+
+				//HACK: asmjit push only 4 byte :( but rsp = rsp + 8 after push
+				a.push(m[0]);
+				a.mov(dword_ptr(rsp, 4), m[1]);
+			}
+			break;
+
+		case BC_D2I:
+			{
+				a.cvttsd2si(rax, mmword_ptr(rsp));
+				a.add(rsp, 8);
+				a.pop(rax);
+				++inst;
+			}
+			break;
+
+		case BC_I2D:
+			{
+				a.cvtsi2sd(xmm0, qword_ptr(rsp));
+				a.movsd(qword_ptr(rsp), xmm0);
+				++inst;
+			}
+			break;
+
+		case BC_DADD:
+			{
+				a.movsd(xmm0, mmword_ptr(rsp));
+				a.addsd(xmm0, mmword_ptr(rsp, 8));
+				a.add(rsp, 8);
+				a.movsd(mmword_ptr(rsp), xmm0);
+				++inst;
+				//a.push(xmm1);
+			}
+			break;
+
 		default:
 			return cantCompile((Instruction)*inst, id);
 		}
@@ -230,4 +390,22 @@ void* MyCompiler::cantCompile(Instruction inst, int16_t id)
 	cout << "WARNING: unsupported instruction " << bytecodeName(inst) << " - can't compile function " << id << endl;
 	cantCompile_[id] = true;
 	return 0;
+}
+
+
+void MyCompiler::iprint(int64_t val)
+{
+	printf("%ld", val);
+}
+
+
+void MyCompiler::sprint(const char* val)
+{
+	cout << string(val);
+}
+
+
+void MyCompiler::dprint(double val)
+{
+	cout << scientific << val;
 }
