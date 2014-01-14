@@ -282,3 +282,35 @@ uint32_t FunctionDescription::getAddress(const std::string &var, uint16_t ownerI
     if (it == varAddresses.end()) throw std::logic_error("Unable to get address of variable: " + var);
     return it->second;
 }
+
+//==================================================================================
+
+bool IfChecker::hasReturn(BlockNode *node) {
+    returnFound = false;
+    node->visitChildren(this);
+    return returnFound;
+}
+
+void IfChecker::visitBlockNode(BlockNode *node) {
+    node->visitChildren(this);
+}
+
+void IfChecker::visitForNode(ForNode *node) {
+    node->body()->visit(this);
+}
+
+void IfChecker::visitWhileNode(WhileNode *node) {
+    node->loopBlock()->visit(this);
+}
+
+void IfChecker::visitReturnNode(ReturnNode *node) {
+    returnFound = true;
+}
+
+void IfChecker::visitIfNode(IfNode *node) {
+    if(node->elseBlock()) {
+        //nested ifs works fine with only one return statement
+        IfChecker ic;
+        returnFound = ic.hasReturn(node->thenBlock()) && ic.hasReturn(node->elseBlock());
+    }
+}

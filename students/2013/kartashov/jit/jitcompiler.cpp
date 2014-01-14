@@ -787,7 +787,12 @@ void JITCompiler::visitIfNode(IfNode *node) {
 
     if(node->elseBlock()) {
         AsmJit::Label ifElse = c.newLabel();
-        AsmJit::Label ifEnd = c.newLabel();
+
+        //duct tape for AsmJit labels
+        IfChecker ic;
+        bool noRetInThen = !ic.hasReturn(node->thenBlock());
+        AsmJit::Label ifEnd;
+        if(noRetInThen) ifEnd = c.newLabel();
 
         node->ifExpr()->visit(this);
         convertTOSType(tosType(), VT_INT);
@@ -796,10 +801,12 @@ void JITCompiler::visitIfNode(IfNode *node) {
         c.je(ifElse);
         c.unuse(*cond.gp);
         node->thenBlock()->visit(this);
-        c.jmp(ifEnd);
+        if(noRetInThen) c.jmp(ifEnd);
+//        c.jmp(ifEnd);
         c.bind(ifElse);
-        if(node->elseBlock()) node->elseBlock()->visit(this);
-        c.bind(ifEnd);
+        node->elseBlock()->visit(this);
+        if(noRetInThen) c.bind(ifEnd);
+//        c.bind(ifEnd);
     } else {
         AsmJit::Label ifEnd = c.newLabel();
 

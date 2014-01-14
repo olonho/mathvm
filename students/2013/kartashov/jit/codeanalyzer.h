@@ -146,6 +146,23 @@ private:
     bool recursiveBinaryOp, inStoreNode;
 };
 
+class IfChecker : public AstVisitor {
+public:
+    IfChecker() {}
+
+    bool hasReturn(BlockNode *node);
+
+private:
+    void visitReturnNode(ReturnNode *node);
+    void visitForNode(ForNode *node);
+    void visitWhileNode(WhileNode *node);
+    void visitBlockNode(BlockNode *node);
+    void visitIfNode(IfNode *node);
+
+    bool returnFound;
+
+};
+
 }
 
 #endif // CODEANALYZER_H
