@@ -311,7 +311,7 @@ public: // methods
     ((src_aavi)->type == VT_INVALID) ?                             \
       m_compiler.op(dest, AS_GP((src_aavi)->data.var)) :           \
       m_compiler.op(dest, imm((src_aavi)->data.i));
-
+  
   #define INT_EMIT_COMMUT_OP_CODE(a, b, res, op, def)              \
     if (HAS_TRANSIENT_VAR(a)) {                                    \
       res = a->data.var;                                           \
@@ -940,21 +940,28 @@ private: // methods
       TRY_INT_CONST_COMPUTE(a, /, b)
     }
 
-    INT_PERFORM_OP(AS_GP(m_divisor), b, mov)
+    // Well, there is probrem with idiv: CDQ instruction
+    // must be called according to http://en.wikipedia.org/wiki/X86_instruction_listings
+    // But I'm not able to test ``m_compiler.cdqe'' on my machine now
+    // and has doubts about its correctness, since compiler can reorder instructions,
+    // So I've moved int division to separate function to be safe
+    ensureInVar(a);
+    ensureInVar(b);
     
-    AAVI *div = new AAVI(true, m_compiler, VT_INT);
-    INT_PERFORM_OP(AS_GP(div), a, mov)
+    AAVI *result = new AAVI(true, m_compiler, VT_INT);
+    sysint_t addr = (sysint_t)(rem_requred ? &int_mod : &int_div);
+    ECall *ctx = m_compiler.call(imm(addr));
     
-    AAVI *rem = new AAVI(true, m_compiler, VT_INT);
-    m_compiler.xor_(AS_GP(rem), AS_GP(rem));
+    ctx->setPrototype(CALL_CONV_DEFAULT,
+                      FunctionBuilder2<uint64_t, uint64_t, uint64_t>());
+    ctx->setArgument(0, AS_GP(a->data.var));
+    ctx->setArgument(1, AS_GP(b->data.var));
+    ctx->setReturn(AS_GP(result));
     
-    // use one common var as divisor as WORKAROUND for div late init bug
-    m_compiler.idiv_lo_hi(AS_GP(div), AS_GP(rem), AS_GP(m_divisor));
-
     if (HAS_TRANSIENT_VAR(a)) { delete a->data.var; }
     if (HAS_TRANSIENT_VAR(b)) { delete b->data.var; }
     
-    ERV erv; erv.var = rem_requred ? rem : div;
+    ERV erv; erv.var = result;
     return EvalResult(VT_INVALID, erv);
   }
   
