@@ -13,22 +13,7 @@
 #include <AsmJit/AsmJit.h>
 using namespace AsmJit;
 
-//#define WIN
-
-#ifndef WIN
-#include <dlfcn.h>
-#define ASSEMBLER Assembler
-#define IFST rdi
-#define ISND rsi
-#define LONG_FORMAT "%ld"
-#define VARTYPE
-#else
-#define ASSEMBLER X86Assembler
-#define IFST rcx
-#define ISND rdx
-#define LONG_FORMAT "%I64d"
-#define VARTYPE mathvm::VarType::
-#endif
+#include "OsSpecific.h"
 
 #define FOR_COMMON_OP(DO) \
 	DO(ADD, +) \
@@ -98,22 +83,22 @@ void Interpreter::setCompiler(MyCompiler* _compiler)
 	compiler_ = _compiler;
 }
 
+ void Interpreter::callHelper(Interpreter* interp, int id, int8_t* esp, int8_t* ebp)
+ {
+	 interp->call(id, esp, ebp, true);
+ }
+
 void Interpreter::execute(const vector<pair<VarType, Bytecode_> >& bytecodes, const vector<string>& literals)
 {
-	ASSEMBLER save;
+	doubleCallWrapper = reinterpret_cast<DoubleNCall>(asmNCALL());
+	intCallWrapper    = reinterpret_cast<IntNCall>(doubleCallWrapper);
+	stringCallWrapper = reinterpret_cast<StringNCall>(doubleCallWrapper);
+	voidCallWrapper   = reinterpret_cast<VoidNCall>(doubleCallWrapper);
 
-	save.push(r12);
-	save.mov(r12, rsp);
-	save.mov(rsp, IFST);
-	save.call(ISND);
-	save.mov(rsp, r12);
-	save.pop(r12);
-	save.ret();
-
-	doubleCallWrapper = reinterpret_cast<DoubleCall>(save.make());
-	intCallWrapper    = reinterpret_cast<IntCall>(doubleCallWrapper);
-	stringCallWrapper = reinterpret_cast<StringCall>(doubleCallWrapper);
-	voidCallWrapper   = reinterpret_cast<VoidCall>(doubleCallWrapper);
+	doubleSCallWrapper = reinterpret_cast<DoubleCall>(asmCALL());
+	intSCallWrapper    = reinterpret_cast<IntCall>(doubleSCallWrapper);
+	stringSCallWrapper = reinterpret_cast<StringCall>(doubleSCallWrapper);
+	voidSCallWrapper   = reinterpret_cast<VoidCall>(doubleSCallWrapper);
 
 	icmpWrapper   = reinterpret_cast<InstWrapper>(asmIcmp());
 	iload0Wrapper = reinterpret_cast<InstWrapper>(asmILOAD0());
@@ -125,11 +110,44 @@ void Interpreter::execute(const vector<pair<VarType, Bytecode_> >& bytecodes, co
 	esp_ = stack_ + StackSize - 1024;
 	eip_ = 0;
 	ebp_ = esp_;
-	call(0);
+	if (!tryCompileAndRun(0))
+		call(0, esp_, ebp_);
 }
 
-void Interpreter::call(int id)
+
+bool Interpreter::tryCompileAndRun(int16_t id)
 {
+	void* f = compiler_->compile(bytecodes_[id].second, id, literals_, this);
+	if (f)
+	{
+		const uint8_t* tmpEip = 0; 
+		switch(bytecodes_[id].first)
+		{
+			case VARTYPE VT_VOID:
+				voidSCallWrapper(&esp_, &ebp_, &tmpEip, f);
+				break;
+			case VARTYPE VT_INT:
+				ieax = intSCallWrapper(&esp_, &ebp_, &tmpEip, f);
+				break;
+			case VT_DOUBLE:
+				deax = doubleSCallWrapper(&esp_, &ebp_, &tmpEip, f);
+				break;
+			case VT_STRING:
+				seax = stringSCallWrapper(&esp_, &ebp_, &tmpEip, f);
+				break;
+			default: break;
+		}
+		if (tmpEip) eip_ = tmpEip; 
+		return true;;
+	}
+	return false;
+}
+
+
+void Interpreter::call(int id, int8_t* esp, int8_t* ebp, bool fromNative)
+{
+	esp_ = esp;
+	ebp_ = ebp;
 	eip_ = bytecodes_[id].second.getData();
 	callsCount_[id]++;
 
@@ -147,34 +165,18 @@ void Interpreter::call(int id)
 				eip_ += 2;
 				
 				// compile on second call
-				if (compiler_ && callsCount_[id])
+				if (compiler_ && callsCount_[id] && tryCompileAndRun(id))///&& bytecodes_[id].second.length() > 20)
 				{
-					void* f = compiler_->compile(bytecodes_[id].second, id, literals_);
-					if (f)
-					{
-						switch(bytecodes_[id].first)
-						{
-							case VARTYPE VT_VOID:
-								voidCallWrapper(esp_, f);
-								break;
-							case VARTYPE VT_INT:
-								ieax = intCallWrapper(esp_, f);
-								break;
-							case VT_DOUBLE:
-								deax = doubleCallWrapper(esp_, f);
-								break;
-							case VT_STRING:
-								seax = stringCallWrapper(esp_, f);
-								break;
-							default: break;
-						}
-						break;
-					}
+					break;
 				}
-				uint64_t cur_eip = (uint64_t)eip_; 
-				pushValue(cur_eip);
-				eip_ = bytecodes_[id].second.getData();
-				callsCount_[id]++;
+				else
+				{
+					uint64_t cur_eip = (uint64_t)eip_; 
+					pushValue(cur_eip | 1ll << 63);
+
+					eip_ = bytecodes_[id].second.getData();
+					callsCount_[id]++;
+				}
 			}
 			break;
 		case BC_CALLNATIVE:
@@ -185,7 +187,7 @@ void Interpreter::call(int id)
 				if (!func.first)
 				{
 					string name = literals_[id];
-					void* f = 0; //dlsym(RTLD_DEFAULT, name.c_str() + 1);//static_cast<double(*)(double)>(&sqrt);
+					void* f = dlsym(RTLD_DEFAULT, name.c_str() + 1);//static_cast<double(*)(double)>(&sqrt);
 					if (!f)
 						throw std::invalid_argument("can't resolve function");
 					switch(*name.begin())
@@ -208,16 +210,16 @@ void Interpreter::call(int id)
 				switch(func.second)
 				{
 					case VARTYPE VT_VOID:
-						voidCallWrapper(esp_, func.first);
+						voidCallWrapper(esp_, ebp_, func.first);
 						break;
 					case VARTYPE VT_INT:
-						ieax = intCallWrapper(esp_, func.first);
+						ieax = intCallWrapper(esp_, ebp_, func.first);
 						break;
 					case VT_DOUBLE:
-						deax = doubleCallWrapper(esp_, func.first);
+						deax = doubleCallWrapper(esp_, ebp_, func.first);
 						break;
 					case VT_STRING:
-						seax = stringCallWrapper(esp_, func.first);
+						seax = stringCallWrapper(esp_, ebp_, func.first);
 						break;
 					default: break;
 				}
@@ -268,6 +270,7 @@ void Interpreter::call(int id)
 #undef LOAD
 
 		case BC_ILOAD0:
+			//pushValue(0l);
 			esp_ = iload0Wrapper(esp_);
 			++eip_;
 			break;
@@ -394,9 +397,8 @@ void Interpreter::call(int id)
 			break;
 		case BC_RETURN:
 			{
-				//cout << "return" << endl;
-				int64_t val = *popValue<int64_t>();
-				eip_ = (uint8_t*)(val);
+				uint64_t val = *popValue<uint64_t>();
+				eip_ = (uint8_t*)(val << 1 >> 1);
 			}
 			break;
 #define VAR(Prefix, Type) \
@@ -453,4 +455,3 @@ void Interpreter::call(int id)
 }
 
 #undef DEBUG_DO
-#undef WIN
