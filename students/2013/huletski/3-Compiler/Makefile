@@ -10,6 +10,7 @@ USER_OBJ = \
 
 include $(VM_ROOT)/common.mk
 
+USER_CFLAGS = -DFAST_DIV
 MATHVM = $(BIN)/mvm
 
 all: $(MATHVM)

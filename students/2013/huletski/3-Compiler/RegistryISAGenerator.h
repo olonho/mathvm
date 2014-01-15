@@ -277,7 +277,7 @@ public: // methods
   }
 
   #define LOAD_CONST_TO_XMM(xmm_var, const)                                    \
-    m_compiler.mov(*m_gp_tmp, imm(d2i((double)const)));                              \
+    m_compiler.mov(*m_gp_tmp, imm(d2i((double)const)));                        \
     m_compiler.movq(xmm_var, *m_gp_tmp);
 
   void ensureInVar(EvalResult *er) {
@@ -439,6 +439,7 @@ public: // methods
       PERFORM_GENERIC_OP(aavi, r, sub, subpd, type)
     } else {
       aavi = new AAVI(true, m_compiler, type);
+      ensureInVar(l);
       copyContentToVar(l->data.var, aavi);
       PERFORM_GENERIC_OP(aavi, r, sub, subpd, type)
     }
@@ -844,28 +845,19 @@ public: // methods
   
   inline void whileStmnt(EvalResult cond_er, std::vector<Emittable *> cond,
                          std::vector<Emittable *> body_blk) {
-    if (!cond_er.isConstant()) {
-      AsmJit::Label loop_end(m_compiler.newLabel());
-      AsmJit::Label loop_start(m_compiler.newLabel());
+    ensureInVar(&cond_er);
+
+    AsmJit::Label loop_end(m_compiler.newLabel());
+    AsmJit::Label loop_start(m_compiler.newLabel());
     
-      m_compiler.bind(loop_start);
-      addEmmitablesToCode(cond);
-      toInt(&cond_er);
-      genCondCheck(cond_er, loop_end);
+    m_compiler.bind(loop_start);
+    addEmmitablesToCode(cond);
+    toInt(&cond_er);
+    genCondCheck(cond_er, loop_end);
     
-      addEmmitablesToCode(body_blk);
-      m_compiler.jmp(loop_start);
-      m_compiler.bind(loop_end);
-    } else {
-      toInt(&cond_er);
-      if (cond_er.data.i != 0) { //infinite loop
-        AsmJit::Label loop_start(m_compiler.newLabel());
-        
-        m_compiler.bind(loop_start);
-        addEmmitablesToCode(body_blk);
-        m_compiler.jmp(loop_start);
-      }
-    }
+    addEmmitablesToCode(body_blk);
+    m_compiler.jmp(loop_start);
+    m_compiler.bind(loop_end);
   }
   
   inline void forStmnt(
@@ -939,7 +931,22 @@ private: // methods
     } else {
       TRY_INT_CONST_COMPUTE(a, /, b)
     }
-
+    
+#ifdef FAST_DIV
+     INT_PERFORM_OP(AS_GP(m_divisor), b, mov)
+     AAVI *div = new AAVI(true, m_compiler, VT_INT);
+     INT_PERFORM_OP(AS_GP(div), a, mov)
+     AAVI *rem = new AAVI(true, m_compiler, VT_INT);
+    
+     m_compiler.cdqe(AS_GP(rem));
+     m_compiler.idiv_lo_hi(AS_GP(div), AS_GP(rem), AS_GP(m_divisor));
+     
+     if (HAS_TRANSIENT_VAR(a)) { delete a->data.var; }
+     if (HAS_TRANSIENT_VAR(b)) { delete b->data.var; }
+     
+     ERV erv; erv.var = rem_requred ? rem : div;
+    
+#else
     // Well, there is probrem with idiv: CDQ instruction
     // must be called according to http://en.wikipedia.org/wiki/X86_instruction_listings
     // But I'm not able to test ``m_compiler.cdqe'' on my machine now
@@ -951,7 +958,6 @@ private: // methods
     AAVI *result = new AAVI(true, m_compiler, VT_INT);
     sysint_t addr = (sysint_t)(rem_requred ? &int_mod : &int_div);
     ECall *ctx = m_compiler.call(imm(addr));
-    
     ctx->setPrototype(CALL_CONV_DEFAULT,
                       FunctionBuilder2<uint64_t, uint64_t, uint64_t>());
     ctx->setArgument(0, AS_GP(a->data.var));
@@ -962,6 +968,7 @@ private: // methods
     if (HAS_TRANSIENT_VAR(b)) { delete b->data.var; }
     
     ERV erv; erv.var = result;
+#endif
     return EvalResult(VT_INVALID, erv);
   }
   
