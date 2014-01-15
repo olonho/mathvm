@@ -53,10 +53,11 @@ int main(int argc, char* argv[])
 		//}
 
 		Interpreter interp;
+
 		MyCompiler jit;
+//		Interpreter::callHelper(&interp, 5, (int8_t*)(6), (int8_t*)7);
 		interp.setCompiler(&jit);
 		interp.execute(functions, compiler.literals());
-
 		//for(size_t i = 0; i < interp.callsCount().size(); ++i)
 		//{
 		//	cout << i << " : " << interp.callsCount()[i] << endl;

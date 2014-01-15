@@ -6,19 +6,16 @@
 #include <AsmJit/AsmJit.h>
 using namespace AsmJit;
 
-//#define WIN
+#include "OsSpecific.h"
+#include "Interpreter.h"
 
-#ifndef WIN
-#define ASSEMBLER Assembler
-#define IFST rdi
-#define ISND rsi
-#define DFST xmm0
-#else
-#define ASSEMBLER X86Assembler
-#define IFST rcx
-#define ISND rdx
-#define DFST xmm0
-#endif
+#define FOR_IF_INSTR(DO) \
+	DO(NE, ne) \
+	DO(E,  e)  \
+	DO(G,  g)  \
+	DO(GE, ge) \
+	DO(L,  l)  \
+	DO(LE, le)
 
 
 MyCompiler::MyCompiler(void) :cache_(0xFFFF), cantCompile_(0xFFFF)
@@ -31,7 +28,7 @@ MyCompiler::~MyCompiler(void)
 }
 
 
-void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>& literals)
+void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>& literals, Interpreter* interp)
 {
 	if (cache_[id])
 		return cache_[id];
@@ -39,30 +36,39 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 	if (cantCompile_[id])
 		return 0;
 
+	ASSEMBLER a;
 	vector<vector<AsmJit::Label> > labels(bc.length());
+
+	if (!getLabels(bc, labels, a, id)) return 0;
 
 	const uint8_t* fst  = bc.getData();
 	const uint8_t* inst = fst;
 	const uint8_t* end  = bc.getData() + bc.length();
-
-	ASSEMBLER a;
-
+	
 	AsmJit::Label start = a.newLabel();
 	a.bind(start);
 
-	//vector<int16_t> lastLocal;
-	//vector<int64_t> lastConstants;
-
 	while (inst < end)
 	{
-		for (size_t i = 0; i < labels[inst - fst].size(); ++i)
-			a.bind(labels[inst - fst][i]);
+		if (labels[inst - fst].size())
+			a.bind(labels[inst - fst][0]);
 
 		switch(*inst)
 		{
-		case BC_LOADIVAR1:
-			a.push(rbp);
+		case BC_STOP:
+			a.push(0);
+			a.call(reinterpret_cast<void*>(exit));
 			++inst;
+			break;
+
+		case BC_LOADIVAR1:
+			if (*(++inst) == BC_STOREIVAR2)
+			{
+				a.mov(rsp, rbp);
+				++inst;
+			}
+			else
+				a.push(rbp);
 			break;
 
 		case BC_STOREIVAR1:
@@ -86,19 +92,29 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 
 		case BC_DPRINT:
 			a.movsd(xmm0, mmword_ptr(rsp));
+			a.sub(rsp, 16);
+			a.movsd(mmword_ptr(rsp, 8), xmm0);			
 			a.call(reinterpret_cast<void*>(&dprint));
-			a.add(rsp, 8);
+			a.add(rsp, 24);
 			++inst;
 			break;
 
 		case BC_LOADIVAR2:
-			if (*(++inst) == BC_STOREIVAR1)
+			if (*(inst + 1) == BC_STOREIVAR1)
 			{
 				a.mov(rbp, rsp);
+				inst += 2;
+			}
+			else if (*(inst + 1) == BC_ILOAD && *(inst + 10) == BC_IADD)
+			{
+				a.add(rsp, *(uint64_t*)(inst + 2));
+				inst += 12;
+			}			
+			else
+			{
+				a.push(rsp);
 				++inst;
 			}
-			else
-				a.push(rsp);
 			break;
 
 		case BC_STOREIVAR2:
@@ -107,24 +123,25 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 			break;
 
 		case BC_LOADCTXIVAR:
+		case BC_LOADCTXDVAR:
 			{
 				int32_t offset = *(int32_t*)(++inst);
 				inst += 4;
 				 
-				int type = (offset >> 30) & 3;
-
-				//if (type != 0)
-				//	return cantCompile(BC_LOADCTXIVAR, id);
-
+				int8_t type = (offset >> 30) & 3;
+					
 				offset = offset << 16 >> 16;
 
 				if (type == 0 || type == 3)
+				{
 					a.push(qword_ptr(rbp, offset));
+				}
 				else if (type == 1)
 				{
 					a.push(rbp);
-					a.add(rsp, offset);
-				}else if (type == 2)
+					a.add(qword_ptr(rsp), offset);
+				}
+				else if (type == 2)
 				{
 					a.mov(r10, qword_ptr(rbp, offset));
 					a.push(qword_ptr(r10));
@@ -133,19 +150,19 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 			break;
 
 		case BC_STORECTXIVAR:
+		case BC_STORECTXDVAR:
 			{
 				int32_t offset = *(int32_t*)(++inst);
 				inst += 4;
 				 
-				int type = (offset >> 30) & 3;
-
-				//if (type != 0)
-				//	return cantCompile(BC_STORECTXIVAR, id);
+				int8_t type = (offset >> 30) & 3;
 
 				offset = offset << 16 >> 16;
 
 				if (type == 0)
+				{
 					a.pop(qword_ptr(rbp, offset));
+				}
 				else
 				{
 					a.mov(r10, qword_ptr(rbp, offset));
@@ -159,113 +176,88 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 			++inst;
 			break;
 
+		case BC_ILOADM1:
+			a.push(-1l);
+			++inst;
+			break;
+
 		case BC_ICMP:
 			{
-				AsmJit::Label after = a.newLabel();
-				AsmJit::Label lt = a.newLabel();
-				AsmJit::Label eq = a.newLabel();
-
-				a.pop(r11);
-				a.pop(r10);
-				a.cmp(r10, r11);
-				a.jl(lt);
-				a.je(eq);
-				
-				a.push(1l);
-				a.jmp(after);
-				
-				a.bind(lt);
-				a.push(-1l);
-				a.jmp(after);
-				
-				a.bind(eq);
-				a.push(0l);
-				
-				a.bind(after);
-
-				++inst;
-			}
-			break;
-
-		case BC_IFICMPNE:
-			{
-				int16_t offset = *(int16_t*)(++inst);
-				if (offset < 0)
-					return cantCompile(BC_IFICMPNE, id);
-
-				AsmJit::Label dest = a.newLabel();
-				a.pop(r11);
-				a.pop(r10);
-				a.cmp(r10, r11);
-				a.jne(dest);
-
-				labels[inst - fst + offset].push_back(dest);
+				// skip next LOAD0 - all logic move to if				
+				// warning: it's need to check when compiler changed				
 				inst += 2;
 			}
 			break;
 
-		case BC_IFICMPGE:
-			{
-				int16_t offset = *(int16_t*)(++inst);
-				if (offset < 0)
-					return cantCompile(BC_IFICMPGE, id);
-
-				AsmJit::Label dest = a.newLabel();
-				a.pop(r11);
-				a.pop(r10);
-				a.cmp(r10, r11);
-				a.jge(dest);
-
-				labels[inst - fst + offset].push_back(dest);
-				inst += 2;
-			}
+#define IF_PROCESS(InstrSuf, CmdSuf) \
+		case BC_IFICMP##InstrSuf: \
+			{ \
+				int16_t offset = *(int16_t*)(++inst); \
+				a.pop(r11); \
+				a.pop(r10); \
+				a.cmp(r10, r11); \
+				a.j##CmdSuf(labels[inst - fst + offset][0]); \
+				inst += 2; \
+			} \
 			break;
-
-		case BC_IFICMPG:
-			{
-				int16_t offset = *(int16_t*)(++inst);
-				if (offset < 0)
-					return cantCompile(BC_IFICMPG, id);
-
-				AsmJit::Label dest = a.newLabel();
-				a.pop(r11);
-				a.pop(r10);
-				a.cmp(r10, r11);
-				a.jg(dest);
-
-				labels[inst - fst + offset].push_back(dest);
-				inst += 2;
-			}
-			break;
-
-		case BC_IFICMPLE:
-			{
-				int16_t offset = *(int16_t*)(++inst);
-				if (offset < 0)
-					return cantCompile(BC_IFICMPLE, id);
-
-				AsmJit::Label dest = a.newLabel();
-				a.pop(r11);
-				a.pop(r10);
-				a.cmp(r10, r11);
-				a.jle(dest);
-
-				labels[inst - fst + offset].push_back(dest);
-				inst += 2;
-			}
-			break;
+			FOR_IF_INSTR(IF_PROCESS)
+#undef IF_PROCESS
 
 		case BC_ILOAD1:
 			a.push(1l);
 			++inst;
 			break;
 
+		case BC_DLOAD0:
+			a.push(0.0);
+			++inst;
+			break;
+
 		case BC_IADD:
+			a.pop(r11);
+			a.add(qword_ptr(rsp), r11);
+			++inst;
+			break;
+
+		case BC_ISUB:
+			a.pop(r11);
+			a.sub(qword_ptr(rsp), r11);
+			++inst;
+			break;
+
+		case BC_IMUL:
 			a.pop(r10);
-			a.add(r10, qword_ptr(rsp));
+			a.imul(r10, qword_ptr(rsp));
 			a.mov(qword_ptr(rsp), r10);
+			++inst;
+			break;
+
+		case BC_IMOD:
+			a.pop(r10);
+			a.pop(rax);
+			a.idiv(r10);
+			a.push(rdx);
 
 			++inst;
+			break;
+
+		case BC_IDIV:
+			a.pop(r10);
+			a.pop(rax);
+			a.idiv(r10);
+			a.push(rax);
+			
+			++inst;
+			break;
+
+		case BC_LOADIVAR0:
+			if (*(inst + 1) == BC_STOREIVAR0)
+				inst += 2;
+			else
+			{			
+				a.push(rax);
+				++inst;
+			}
 			break;
 
 		case BC_STOREIVAR0:
@@ -273,13 +265,20 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 			++inst;
 			break;
 
-		case BC_LOADIVAR0:
-			a.push(rax);
+		case BC_STOREDVAR0:
+			a.movsd(xmm0, mmword_ptr(rsp));
+			a.add(rsp, 8);
 			++inst;
 			break;
 
+		case BC_LOADDVAR0:
+			a.sub(rsp, 8);
+			a.movsd(mmword_ptr(rsp), xmm0);
+			++inst;
+			break;
 
 		case BC_RETURN:
+			a.mov(r10, 0);
 			a.ret();
 			++inst;
 			break;
@@ -287,23 +286,9 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 		case BC_JA:
 			{
 				int16_t offset = *(int16_t*)(++inst);
-				if (offset < 0)
-					return cantCompile(BC_JA, id);
-
-				AsmJit::Label dest = a.newLabel();
-				labels[inst - fst + offset].push_back(dest);
-
-				a.jmp(dest);
+				a.jmp(labels[inst - fst + offset][0]);
 				inst += 2;
 			}
-			break;
-
-		case BC_ISUB:
-			a.pop(r11);
-			a.pop(r10);
-			a.sub(r10, r11);
-			a.push(r10);
-			++inst;
 			break;
 
 		case BC_CALL:
@@ -312,47 +297,66 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 				inst += 2;
 
 				if (callid != id)
-					return cantCompile(BC_CALL, id);
+				{
+					if(cache_[callid] != 0 && cache_[callid] != (void*)(-1))
+					{
+						a.call(cache_[callid]);
+					}
+					else
+					{
+						cache_[id] = (void*)-1;
+						void* f = compile(interp->bytecodes_[callid].second, callid, literals, interp);
+						if(!f)
+						{
+							cache_[id] = 0;
+							return cantCompile(BC_CALL, id, true);
+						}
+						a.mov(r10, (uint64_t)&cache_[callid]);
+						a.call(qword_ptr(r10));
+					}
+				}
+				else
+					a.call(start);
+			}
+			break;
 
-				a.call(start);
+		case BC_CALLNATIVE:
+			{
+				int16_t callid = *(int16_t*)(++inst);
+				inst += 2;
+				string name = literals[callid];
+				void* f = dlsym(RTLD_DEFAULT, name.c_str() + 1);
+				if (f)
+					a.call(f);
+				else
+					return cantCompile(BC_CALLNATIVE, id, true);
 			}
 			break;
 
 		case BC_ILOAD:
+		case BC_DLOAD:
 			{
-				int64_t val = *(int64_t*)(++inst);
+				uint32_t* fst = (uint32_t*)(++inst); 
 				inst += 8;
-				a.push(val);
+
+				//HACK: asmjit push only 4 byte :( but rsp = rsp + 8 after push
+				a.push(*fst);
+				a.mov(dword_ptr(rsp, 4), *(fst + 1));
 			}
 			break;
 
 		case BC_SLOAD:
 			{
-				int64_t id = *(int16_t*)(++inst);
+				int16_t id = *(int16_t*)(++inst);
 				inst += 2;
 				a.push((int64_t)literals[id].c_str());
-			}
-			break;
-
-		case BC_DLOAD:
-			{
-				uint32_t m[2];
-				m[1] = *(uint32_t*)(inst);
-				inst += 4;
-				m[0] = *(uint32_t*)(inst);
-				inst += 4;
-
-				//HACK: asmjit push only 4 byte :( but rsp = rsp + 8 after push
-				a.push(m[0]);
-				a.mov(dword_ptr(rsp, 4), m[1]);
 			}
 			break;
 
 		case BC_D2I:
 			{
 				a.cvttsd2si(rax, mmword_ptr(rsp));
-				a.add(rsp, 8);
-				a.pop(rax);
+				a.mov(mmword_ptr(rsp), rax);
 				++inst;
 			}
 			break;
@@ -372,30 +376,134 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 				a.add(rsp, 8);
 				a.movsd(mmword_ptr(rsp), xmm0);
 				++inst;
-				//a.push(xmm1);
+			}
+			break;
+
+		case BC_DSUB:
+			{
+				a.movsd(xmm0, mmword_ptr(rsp));
+				a.subsd(xmm0, mmword_ptr(rsp, 8));
+				a.add(rsp, 8);
+				a.movsd(mmword_ptr(rsp), xmm0);
+				++inst;
+			}
+			break;
+
+		case BC_DMUL:
+			{
+				a.movsd(xmm0, mmword_ptr(rsp));
+				a.mulsd(xmm0, mmword_ptr(rsp, 8));
+				a.add(rsp, 8);
+				a.movsd(mmword_ptr(rsp), xmm0);
+				++inst;
 			}
 			break;
 
 		default:
-			return cantCompile((Instruction)*inst, id);
+			return cantCompile((Instruction)(*inst), id, true);
 		}
 	}
 
-	return a.make();
+	cache_[id] = a.make();
+	return cache_[id];
 }
 
 
-void* MyCompiler::cantCompile(Instruction inst, int16_t id)
+void* MyCompiler::cantCompile(Instruction inst, int16_t id, bool isPermanent)
 {
-	cout << "WARNING: unsupported instruction " << bytecodeName(inst) << " - can't compile function " << id << endl;
-	cantCompile_[id] = true;
+	cerr << "WARNING: unsupported instruction " << bytecodeName(inst) << " - can't compile function " << id << endl;
+	cantCompile_[id] = isPermanent;
 	return 0;
+}
+
+
+bool MyCompiler::getLabels(const Bytecode_& bc, vector<vector<AsmJit::Label> >& labels, ASSEMBLER& a, int16_t id)
+{
+	const uint8_t* fst  = bc.getData();
+	const uint8_t* inst = fst;
+	const uint8_t* end  = bc.getData() + bc.length();
+
+	while (inst < end)
+	{
+		switch(*inst)
+		{
+		case BC_IPRINT:
+		case BC_STOREIVAR1:
+		case BC_LOADIVAR1:
+		case BC_SPRINT:
+		case BC_LOADIVAR2:
+		case BC_STOREIVAR2:
+		case BC_ILOAD0:
+		case BC_ICMP:
+		case BC_ILOAD1:
+		case BC_ILOADM1:
+		case BC_DLOAD0:
+		case BC_IADD:
+		case BC_IMUL:
+		case BC_IMOD:
+		case BC_IDIV:
+		case BC_STOREIVAR0:
+		case BC_STOREDVAR0:
+		case BC_LOADDVAR0:
+		case BC_LOADIVAR0:
+		case BC_RETURN:
+		case BC_ISUB:
+		case BC_D2I:
+		case BC_I2D:
+		case BC_DADD:
+		case BC_DSUB:
+		case BC_DMUL:
+		case BC_STOP:
+			++inst;
+			break;
+
+		case BC_CALL:
+		case BC_CALLNATIVE:
+		case BC_SLOAD:
+			inst += 3;
+			break;
+
+		case BC_LOADCTXIVAR:
+		case BC_LOADCTXDVAR:
+		case BC_STORECTXIVAR:
+		case BC_STORECTXDVAR:
+			inst += 5;
+			break;
+
+		case BC_IFICMPNE:
+		case BC_IFICMPGE:
+		case BC_IFICMPG:
+		case BC_IFICMPLE:
+		case BC_IFICMPL:
+		case BC_IFICMPE:
+		case BC_JA:
+			{
+				int16_t offset = *(int16_t*)(++inst);
+				if (labels[inst - fst + offset].empty())
+				{
+					AsmJit::Label dest = a.newLabel();
+					labels[inst - fst + offset].push_back(dest);
+				}
+				inst += 2;
+			}
+			break;
+
+		case BC_ILOAD:
+		case BC_DLOAD:
+			inst += 9;
+			break;
+
+		default:
+			return cantCompile((Instruction)(*inst), id, true);
+		}
+	}
+	return true;
 }
 
 
 void MyCompiler::iprint(int64_t val)
 {
-	printf("%ld", val);
+	printf(LONG_FORMAT, val);
 }
 
 
@@ -407,5 +515,7 @@ void MyCompiler::sprint(const char* val)
 
 void MyCompiler::dprint(double val)
 {
-	cout << scientific << val;
+	printf("%f", val);
 }
+
+#undef FOR_IF_INSTR

@@ -3,17 +3,7 @@
 #include <AsmJit/AsmJit.h>
 using namespace AsmJit;
 
-//#define WIN
-
-#ifndef WIN
-#define ASSEMBLER Assembler
-#define IFST rdi
-#define ISND rsi
-#else
-#define ASSEMBLER X86Assembler
-#define IFST rcx
-#define ISND rdx
-#endif
+#include "OsSpecific.h"
 
 void* asmIcmp()
 {
@@ -76,328 +66,113 @@ void* asmILOAD0()
 	return a.make();
 }
 
-void* testCall()
+void* asmNCALL()
 {
-	ASSEMBLER a;
+	ASSEMBLER ncall;
 
-	Label start = a.newLabel();
-	// for recursion
-	a.bind(start);
-	//LOADIVAR1
-	a.push(rbp);
-	//LOADIVAR2
-	a.mov(rbp, rsp);
+	ncall.push(r12);
+	ncall.push(r13);
+	ncall.mov(r12, rsp);
+	ncall.mov(r13, rbp);
+	ncall.mov(rsp, IFST);
+	ncall.mov(rbp, ISND);
+	ncall.call(ITHD);
+	ncall.mov(rsp, r12);
+	ncall.mov(rbp, r13);
+	ncall.pop(r13);
+	ncall.pop(r12);
+	ncall.ret();
 
-	// ICMP
-	Label eq    = a.newLabel();
-	Label lt    = a.newLabel();
-	Label after = a.newLabel();
-
-	a.cmp(qword_ptr(rbp, 24), 0l);
-	a.jl(lt);
-	a.je(eq);
-
-	a.push(1l);
-	a.ja(after);
-
-	a.bind(lt);
-	a.push(-1l);
-	a.ja(after);
-
-	a.bind(eq);
-	a.push(0l);
-
-	a.bind(after);
-
-	//IFICMPNE 29
-	Label dest = a.newLabel();
-	a.pop(r10);
-	a.cmp(r10, 0l);
-	a.jne(dest);
-
-	//LOADCTXIVAR 16,0
-	a.push(qword_ptr(rbp, 16));
-
-	//IADD
-	a.pop(r10);
-	a.add(r10, 1l);
-	a.push(r10);
-
-	a.pop(rax);
-	
-	a.mov(rsp, rbp);
-	a.pop(rbp);
-	a.ret();
-
-	a.bind(dest);
-
-	// 35: ICMP
-	Label eq1    = a.newLabel();
-	Label lt1    = a.newLabel();
-	Label after1 = a.newLabel();
-
-	a.cmp(qword_ptr(rbp, 16), 0);
-	a.jl(lt1);
-	a.je(eq1);
-
-	a.push(1l);
-	a.ja(after1);
-
-	a.bind(lt1);
-	a.push(-1l);
-	a.ja(after1);
-
-	a.bind(eq1);
-	a.push(0l);
-
-	a.bind(after1);
-
-	// 37: IFICMPNE 72
-	Label dest1 = a.newLabel();
-	a.pop(r10);
-	a.cmp(r10, 0l);
-	a.jne(dest1);
-
-	//40: LOADCTXIVAR 24,0
-	a.push(qword_ptr(rbp, 24));
-
-	//46: ISUB
-	a.pop(r10);
-	a.sub(r10, 1l);
-	a.push(r10);
-
-	//47: ILOAD1
-	a.push(1l);
-	a.call(start);
-	
-	// 51 - 62
-	a.add(rsp, 16);
-
-	a.mov(rsp, rbp);
-	a.pop(rbp);
-	a.ret();
-
-	a.bind(dest1);
-
-	//72: LOADCTXIVAR @24:0
-	a.push(qword_ptr(rbp, 24));
-
-	a.pop(r10);
-	a.sub(r10, 1l);
-	a.push(r10);
-
-	// 79: LOADCTXIVAR @24:0
-	a.push(qword_ptr(rbp, 24));
-	
-	a.push(qword_ptr(rbp, 16));
-	
-	a.pop(r10);
-	a.sub(r10, 1l);
-	a.push(r10);
-
-	// 91: CALL *1
-	a.call(start);
-	
-	// 94 - 105
-	a.add(rsp, 16);
-	
-	a.push(rax);
-	// 107: CALL *1
-	a.call(start);
-
-	// 110 - 121
-	a.add(rsp, 16);
-
-	a.mov(rsp, rbp);
-	a.pop(rbp);
-	a.ret();
-
-	return a.make();
+	return ncall.make();
 }
-/*
-	ASSEMBLER a;
 
-	Label start = a.newLabel();
-	// for recursion
-	a.bind(start);
-	//LOADIVAR1
-	a.push(rbp);
-	//LOADIVAR2
-	a.mov(rbp, rsp);
+void* getRIP()
+{
+	static void* func = 0;
+	if (!func)
+	{
+		ASSEMBLER a;
 
-	a.push(rsp);
-	//STOREIVAR1
-	a.pop(rbp);
-	//LOADCTXIVAR with type = 0
-	a.push(qword_ptr(rbp, 24));
-	// ILOAD0
-	a.push(0l);
+		a.mov(r15, qword_ptr(rsp));
+		a.ret();
 
-	// ICMP
-	Label eq    = a.newLabel();
-	Label lt    = a.newLabel();
-	Label after = a.newLabel();
+		func = a.make();
+	}
+	return func;
+}
 
-	a.pop(r11);
-	a.pop(r10);
-	a.cmp(r10, r11);
-	a.jl(lt);
-	a.je(eq);
+void* asmCALL()
+{
+	// from code - type f(void** rsp, void** rbp, void** rip, void* f);
 
-	a.push(1l);
-	a.ja(after);
+	// save rsp, rbp
+	// call function
+	// restore rsp, rbp
+	// restore interpretator esp, ebp, eip (only if it's return on unsupported instruction)
+	// pass restores params by volatile registers r9, r10, r11 on windows
+	ASSEMBLER call;
 
-	a.bind(lt);
-	a.push(-1l);
-	a.ja(after);
+	// save r12, r13
+	call.push(r12);
+	call.push(r13);
+	call.push(r14);
+	call.push(r15);
+	call.push(rsi);
+	call.push(rbp);
 
-	a.bind(eq);
-	a.push(0l);
+	// save rsp
+	call.mov(r12, rsp);
 
-	a.bind(after);
+	call.mov(r13, IFST);
+	call.mov(r14, ISND);
+	call.mov(rsi, ITHD);
 
-	// ILOAD0
-	a.push(0l);
+	// call compiled function
+	call.mov(rsp, qword_ptr(r13));
+	call.mov(rbp, qword_ptr(r14));
 
-	//IFICMPNE 29
-	Label dest = a.newLabel();
-	a.pop(r11);
-	a.pop(r10);
-	a.cmp(r10, r11);
-	a.jne(dest);
+	call.call(getRIP());
+	call.add(r15, 7);
 
-	//LOADCTXIVAR 16,0
-	a.push(qword_ptr(rbp, 16));
+	call.call(IFTH);
 
-	//ILOAD1
-	a.push(1l);
-
-	//IADD
-	a.pop(r10);
-	a.pop(r11);
-	a.add(r10, r11);
-	a.push(r10);
-
-	a.pop(rax);
+	// restore rsp, rbp, rip of interpreter
+	call.mov(qword_ptr(r13), rsp);
+	call.mov(qword_ptr(r14), rbp);
+	call.mov(qword_ptr(rsi), r10);
 	
-	a.push(rbp);
-	a.pop(rsp);
-	a.pop(rbp);
-	a.ret();
-
-	a.ja(dest);
-
-	a.bind(dest);
-
-	// 29: LOADCTXIVAR 16,0
-	a.push(qword_ptr(rbp, 16));
-	a.push(0);
-
-	// 35: ICMP
-	Label eq1    = a.newLabel();
-	Label lt1    = a.newLabel();
-	Label after1 = a.newLabel();
-
-	a.pop(r11);
-	a.pop(r10);
-	a.cmp(r10, r11);
-	a.jl(lt1);
-	a.je(eq1);
-
-	a.push(1l);
-	a.ja(after1);
-
-	a.bind(lt1);
-	a.push(-1l);
-	a.ja(after1);
-
-	a.bind(eq1);
-	a.push(0l);
-
-	a.bind(after1);
-
-	// 36: ILOAD0
-	a.push(0l);
-
-	// 37: IFICMPNE 72
-	Label dest1 = a.newLabel();
-	a.pop(r11);
-	a.pop(r10);
-	a.cmp(r10, r11);
-	a.jne(dest1);
-
-	//40: LOADCTXIVAR 24,0
-	a.push(qword_ptr(rbp, 24));
-	a.push(1l);
-
-	//46: ISUB
-	a.pop(r11);
-	a.pop(r10);
-	a.sub(r10, r11);
-	a.push(r10);
-
-	//47: ILOAD1
-	a.push(1l);
-	a.call(start);
+	// restore rsp
+	call.mov(rsp, r12);
 	
-	// 51 - 62
-	a.add(rsp, 16);
+	// restore r12, r13
+	call.pop(rbp);
+	call.pop(rsi);
+	call.pop(r15);
+	call.pop(r14);
+	call.pop(r13);
+	call.pop(r12);
+	call.ret();
 
-	// 63: LOADIVAR0
-	a.push(rax);
-	a.pop(rax);
+	return call.make();
+}
 
-	a.push(rbp);
-	a.pop(rsp);
-	a.pop(rbp);
-	a.ret();
+void* asmRet()
+{
+	static void* func = 0;
+	if (!func)
+	{
+		ASSEMBLER a;
 
-	a.ja(dest1);
-	a.bind(dest1);
+		a.pop(r8);
+		a.mov(rsp, IFST);
+		a.mov(rbp, ISND);
+		a.push(r8);
+		a.ret();
 
-	//72: LOADCTXIVAR @24:0
-	a.push(qword_ptr(rbp, 24));
-	a.push(1l);
+		func = a.make();
+	}
+	return func;
+}
 
-	a.pop(r11);
-	a.pop(r10);
-	a.sub(r10, r11);
-	a.push(r10);
-
-	// 79: LOADCTXIVAR @24:0
-	a.push(qword_ptr(rbp, 24));
-	a.push(qword_ptr(rbp, 16));
-	a.push(1l);
-
-	a.pop(r11);
-	a.pop(r10);
-	a.sub(r10, r11);
-	a.push(r10);
-
-	// 91: CALL *1
-	a.call(start);
-	
-	// 94 - 105
-	a.add(rsp, 16);
-	
-	a.push(rax);
-	// 107: CALL *1
-	a.call(start);
-
-	// 110 - 121
-	a.add(rsp, 16);
-
-	a.push(rax);
-	a.pop(rax);
-
-	a.push(rbp);
-	a.pop(rsp);
-	a.pop(rbp);
-	a.ret();
-
-	return a.make();
-	*/
-
-#undef WIN
 #undef IFST
 #undef ISND

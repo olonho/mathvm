@@ -13,8 +13,22 @@ VarType type();
 
 /*
 roadmap:
-1. esp,eip to int*
-2. instruction jit
+1. call between jit and interpreter
+*/
+
+/*
+Two different contexts:
+1. Interpreter context - fake return registers, ebp, esp, eip
+2. Compiled context - real return, rsp, rbp, rip
+
+When i change context from Interpreter to Compiled:
+1. Save Interpreter context
+2. r15 = eip, rsp = esp, rbp = rsp, rip = next compiled instruction
+3. Restore Interpreter context
+esp = rsp, ebp = rbp, eip = r15
+
+Compiled to Interpreter:
+
 */
 
 class MyCompiler;
@@ -27,6 +41,7 @@ template<> inline VarType type<char*>(){ return VT_STRING; }
 
 class Interpreter
 {
+	friend class MyCompiler;
 public:
 	Interpreter();
 	~Interpreter();
@@ -36,24 +51,38 @@ public:
 	const vector<int>& callsCount() const { return callsCount_; }
 
 	void setCompiler(MyCompiler* _compiler);
+
+	static void callHelper(Interpreter* interp, int id, int8_t* esp, int8_t* ebp);
 private:
-	// fst - esp, snd - function ptr
-	typedef double  (*DoubleCall)(void*, void*);
-	typedef int64_t (*IntCall)(void*, void*);
-	typedef char*   (*StringCall)(void*, void*);
-	typedef void    (*VoidCall)(void*, void*);
+	void call(int id, int8_t* esp, int8_t* ebp, bool fromNative = false);
+	bool tryCompileAndRun(int16_t id);
+
+	// fst - esp, snd - ebp, thd - function ptr
+	typedef double  (*DoubleNCall)(void*, void*, void*);
+	typedef int64_t (*IntNCall)(void*, void*, void*);
+	typedef char*   (*StringNCall)(void*, void*, void*);
+	typedef void    (*VoidNCall)(void*, void*, void*);
+
+	// call wrappers
+	typedef double  (*DoubleCall)(void*, void*, void*, void*);
+	typedef int64_t (*IntCall)(void*, void*, void*, void*);
+	typedef char*   (*StringCall)(void*, void*, void*, void*);
+	typedef void    (*VoidCall)(void*, void*, void*, void*);
 
 	typedef int8_t* (*InstWrapper)(int8_t*);
 
-	DoubleCall doubleCallWrapper;
-	IntCall    intCallWrapper;
-	StringCall stringCallWrapper;
-	VoidCall   voidCallWrapper;
+	DoubleNCall doubleCallWrapper;
+	IntNCall    intCallWrapper;
+	StringNCall stringCallWrapper;
+	VoidNCall   voidCallWrapper;
+
+	DoubleCall doubleSCallWrapper;
+	IntCall    intSCallWrapper;
+	StringCall stringSCallWrapper;
+	VoidCall   voidSCallWrapper;
 
 	InstWrapper icmpWrapper;
 	InstWrapper iload0Wrapper;
-
-	void call(int id);
 
 	vector<pair<VarType, Bytecode_> > bytecodes_;
 	vector<string>    literals_;
