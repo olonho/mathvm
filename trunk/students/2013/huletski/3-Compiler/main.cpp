@@ -30,21 +30,7 @@ int main(int argc, char** argv) {
 
   
   const char*expr ="\
-    function void foo(int i) { \
-      int k;\
-      function void bar() {\
-        k = 5050;\
-        print(k, '\n');\
-        foo(0);\
-      }\
-      k = 42;\
-      if (i != 0) {\
-        bar();\
-      }\
-      print(k, '\n');\
-    }\
-    foo(1);\
-  ";
+  function double XXX(double x) { return 1.0 - x*x;}";
   
   /*
   const char * expr = "\

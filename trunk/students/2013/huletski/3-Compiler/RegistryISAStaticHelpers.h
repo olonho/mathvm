@@ -41,8 +41,10 @@ static uint64_t int_cmp(int64_t a, int64_t b, int64_t mode) {
   return cmp_tbl[mode][res];
 }
 
+#ifndef FAST_DIV
 static uint64_t int_div(int64_t a, int64_t b) { return a / b; }
 static uint64_t int_mod(int64_t a, int64_t b) { return a % b; }
+#endif
 
 //------------------------------------------------------------------------------
 // Global Variable helpers
