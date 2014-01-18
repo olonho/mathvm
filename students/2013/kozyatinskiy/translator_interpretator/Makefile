@@ -1,7 +1,7 @@
 ROOT   = .
 VM_ROOT = ../../../../
 
-OPT=1
+OPT=true
 WITH_SDL=true
 
 USER_OBJ = \
@@ -22,4 +22,4 @@ MATHVM = $(BIN)/mvm
 all: $(MATHVM)
 
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
-	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS) -lSDL2
+	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)

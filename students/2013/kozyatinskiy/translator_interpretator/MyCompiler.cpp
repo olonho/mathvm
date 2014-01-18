@@ -39,7 +39,11 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 	ASSEMBLER a;
 	vector<vector<AsmJit::Label> > labels(bc.length());
 
-	if (!getLabels(bc, labels, a, id)) return 0;
+	if (!getLabels(bc, labels, a, id))
+	{
+		std::cerr<< "get labels failed" << id << std::endl;
+		return 0;
+	}
 
 	const uint8_t* fst  = bc.getData();
 	const uint8_t* inst = fst;
@@ -78,6 +82,7 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 
 		case BC_IPRINT:
 			a.mov(IFST, dword_ptr(rsp));
+			
 			a.call(reinterpret_cast<void*>(&iprint));
 			a.add(rsp, 8);
 			++inst;
@@ -92,10 +97,9 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 
 		case BC_DPRINT:
 			a.movsd(xmm0, mmword_ptr(rsp));
-			a.sub(rsp, 16);
-			a.movsd(mmword_ptr(rsp, 8), xmm0);			
+			a.and_(rsp, -16);
 			a.call(reinterpret_cast<void*>(&dprint));
-			a.add(rsp, 24);
+			a.add(rsp, 8);
 			++inst;
 			break;
 
@@ -213,6 +217,18 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 			++inst;
 			break;
 
+		case BC_DLOADM1:
+			{
+				double val = -1.0;
+				uint32_t* fst = (uint32_t*)(void*)(&val); 
+
+				//HACK: asmjit push only 4 byte :( but rsp = rsp + 8 after push
+				a.push(*fst);
+				a.mov(dword_ptr(rsp, 4), *(fst + 1));
+				++inst;
+			}
+			break;
+
 		case BC_IADD:
 			a.pop(r11);
 			a.add(qword_ptr(rsp), r11);
@@ -235,6 +251,8 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 		case BC_IMOD:
 			a.pop(r10);
 			a.pop(rax);
+			a.mov(rdx, 0);
+			//a._emitInstruction(76); // cqo 
 			a.idiv(r10);
 			a.push(rdx);
 
@@ -244,9 +262,23 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 		case BC_IDIV:
 			a.pop(r10);
 			a.pop(rax);
+			a.mov(rdx, 0);
+			//a._emitInstruction(76); // cqo 
 			a.idiv(r10);
 			a.push(rax);
 			
+			++inst;
+			break;
+
+		case BC_IAAND:
+			a.pop(r11);
+			a.and_(qword_ptr(rsp), r11);
+			++inst;
+			break;
+
+		case BC_IAXOR:
+			a.pop(r11);
+			a.xor_(qword_ptr(rsp), r11);
 			++inst;
 			break;
 
@@ -381,8 +413,8 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 
 		case BC_DSUB:
 			{
-				a.movsd(xmm0, mmword_ptr(rsp));
-				a.subsd(xmm0, mmword_ptr(rsp, 8));
+				a.movsd(xmm0, mmword_ptr(rsp, 8));
+				a.subsd(xmm0, mmword_ptr(rsp));
 				a.add(rsp, 8);
 				a.movsd(mmword_ptr(rsp), xmm0);
 				++inst;
@@ -399,12 +431,23 @@ void* MyCompiler::compile(const Bytecode_& bc, int16_t id, const vector<string>&
 			}
 			break;
 
+		case BC_DDIV:
+			{
+				a.movsd(xmm0, mmword_ptr(rsp, 8));
+				a.divsd(xmm0, mmword_ptr(rsp));
+				a.add(rsp, 8);
+				a.movsd(mmword_ptr(rsp), xmm0);
+				++inst;
+			}
+			break;
+
 		default:
 			return cantCompile((Instruction)(*inst), id, true);
 		}
 	}
 
 	cache_[id] = a.make();
+	//cerr << "on exit " << cache_[id] << " " << a.getError() << endl;
 	return cache_[id];
 }
 
@@ -428,6 +471,7 @@ bool MyCompiler::getLabels(const Bytecode_& bc, vector<vector<AsmJit::Label> >& 
 		switch(*inst)
 		{
 		case BC_IPRINT:
+		case BC_DPRINT:
 		case BC_STOREIVAR1:
 		case BC_LOADIVAR1:
 		case BC_SPRINT:
@@ -438,10 +482,13 @@ bool MyCompiler::getLabels(const Bytecode_& bc, vector<vector<AsmJit::Label> >& 
 		case BC_ILOAD1:
 		case BC_ILOADM1:
 		case BC_DLOAD0:
+		case BC_DLOADM1:
 		case BC_IADD:
 		case BC_IMUL:
 		case BC_IMOD:
 		case BC_IDIV:
+		case BC_IAAND:
+		case BC_IAXOR:
 		case BC_STOREIVAR0:
 		case BC_STOREDVAR0:
 		case BC_LOADDVAR0:
@@ -453,6 +500,7 @@ bool MyCompiler::getLabels(const Bytecode_& bc, vector<vector<AsmJit::Label> >& 
 		case BC_DADD:
 		case BC_DSUB:
 		case BC_DMUL:
+		case BC_DDIV:
 		case BC_STOP:
 			++inst;
 			break;
@@ -515,7 +563,7 @@ void MyCompiler::sprint(const char* val)
 
 void MyCompiler::dprint(double val)
 {
-	printf("%f", val);
+	printf("%e", val);
 }
 
 #undef FOR_IF_INSTR

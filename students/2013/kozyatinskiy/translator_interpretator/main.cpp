@@ -46,11 +46,11 @@ int main(int argc, char* argv[])
 		compiler.visitStartFunction(f, sv.result());
 
 		const vector<pair<VarType, Bytecode_> >& functions = compiler.bytecodes();
-		//for (size_t i = 0; i < functions.size(); ++i)
-		//{
-		//	cout << "function " << i << endl;
-		//	functions[i].second.dump(std::cout);
-		//}
+		/*for (size_t i = 0; i < functions.size(); ++i)
+		{
+			cout << "function " << i << endl;
+			functions[i].second.dump(std::cout);
+		}*/
 
 		Interpreter interp;
 
