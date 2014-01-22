@@ -27,8 +27,8 @@ namespace mathvm {
     visitBlockNode( node-> body() );
     if (is_root) ins( BC_STOP );
     
-    std::cout<< "Function " << node->name() << std::endl;
-    _contexts->topmost_function_record()->code.dump( std::cout );
+//     std::cout<< "Function " << node->name() << std::endl;
+//     _contexts->topmost_function_record()->code.dump( std::cout );
     destroy_context();
   }
   

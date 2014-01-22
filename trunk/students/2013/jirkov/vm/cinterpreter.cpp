@@ -65,14 +65,10 @@ namespace mathvm {
     {
       launched = true;
       for( ;; )
-      {
-	regs.IP++;
+      { 
 //  	instruction_dump( regs.IP-1, stderr );
-	switch(*( regs.IP-1))
-	{
-	  // 	  #define CASE(code, s, l) case BC_##code :  /*instruction_dump((g_registers.IP-1), stderr ); */ BC_##code ();/* calc_stack_dump( stderr ); */ break;
-	  //  	  FOR_BYTECODES( CASE )
-	  // 	  #undef CASE
+	switch(*(regs.IP++))
+	{ 
 	  
 	  
 	  case BC_INVALID: break;
