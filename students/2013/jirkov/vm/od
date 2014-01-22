@@ -1,0 +1,6 @@
+
+build/opt/cinterpreter.o:     file format elf64-x86-64
+architecture: i386:x86-64, flags 0x00000011:
+HAS_RELOC, HAS_SYMS
+start address 0x0000000000000000
+
