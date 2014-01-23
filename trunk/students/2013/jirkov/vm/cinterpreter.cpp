@@ -1,4 +1,4 @@
-
+#include <iostream>
 #include <cstdio>
 #include <malloc.h>
 #include <setjmp.h>
@@ -39,7 +39,7 @@ namespace mathvm {
   void interpreter_init( void )
   {
     ctx_stack_init( 65536*16 ); 
-    calc_stack_init( 65536*16 );
+    calc_stack_init( 65536*16*16 );
   }
   
   void interpreter_deinit( void )
@@ -159,15 +159,15 @@ namespace mathvm {
 	    regs.SP[0].as_int = - regs.SP[0].as_int;
 	  break;
 	  case BC_IPRINT:
-	    printf( "%ld", regs.SP[0].as_int );
+	    std::cout << regs.SP[0].as_int ;
 	    regs.SP++;
 	  break;
 	  case BC_DPRINT:
-	    printf( "%lf", regs.SP[0].as_double );
+	    std::cout << regs.SP[0].as_double;
 	    regs.SP++;
 	  break;
 	  case BC_SPRINT:
-	    fputs( regs.SP[0].as_ptr , stdout );
+	    std::cout << regs.SP[0].as_ptr;
 	    regs.SP++;
 	  break;
 	  case BC_I2D:
