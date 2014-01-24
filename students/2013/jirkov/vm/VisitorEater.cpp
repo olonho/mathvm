@@ -51,7 +51,7 @@ namespace mathvm {
 	  const char* sig = sigstr.c_str();
 	  
 	  table_put( f-> id, function_create( f-> id, sig, f-> code.length(), bytes) );
-	  ctx_create_and_bind( f-> id, 1, f->code.length(), f-> locals_count * sizeof( cell_t ), NULL );
+	  ctx_create_and_bind( f-> id, 1,0, f->locals_count *sizeof( cell_t ) , NULL );
 	  //fixme: a proper stack size determined via abstract interpretation.
 	  
 	  delete[] bytes;	  

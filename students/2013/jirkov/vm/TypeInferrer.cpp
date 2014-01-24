@@ -21,11 +21,7 @@ namespace mathvm {
     
     embrace_vars( node->scope() );
     
-    for ( Scope::FunctionIterator it(node->scope()) ; it.hasNext(); ) 
-    {
-      FunctionNode* f = it.next()->node();
-      visitFunctionNode(f); 
-    } 
+    visit_scope_functions( node->scope() );
     
     
     node->visitChildren( this ); 

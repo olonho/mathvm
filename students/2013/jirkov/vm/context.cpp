@@ -99,7 +99,7 @@ ctx_runtime_t* ctx_push( const ctx_static_t* const info, const byte_t* const ret
 	function_t* corresponding_function;
 
 	corresponding_function = table_get( info->id );
-
+/*
 #ifndef DISABLE_RUNTIME_CHECKS
 	if ( corresponding_function == NULL )
 	{
@@ -107,15 +107,15 @@ ctx_runtime_t* ctx_push( const ctx_static_t* const info, const byte_t* const ret
 		return g_ctx_tos;
 	}
 #endif
-
+*/
 	new_ctx_size = info-> locals_size + sizeof( ctx_runtime_t );
-
+/*
 #ifndef DISABLE_RUNTIME_CHECKS
 	if (! ENOUGH_SPACE_IN_STACK( new_ctx_size ) )
 	{
 		fprintf( stderr, "Not enough space in stack to allocate %lu bytes! Attempt to create static_ctx with id %x", new_ctx_size, info-> id );
 	}
-#endif 
+#endif */
 
 	RESERVE_STACK_SPACE( new_ctx_size );
 
@@ -124,10 +124,10 @@ ctx_runtime_t* ctx_push( const ctx_static_t* const info, const byte_t* const ret
 	g_ctx_tos-> previous_same_id = corresponding_function-> topmost_runtime_ctx;
 
 	g_ctx_tos-> return_address = return_address;
-	if( ! info->is_zero_initialized	)
-		memcpy( g_ctx_tos-> locals, info-> locals_defaults, info-> locals_size );
-	else
-		memset( g_ctx_tos-> locals, 0, info-> locals_size );
+// 	if( ! info->is_zero_initialized	)
+// 		memcpy( g_ctx_tos-> locals, info-> locals_defaults, info-> locals_size );
+// 	else
+// 		memset( g_ctx_tos-> locals, 0, info-> locals_size );
 
 	corresponding_function-> topmost_runtime_ctx = g_ctx_tos;
 	return g_ctx_tos;
@@ -135,16 +135,14 @@ ctx_runtime_t* ctx_push( const ctx_static_t* const info, const byte_t* const ret
 
 /* returns the new tos or NULL if reached the root static_ctx */
 ctx_runtime_t* ctx_pop( void ) {
-	function_t* corresponding_function;
-	ctx_runtime_t* tos = get_topmost_ctx();
-	corresponding_function = table_get( tos-> description-> id );
-
+	function_t* corresponding_function = table_get( g_ctx_tos-> description-> id );
+/*
 #ifndef DISABLE_RUNTIME_CHECKS
 	if ( corresponding_function == NULL )
 	{
 		fprintf( stderr, "Attempt to pop static_ctx from TOS, but this static_ctx is not assigned to any function! id: %x", tos->description->id );
 	}
-#endif
+#endif*/
 
 	corresponding_function-> topmost_runtime_ctx = corresponding_function->topmost_runtime_ctx-> previous_same_id;
 
