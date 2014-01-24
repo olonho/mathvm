@@ -18,5 +18,7 @@ namespace mathvm {
   
   Annotation* get_annotation( CustomDataHolder* holder ) { return static_cast<Annotation*>( holder->info() ); }
   void set_annotation( CustomDataHolder* holder, Annotation* ann ) { holder->setInfo( ann ); }
-  
+void set_stack_size( AstNode* node, size_t value ) { get_annotation( node )->stack_size = value; }
+  size_t get_stack_size( AstNode* node ) { return (get_annotation( node ) == NULL )?-1 : (get_annotation( node ))->stack_size; }
+    
 }

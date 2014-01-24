@@ -49,7 +49,7 @@ ctx_runtime_t* ctx_push( const ctx_static_t* const info, const byte_t* const ret
 
 
 /* returns the static_ctx on tos */
-ctx_runtime_t* get_topmost_ctx( void );
+// ctx_runtime_t* get_topmost_ctx( void );
 extern ctx_runtime_t* g_ctx_tos;
 
 /* returns the last static_ctx with given ID */

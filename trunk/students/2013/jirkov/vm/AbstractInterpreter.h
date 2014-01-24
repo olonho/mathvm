@@ -29,7 +29,13 @@ namespace mathvm {
   public:
     virtual void pre_node_actions( AstNode* node ) = 0;
     AbstractInterpreter() : _contexts( NULL ){}
-    
+    void visit_scope_functions( Scope* scope ) { 
+      for ( Scope::FunctionIterator it( scope ) ; it.hasNext(); ) 
+      {
+	FunctionNode* f = it.next()->node();
+	visitFunctionNode(f); 
+      } 
+    }
     
     uint16_t current_context_id();
     
