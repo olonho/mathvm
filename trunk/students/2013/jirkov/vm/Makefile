@@ -21,7 +21,6 @@ USER_OBJ = \
 	$(OBJ)/diagnostics$(OBJ_SUFF) \
 	$(OBJ)/Annotation$(OBJ_SUFF) \
 	$(OBJ)/TypeInferrer$(OBJ_SUFF) \
-	$(OBJ)/StackSizeInferrer$(OBJ_SUFF) \
 	$(OBJ)/hashtable$(OBJ_SUFF) 
 
 include $(VM_ROOT)/common.mk
