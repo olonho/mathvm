@@ -1,3 +1,0 @@
-MyMathVm
-========
-* build: just make

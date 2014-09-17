@@ -1,4 +1,0 @@
-
-string s = '123\n';
-string f = '123\n';
-print(s, f);
