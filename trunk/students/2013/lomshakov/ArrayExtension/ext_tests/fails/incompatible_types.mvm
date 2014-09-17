@@ -1,7 +1,0 @@
-int[][] a = new  [2];
-int[] b = new double[];
-
-int z = (new int[2])[0];
-
-string[] d = new string[2];
-new int[22];

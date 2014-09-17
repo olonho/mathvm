@@ -1,3 +1,0 @@
-make clean && make 
-
- cp -R tests build/opt/

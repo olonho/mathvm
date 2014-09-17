@@ -1,7 +1,0 @@
-int j = 0;
-int i;
-
-for(i in 1..2) {
-    j += i;
-    print(j, '\n');
-}
