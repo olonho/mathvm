@@ -173,13 +173,7 @@ private:
     }
 
     static string token(TokenKind kind) {
-        switch (kind) {
-#define CASE(t, s, p) case t: return s;
-                FOR_TOKENS(CASE)
-#undef CASE
-            default:
-                return "";
-        }
+        return tokenOp(kind);
     }
 
     static string type(VarType type) {
