@@ -210,43 +210,7 @@ class AstSourceTranslator: public AstVisitor {
     }
 
     void op(TokenKind kind) {
-      switch (kind) {
-        case tCOMMA: comma(); break;
-        case tSEMICOLON: semiColon(); break;
-        case tDECRSET: dset(); break;
-        case tINCRSET: iset(); break;
-        case tMOD: mod(); break;
-        case tDIV: div(); break;
-        case tMUL: mul(); break;
-        case tSUB: sub(); break;
-        case tADD: add(); break;
-        case tRANGE: range(); break;
-        case tLE: le(); break;
-        case tLT: lt(); break;
-        case tGE: ge(); break;
-        case tGT: gt(); break;
-        case tNEQ: neq(); break;
-        case tEQ: eq(); break;
-        case tNOT: notop(); break;
-        case tAXOR: axor(); break;
-        case tAAND: aand(); break;
-        case tAOR: aor(); break;
-        case tAND: andop(); break;
-        case tOR: orop(); break;
-        case tRBRACE: rightParen(); break;
-        case tLBRACE: leftParen(); break;
-        case tRPAREN: rightBracket(); break;
-        case tLPAREN: leftBracket(); break;
-        case tASSIGN: assign(); break;
-        case tDOUBLE:
-        case tINT:
-        case tSTRING:
-        case tIDENT:
-        case tERROR:
-        case tUNDEF:
-        case tEOF: break;
-        default: unknownKind();
-      }
+      m_source << tokenOp(kind);
     }
 
     void block(BlockNode* node) {
