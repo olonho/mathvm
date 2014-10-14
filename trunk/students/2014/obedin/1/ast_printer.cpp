@@ -50,6 +50,20 @@ public:
         }
     }
 
+    void printBlock(BlockNode *node) {
+        for (uint32_t i = 0; i < node->nodes(); i++) {
+            node->nodeAt(i)->visit(this);
+            if (
+#define COLON_NODE_CHECK(type, name) \
+                    node->nodeAt(i)->is##type() ||
+                FOR_COLON_NODES(COLON_NODE_CHECK)
+#undef COLON_NODE_CHECK
+                    false) {
+                m_out << ";" << endl;
+            }
+        }
+    }
+
     virtual void visitBinaryOpNode(BinaryOpNode *node) {
         m_out << "(";
         node->left()->visit(this);
@@ -113,17 +127,7 @@ public:
     virtual void visitBlockNode(BlockNode *node) {
         m_out << "{" << endl;
         printVariables(node->scope());
-        for (uint32_t i = 0; i < node->nodes(); i++) {
-            node->nodeAt(i)->visit(this);
-            if (
-#define COLON_NODE_CHECK(type, name) \
-                    node->nodeAt(i)->is##type() ||
-                FOR_COLON_NODES(COLON_NODE_CHECK)
-#undef COLON_NODE_CHECK
-                    false) {
-                m_out << ";" << endl;
-            }
-        }
+        printBlock(node);
         m_out << "}" << endl;
     }
 
@@ -208,10 +212,11 @@ public:
         Scope *topScope = top->scope()->childScopeAt(0);
 
         visitor.printVariables(topScope);
-
         Scope::FunctionIterator it(topScope);
         while (it.hasNext())
             it.next()->node()->visit(&visitor);
+
+        visitor.printBlock(top->node()->body());
     }
 };
 
