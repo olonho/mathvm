@@ -7,7 +7,7 @@ else
 JIT_OBJ =
 endif
 
-USER_CFLAGS += -Wno-error -Wall -std=c++11
+USER_CFLAGS += -Wno-error -Wall
 
 USER_OBJ = \
    $(JIT_OBJ) \

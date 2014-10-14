@@ -30,9 +30,9 @@ public:
             ++level;
         }
         scope(node->scope());
-        for (auto i = 0; i < node->nodes(); ++i) {
+        for (size_t i = 0; i < node->nodes(); ++i) {
             indent();
-            auto current_node =  node->nodeAt(i);
+            AstNode *current_node =  node->nodeAt(i);
             current_node->visit(this);
             if (!current_node->isIfNode() && !current_node->isForNode()) {
                 out << ';' << endl;
@@ -47,7 +47,7 @@ public:
 
     virtual void visitCallNode(CallNode *node) {
         out << node->name() << '(';
-        for (auto i = 0; i < node->parametersNumber(); i++) {
+        for (size_t i = 0; i < node->parametersNumber(); i++) {
             node->parameterAt(i)->visit(this);
             out << (i + 1 < node->parametersNumber() ? ", " : "");
         }
@@ -70,7 +70,7 @@ public:
         bool topLevel = node->name() == AstFunction::top_name;
         if (!topLevel) {
             out << "function " << type(node->returnType()) << ' ' << node->name() << '(';
-            for (auto i = 0; i < node->parametersNumber(); ++i) {
+            for (size_t i = 0; i < node->parametersNumber(); ++i) {
                 out << type(node->parameterType(i)) << ' '
                     << node->parameterName(i)
                     << (i + 1 < node->parametersNumber() ? ", " : "");
@@ -107,7 +107,7 @@ public:
 
     virtual void visitPrintNode(PrintNode *node) {
         out << "print(";
-        for (auto i = 0; i < node->operands(); i++) {
+        for (size_t i = 0; i < node->operands(); i++) {
             node->operandAt(i)->visit(this);
             out << (i + 1 < node->operands() ? ", " : "");
         }
@@ -160,7 +160,7 @@ private:
         Scope::VarIterator vars(scope);
         while (vars.hasNext()) {
             indent();
-            auto var = vars.next();
+            AstVar *var = vars.next();
             out << type(var->type()) << ' ' << var->name() << ';' << endl;
         }
         if (scope->variablesCount()) {
@@ -188,19 +188,20 @@ private:
 
     static string escape(const string & input) {
         string result;
-        for (auto i : input) {
-            switch (i) {
+        for (size_t i = 0; i < input.size(); ++i) {
+            char c = input[i];
+            switch (c) {
                 case '\n': result += "\\n"; break;
                 case '\r': result += "\\r"; break;
                 case '\t': result += "\\r"; break;
-                default: result += i;
+                default: result += c;
             }
         }
         return result;
     }
 };
 
-const string PrintVisitor::types[] {"<invalid>", "void", "double", "int", "string"};
+const string PrintVisitor::types[5] = {"<invalid>", "void", "double", "int", "string"};
 
 class AstPrinter : public Translator {
 
