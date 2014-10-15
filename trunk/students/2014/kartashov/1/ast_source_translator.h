@@ -1,5 +1,5 @@
-#ifndef ASTm_source_TRANSLATOR_H__
-#define ASTm_source_TRANSLATOR_H__
+#ifndef ASTmSource_TRANSLATOR_H__
+#define ASTmSource_TRANSLATOR_H__
 
 #include <sstream>
 
@@ -9,7 +9,7 @@ using namespace mathvm;
 
 class AstSourceTranslator: public AstVisitor {
   public:
-    std::string source() {return m_source.str();}
+    std::string source() {return mSource.str();}
 
     void start(AstFunction* top) {
       BlockNode* node = top->node()->body();
@@ -21,17 +21,17 @@ class AstSourceTranslator: public AstVisitor {
     }
 
     void visitStringLiteralNode(StringLiteralNode* node) {
-      m_source << "\'";
-      m_source << escaped(node->literal());
-      m_source << "\'";
+      quote();
+      mSource << escaped(node->literal());
+      quote();
     }
 
     void visitIntLiteralNode(IntLiteralNode* node) {
-      m_source << node->literal();
+      mSource << node->literal();
     }
 
     void visitDoubleLiteralNode(DoubleLiteralNode* node) {
-      m_source << node->literal();
+      mSource << node->literal();
     }
 
     void visitBinaryOpNode(BinaryOpNode* node) {
@@ -64,7 +64,7 @@ class AstSourceTranslator: public AstVisitor {
     }
 
     void visitCallNode(CallNode* node) {
-      m_source << node->name();
+      mSource << node->name();
       leftBracket();
       if (node->parametersNumber() >= 1) {
         node->parameterAt(0)->visit(this);
@@ -96,10 +96,12 @@ class AstSourceTranslator: public AstVisitor {
     void visitFunctionNode(FunctionNode* node) {
       functionHeading(node);
       if (node->body()->nodes() == 1 && node->body()->nodeAt(0)->isNativeCallNode()) {
+        NativeCallNode* nativeCall = node->body()->nodeAt(0)->asNativeCallNode();
         native();
         space();
-        leftParen();
-        rightParen();
+        quote();
+        mSource << nativeCall->nativeName();
+        quote();
         newLine();
       } else {
         block(node->body());
@@ -125,7 +127,7 @@ class AstSourceTranslator: public AstVisitor {
       forkw();
       space();
       leftBracket();
-      m_source << node->var()->name();
+      mSource << node->var()->name();
       space();
       inkw();
       space();
@@ -144,8 +146,10 @@ class AstSourceTranslator: public AstVisitor {
 
     void visitReturnNode(ReturnNode* node) {
       returnkw();
-      space();
-      node->returnExpr()->visit(this);
+      if (node->returnExpr()) {
+        space();
+        node->returnExpr()->visit(this);
+      }
       semiColon();
       newLine();
     }
@@ -195,7 +199,7 @@ class AstSourceTranslator: public AstVisitor {
     }
 
     void var(const AstVar* astVar) {
-      m_source << astVar->name();
+      mSource << astVar->name();
     }
 
     void type(VarType varType) {
@@ -210,7 +214,7 @@ class AstSourceTranslator: public AstVisitor {
     }
 
     void op(TokenKind kind) {
-      m_source << tokenOp(kind);
+      mSource << tokenOp(kind);
     }
 
     void block(BlockNode* node) {
@@ -229,7 +233,7 @@ class AstSourceTranslator: public AstVisitor {
     void declareVariable(AstVar* var) {
       type(var->type());
       space();
-      m_source << var->name();
+      mSource << var->name();
       semiColon();
       newLine();
     }
@@ -244,104 +248,106 @@ class AstSourceTranslator: public AstVisitor {
     void argument(std::pair<VarType, std::string> argumentPair) {
       type(argumentPair.first);
       space();
-      m_source << argumentPair.second;
+      mSource << argumentPair.second;
     }
 
-    void assign() {m_source << "=";}
+    void assign() {mSource << "=";}
 
-    void orop() {m_source << "||";}
+    void orop() {mSource << "||";}
 
-    void andop() {m_source << "&&";}
+    void andop() {mSource << "&&";}
 
-    void notop() {m_source << "!";}
+    void notop() {mSource << "!";}
 
-    void aor() {m_source << "|";}
+    void aor() {mSource << "|";}
 
-    void aand() {m_source << "&";}
+    void aand() {mSource << "&";}
 
-    void axor() {m_source << "^";}
+    void axor() {mSource << "^";}
 
-    void eq() {m_source << "==";}
+    void eq() {mSource << "==";}
 
-    void neq() {m_source << "!=";}
+    void neq() {mSource << "!=";}
 
-    void ge() {m_source << ">=";}
+    void ge() {mSource << ">=";}
 
-    void gt() {m_source << ">";}
+    void gt() {mSource << ">";}
 
-    void lt() {m_source << "<";}
+    void lt() {mSource << "<";}
 
-    void le() {m_source << "<=";}
+    void le() {mSource << "<=";}
 
-    void range() {m_source << "..";}
+    void range() {mSource << "..";}
 
-    void add() {m_source << "+";}
+    void add() {mSource << "+";}
 
-    void sub() {m_source << "-";}
+    void sub() {mSource << "-";}
 
-    void mul() {m_source << "*";}
+    void mul() {mSource << "*";}
 
-    void div() {m_source << "/";}
+    void div() {mSource << "/";}
 
-    void mod() {m_source << "%";}
+    void mod() {mSource << "%";}
 
-    void iset() {m_source << "+=";}
+    void iset() {mSource << "+=";}
 
-    void dset() {m_source << "-=";}
+    void dset() {mSource << "-=";}
 
-    void unknownKind() {m_source << "unknownKind";}
+    void unknownKind() {mSource << "unknownKind";}
 
-    void unknownType() {m_source << "unknownType";}
+    void unknownType() {mSource << "unknownType";}
 
-    void indent() {m_source << buildIndent(m_currentIndentLevel);}
+    void indent() {mSource << buildIndent(m_currentIndentLevel);}
 
     void in() {++m_currentIndentLevel;}
 
     void out() {--m_currentIndentLevel;}
 
-    void inkw() {m_source << "in";}
+    void inkw() {mSource << "in";}
 
-    void space() {m_source << " ";}
+    void space() {mSource << " ";}
 
-    void semiColon() {m_source << ";";}
+    void semiColon() {mSource << ";";}
 
-    void forkw() {m_source << "for";}
+    void forkw() {mSource << "for";}
 
-    void whilekw() {m_source << "while";}
+    void whilekw() {mSource << "while";}
 
-    void ifkw() {m_source << "if";}
+    void ifkw() {mSource << "if";}
 
-    void elsekw() {m_source << "else";}
+    void elsekw() {mSource << "else";}
 
-    void returnkw() {m_source << "return";}
+    void returnkw() {mSource << "return";}
 
-    void native() {m_source << "native";}
+    void native() {mSource << "native";}
 
-    void function() {m_source << "function";}
+    void function() {mSource << "function";}
 
-    void leftBracket() {m_source << "(";}
+    void leftBracket() {mSource << "(";}
 
-    void rightBracket() {m_source << ")";}
+    void rightBracket() {mSource << ")";}
 
-    void leftParen() {m_source << "{";}
+    void leftParen() {mSource << "{";}
 
-    void rightParen() {m_source << "}";}
+    void rightParen() {mSource << "}";}
 
-    void comma() {m_source << ",";}
+    void comma() {mSource << ",";}
 
-    void newLine() {m_source << "\n";}
+    void quote() {mSource << "\'";}
 
-    void intt() {m_source << "int";}
+    void newLine() {mSource << "\n";}
 
-    void doublet() {m_source << "double";}
+    void intt() {mSource << "int";}
 
-    void stringt() {m_source << "string";}
+    void doublet() {mSource << "double";}
 
-    void voidt() {m_source << "void";}
+    void stringt() {mSource << "string";}
 
-    void invalid() {m_source << "invalid";}
+    void voidt() {mSource << "void";}
 
-    void print() {m_source << "print";}
+    void invalid() {mSource << "invalid";}
+
+    void print() {mSource << "print";}
 
     std::string escaped(std::string const& raw) {
       std::string result;
@@ -359,7 +365,7 @@ class AstSourceTranslator: public AstVisitor {
     }
 
     size_t m_currentIndentLevel;
-    std::stringstream m_source;
+    std::stringstream mSource;
 };
 
 #endif
