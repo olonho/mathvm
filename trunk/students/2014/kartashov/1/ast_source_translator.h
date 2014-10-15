@@ -203,14 +203,7 @@ class AstSourceTranslator: public AstVisitor {
     }
 
     void type(VarType varType) {
-      switch (varType) {
-        case VT_VOID: voidt(); break;
-        case VT_DOUBLE: doublet(); break;
-        case VT_INT: intt(); break;
-        case VT_STRING: stringt(); break;
-        case VT_INVALID: invalid(); break;
-        default: unknownType();
-      }
+      mSource << typeToName(varType);
     }
 
     void op(TokenKind kind) {
