@@ -11,13 +11,12 @@ class AstSourceTranslator: public AstVisitor {
   public:
     std::string source() {return mSource.str();}
 
-    void start(AstFunction* top) {
-      BlockNode* node = top->node()->body();
-      declareVariables(node);
+    void visitTop(AstFunction* top) {
+      cleanBlock(top->node()->body());
+    }
 
-      for(size_t i = 0; i < node->nodes(); ++i) {
-        node->nodeAt(i)->visit(this);
-      }
+    void visitAstFunction(AstFunction* astFunction) {
+      astFunction->node()->visit(this);
     }
 
     void visitStringLiteralNode(StringLiteralNode* node) {
@@ -56,8 +55,7 @@ class AstSourceTranslator: public AstVisitor {
       space();
       node->value()->visit(this);
       semiColon();
-      newLine();
-    ;}
+    }
 
     void visitLoadNode(LoadNode* node) {
       var(node->var());
@@ -90,29 +88,28 @@ class AstSourceTranslator: public AstVisitor {
       }
       rightBracket();
       semiColon();
-      newLine();
     }
 
     void visitFunctionNode(FunctionNode* node) {
       functionHeading(node);
-      if (node->body()->nodes() == 1 && node->body()->nodeAt(0)->isNativeCallNode()) {
+      if (node->body()->nodeAt(0)->isNativeCallNode()) {
         NativeCallNode* nativeCall = node->body()->nodeAt(0)->asNativeCallNode();
+        space();
         native();
         space();
         quote();
         mSource << nativeCall->nativeName();
         quote();
-        newLine();
+        semiColon();
       } else {
         block(node->body());
-        newLine();
       }
+      newLine();
     }
 
     void visitIfNode(IfNode* node) {
       ifkw();
       condition(node->ifExpr());
-      space();
       block(node->thenBlock());
       if (node->elseBlock()) {
         space();
@@ -134,14 +131,12 @@ class AstSourceTranslator: public AstVisitor {
       node->inExpr()->visit(this);
       rightBracket();
       block(node->body());
-      newLine();
     }
 
     void visitWhileNode(WhileNode* node) {
       whilekw();
       condition(node->whileExpr());
       block(node->loopBlock());
-      newLine();
     }
 
     void visitReturnNode(ReturnNode* node) {
@@ -151,7 +146,6 @@ class AstSourceTranslator: public AstVisitor {
         node->returnExpr()->visit(this);
       }
       semiColon();
-      newLine();
     }
 
   private:
@@ -169,10 +163,10 @@ class AstSourceTranslator: public AstVisitor {
       space();
       returnType(node);
       space();
+      mSource << node->name();
       leftBracket();
       arguments(node);
       rightBracket();
-      space();
     }
 
     void condition(AstNode* node) {
@@ -180,7 +174,6 @@ class AstSourceTranslator: public AstVisitor {
       leftBracket();
       node->visit(this);
       rightBracket();
-      space();
     }
 
     void returnType(FunctionNode* node) {
@@ -211,19 +204,30 @@ class AstSourceTranslator: public AstVisitor {
     }
 
     void block(BlockNode* node) {
+      space();
       leftParen();
       in();
       newLine();
-      declareVariables(node);
-      for(size_t i = 0; i < node->nodes(); ++i) {
-        indentedVisit(node->nodeAt(i));
-      }
+      cleanBlock(node);
       out();
       indent();
       rightParen();
     }
 
+    void cleanBlock(BlockNode* node) {
+      declareVariables(node);
+      declareFunctions(node);
+      for(size_t i = 0; i < node->nodes(); ++i) {
+        indentedVisit(node->nodeAt(i));
+        if (node->nodeAt(i)->isCallNode()) {
+          semiColon();
+        }
+        newLine();
+      }
+    }
+
     void declareVariable(AstVar* var) {
+      indent();
       type(var->type());
       space();
       mSource << var->name();
@@ -238,10 +242,21 @@ class AstSourceTranslator: public AstVisitor {
       }
     }
 
+    void declareFunctions(BlockNode* node) {
+      Scope::FunctionIterator iter(node->scope());
+      while (iter.hasNext()) {
+        visitAstFunction(iter.next());
+      }
+    }
+
     void argument(std::pair<VarType, std::string> argumentPair) {
       type(argumentPair.first);
       space();
       mSource << argumentPair.second;
+    }
+
+    bool isTopLevel() {
+      return mCurrentIndentLevel == 0;
     }
 
     void assign() {mSource << "=";}
@@ -290,11 +305,11 @@ class AstSourceTranslator: public AstVisitor {
 
     void unknownType() {mSource << "unknownType";}
 
-    void indent() {mSource << buildIndent(m_currentIndentLevel);}
+    void indent() {mSource << buildIndent(mCurrentIndentLevel);}
 
-    void in() {++m_currentIndentLevel;}
+    void in() {++mCurrentIndentLevel;}
 
-    void out() {--m_currentIndentLevel;}
+    void out() {--mCurrentIndentLevel;}
 
     void inkw() {mSource << "in";}
 
@@ -357,7 +372,7 @@ class AstSourceTranslator: public AstVisitor {
       return result;
     }
 
-    size_t m_currentIndentLevel;
+    size_t mCurrentIndentLevel;
     std::stringstream mSource;
 };
 
