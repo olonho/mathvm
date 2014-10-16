@@ -20,7 +20,7 @@ class AstPrinter : public Translator {
           Parser parser;
           Status* status = parser.parseProgram(program);
           if (status && status->isError()) return status;
-          _translator->start(parser.top());
+          _translator->visitTop(parser.top());
           std::cout << _translator->source() << std::endl;
           return new Status();
     }

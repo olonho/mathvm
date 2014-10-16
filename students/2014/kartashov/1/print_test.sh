@@ -14,6 +14,8 @@ do
   diff $firstResult $secondResult
   if [[ $? != 0 ]]; then
     echo "Failed on $testFile"
+  else
+    echo "Passed $testFile"
   fi
   rm -f $firstResult $secondResult
 done
