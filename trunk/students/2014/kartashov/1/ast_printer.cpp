@@ -13,20 +13,20 @@ class AstPrinter : public Translator {
     typedef std::list<std::string> SourceText;
     typedef std::list<SourceText> SourceTextStream;
 
-    AstPrinter(): _translator(new AstSourceTranslator) {}
-    ~AstPrinter() {delete _translator;}
+    AstPrinter(): mTranslator(new AstSourceTranslator) {}
+    ~AstPrinter() {delete mTranslator;}
 
     virtual Status* translate(const string& program, Code* *code)  {
           Parser parser;
           Status* status = parser.parseProgram(program);
           if (status && status->isError()) return status;
-          _translator->visitTop(parser.top());
-          std::cout << _translator->source() << std::endl;
+          mTranslator->visitTop(parser.top());
+          std::cout << mTranslator->source() << std::endl;
           return new Status();
     }
 
   private:
-    AstSourceTranslator* _translator;
+    AstSourceTranslator* mTranslator;
 };
 
 Translator* Translator::create(const string& impl) {
