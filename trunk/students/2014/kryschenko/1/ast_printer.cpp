@@ -1,6 +1,6 @@
-#include "../../../../include/mathvm.h"
-#include "../../../../include/ast.h"
-#include "../../../../vm/parser.h"
+#include "mathvm.h"
+#include "ast.h"
+#include "parser.h"
 
 using std::ostream;
 using std::cout;
