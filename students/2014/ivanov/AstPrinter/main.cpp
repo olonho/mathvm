@@ -12,14 +12,12 @@ using namespace std;
 int main(int argc, char** argv) {
     string impl = "";
     const char* script = NULL;
+
     for (int32_t i = 1; i < argc; i++) {
-      if (string(argv[i]) == "-j") {
-        impl = "jit";
-      } else {
-        script = argv[i];
-      }
+      script = argv[i];
     }
-    Translator* translator = Translator::create(impl);
+
+    Translator* translator = Translator::create("printer");
 
     if (translator == 0) {
         cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
