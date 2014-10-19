@@ -12,6 +12,8 @@ USER_OBJ = \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/ast_printer$(OBJ_SUFF)
 
+USER_CFLAGS=-std=c++0x
+
 include $(VM_ROOT)/common.mk
 
 MATHVM = $(BIN)/mvm
