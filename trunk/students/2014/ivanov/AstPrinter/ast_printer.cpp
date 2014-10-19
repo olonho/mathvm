@@ -62,8 +62,10 @@ struct AstToStringVisitor : public AstVisitor {
     node->ifExpr()->visit(this);
     ss << ") ";
     node->thenBlock()->visit(this);
-    ss << " else ";
-    node->elseBlock()->visit(this);
+    if (node->elseBlock() != NULL) {
+      ss << " else ";
+      node->elseBlock()->visit(this);
+    }
   }
 
   virtual void visitBlockNode(BlockNode* node) override {
@@ -73,12 +75,17 @@ struct AstToStringVisitor : public AstVisitor {
       AstVar *v = vi.next();
       ss << typeToName(v->type()) << ' ' << v->name() << ';' << endl;
     }
+    Scope::FunctionIterator fi = Scope::FunctionIterator(node->scope());
+    while (fi.hasNext()) {
+      fi.next()->node()->visit(this);
+    }
+
     node->visitChildren(this);
     ss << "}" << endl;
   }
 
   virtual void visitFunctionNode(FunctionNode* node) override {
-    ss << typeToName(node->returnType()) << " (";
+    ss << "function " << typeToName(node->returnType()) << ' ' << node->name() << " (";
     for (uint32_t i = 0; i < node->parametersNumber(); i++) {
       ss << typeToName(node->parameterType(i)) << ' ' << node->parameterName(i);
       if (i < node->parametersNumber() - 1) ss << ", ";
@@ -89,7 +96,8 @@ struct AstToStringVisitor : public AstVisitor {
 
   virtual void visitReturnNode(ReturnNode* node) override {
     ss << "return ";
-    node->returnExpr()->visit(this);
+    if (node->returnExpr() != NULL)
+      node->returnExpr()->visit(this);
     ss << ";" << endl;
   }
 
