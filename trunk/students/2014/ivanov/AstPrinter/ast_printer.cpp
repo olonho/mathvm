@@ -22,7 +22,14 @@ struct AstToStringVisitor : public AstVisitor {
   }
 
   virtual void visitStringLiteralNode(StringLiteralNode* node) override {
-    ss << '\'' << node->literal() << '\'';
+    stringstream tmp;
+    for (char ch : node->literal()) {
+      switch (ch) {
+        case '\n': tmp << "\\n"; break;
+        default: tmp << ch;
+      }
+    }
+    ss << '\'' << tmp.str() << '\'';
   }
 
   virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) override {
@@ -102,12 +109,17 @@ struct AstToStringVisitor : public AstVisitor {
   }
 
   virtual void visitCallNode(CallNode* node) override {
+    ++func_call_cnt;
     ss << node->name() << " (";
     for (uint32_t i = 0; i < node->parametersNumber(); i++) {
       node->parameterAt(i)->visit(this);
       if (i < node->parametersNumber() - 1) ss << ", ";
     }
-    ss << ");" << endl;
+    --func_call_cnt;
+    if (func_call_cnt == 0)
+      ss << ");" << endl;
+    else
+      ss << ")";
   }
 
   virtual void visitNativeCallNode(NativeCallNode* node) override {
@@ -115,15 +127,20 @@ struct AstToStringVisitor : public AstVisitor {
   }
 
   virtual void visitPrintNode(PrintNode* node) override {
+    ++func_call_cnt;
     ss << "print(";
     for (uint32_t i = 0; i < node->operands(); i++) {
       node->operandAt(i)->visit(this);
       if (i < node->operands() - 1) ss << ", ";
     }
     ss << ");" << endl;
+    --func_call_cnt;
   }
 
   stringstream ss;
+
+private:
+  int func_call_cnt = 0;
 };
 
 struct AstPrinter : public Translator {
