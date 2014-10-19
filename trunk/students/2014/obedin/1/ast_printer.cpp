@@ -8,7 +8,12 @@ using namespace mathvm;
 using std::endl;
 
 
-#define FOR_COLON_NODES(DO)                     \
+#define FOR_NODES_WITHOUT_BODY(DO)              \
+            DO(BinaryOpNode, "binary")          \
+            DO(UnaryOpNode, "unary")            \
+            DO(StringLiteralNode, "string literal") \
+            DO(DoubleLiteralNode, "double literal") \
+            DO(IntLiteralNode, "int literal")   \
             DO(LoadNode, "loadval")             \
             DO(StoreNode, "storeval")           \
             DO(ReturnNode, "return")            \
@@ -50,14 +55,20 @@ public:
         }
     }
 
+    void printFunctions(Scope* scope) {
+        Scope::FunctionIterator it(scope);
+        while (it.hasNext())
+            it.next()->node()->visit(this);
+    }
+
     void printBlock(BlockNode *node) {
         for (uint32_t i = 0; i < node->nodes(); i++) {
             node->nodeAt(i)->visit(this);
             if (
-#define COLON_NODE_CHECK(type, name) \
+#define TEST_TYPE(type, name) \
                     node->nodeAt(i)->is##type() ||
-                FOR_COLON_NODES(COLON_NODE_CHECK)
-#undef COLON_NODE_CHECK
+                FOR_NODES_WITHOUT_BODY(TEST_TYPE)
+#undef TEST_TYPE
                     false) {
                 m_out << ";" << endl;
             }
@@ -127,6 +138,7 @@ public:
     virtual void visitBlockNode(BlockNode *node) {
         m_out << "{" << endl;
         printVariables(node->scope());
+        printFunctions(node->scope());
         printBlock(node);
         m_out << "}" << endl;
     }
@@ -212,10 +224,7 @@ public:
         Scope *topScope = top->scope()->childScopeAt(0);
 
         visitor.printVariables(topScope);
-        Scope::FunctionIterator it(topScope);
-        while (it.hasNext())
-            it.next()->node()->visit(&visitor);
-
+        visitor.printFunctions(topScope);
         visitor.printBlock(top->node()->body());
     }
 };
