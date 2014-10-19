@@ -1,4 +1,4 @@
-#include "../../../../include/mathvm.h"
+#include "mathvm.h"
 
 #include <stdio.h>
 #include <fcntl.h>
