@@ -123,37 +123,50 @@ typedef vector<SignatureElement> Signature;
 const uint16_t INVALID_ID = 0xffff;
 
 class Status {
-    bool _ok;
-    string _error;
+    bool _is_error;
+    string _msg;
     uint32_t _position;
 
+    explicit Status(const char* msg, uint32_t position, bool is_error) :
+    _is_error(is_error), _msg(msg), _position(position) {}
+
   public:
-    Status() :
-    _ok(true),  _error(""), _position(INVALID_POSITION) {
+    static Status* Error(const char* msg, uint32_t position = INVALID_POSITION) {
+      return new Status(msg, position, true);
     }
 
-    explicit Status(const char* error, uint32_t position = INVALID_POSITION) :
-        _ok(false), _error(error), _position(position) {
+    static Status* Warning(const char* msg, uint32_t position = INVALID_POSITION) {
+      return new Status(msg, position, false);
     }
 
-    Status(const string& error, uint32_t position = INVALID_POSITION) :
-        _ok(false), _error(error), _position(position) {
+    static Status* Ok() {
+     return new Status("", INVALID_POSITION, false);
     }
 
     bool isOk() const {
-        return _ok;
+      return !_is_error;
     }
 
     bool isError() const {
-        return !_ok;
+      return _is_error;
     }
 
     const string& getError() const {
-        return _error;
+      assert(isError());
+      return _msg;
+    }
+
+    const char* getErrorCstr() const {
+      assert(isError());
+      return _msg.c_str();
+    }
+
+    const char* getMsg() const {
+      return _msg.c_str();
     }
 
     const uint32_t getPosition() const {
-        return _position;
+      return _position;
     }
 
     static const uint32_t INVALID_POSITION = 0xffffffff;

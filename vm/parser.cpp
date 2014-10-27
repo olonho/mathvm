@@ -19,12 +19,13 @@ Parser::~Parser() {
 Status* Parser::parseProgram(const string& code) {
     Scanner scanner;
     try {
-         Status* s = scanner.scan(code, _tokens);
-         if (s) {
-             return s;
-         }
+      Status* s = scanner.scan(code, _tokens);
+      if (s->isError()) {
+        return s;
+      }
+      delete s;
     } catch (ErrorInfoHolder* error) {
-        return new Status(error->getMessage(), error->getPosition());
+      return Status::Error(error->getMessage(), error->getPosition());
     }
     return parseTopLevel();
 }
@@ -106,7 +107,7 @@ Status* Parser::parseTopLevel() {
     try {
         topBlock = parseBlock(false);
     } catch (ErrorInfoHolder* error) {
-        return new Status(error->getMessage(), error->getPosition());
+      return Status::Error(error->getMessage(), error->getPosition());
     }
     assert(topBlock != 0);
     // Make pseudo-function for top level code.
@@ -116,7 +117,7 @@ Status* Parser::parseTopLevel() {
       new FunctionNode(0, AstFunction::top_name,
                        signature, topBlock));
     _top = _topmostScope->lookupFunction(AstFunction::top_name);
-    return 0;
+    return Status::Ok();
 }
 
 static inline bool isAssignment(TokenKind token) {
