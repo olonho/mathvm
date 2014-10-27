@@ -20,7 +20,7 @@ MachCodeImpl::~MachCodeImpl() {
 Status* MachCodeImpl::execute(vector<Var*>& vars) {
   int result = function_cast<int (*)()>(_code)();
   cout << "returned " << result << endl;
-  return new Status();
+  return Status::Ok();
 }
 
 MachCodeFunction* MachCodeImpl::functionByName(const string& name) {
@@ -68,24 +68,25 @@ Status* MachCodeGenerator::generate() {
 
   _code->setCode(_.make());
 
-  return 0;
+  return Status::Ok();
 }
 
 Status* MachCodeTranslatorImpl::translateMachCode(const string& program,
                                                   MachCodeImpl* *result) {
   MachCodeImpl* code = 0;
-  Status* s = 0;
   Parser parser;
 
   // Build an AST.
-  s = parser.parseProgram(program);
-  if (s == 0) {
+  Status* s = parser.parseProgram(program);
+  if (s->isOk()) {
+    delete s;
     code = new MachCodeImpl();
     MachCodeGenerator codegen(parser.top(), code);
     s = codegen.generate();
   }
 
-  if (s != 0) {
+  if (s->isError()) {
+    *result = NULL;
     delete code;
   } else {
     *result = code;
@@ -101,10 +102,9 @@ MachCodeTranslatorImpl::~MachCodeTranslatorImpl() {
 
 Status* MachCodeTranslatorImpl::translate(const string& program, Code* *result) {
     MachCodeImpl* code = 0;
-    Status* status = 0;
+    Status* status = translateMachCode(program, &code);
 
-    status = translateMachCode(program, &code);
-    if (status != 0) {
+    if (status->isError()) {
         assert(code == 0);
         *result = 0;
         return status;
@@ -114,7 +114,7 @@ Status* MachCodeTranslatorImpl::translate(const string& program, Code* *result) 
     assert(code);
     *result = code;
 
-    return new Status();
+    return status;
 }
 
 MachCodeFunction::MachCodeFunction(MachCodeImpl* owner, BytecodeFunction* bcfunc) :
@@ -126,7 +126,7 @@ MachCodeFunction::~MachCodeFunction() {
 
 
 Status* MachCodeFunction::execute(vector<Var*>* vars) {
-    return 0;
+  return Status::Ok();
 }
 
 void MachCodeFunction::disassemble(ostream& out) const {
