@@ -305,9 +305,9 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
         }
 
         if (kind != tUNDEF) {
-            _tokens->add(_position, kind);
+          _tokens->add(_position, kind);
         } else {
-            error("Bad token: %c", _ch);
+          error("Bad token: %c", _ch);
         }
     }
 
@@ -315,7 +315,7 @@ Status* Scanner::scan(const string& code, TokenList& tokens) {
 
     //_tokens->dump();
 
-    return 0;
+    return Status::Ok();
 }
 
 void Scanner::error(const char* format, ...) {

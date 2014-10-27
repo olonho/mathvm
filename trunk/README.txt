@@ -1,8 +1,8 @@
                 Introduction.
 
   This folder contains partial source code for a simple VM, with few intentionally 
-missed pieces. This VM implements simple language (MVM language) with basic
-computational functionality and flow control.
+ missed pieces. This VM implements simple language (MVM language) with basic
+ computational functionality and flow control.
 
                 MVM language.
 
@@ -21,8 +21,8 @@ computational functionality and flow control.
  precedence, i.e. aforementioned expression is evaluated as 
   x= (2+(y*3));
 
-   Variables in topmost scope could be bound to Var class
-  instances, to allow interoperability between MVM programs and C++. 
+  Variables in topmost scope could be bound to Var class
+ instances, to allow interoperability between MVM programs and C++. 
 
 
  Literals can be:
@@ -44,25 +44,25 @@ computational functionality and flow control.
  
    We provide generic source -> AST (abstract syntax tree)
  translator, so that implementors can focus on VM-specific issues.
-It means we give scanner and top-down parser, generating tree
-of AST nodes, representing program structure.
-Its up to implementors to provide remaining pieces for fully
-functional VM.
+ It means we give scanner and top-down parser, generating tree
+ of AST nodes, representing program structure.
+ It is up to implementors to provide remaining pieces for fully
+ functional VM.
 
                 Tests.
 
   Directory 'tests' contains set of tests on basic language features,
-  along with test driver 'run.py'. Generally, for every MVM program 
-we have an .expect file, which contains expected result of execution
-for given MVM program. By default, 'run.py' will run all tests it
-knows about.
+ along with test driver 'run.py'. Generally, for every MVM program 
+ we have an .expect file, which contains expected result of execution
+ for given MVM program. By default, 'run.py' will run all tests it
+ knows about.
  
   
                 Source tree layout.
 
   Folder 'include' contains generic declarations of language constructs
-(as AST nodes), set of bytecodes with description, and certain basic
-interfaces.
+ (as AST nodes), set of bytecodes with description, and certain basic
+ interfaces.
   
   Folder 'tests' contains MVM tests. Feel free to implement your own tests.
 
