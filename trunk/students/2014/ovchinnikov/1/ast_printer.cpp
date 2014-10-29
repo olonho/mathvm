@@ -2,7 +2,7 @@
 #include "parser.h"
 #include "visitors.h"
 #include "ast.h"
-#include "ast_printer.h"
+#include "ast_printer.hpp"
 
 using namespace mathvm;
 
@@ -210,11 +210,11 @@ const string PrintVisitor::types[5] = {"<invalid>", "void", "double", "int", "st
 Status *AstPrinter::translate(const string & program, Code **) {
     Parser parser;
     Status *status = parser.parseProgram(program);
-    if (status && status->isError()) {
+    if (status->isError()) {
         return status;
     }
     PrintVisitor visitor(cout);
     parser.top()->node()->visit(&visitor);
-    return new Status();
+    return Status::Ok();
 }
 

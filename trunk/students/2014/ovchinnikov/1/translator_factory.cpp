@@ -1,5 +1,5 @@
 #include "mathvm.h"
-#include "ast_printer.h"
+#include "ast_printer.hpp"
 
 Translator *Translator::create(const string & impl) {
     if (impl == "printer") {
