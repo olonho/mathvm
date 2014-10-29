@@ -2,8 +2,9 @@
 #include "parser.h"
 #include "visitors.h"
 #include "ast.h"
+#include "ast_printer.h"
 
-namespace mathvm {
+using namespace mathvm;
 
 class PrintVisitor : public AstVisitor {
 
@@ -78,7 +79,9 @@ public:
             out << ") ";
         }
         node->body()->visit(this);
-        if (!topLevel) { out << endl << endl; }
+        if (!topLevel) {
+            out << endl << endl;
+        }
     }
 
     virtual void visitIfNode(IfNode *node) {
@@ -185,10 +188,17 @@ private:
         for (size_t i = 0; i < input.size(); ++i) {
             char c = input[i];
             switch (c) {
-                case '\n': result += "\\n"; break;
-                case '\r': result += "\\r"; break;
-                case '\t': result += "\\r"; break;
-                default: result += c;
+                case '\n':
+                    result += "\\n";
+                    break;
+                case '\r':
+                    result += "\\r";
+                    break;
+                case '\t':
+                    result += "\\r";
+                    break;
+                default:
+                    result += c;
             }
         }
         return result;
@@ -197,27 +207,14 @@ private:
 
 const string PrintVisitor::types[5] = {"<invalid>", "void", "double", "int", "string"};
 
-class AstPrinter : public Translator {
-
-public:
-    virtual Status *translate(const string & program, Code **)  {
-        Parser parser;
-        Status *status = parser.parseProgram(program);
-        if (status && status->isError()) {
-            return status;
-        }
-        PrintVisitor visitor(cout);
-        parser.top()->node()->visit(&visitor);
-        return new Status();
+Status *AstPrinter::translate(const string & program, Code **) {
+    Parser parser;
+    Status *status = parser.parseProgram(program);
+    if (status && status->isError()) {
+        return status;
     }
-};
-
-Translator *Translator::create(const string & impl) {
-    if (impl == "printer") {
-        return new AstPrinter;
-    } else {
-        return NULL;
-    }
+    PrintVisitor visitor(cout);
+    parser.top()->node()->visit(&visitor);
+    return new Status();
 }
 
-}

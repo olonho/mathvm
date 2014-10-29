@@ -7,12 +7,14 @@ else
 JIT_OBJ =
 endif
 
-USER_CFLAGS += -Wno-error -Wall
+USER_CFLAGS += -Wno-error -Wall -Wno-unused
 
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/ast_printer$(OBJ_SUFF)
+   $(OBJ)/ast_printer$(OBJ_SUFF)\
+   $(OBJ)/translator_factory$(OBJ_SUFF)
+
 
 include $(VM_ROOT)/common.mk
 
