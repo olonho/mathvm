@@ -69,12 +69,12 @@ Status* AstPrinter::translate(const string& program, Code* *code) {
   Parser parser;
   
   Status* status = parser.parseProgram(program);
-  if (status &&status->isError()) return status;
+  if (status->isError()) return status;
 
   AstPrinterVisitor visitor(std::cout);
   parser.top()->node()->body()->visit(&visitor);
 
-  return new Status();
+  return Status::Ok();
 }
 
 
