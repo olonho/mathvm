@@ -212,11 +212,11 @@ public:
     virtual Status* translate(const string& program, Code** code) {
         Parser parser;
         Status* status = parser.parseProgram(program);
-        if (status != NULL && status->isError())
+        if (status->isError())
             return status;
 
         printProgram(parser.top());
-        return new Status();
+        return Status::Ok();
     }
 
     void printProgram(AstFunction *top) {
