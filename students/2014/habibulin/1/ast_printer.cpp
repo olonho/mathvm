@@ -192,7 +192,7 @@ private:
 
     string getFunRetType(FunctionNode* node) { return varTypeToStr(node->signature()[0].first); }
 
-    string signElemToStr(SignatureElement const& se) { return varTypeToStr(se.first) + se.second; }
+    string signElemToStr(SignatureElement const& se) { return varTypeToStr(se.first) + ' ' + se.second; }
 
     void outFunHeader(FunctionNode* node) {
         Signature const& signature = node->signature();
