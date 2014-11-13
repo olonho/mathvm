@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const char* expr = "double x; double y;"
+    const char* expr = z"double x; double y;"
                         "x += 8.0; y = 2.0;"
                         "print('Hello, x=',x,' y=',y,'\n');";
     bool isDefaultExpr = true;
