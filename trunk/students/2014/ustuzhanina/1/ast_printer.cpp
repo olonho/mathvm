@@ -60,7 +60,7 @@ class Printer: public AstVisitor
 			else
 				node->nodeAt(i)->visit(this);
 
-			result << "\n";
+            result << "\n";
 		}
 	}
 
@@ -187,12 +187,12 @@ class Printer: public AstVisitor
 
 	void visitReturnNode(ReturnNode * node)
 	{
-		if (node->returnExpr() != NULL)
-		{
-			result << std::string(level, ' ') << "return ";
-			node->returnExpr()->visit(this);
-			result << ";";
-		}
+        result << std::string(level, ' ') << "return ";
+        if (node->returnExpr() != NULL)
+        {
+            node->returnExpr()->visit(this);
+        }
+        result << ";";
 	}
 	void visitStoreNode(StoreNode * node)
 	{
@@ -249,7 +249,7 @@ class AstPrinter : public Translator
 
 		Printer printer(parser.top(), cout);
 		printer.print();
-		return new Status();
+        return Status::Ok();
 	}
 };
 
