@@ -1,6 +1,7 @@
 ROOT   = .
 VM_ROOT = ../../../..
 
+USER_CFLAGS = -Wno-unused
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
 else

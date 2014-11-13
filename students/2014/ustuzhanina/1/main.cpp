@@ -9,75 +9,85 @@
 using namespace mathvm;
 using namespace std;
 
-int main(int argc, char ** argv)
-{
-	string impl = "printer";
-	const char * script = NULL;
+int main(int argc, char** argv) {
+    string impl = "printer";
+    const char* script = NULL;
+    for (int32_t i = 1; i < argc; i++) {
+        if (string(argv[i]) == "-j") {
+            impl = "jit";
+        }  if (string(argv[i]) == "-p") {
+            impl = "printer";
+        } else {
+            script = argv[i];
+        }
+    }
+    Translator* translator = Translator::create(impl);
 
-	for (int32_t i = 1; i < argc; i++)
-	{
-		if (string(argv[i]) == "-j")
-		{
-			impl = "jit";
-		}
-		else
-		{
-			script = argv[i];
-		}
-	}
+    if (translator == 0) {
+        cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
+        return 1;
+    }
 
-	Translator * translator = Translator::create(impl);
+    const char* expr = "function int add(int x, int y) {"
+                       "return ;"
+                       "}"
+                       "return 6;";
+    bool isDefaultExpr = true;
 
-	if (translator == 0)
-	{
-		cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
-		return 1;
-	}
+    if (script != NULL) {
+        expr = loadFile(script);
+        if (expr == 0) {
+            printf("Cannot read file: %s\n", script);
+            return 1;
+        }
+        isDefaultExpr = false;
+    }
 
-	const char * expr = "function void doit(int x){"
-	                    " print ('Hi');"
-	                    "}"
-	                    "doit(34);";
-	;
-	bool isDefaultExpr = true;
+    Code* code = 0;
 
-	if (script != NULL)
-	{
-		expr = loadFile(script);
+    Status* translateStatus = translator->translate(expr, &code);
+    if (translateStatus->isError()) {
+        uint32_t position = translateStatus->getPosition();
+        uint32_t line = 0, offset = 0;
+        positionToLineOffset(expr, position, line, offset);
+        printf("Cannot translate expression: expression at %d,%d; "
+               "error '%s'\n",
+               line, offset,
+               translateStatus->getErrorCstr());
+    } else {
+        if (impl != "printer") {
+            assert(code != 0);
+            vector<Var*> vars;
 
-		if (expr == 0)
-		{
-			printf("Cannot read file: %s\n", script);
-			return 1;
-		}
+            if (isDefaultExpr) {
+                Var* xVar = new Var(VT_DOUBLE, "x");
+                Var* yVar = new Var(VT_DOUBLE, "y");
+                vars.push_back(xVar);
+                vars.push_back(yVar);
+                xVar->setDoubleValue(42.0);
+            }
+            Status* execStatus = code->execute(vars);
+            if (execStatus->isError()) {
+                printf("Cannot execute expression: error: %s\n",
+                       execStatus->getErrorCstr());
+            } else {
+                if (isDefaultExpr) {
+                    printf("x evaluated to %f\n", vars[0]->getDoubleValue());
+                    for (uint32_t i = 0; i < vars.size(); i++) {
+                        delete vars[i];
+                    }
+                }
+            }
+            delete code;
+            delete execStatus;
+        }
+    }
+    delete translateStatus;
+    delete translator;
 
-		isDefaultExpr = false;
-	}
+    if (!isDefaultExpr) {
+        delete [] expr;
+    }
 
-	Code * code = 0;
-	Status * translateStatus = translator->translate(expr, &code);
-
-	if (translateStatus->isError())
-	{
-		uint32_t position = translateStatus->getPosition();
-		uint32_t line = 0, offset = 0;
-		positionToLineOffset(expr, position, line, offset);
-		printf("Cannot translate expression: expression at %d,%d; "
-		       "error '%s'\n",
-		       line, offset,
-		       translateStatus->getError().c_str());
-	}
-	else
-	{
-	}
-
-	delete translateStatus;
-	delete translator;
-
-	if (!isDefaultExpr)
-	{
-		delete [] expr;
-	}
-
-	return 0;
+    return 0;
 }
