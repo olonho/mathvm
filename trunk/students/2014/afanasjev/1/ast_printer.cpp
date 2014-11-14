@@ -243,7 +243,7 @@ public :
         Parser parser;
         Status* status = parser.parseProgram(program);
 
-        if(status && status->isError()) {
+        if(status->isError()) {
             return status;
         }
 
@@ -252,7 +252,7 @@ public :
         FunctionNode* root = parser.top()->node();
         root->body()->visit(&visitor);
 
-        return new Status();
+        return Status::Ok();
     }       
     
 };
