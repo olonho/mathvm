@@ -232,7 +232,7 @@ public:
         AstPrinterVisitor visitor(cout);
         parser.top()->node()->visit(&visitor);
 
-        return new Status();
+        return Status::Ok();
     }
 };
 
