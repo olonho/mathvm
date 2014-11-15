@@ -27,7 +27,7 @@ TVisitor::visitBinaryOpNode(BinaryOpNode *node)
             bc()->addInsn(BC_IMOD);
             break;
         default:
-            throw std::runtime_error(MSG_INVALID_UNARY);
+            throw std::runtime_error(MSG_INVALID_BINARY);
     }
 
     POP_NODE
