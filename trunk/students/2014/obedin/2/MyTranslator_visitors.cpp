@@ -115,7 +115,7 @@ TVisitor::visitStoreNode(StoreNode *node)
         case tASSIGN:
             break;
         default:
-            throw std::runtime_error("Unsupported store operation");
+            throw std::runtime_error(MSG_INVALID_STORE_OP);
     }
     storeVar(node->var());
 
