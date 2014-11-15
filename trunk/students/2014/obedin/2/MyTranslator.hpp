@@ -56,7 +56,6 @@ private:
     VarType m_tosType;
     TScope *m_curScope;
     std::stack<uint32_t> m_sourcePos;
-    std::stack<VarType> m_tos;
 
     Bytecode *bc()
         { return m_curScope->fn->bytecode(); }
