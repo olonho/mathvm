@@ -54,11 +54,12 @@ class AstPrinterVisitor : public AstVisitor {
   void functionDeclaration(Scope* scope) {
     Scope::FunctionIterator iter(scope);
     while (iter.hasNext()) {
-      iter.next()->node()->visit(this);   
-    }    
+      indent();
+      iter.next()->node()->visit(this);
+    }
   }
 
- public: 
+ public:
   AstPrinterVisitor(ostream & output = std::cout,
                     const uint8_t indentSpaces = 2) :
       _output(output), _indentSpaces(indentSpaces), _indentLevel(0) {
@@ -67,7 +68,7 @@ class AstPrinterVisitor : public AstVisitor {
   void insideBlock(BlockNode* node) {
     variableDeclaration(node->scope());
     functionDeclaration(node->scope());
-    
+
     for (uint32_t i = 0; i < node->nodes(); i++) {
       indent();
       AstNode* current = node->nodeAt(i);
@@ -142,13 +143,12 @@ class AstPrinterVisitor : public AstVisitor {
   }
 
   virtual void visitBlockNode(BlockNode* node) {
-    blockEnter();
     _output << " {" << endl;
-    
+    blockEnter();
+
     insideBlock(node);
-    
-    blockExit();
-    indent();
+
+    blockExit(); indent();
     _output << "}";
   }
 
@@ -171,8 +171,8 @@ class AstPrinterVisitor : public AstVisitor {
                 << " " << node->parameterName(i);
       }
       _output << ")";
-    } 
-    if (node->body()->nodeAt(0)->isNativeCallNode()) 
+    }
+    if (node->body()->nodeAt(0)->isNativeCallNode())
       visitNativeCallNode(node->body()->nodeAt(0)->asNativeCallNode());
     else {
       node->body()->visit(this);
@@ -188,7 +188,7 @@ class AstPrinterVisitor : public AstVisitor {
     }
     _output << ";";
   }
-  
+
   virtual void visitCallNode(CallNode* node) {
     _output << node->name()
             << "(";
@@ -199,7 +199,7 @@ class AstPrinterVisitor : public AstVisitor {
     }
     _output << ")";
   }
-  
+
   virtual void visitPrintNode(PrintNode* node) {
     _output << "print(";
     for (uint32_t i = 0; i < node->operands(); i++) {
@@ -209,7 +209,7 @@ class AstPrinterVisitor : public AstVisitor {
     }
     _output << ");";
   }
-  
+
 };
 
 class AstPrinter : public Translator {
@@ -217,12 +217,12 @@ class AstPrinter : public Translator {
   virtual Status* translate(const string& program, Code* *code)  {
     Parser parser;
     Status* status = parser.parseProgram(program);
-    if (status != NULL/* && status->isError()*/) return status;
-    
+    if (status->isError()) return status;
+
     AstPrinterVisitor printer;
     printer.insideBlock(parser.top()->node()->body());
-    
-    return new Status();
+
+    return Status::Ok();
   }
 };
 
