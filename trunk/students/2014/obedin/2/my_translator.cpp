@@ -1,4 +1,4 @@
-#include "MyTranslator.hpp"
+#include "my_translator.hpp"
 
 
 TVisitor::TVisitor()
@@ -36,5 +36,5 @@ TVisitor::visit(Code *code, AstFunction *top)
     }
 }
 
-#include "MyTranslator_helpers.cpp"
-#include "MyTranslator_visitors.cpp"
+#include "my_translator-helpers.cpp"
+#include "my_translator-visitors.cpp"

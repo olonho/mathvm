@@ -1,5 +1,5 @@
-#ifndef UTIL_HPP
-#define UTIL_HPP
+#ifndef MACROS_HPP
+#define MACROS_HPP
 
 #define MSG_NAN_ON_TOS          "Not a number on TOS"
 #define MSG_NOT_INT_ON_TOS      "Not an integer on TOS"
@@ -23,4 +23,4 @@
 #define STORE_VAR(t, id) ((t) == VT_INT ? BC_STOREIVAR##id : (t) == VT_DOUBLE ? BC_STOREDVAR##id : (t) == VT_STRING ? BC_STORESVAR##id : throw std::runtime_error(MSG_UNSTOREABLE_TYPE))
 #define STORE_CTX_VAR(t) ((t) == VT_INT ? BC_STORECTXIVAR : (t) == VT_DOUBLE ? BC_STORECTXDVAR : (t) == VT_STRING ? BC_STORECTXSVAR : throw std::runtime_error(MSG_UNSTOREABLE_TYPE))
 
-#endif /* end of include guard: UTIL_HPP */
+#endif /* end of include guard: MACROS_HPP */
