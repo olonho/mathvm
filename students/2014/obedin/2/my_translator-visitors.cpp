@@ -126,26 +126,28 @@ TVisitor::visitForNode(ForNode *node)
 {
     PUSH_NODE
 
-    if (node->var()->type() != VT_INT
-            || !node->inExpr()->isBinaryOpNode())
-        throw std::runtime_error(MSG_INVALID_FOR_RANGE);
+    if (node->var()->type() != VT_INT)
+        throw std::runtime_error(MSG_INVALID_FOR_VAR);
+
+    if (!node->inExpr()->isBinaryOpNode())
+        throw std::runtime_error(MSG_INVALID_FOR_EXPR);
 
     BinaryOpNode *inExpr = node->inExpr()->asBinaryOpNode();
     if (inExpr->kind() != tRANGE)
-        throw std::runtime_error(MSG_INVALID_FOR_RANGE);
+        throw std::runtime_error(MSG_INVALID_FOR_EXPR);
 
     const AstVar *itVar = node->var();
     Label lStart(bc()), lEnd(bc());
 
     inExpr->left()->visit(this);
     if (m_tosType != VT_INT)
-        throw std::runtime_error(MSG_INVALID_FOR_RANGE);
+        throw std::runtime_error(MSG_INVALID_FOR_EXPR);
     storeVar(itVar);
 
     bc()->bind(lStart);
     inExpr->right()->visit(this);
     if (m_tosType != VT_INT)
-        throw std::runtime_error(MSG_INVALID_FOR_RANGE);
+        throw std::runtime_error(MSG_INVALID_FOR_EXPR);
 
     loadVar(itVar);
     bc()->addBranch(BC_IFICMPG, lEnd);
