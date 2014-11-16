@@ -7,9 +7,9 @@ TVisitor::visitBinaryOpNode(BinaryOpNode *node)
 {
     PUSH_NODE
 
-    node->left()->visit(this);
-    VarType lhsType = m_tosType;
     node->right()->visit(this);
+    VarType rhsType = m_tosType;
+    node->left()->visit(this);
 
     TokenKind op = node->kind();
     switch (op) {
@@ -18,9 +18,9 @@ TVisitor::visitBinaryOpNode(BinaryOpNode *node)
         case tAOR: case tAAND: case tAXOR:
             genBitwiseOp(op); break;
         case tEQ: case tNEQ: case tGT: case tGE: case tLT: case tLE:
-            genComparisonOp(op, lhsType, m_tosType); break;
+            genComparisonOp(op, rhsType, m_tosType); break;
         case tADD: case tSUB: case tMUL: case tDIV:
-            genNumericOp(op, lhsType, m_tosType); break;
+            genNumericOp(op, rhsType, m_tosType); break;
         case tMOD:
             if (m_tosType != VT_INT)
                 throw std::runtime_error(MSG_NOT_INT_ON_TOS);
@@ -109,7 +109,6 @@ TVisitor::visitStoreNode(StoreNode *node)
         case tDECRSET:
             loadVar(node->var());
             castTosAndPrevToSameNumType(valueType, m_tosType);
-            swapTos();
             bc()->addInsn(NUMERIC_INSN(m_tosType, SUB));
             break;
         case tASSIGN:
