@@ -83,7 +83,18 @@ private:
 class TCode: public Code {
 public:
     Status *execute(std::vector<Var *> &)
-        { return NULL; }
+    {
+        Code::FunctionIterator it(this);
+        while (it.hasNext()) {
+            BytecodeFunction *bcFn = (BytecodeFunction*) it.next();
+            std::cout << bcFn->name()
+                      << "[" << bcFn->id() << "]:"
+                      << std::endl;
+            bcFn->bytecode()->dump(std::cout);
+            std::cout << std::endl;
+        }
+        return Status::Ok();
+    }
 };
 
 class MyTranslator: public Translator {
@@ -96,7 +107,12 @@ public:
 
         TVisitor visitor;
         TCode c;
-        return visitor.visit(&c, parser.top());
+        status = visitor.visit(&c, parser.top());
+        if (status->isError())
+            return status;
+
+        std::vector<Var*> empty;
+        return c.execute(empty);
     }
 };
 
