@@ -18,9 +18,9 @@ TVisitor::visitBinaryOpNode(BinaryOpNode *node)
         case tAOR: case tAAND: case tAXOR:
             genBitwiseOp(op); break;
         case tEQ: case tNEQ: case tGT: case tGE: case tLT: case tLE:
-            genComparisonOp(op, rhsType, m_tosType); break;
+            genComparisonOp(op, m_tosType, rhsType); break;
         case tADD: case tSUB: case tMUL: case tDIV:
-            genNumericOp(op, rhsType, m_tosType); break;
+            genNumericOp(op, m_tosType, rhsType); break;
         case tMOD:
             if (m_tosType != VT_INT)
                 throw std::runtime_error(MSG_NOT_INT_ON_TOS);
