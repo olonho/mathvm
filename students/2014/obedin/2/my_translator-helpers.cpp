@@ -74,7 +74,7 @@ TVisitor::genBitwiseOp(TokenKind op)
 void
 TVisitor::genComparisonOp(TokenKind op, VarType lhsType, VarType rhsType)
 {
-    castTosAndPrevToSameNumType(lhsType, rhsType);
+    castTosAndPrevToSameNumType(rhsType, lhsType);
     Label lSetTrue(bc()), lEnd(bc());
     bc()->addInsn(NUMERIC_INSN(m_tosType, CMP));
     bc()->addInsn(BC_ILOAD0);
@@ -84,13 +84,13 @@ TVisitor::genComparisonOp(TokenKind op, VarType lhsType, VarType rhsType)
         case tNEQ:
             bc()->addBranch(BC_IFICMPNE, lSetTrue); break;
         case tGT:
-            bc()->addBranch(BC_IFICMPG, lSetTrue); break;
-        case tGE:
-            bc()->addBranch(BC_IFICMPGE, lSetTrue); break;
-        case tLT:
             bc()->addBranch(BC_IFICMPL, lSetTrue); break;
-        case tLE:
+        case tGE:
             bc()->addBranch(BC_IFICMPLE, lSetTrue); break;
+        case tLT:
+            bc()->addBranch(BC_IFICMPG, lSetTrue); break;
+        case tLE:
+            bc()->addBranch(BC_IFICMPGE, lSetTrue); break;
         default: break;
     }
     bc()->addInsn(BC_ILOAD0);
@@ -104,7 +104,7 @@ TVisitor::genComparisonOp(TokenKind op, VarType lhsType, VarType rhsType)
 void
 TVisitor::genNumericOp(TokenKind op, VarType lhsType, VarType rhsType)
 {
-    castTosAndPrevToSameNumType(lhsType, rhsType);
+    castTosAndPrevToSameNumType(rhsType, lhsType);
     switch (op) {
         case tADD:
             bc()->addInsn(NUMERIC_INSN(m_tosType, ADD)); break;
