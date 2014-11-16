@@ -167,7 +167,7 @@ TVisitor::storeVar(const AstVar *astVar, bool doCastTos)
     TVar var = m_curScope->findVar(astVar);
     VarType type = astVar->type();
     if (doCastTos)
-        castTos(type); // TODO: string too?
+        castTos(type, true);
 
     if (var.contextId == m_curScope->id()) {
         switch(var.id) {

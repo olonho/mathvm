@@ -249,7 +249,7 @@ TVisitor::visitReturnNode(ReturnNode *node)
 
     if (node->returnExpr() != NULL) {
         node->returnExpr()->visit(this);
-        castTos(m_curScope->fn->returnType()); // TODO: string too?
+        castTos(m_curScope->fn->returnType(), true);
     }
     bc()->addInsn(BC_RETURN);
 
@@ -284,7 +284,9 @@ TVisitor::visitCallNode(CallNode *node)
 void
 TVisitor::visitNativeCallNode(NativeCallNode *node)
 {
-    void *code = NULL; // TODO: get function addr by name
+    void *code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+    if (code == NULL)
+        throw std::runtime_error(MSG_NATIVE_NOT_FOUND);
     uint16_t fnId = m_code->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
     bc()->addInsn(BC_CALLNATIVE);
     bc()->addUInt16(fnId);

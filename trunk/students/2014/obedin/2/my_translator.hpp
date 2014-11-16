@@ -7,6 +7,7 @@
 #include <visitors.h>
 #include <mathvm.h>
 #include <parser.h>
+#include <dlfcn.h>
 
 #include "macros.hpp"
 
