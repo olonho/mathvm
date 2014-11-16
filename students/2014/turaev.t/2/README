@@ -1,0 +1,11 @@
+How to build:
+	make
+________
+
+How to run TRANSLATOR (it's just bytecode printer):
+	./build/debug/bcp <filename>
+________
+
+How to run INTERPRETATOR:
+	./build/debug/mvm <filename>
+	./run_tests.sh -- tests for INTERPRETATOR
