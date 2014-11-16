@@ -9,7 +9,15 @@ namespace mathvm {
         VariableInContextDescriptor variableDescriptor = context->getVariableDescriptor(node->var()->name());
 
         BinaryOpNode *innerExpression = (BinaryOpNode *) node->inExpr();
-        assert(innerExpression->kind() == tRANGE);
+
+        if (innerExpression->kind() != tRANGE) {
+            throw TranslationError(string("Incorrect binary operation in for-expression. Exptected: RANGE, got: ")
+                    + tokenStr(innerExpression->kind()), node->position());
+        }
+        if (node->var()->type() != VT_INT) {
+            throw TranslationError(string("Incorrect type of for-variable. Exptected: INT, got: ")
+                    + typeToName(node->var()->type()), node->position());
+        }
 
         innerExpression->left()->visit(this);
 
@@ -332,6 +340,7 @@ namespace mathvm {
         node->value()->visit(this);
 
         VarType varType = context->getVariableByID(variableDescriptor)->type();
+        cast(varType, node, "storing node");
 
         switch (node->op()) {
             case tINCRSET:
@@ -351,16 +360,23 @@ namespace mathvm {
 
     void BytecodeVisitor::visitCallNode(CallNode *node) {
         LOG << "visitCallNode" << endl;
-        for (int32_t i = node->parametersNumber() - 1; i >= 0; --i) {
-            node->parameterAt((uint32_t) i)->visit(this);
+
+        BytecodeFunction *calledFunction = context->getFunction(node->name());
+        if (node->parametersNumber() != calledFunction->parametersNumber()) {
+            throw TranslationError("Incorrect number of parameters at calling function " + calledFunction->name(), node->position());
         }
 
-        uint16_t functionID = context->getFunction(node->name())->id();
+        for (int32_t i = node->parametersNumber() - 1; i >= 0; --i) {
+            uint32_t j = (uint32_t) i;
+            node->parameterAt(j)->visit(this);
+            cast(calledFunction->parameterType(j), node, "casting call-node parameters");
+        }
+
+        uint16_t functionID = calledFunction->id();
         bc()->addInsn(BC_CALL);
         bc()->addUInt16(functionID);
-        if (context->getFunction(node->name())->returnType() != VT_VOID) {
-            topOfStackType = context->getFunction(node->name())->returnType();
-        }
+//        if (calledFunction->returnType() != VT_VOID)
+        topOfStackType = calledFunction->returnType();
     }
 
     void BytecodeVisitor::visitReturnNode(ReturnNode *node) {
@@ -368,25 +384,7 @@ namespace mathvm {
 
         if (node->returnExpr()) {
             node->returnExpr()->visit(this);
-
-            // TODO add some casts
-            switch (function->returnType()) {
-                case VT_INT:
-                    switch (topOfStackType) {
-                        case VT_INT:
-                            break;
-                        case VT_DOUBLE:
-                            bc()->addInsn(BC_D2I);
-                            break;
-                        default:
-                            throw TranslationError("Incorrect returning type", node->position());
-                    }
-                    break;
-                case VT_DOUBLE:
-                    break;
-                default:
-                    throw TranslationError("Incorrect returning type", node->position());
-            }
+            cast(function->returnType(), node, "casting return-node");
         }
         bc()->addInsn(BC_RETURN);
     }

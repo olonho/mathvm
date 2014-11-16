@@ -28,22 +28,23 @@ for test in add assign bitwise div expr 'for' 'function' 'if' literal mul sub 'w
     run_test ${SIMPLE_TESTS}/${test} 0
 done
 
-# TODO
 #echo "-------------- optional tests -------------- "
 #for test in function_native; do
 #    run_test ${OPTIONAL}/${test}
 #done
 
-# TODO
 #echo "-------------- additional tests -------------- "
 #for test in casts; do
 #    run_test ${ADDITIONAL}/${test}
 #done
 
-# TODO
 # echo "-------------- failing test (all should be OK) -------------- "
-#for test in for_range for_var function-cast function-return-void if-fun op_bin op_not op_streq op_sub range; do
-#    run_test ${FAIL}/${test} 100
-#done
+# for test in for_range for_var function-return-void if-fun op_bin op_not op_streq op_sub range; do
+#     run_test ${FAIL}/${test} 100
+# done
+#
+# for test in function-cast; do
+#     run_test ${FAIL}/${test} 200
+# done
 
 rm output

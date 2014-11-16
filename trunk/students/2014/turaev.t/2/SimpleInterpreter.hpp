@@ -11,19 +11,45 @@ namespace mathvm {
         virtual Status *execute(vector<Var *> &vars) override;
 
     private:
-        typedef vector<Var> stack_t;
-        typedef vector<vector<Var>> vars_t;
+        vector<Var> programStack;
+        std::vector<Bytecode *> bytecodes;
+        std::vector<uint32_t> indices;
+        vector<vector<Var>> vars;
 
         void run(ostream &out);
+        
+        Var popVariable() {
+            Var back = programStack.back();
+            programStack.pop_back();
+            return back;
+        }
 
-        void storeVariable(stack_t &stack, vars_t &vars, uint16_t id) {
+        void pushVariable(double value) {
+            Var var(VT_DOUBLE, "");
+            var.setDoubleValue(value);
+            programStack.push_back(var);
+        }
+
+        void pushVariable(int64_t value) {
+            Var var(VT_INT, "");
+            var.setIntValue(value);
+            programStack.push_back(var);
+        }
+
+        void pushVariable(char const* value) {
+            Var var(VT_STRING, "");
+            var.setStringValue(value);
+            programStack.push_back(var);
+        }
+
+        void storeVariable(uint16_t id) {
             while (vars.size() <= id)
                 vars.push_back(vector<Var>());
             vector<Var> &local_vars = vars[id];
             if (local_vars.empty()) {
-                local_vars.push_back(stack.back());
-            } else {local_vars.back() = stack.back();}
-            stack.pop_back();
+                local_vars.push_back(programStack.back());
+            } else {local_vars.back() = programStack.back();}
+            programStack.pop_back();
         }
 
         template<class T>
