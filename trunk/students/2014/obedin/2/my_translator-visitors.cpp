@@ -61,7 +61,7 @@ TVisitor::visitStringLiteralNode(StringLiteralNode *node)
         bc()->addInsn(BC_SLOAD0);
     } else {
         bc()->addInsn(BC_SLOAD);
-        bc()->addInt16(m_code->makeStringConstant(node->literal()));
+        bc()->addUInt16(m_code->makeStringConstant(node->literal()));
     }
     m_tosType = VT_STRING;
 }
@@ -215,13 +215,12 @@ TVisitor::visitFunctionNode(FunctionNode *node)
 {
     PUSH_NODE
 
-    if (node->body()->nodes() > 0
-            && node->body()->nodeAt(0)->isNativeCallNode())
-        return; // TODO: deal with natives
-
     BytecodeFunction *bcFn = (BytecodeFunction*) m_code->functionByName(node->name());
     if (bcFn == NULL)
         throw std::runtime_error("Can't be");
+
+    bool isNative = node->body()->nodes() > 0
+                 && node->body()->nodeAt(0)->isNativeCallNode();
 
     TScope scope(bcFn, m_curScope);
     m_curScope = &scope;
@@ -233,12 +232,17 @@ TVisitor::visitFunctionNode(FunctionNode *node)
             m_curScope->addVar(&var);
             storeVar(&var, false);
         }
-        node->body()->visit(this);
+        if (isNative)
+            node->body()->nodeAt(0)->visit(this);
+        else
+            node->body()->visit(this);
     }
     m_curScope = m_curScope->parent;
 
     Bytecode *b = scope.fn->bytecode();
-    std::cout << node->name() << ":" << std::endl;
+    std::cout << node->name()
+              << "[" << scope.id() << "]:"
+              << std::endl;
     b->dump(std::cout);
     std::cout << std::endl;
 
@@ -282,7 +286,11 @@ TVisitor::visitCallNode(CallNode *node)
 void
 TVisitor::visitNativeCallNode(NativeCallNode *node)
 {
-    // TODO: write this
+    void *code = NULL; // TODO: get function addr by name
+    uint16_t fnId = m_code->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
+    bc()->addInsn(BC_CALLNATIVE);
+    bc()->addUInt16(fnId);
+    bc()->addInsn(BC_RETURN);
 }
 
 void
