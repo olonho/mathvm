@@ -14,6 +14,7 @@
 #define MSG_FUNCTION_NOT_FOUND  "Function is not found"
 #define MSG_VAR_NOT_FOUND       "Variable is not found"
 #define MSG_INVALID_STORE_OP    "Invalid store operation"
+#define MSG_WRONG_NUM_OF_PARAMS "Wrong number of function parameters"
 
 
 #define NUMERIC_INSN(t, insn) ((t) == VT_INT ? BC_I##insn : (t) == VT_DOUBLE ? BC_D##insn : throw std::runtime_error(MSG_NAN_ON_TOS))

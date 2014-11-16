@@ -216,7 +216,7 @@ TVisitor::initFunctions(Scope *scope)
 void
 TVisitor::genBlock(BlockNode *node)
 {
-    for (size_t i = 0; i < node->nodes(); i++)
+    for (size_t i = 0; i < node->nodes(); ++i)
         node->nodeAt(i)->visit(this);
 }
 
