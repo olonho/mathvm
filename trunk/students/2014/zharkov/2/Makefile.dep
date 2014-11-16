@@ -1,0 +1,16 @@
+./build/opt/interpreter_impl.o: interpreter_impl.cpp ../../../..//include/mathvm.h \
+ interpreter_impl.h common.h ../../../..//include/visitors.h \
+ ../../../..//include/mathvm.h ../../../..//include/ast.h
+./build/opt/main.o: main.cpp ../../../..//include/mathvm.h ast_printer.h \
+ ../../../..//include/visitors.h ../../../..//include/mathvm.h \
+ ../../../..//include/ast.h ../../../..//vm/parser.h \
+ ../../../..//include/ast.h ../../../..//vm/scanner.h translator_impl.h \
+ common.h stack_machine.h
+./build/opt/stack_machine.o: stack_machine.cpp stack_machine.h \
+ ../../../..//include/mathvm.h common.h ../../../..//include/visitors.h \
+ ../../../..//include/mathvm.h ../../../..//include/ast.h
+./build/opt/translator_impl.o: translator_impl.cpp translator_impl.h \
+ ../../../..//include/mathvm.h ../../../..//include/visitors.h \
+ ../../../..//include/mathvm.h ../../../..//include/ast.h common.h \
+ typing_visitor.h ../../../..//vm/parser.h ../../../..//include/ast.h \
+ ../../../..//vm/scanner.h interpreter_impl.h

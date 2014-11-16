@@ -1,0 +1,13 @@
+function [0] void <top>()
+locals: 0
+0: ILOAD1
+1: INEG
+2: POP
+3: DLOAD1
+4: DNEG
+5: POP
+6: ILOAD1
+7: ILOAD1
+8: IAXOR
+9: POP
+10: RETURN
