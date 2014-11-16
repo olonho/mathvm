@@ -12,21 +12,20 @@ Status *
 TVisitor::visit(Code *code, AstFunction *top)
 {
     m_code = code;
-    m_curScope = new TScope(new BytecodeFunction(top));
+
     std::stack<uint32_t> empty;
     m_sourcePos.swap(empty);
+
+    BytecodeFunction *bcFn = new BytecodeFunction(top);
+    m_code->addFunction(bcFn);
+    m_curScope = new TScope(bcFn);
 
     try {
         Scope *topScope = top->scope()->childScopeAt(0);
         initVars(topScope);
         initFunctions(topScope);
         genBlock(top->node()->body());
-
         bc()->addInsn(BC_STOP);
-
-        std::cout << "<main>:" << std::endl;
-        bc()->dump(std::cout);
-
         return Status::Ok();
 
     } catch (std::runtime_error &err) {

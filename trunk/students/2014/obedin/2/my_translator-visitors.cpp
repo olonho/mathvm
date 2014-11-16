@@ -239,13 +239,6 @@ TVisitor::visitFunctionNode(FunctionNode *node)
     }
     m_curScope = m_curScope->parent;
 
-    Bytecode *b = scope.fn->bytecode();
-    std::cout << node->name()
-              << "[" << scope.id() << "]:"
-              << std::endl;
-    b->dump(std::cout);
-    std::cout << std::endl;
-
     POP_NODE
 }
 

@@ -28,7 +28,7 @@ TVisitor::castTos(VarType to, bool stringToo)
 void
 TVisitor::booleanizeTos()
 {
-    castTos(VT_INT);
+    castTos(VT_INT, true);
     Label lSetFalse(bc()), lEnd(bc());
     bc()->addInsn(BC_ILOAD0);
     bc()->addBranch(BC_IFICMPE, lSetFalse);
