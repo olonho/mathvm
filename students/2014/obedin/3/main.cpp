@@ -13,7 +13,7 @@ using namespace std;
 
 int main(int argc, char** argv) {
     const char* script = NULL;
-    for (int32_t i = 1; i < argc; i++)
+    for (int32_t i = 1; i < argc; ++i)
       if (string(argv[i]) != "-j")
         script = argv[i];
 

@@ -225,9 +225,8 @@ TVisitor::visitFunctionNode(FunctionNode *node)
     m_curScope = &scope;
     m_tosType = VT_INVALID;
     {
-        size_t paramNum = node->parametersNumber();
-        for (size_t i = paramNum; paramNum > 0 && i > 0; i--) {
-            AstVar var(node->parameterName(i-1), node->parameterType(i-1), NULL);
+        for (size_t i = 0; i < node->parametersNumber(); ++i) {
+            AstVar var(node->parameterName(i), node->parameterType(i), NULL);
             m_curScope->addVar(&var);
             storeVar(&var, false);
         }
@@ -264,10 +263,15 @@ TVisitor::visitCallNode(CallNode *node)
     if (fn == NULL)
         throw std::runtime_error(MSG_FUNCTION_NOT_FOUND);
 
-    for (size_t i = 0; i < node->parametersNumber(); i++) {
-        node->parameterAt(i)->visit(this);
-        castTos(fn->parameterType(i), true);
+    size_t paramsNum = node->parametersNumber();
+    if (paramsNum != fn->parametersNumber())
+        throw std::runtime_error(MSG_WRONG_NUM_OF_PARAMS);
+
+    for (size_t i = paramsNum; paramsNum > 0 && i > 0; --i) {
+        node->parameterAt(i-1)->visit(this);
+        castTos(fn->parameterType(i-1), true);
     }
+
     bc()->addInsn(BC_CALL);
     bc()->addUInt16(fn->id());
     m_tosType = fn->returnType();
@@ -290,7 +294,7 @@ TVisitor::visitPrintNode(PrintNode *node)
 {
     PUSH_NODE
 
-    for (size_t i = 0; i < node->operands(); i++) {
+    for (size_t i = 0; i < node->operands(); ++i) {
         node->operandAt(i)->visit(this);
         switch (m_tosType) {
             case VT_INT:
