@@ -205,6 +205,9 @@ namespace mathvm {
             case tLT:
             case tLE: {
                 VarType varType = equateTypes(leftType, rightType, node);
+                if (!isNumericType(varType)) {
+                    throw TranslationError(string("Incorrect type for COMPARE inside binary-node: ") + typeToName(varType), node->position());
+                }
                 if (varType == VT_DOUBLE) {
                     bc()->addInsn(BC_DCMP);
                     bc()->addInsn(BC_ILOAD0);
@@ -249,26 +252,29 @@ namespace mathvm {
             case tSUB:
             case tMUL:
             case tDIV: {
-                VarType type = equateTypes(leftType, rightType, node);
+                VarType varType = equateTypes(leftType, rightType, node);
+                if (!isNumericType(varType)) {
+                    throw TranslationError(string("Incorrect type for ARITHMETIC inside binary-node: ") + typeToName(varType), node->position());
+                }
                 switch (node->kind()) {
                     case tADD:
-                        bc()->addInsn(type == VT_DOUBLE ? BC_DADD : BC_IADD);
+                        bc()->addInsn(varType == VT_DOUBLE ? BC_DADD : BC_IADD);
                         break;
                     case tSUB:
                         bc()->addInsn(BC_SWAP);
-                        bc()->addInsn(type == VT_DOUBLE ? BC_DSUB : BC_ISUB);
+                        bc()->addInsn(varType == VT_DOUBLE ? BC_DSUB : BC_ISUB);
                         break;
                     case tMUL:
-                        bc()->addInsn(type == VT_DOUBLE ? BC_DMUL : BC_IMUL);
+                        bc()->addInsn(varType == VT_DOUBLE ? BC_DMUL : BC_IMUL);
                         break;
                     case tDIV:
                         bc()->addInsn(BC_SWAP);
-                        bc()->addInsn(type == VT_DOUBLE ? BC_DDIV : BC_IDIV);
+                        bc()->addInsn(varType == VT_DOUBLE ? BC_DDIV : BC_IDIV);
                         break;
                     default:
                         assert(false);
                 }
-                topOfStackType = type;
+                topOfStackType = varType;
                 break;
             }
             default:
@@ -281,10 +287,18 @@ namespace mathvm {
 
         node->operand()->visit(this);
         switch (node->kind()) {
-            case tSUB:
-            case tNOT: {
-                assert(topOfStackType == VT_DOUBLE || topOfStackType == VT_INT);
+            case tSUB: {
+                if (!isNumericType(topOfStackType)) {
+                    throw TranslationError(string("Incorrect type for SUB inside unary-node: ") + typeToName(topOfStackType), node->position());
+                }
                 bc()->addInsn(topOfStackType == VT_DOUBLE ? BC_DNEG : BC_INEG);
+                break;
+            }
+            case tNOT: {
+                if (topOfStackType != VT_INT) {
+                    throw TranslationError(string("Incorrect type for NOT inside unary-node: ") + typeToName(topOfStackType), node->position());
+                }
+                bc()->addInsn(BC_INEG);
                 break;
             }
             default:
