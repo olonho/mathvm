@@ -1,5 +1,5 @@
-#ifndef MYTRANSLATOR_HPP
-#define MYTRANSLATOR_HPP
+#ifndef MY_TRANSLATOR_HPP
+#define MY_TRANSLATOR_HPP
 
 #include <iostream>
 #include <stack>
@@ -8,7 +8,7 @@
 #include <mathvm.h>
 #include <parser.h>
 
-#include "Util.hpp"
+#include "macros.hpp"
 
 using namespace mathvm;
 
@@ -101,4 +101,4 @@ public:
 };
 
 
-#endif /* end of include guard: MYTRANSLATOR_HPP */
+#endif /* end of include guard: MY_TRANSLATOR_HPP */

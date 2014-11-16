@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 #include "mathvm.h"
-#include "MyTranslator.hpp"
+#include "my_translator.hpp"
 
 using namespace mathvm;
 using namespace std;

@@ -10,7 +10,7 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/MyTranslator$(OBJ_SUFF)
+   $(OBJ)/my_translator$(OBJ_SUFF)
 
 USER_CFLAGS = -Wno-unused
 
@@ -23,7 +23,7 @@ all: $(MATHVM)
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)
 
-$(OBJ)/MyTranslator$(OBJ_SUFF): MyTranslator.cpp MyTranslator_helpers.cpp MyTranslator_visitors.cpp
+$(OBJ)/my_translator$(OBJ_SUFF): my_translator.cpp my_translator-helpers.cpp my_translator-visitors.cpp
 
 SCRIPT=
 
