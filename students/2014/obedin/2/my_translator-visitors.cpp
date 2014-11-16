@@ -187,11 +187,11 @@ TVisitor::visitIfNode(IfNode *node)
     bc()->addInsn(BC_ILOAD0);
     bc()->addBranch(BC_IFICMPE, lElse);
     node->thenBlock()->visit(this);
-    bc()->bind(lElse);
-    if (node->elseBlock() != NULL) {
+    if (node->elseBlock() != NULL)
         bc()->addBranch(BC_JA, lEnd);
+    bc()->bind(lElse);
+    if (node->elseBlock() != NULL)
         node->elseBlock()->visit(this);
-    }
     bc()->bind(lEnd);
 
     POP_NODE
