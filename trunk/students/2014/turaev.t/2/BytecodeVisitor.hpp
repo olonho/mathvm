@@ -178,18 +178,22 @@ namespace mathvm {
                 return leftType;
             }
             if (leftType == VT_INT && rightType == VT_DOUBLE) {
+                bc()->addInsn(BC_SWAP);
                 bc()->addInsn(BC_I2D);
+                bc()->addInsn(BC_SWAP);
                 return VT_DOUBLE;
             }
 
             if (leftType == VT_DOUBLE && rightType == VT_INT) {
-                bc()->addInsn(BC_SWAP);
                 bc()->addInsn(BC_I2D);
-                bc()->addInsn(BC_SWAP);
                 return VT_DOUBLE;
             }
 
-            throw TranslationError("Wrong subexpression types", node->position());
+            throw TranslationError("Wrong subexpression types (in equateTypes): ", node->position());
+        }
+
+        bool isNumericType(VarType type) const {
+            return type == VT_DOUBLE || type == VT_INT;
         }
     };
 }
