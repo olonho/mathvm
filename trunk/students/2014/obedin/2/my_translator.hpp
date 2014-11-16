@@ -85,15 +85,7 @@ class TCode: public Code {
 public:
     Status *execute(std::vector<Var *> &)
     {
-        Code::FunctionIterator it(this);
-        while (it.hasNext()) {
-            BytecodeFunction *bcFn = (BytecodeFunction*) it.next();
-            std::cout << bcFn->name()
-                      << "[" << bcFn->id() << "]:"
-                      << std::endl;
-            bcFn->bytecode()->dump(std::cout);
-            std::cout << std::endl;
-        }
+        disassemble();
         return Status::Ok();
     }
 };
