@@ -77,27 +77,39 @@ TVisitor::genComparisonOp(TokenKind op, VarType lhsType, VarType rhsType)
     castTosAndPrevToSameNumType(rhsType, lhsType);
     Label lSetTrue(bc()), lEnd(bc());
     bc()->addInsn(NUMERIC_INSN(m_tosType, CMP));
-    bc()->addInsn(BC_ILOAD0);
     switch (op) {
-        case tEQ:
-            bc()->addBranch(BC_IFICMPE, lSetTrue); break;
-        case tNEQ:
-            bc()->addBranch(BC_IFICMPNE, lSetTrue); break;
-        case tGT:
-            bc()->addBranch(BC_IFICMPL, lSetTrue); break;
-        case tGE:
-            bc()->addBranch(BC_IFICMPLE, lSetTrue); break;
-        case tLT:
-            bc()->addBranch(BC_IFICMPG, lSetTrue); break;
-        case tLE:
-            bc()->addBranch(BC_IFICMPGE, lSetTrue); break;
+        case tEQ: // == 0
+            bc()->addInsn(ILOADM1);
+            bc()->addInsn(IAXOR);
+            bc()->addInsn(ILOAD1);
+            bc()->addInsn(IAAND);
+            break;
+        case tNEQ: // == (-1 || 1)
+            bc()->addInsn(ILOAD1);
+            bc()->addInsn(IAAND);
+            break;
+        case tGT: // == 1
+            bc()->addBranch(INEG);
+        case tLT: // == -1
+            bc()->addInsn(ILOAD);
+            bc()->addInt64(-2);
+            bc()->addInsn(IAAND);
+            bc()->addInsn(ILOAD);
+            bc()->addInsn(2);
+            bc()->addInsn(IAAND);
+            break;
+        case tLE: // == (0 || -1)
+            bc()->addBranch(INEG);
+        case tGE: // == (0 || 1)
+            bc()->addInsn(ILOAD);
+            bc()->addInt64(2);
+            bc()->addInsn(IAXOR);
+            bc()->addInsn(ILOAD);
+            bc()->addInsn(2);
+            bc()->addInsn(IAAND);
+            break;
         default: break;
     }
-    bc()->addInsn(BC_ILOAD0);
-    bc()->addBranch(BC_JA, lEnd);
-    bc()->bind(lSetTrue);
-    bc()->addInsn(BC_ILOAD1);
-    bc()->bind(lEnd);
     m_tosType = VT_INT;
 }
 
