@@ -79,34 +79,34 @@ TVisitor::genComparisonOp(TokenKind op, VarType lhsType, VarType rhsType)
     bc()->addInsn(NUMERIC_INSN(m_tosType, CMP));
     switch (op) {
         case tEQ: // == 0
-            bc()->addInsn(ILOADM1);
-            bc()->addInsn(IAXOR);
-            bc()->addInsn(ILOAD1);
-            bc()->addInsn(IAAND);
+            bc()->addInsn(BC_ILOADM1);
+            bc()->addInsn(BC_IAXOR);
+            bc()->addInsn(BC_ILOAD1);
+            bc()->addInsn(BC_IAAND);
             break;
         case tNEQ: // == (-1 || 1)
-            bc()->addInsn(ILOAD1);
-            bc()->addInsn(IAAND);
+            bc()->addInsn(BC_ILOAD1);
+            bc()->addInsn(BC_IAAND);
             break;
         case tGT: // == 1
-            bc()->addBranch(INEG);
+            bc()->addInsn(BC_INEG);
         case tLT: // == -1
-            bc()->addInsn(ILOAD);
+            bc()->addInsn(BC_ILOAD);
             bc()->addInt64(-2);
-            bc()->addInsn(IAAND);
-            bc()->addInsn(ILOAD);
-            bc()->addInsn(2);
-            bc()->addInsn(IAAND);
+            bc()->addInsn(BC_IAAND);
+            bc()->addInsn(BC_ILOAD);
+            bc()->addInt64(2);
+            bc()->addInsn(BC_IAAND);
             break;
         case tLE: // == (0 || -1)
-            bc()->addBranch(INEG);
+            bc()->addInsn(BC_INEG);
         case tGE: // == (0 || 1)
-            bc()->addInsn(ILOAD);
+            bc()->addInsn(BC_ILOAD);
             bc()->addInt64(2);
-            bc()->addInsn(IAXOR);
-            bc()->addInsn(ILOAD);
-            bc()->addInsn(2);
-            bc()->addInsn(IAAND);
+            bc()->addInsn(BC_IAXOR);
+            bc()->addInsn(BC_ILOAD);
+            bc()->addInt64(2);
+            bc()->addInsn(BC_IAAND);
             break;
         default: break;
     }
