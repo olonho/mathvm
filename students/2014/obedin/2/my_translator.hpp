@@ -28,7 +28,7 @@ class TScope {
 public:
     BytecodeFunction *fn;
     TScope *parent;
-    std::map<std::string, Id> vars;
+    std::map<const AstVar *, Id> vars;
 
     TScope(BytecodeFunction *fn, TScope *parent = NULL)
         : fn(fn), parent(parent)
