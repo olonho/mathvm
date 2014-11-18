@@ -219,7 +219,8 @@ public:
         printer.printVariables(parser.top()->node()->body()->scope());
         printer.printFunctions(parser.top()->node()->body()->scope());
         printer.printBlock(parser.top()->node()->body());
-        return new Status("Done");
+        
+        return Status::Ok();
     }
 };
 
