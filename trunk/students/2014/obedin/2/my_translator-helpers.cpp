@@ -235,14 +235,14 @@ TVisitor::genBlock(BlockNode *node)
 void
 TScope::addVar(const AstVar *var)
 {
-    vars.insert(std::make_pair(var->name(), vars.size()));
+    vars.insert(std::make_pair(var, vars.size()));
 }
 
 TVar
 TScope::findVar(const AstVar *var)
 {
-    std::map<std::string, Id>::iterator match =
-        vars.find(var->name());
+    std::map<const AstVar *, Id>::iterator match =
+        vars.find(var);
     if (match != vars.end())
         return TVar(match->second, id());
     else if (parent != NULL)
