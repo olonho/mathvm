@@ -316,7 +316,8 @@ public:
         node->thenBlock()->visit(this);
 
         Label l2(bc());
-        bc()->addBranch(BC_JA, l2);
+        if (node->elseBlock())
+            bc()->addBranch(BC_JA, l2);
 
         bc()->bind(l1);
         if (node->elseBlock()) {
