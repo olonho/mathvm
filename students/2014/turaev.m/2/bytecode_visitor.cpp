@@ -2,6 +2,7 @@
 #include "parser.h"
 #include "rich_function.h"
 #include "interpreter_code_impl.h"
+#include "function_crawler.h"
 #include <stack>
 
 using namespace mathvm;
@@ -9,8 +10,9 @@ using namespace mathvm;
 class BytecodeMainVisitor: public AstVisitor {
 public:
     BytecodeMainVisitor(Code *code, AstFunction *topFunction): _code(code) {
-        //TODO set the first 0 to actual value of the topmost function
-        _code->addFunction(_currentFunction = new RichFunction(topFunction, 0, 0));
+        _code->addFunction(_currentFunction = new RichFunction(topFunction));
+        FunctionCrawler crawler(code);
+        topFunction->node()->body()->visit(&crawler);
 
         _typeTokenInstruction[VT_DOUBLE][tADD] = BC_DADD;
         _typeTokenInstruction[VT_INT][tADD] = BC_IADD;
@@ -127,6 +129,7 @@ public:
         assert(0);
     }
 
+    //TODO: re-think assuming binary logic
     virtual void visitIfNode(IfNode *node) {
         node->ifExpr()->visit(this);
 
@@ -145,43 +148,81 @@ public:
         }
         afterTrue.bind(_currentFunction->bytecode()->current());
         if (node->elseBlock()) {
-            pop();
-            pop();
             node->elseBlock()->visit(this);
             afterFalse.bind(_currentFunction->bytecode()->current());
         }
     }
 
     virtual void visitBlockNode(BlockNode *node) {
+        _scopeToFuncitonMap[node->scope()] = _currentFunction->id();
+
         //variables:
         Scope::VarIterator it(node->scope());
         while (it.hasNext()) {
             AstVar *var = it.next();
             //TODO: this will override value with same name in current fucntion's scope
-            _currentFunction->addLocalVariable(var->name(), var->type());
+            _currentFunction->addLocalVariable(var->name());
         }
 
         //functions:
         {
+            RichFunction *parentFunction = _currentFunction;
             Scope::FunctionIterator it(node->scope());
             while (it.hasNext()) {
-                it.next()->node()->visit(this);
+                AstFunction *currentAstFunction = it.next();
+                _currentFunction = dynamic_cast<RichFunction *>(_code->functionByName(currentAstFunction->name()));
+                assert(_currentFunction != 0);
+                _scopeToFuncitonMap[currentAstFunction->scope()] = _currentFunction->id();
+                currentAstFunction->node()->visit(this);
+            }
+            _currentFunction = parentFunction;
+        }
+
+        node->visitChildren(this);
+    }
+
+    //TODO: add native calls
+    virtual void visitFunctionNode(FunctionNode *node) {
+        uint16_t adjustment = node->parametersNumber() - 1;
+        for (uint16_t i = 0; i < node->parametersNumber(); ++i) {
+            switch (node->parameterType(adjustment - i)) {
+            case (VT_INVALID): { //for () -> Type functions
+                continue;
+            }
+            case (VT_INT): {
+                emit(BC_STOREIVAR);
+                emitInt16(adjustment - i);
+                break;
+            }
+            case (VT_DOUBLE): {
+                emit(BC_STOREDVAR);
+                emitInt16(adjustment - i);
+                break;
+            }
+            case (VT_STRING): {
+                emit(BC_STORESVAR);
+                emitInt16(adjustment - i);
+                break;
+            }
+            default: {
+                assert(0);
+            }
             }
         }
 
         node->visitChildren(this);
     }
 
-    virtual void visitFunctionNode(FunctionNode *node) {
-        assert(0);
-    }
-
     virtual void visitReturnNode(ReturnNode *node) {
-        assert(0);
+        node->visitChildren(this);
+        emit(BC_RETURN);
     }
 
     virtual void visitCallNode(CallNode *node) {
-        assert(0);
+        node->visitChildren(this);
+        emit(BC_CALL);
+        uint16_t functionId = _code->functionByName(node->name())->id();
+        _currentFunction->bytecode()->addInt16(functionId);
     }
 
     virtual void visitNativeCallNode(NativeCallNode *node) {
@@ -191,18 +232,17 @@ public:
     virtual void visitPrintNode(PrintNode *node) {
         for (uint32_t i = 0; i < node->operands(); ++i) {
             node->operandAt(i)->visit(this);
-            Instruction emitted = BC_INVALID;
             switch (_typesStack.top()) {
             case VT_DOUBLE: {
-                emitted = BC_DPRINT;
+                emit(BC_DPRINT);
                 break;
             }
             case VT_INT: {
-                emitted = BC_DPRINT;
+                emit(BC_DPRINT);
                 break;
             }
             case VT_STRING: {
-                emitted = BC_SPRINT;
+                emit(BC_DPRINT);
                 break;
             }
             default: {
@@ -218,9 +258,14 @@ private:
     RichFunction *_currentFunction;
     stack<VarType> _typesStack;
     map<VarType, map<TokenKind, Instruction> > _typeTokenInstruction;
+    map<Scope *, uint16_t> _scopeToFuncitonMap; //TODO: fill
 
     void emit(Instruction inst) {
         _currentFunction->bytecode()->addInsn(inst);
+    }
+
+    void emitInt16(uint16_t value) {
+        _currentFunction->bytecode()->addInt16(value);
     }
 
     bool convertTOS(VarType toType) {
@@ -269,83 +314,96 @@ private:
     }
 
     void loadVariable(const AstVar *astVar) {
-        const string &variableName = astVar->name();
-        RichFunction *actualFunction = _currentFunction->lookupParentFunction(variableName);
+        VarType varType = astVar->type();
+        string variableName = astVar->name();
+        assert(varType == VT_DOUBLE || varType == VT_INT || varType == VT_STRING);
+
+        RichFunction *actualFunction = dynamic_cast<RichFunction *>(_code->functionById(_scopeToFuncitonMap[astVar->owner()]));
+        assert(actualFunction != 0);
+
+        bool is_local = actualFunction->id() == _currentFunction->id();
+        uint16_t functionId = actualFunction->id();
         uint16_t variableId = actualFunction->getVariableId(variableName);
-        uint16_t functionIndex = actualFunction->getIndex();
 
-        Instruction emitted = BC_INVALID;
-        switch (astVar->type()) {
-        case VT_DOUBLE: {
-            emitted = BC_LOADCTXDVAR;
-            _typesStack.push(VT_DOUBLE);
-            break;
-        }
-        case VT_INT: {
-            emitted = BC_LOADCTXIVAR;
-            _typesStack.push(VT_INT);
-            break;
-        }
-        case VT_STRING: {
-            emitted = BC_LOADCTXSVAR;
-            _typesStack.push(VT_STRING);
-            break;
-        }
-        default: {
-            assert(0);
-        }
+        if (varType == VT_INT) {
+            if (is_local) {
+                emit(BC_LOADIVAR);
+            } else {
+                emit(BC_LOADCTXIVAR);
+                emitInt16(functionId);
+            }
+        } else if (varType == VT_DOUBLE) {
+            if (is_local) {
+                emit(BC_LOADDVAR);
+            } else {
+                emit(BC_LOADCTXDVAR);
+                emitInt16(functionId);
+            }
+        } else if (varType == VT_DOUBLE) {
+            if (is_local) {
+                emit(BC_LOADSVAR);
+            } else {
+                emit(BC_LOADCTXSVAR);
+                emitInt16(functionId);
+            }
         }
 
-        emit(emitted);
-        _currentFunction->bytecode()->addInt16(functionIndex);
-        _currentFunction->bytecode()->addInt16(variableId);
+        _typesStack.push(varType);
+        emitInt16(variableId);
     }
 
     void storeToVariable(const AstVar *astVar) {
-        const string &variableName = astVar->name();
-        RichFunction *actualFunction = _currentFunction->lookupParentFunction(variableName);
+        VarType varType = astVar->type();
+        string variableName = astVar->name();
+        assert(varType == VT_DOUBLE || varType == VT_INT || varType == VT_STRING);
+        //ASSUMPTION: no casts when storing variables
+        assert(varType == _typesStack.top());
+
+        RichFunction *actualFunction = dynamic_cast<RichFunction *>(_code->functionById(_scopeToFuncitonMap[astVar->owner()]));
+        assert(actualFunction != 0);
+
+        bool is_local = actualFunction->id() == _currentFunction->id();
+        uint16_t functionId = actualFunction->id();
         uint16_t variableId = actualFunction->getVariableId(variableName);
-        uint16_t functionIndex = actualFunction->getIndex();
 
-        switch (astVar->type()) {
-        case VT_DOUBLE: {
-            convertTOS(VT_DOUBLE);
-            emit(BC_STORECTXDVAR);
-            break;
+        if (varType == VT_INT) {
+            if (is_local) {
+                emit(BC_STOREIVAR);
+            } else {
+                emit(BC_STORECTXIVAR);
+                emitInt16(functionId);
+            }
+        } else if (varType == VT_DOUBLE) {
+            if (is_local) {
+                emit(BC_STOREDVAR);
+            } else {
+                emit(BC_STORECTXDVAR);
+                emitInt16(functionId);
+            }
+        } else if (varType == VT_DOUBLE) {
+            if (is_local) {
+                emit(BC_STORESVAR);
+            } else {
+                emit(BC_STORECTXSVAR);
+                emitInt16(functionId);
+            }
         }
-        case VT_INT: {
-            convertTOS(VT_INT);
-            emit(BC_STORECTXIVAR);
-            break;
-        }
-        case VT_STRING: {
-            assertTOS(VT_STRING);
-            emit(BC_STORECTXSVAR);
-            break;
-        }
-        default: {
-            assert(0);
-        }
-        }
-
-        _currentFunction->bytecode()->addInt16(functionIndex);
-        _currentFunction->bytecode()->addInt16(variableId);
-
+        emitInt16(variableId);
         _typesStack.pop();
     }
 
     void pop() {
         emit(BC_POP);
         _typesStack.pop();
-        emit(BC_POP);
-        _typesStack.pop();
     }
 
+    //TODO: push to types stack more consciously.
     void pushInt0() {
         emit(BC_ILOAD0);
         _typesStack.push(VT_INT);
     }
 
+    //TODO: push to types stack more consciously.
     void pushInt1() {
         emit(BC_ILOAD1);
         _typesStack.push(VT_INT);
