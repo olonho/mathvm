@@ -8,7 +8,6 @@ TVisitor::visitBinaryOpNode(BinaryOpNode *node)
     PUSH_NODE
 
     node->right()->visit(this);
-    VarType rhsType = m_tosType;
     node->left()->visit(this);
 
     TokenKind op = node->kind();
@@ -18,11 +17,11 @@ TVisitor::visitBinaryOpNode(BinaryOpNode *node)
         case tAOR: case tAAND: case tAXOR:
             genBitwiseOp(op); break;
         case tEQ: case tNEQ: case tGT: case tGE: case tLT: case tLE:
-            genComparisonOp(op, m_tosType, rhsType); break;
+            genComparisonOp(op); break;
         case tADD: case tSUB: case tMUL: case tDIV:
-            genNumericOp(op, m_tosType, rhsType); break;
+            genNumericOp(op); break;
         case tMOD:
-            if (m_tosType != VT_INT)
+            if (tosType() != VT_INT)
                 throw std::runtime_error(MSG_NOT_INT_ON_TOS);
             bc()->addInsn(BC_IMOD);
             break;
@@ -46,7 +45,7 @@ TVisitor::visitUnaryOpNode(UnaryOpNode *node)
             bc()->addInsn(BC_ISUB);
             break;
         case tSUB:
-            bc()->addInsn(NUMERIC_INSN(m_tosType, NEG)); break;
+            bc()->addInsn(NUMERIC_INSN(tosType(), NEG)); break;
         default:
             throw std::runtime_error(MSG_INVALID_UNARY);
     }
@@ -63,7 +62,7 @@ TVisitor::visitStringLiteralNode(StringLiteralNode *node)
         bc()->addInsn(BC_SLOAD);
         bc()->addUInt16(m_code->makeStringConstant(node->literal()));
     }
-    m_tosType = VT_STRING;
+    stackPush(VT_STRING);
 }
 
 void
@@ -71,7 +70,7 @@ TVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node)
 {
     bc()->addInsn(BC_DLOAD);
     bc()->addDouble(node->literal());
-    m_tosType = VT_DOUBLE;
+    stackPush(VT_DOUBLE);
 }
 
 void
@@ -79,7 +78,7 @@ TVisitor::visitIntLiteralNode(IntLiteralNode *node)
 {
     bc()->addInsn(BC_ILOAD);
     bc()->addInt64(node->literal());
-    m_tosType = VT_INT;
+    stackPush(VT_INT);
 }
 
 void
@@ -98,18 +97,19 @@ TVisitor::visitStoreNode(StoreNode *node)
     PUSH_NODE
 
     node->value()->visit(this);
-    VarType valueType = m_tosType;
 
     switch (node->op()) {
         case tINCRSET:
             loadVar(node->var());
-            castTosAndPrevToSameNumType(valueType, m_tosType);
-            bc()->addInsn(NUMERIC_INSN(m_tosType, ADD));
+            castTosAndPrevToSameNumType();
+            bc()->addInsn(NUMERIC_INSN(tosType(), ADD));
+            stackPop();
             break;
         case tDECRSET:
             loadVar(node->var());
-            castTosAndPrevToSameNumType(valueType, m_tosType);
-            bc()->addInsn(NUMERIC_INSN(m_tosType, SUB));
+            castTosAndPrevToSameNumType();
+            bc()->addInsn(NUMERIC_INSN(tosType(), SUB));
+            stackPop();
             break;
         case tASSIGN:
             break;
@@ -140,23 +140,28 @@ TVisitor::visitForNode(ForNode *node)
     Label lStart(bc()), lEnd(bc());
 
     inExpr->left()->visit(this);
-    if (m_tosType != VT_INT)
+    if (tosType() != VT_INT)
         throw std::runtime_error(MSG_INVALID_FOR_EXPR);
     storeVar(itVar);
 
     bc()->bind(lStart);
     inExpr->right()->visit(this);
-    if (m_tosType != VT_INT)
+    if (tosType() != VT_INT)
         throw std::runtime_error(MSG_INVALID_FOR_EXPR);
 
     loadVar(itVar);
     bc()->addBranch(BC_IFICMPG, lEnd);
+    stackPop();
+    stackPop();
+
     node->body()->visit(this);
+
     loadVar(itVar);
     bc()->addInsn(BC_ILOAD1);
     bc()->addInsn(BC_IADD);
     storeVar(itVar);
     bc()->addBranch(BC_JA, lStart);
+
     bc()->bind(lEnd);
 
     POP_NODE
@@ -225,18 +230,22 @@ TVisitor::visitFunctionNode(FunctionNode *node)
 
     TScope scope(bcFn, m_curScope);
     m_curScope = &scope;
-    m_tosType = VT_INVALID;
+    std::vector<VarType> oldStack;
+    m_stack.swap(oldStack);
+
     {
         for (size_t i = 0; i < node->parametersNumber(); ++i) {
-            AstVar var(node->parameterName(i), node->parameterType(i), NULL);
-            m_curScope->addVar(&var);
-            storeVar(&var, false);
+            AstVar *var = node->body()->scope()->lookupVariable(node->parameterName(i));
+            m_curScope->addVar(var);
+            storeVar(var, false);
         }
         if (isNative)
             node->body()->nodeAt(0)->visit(this);
         else
             node->body()->visit(this);
     }
+
+    m_stack.swap(oldStack);
     m_curScope = m_curScope->parent;
 
     POP_NODE
@@ -249,7 +258,7 @@ TVisitor::visitReturnNode(ReturnNode *node)
 
     if (node->returnExpr() != NULL) {
         node->returnExpr()->visit(this);
-        castTos(m_curScope->fn->returnType(), true);
+        castTos(m_curScope->fn->returnType());
     }
     bc()->addInsn(BC_RETURN);
 
@@ -271,12 +280,15 @@ TVisitor::visitCallNode(CallNode *node)
 
     for (size_t i = paramsNum; paramsNum > 0 && i > 0; --i) {
         node->parameterAt(i-1)->visit(this);
-        castTos(fn->parameterType(i-1), true);
+        castTos(fn->parameterType(i-1));
     }
 
     bc()->addInsn(BC_CALL);
     bc()->addUInt16(fn->id());
-    m_tosType = fn->returnType();
+
+    for (size_t i = 0; i < paramsNum; i++, stackPop());
+    if (fn->returnType() != VT_VOID)
+        stackPush(fn->returnType());
 
     POP_NODE
 }
@@ -300,7 +312,7 @@ TVisitor::visitPrintNode(PrintNode *node)
 
     for (size_t i = 0; i < node->operands(); ++i) {
         node->operandAt(i)->visit(this);
-        switch (m_tosType) {
+        switch (tosType()) {
             case VT_INT:
                 bc()->addInsn(BC_IPRINT); break;
             case VT_DOUBLE:
@@ -310,6 +322,7 @@ TVisitor::visitPrintNode(PrintNode *node)
             default:
                 throw std::runtime_error(MSG_UNPRINTABLE_TOS);
         }
+        stackPop();
     }
 
     POP_NODE

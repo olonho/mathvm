@@ -1,34 +1,33 @@
 
 void
-TVisitor::castTos(VarType to, bool stringToo)
+TVisitor::castTos(VarType to)
 {
-    if (m_tosType == to)
+    if (tosType() == to)
         return;
+
     switch (to) {
         case VT_INT:
-            if (m_tosType == VT_DOUBLE)
+            if (tosType() == VT_DOUBLE) {
                 bc()->addInsn(BC_D2I);
-            else if (stringToo && m_tosType == VT_STRING)
-                bc()->addInsn(BC_S2I);
-            else
-                throw std::runtime_error(MSG_INVALID_CAST);
-            break;
+                break;
+            }
         case VT_DOUBLE:
-            if (m_tosType == VT_INT)
+            if (tosType() == VT_INT) {
                 bc()->addInsn(BC_I2D);
-            else
-                throw std::runtime_error(MSG_INVALID_CAST);
-            break;
+                break;
+            }
         default:
             throw std::runtime_error(MSG_INVALID_CAST);
     }
-    m_tosType = to;
+
+    stackPop();
+    stackPush(to);
 }
 
 void
 TVisitor::booleanizeTos()
 {
-    castTos(VT_INT, true);
+    castTos(VT_INT);
     Label lSetFalse(bc()), lEnd(bc());
     bc()->addInsn(BC_ILOAD0);
     bc()->addBranch(BC_IFICMPE, lSetFalse);
@@ -42,13 +41,17 @@ TVisitor::booleanizeTos()
 void
 TVisitor::genBooleanOp(TokenKind op)
 {
+    castTosAndPrevToSameNumType();
+
     switch (op) {
         case tOR:
-            bc()->addInsn(BC_IADD); break;
+            bc()->addInsn(NUMERIC_INSN(tosType(), ADD)); break;
         case tAND:
-            bc()->addInsn(BC_IMUL); break;
+            bc()->addInsn(NUMERIC_INSN(tosType(), MUL)); break;
         default: break;
     }
+
+    stackPop();
     booleanizeTos();
 }
 
@@ -60,6 +63,7 @@ TVisitor::genBitwiseOp(TokenKind op)
     swapTos();
     castTos(VT_INT);
     swapTos();
+
     switch (op) {
         case tAOR:
             bc()->addInsn(BC_IAOR); break;
@@ -69,14 +73,16 @@ TVisitor::genBitwiseOp(TokenKind op)
             bc()->addInsn(BC_IAXOR); break;
         default: break;
     }
+
+    stackPop();
 }
 
 void
-TVisitor::genComparisonOp(TokenKind op, VarType lhsType, VarType rhsType)
+TVisitor::genComparisonOp(TokenKind op)
 {
-    castTosAndPrevToSameNumType(rhsType, lhsType);
-    Label lSetTrue(bc()), lEnd(bc());
-    bc()->addInsn(NUMERIC_INSN(m_tosType, CMP));
+    castTosAndPrevToSameNumType();
+    bc()->addInsn(NUMERIC_INSN(tosType(), CMP));
+
     switch (op) {
         case tEQ: // == 0
             bc()->addInsn(BC_ILOADM1);
@@ -110,42 +116,47 @@ TVisitor::genComparisonOp(TokenKind op, VarType lhsType, VarType rhsType)
             break;
         default: break;
     }
-    m_tosType = VT_INT;
+
+    stackPop();
+    stackPop();
+    stackPush(VT_INT);
 }
 
 void
-TVisitor::genNumericOp(TokenKind op, VarType lhsType, VarType rhsType)
+TVisitor::genNumericOp(TokenKind op)
 {
-    castTosAndPrevToSameNumType(rhsType, lhsType);
+    castTosAndPrevToSameNumType();
     switch (op) {
         case tADD:
-            bc()->addInsn(NUMERIC_INSN(m_tosType, ADD)); break;
+            bc()->addInsn(NUMERIC_INSN(tosType(), ADD)); break;
         case tSUB:
-            bc()->addInsn(NUMERIC_INSN(m_tosType, SUB)); break;
+            bc()->addInsn(NUMERIC_INSN(tosType(), SUB)); break;
         case tMUL:
-            bc()->addInsn(NUMERIC_INSN(m_tosType, MUL)); break;
+            bc()->addInsn(NUMERIC_INSN(tosType(), MUL)); break;
         case tDIV:
-            bc()->addInsn(NUMERIC_INSN(m_tosType, DIV)); break;
+            bc()->addInsn(NUMERIC_INSN(tosType(), DIV)); break;
         default: break;
     }
+    stackPop();
 }
 
 void
-TVisitor::castTosAndPrevToSameNumType(VarType prev, VarType tos)
+TVisitor::castTosAndPrevToSameNumType()
 {
+    VarType tos  = tosType();
+    VarType prev = m_stack.at(m_stack.size()-2);
+
     if (!IS_NUMERIC(tos) || !IS_NUMERIC(prev))
         throw std::runtime_error(MSG_NAN_ON_TOS_OR_PREV);
 
     if (tos == prev) {
-        m_tosType = tos;
+        return;
     } else if (prev == VT_DOUBLE) {
         castTos(VT_DOUBLE);
     } else {
         swapTos();
-        m_tosType = prev;
         castTos(VT_DOUBLE);
         swapTos();
-        m_tosType = tos;
     }
 }
 
@@ -154,6 +165,7 @@ TVisitor::loadVar(const AstVar *astVar)
 {
     TVar var = m_curScope->findVar(astVar);
     VarType type = astVar->type();
+
     if (var.contextId == m_curScope->id()) {
         switch(var.id) {
             case 0: bc()->addInsn(LOAD_VAR(type, 0)); break;
@@ -170,16 +182,17 @@ TVisitor::loadVar(const AstVar *astVar)
         bc()->addUInt16(var.contextId);
         bc()->addUInt16(var.id);
     }
-    m_tosType = type;
+
+    stackPush(type);
 }
 
 void
-TVisitor::storeVar(const AstVar *astVar, bool doCastTos)
+TVisitor::storeVar(const AstVar *astVar, bool checkTos)
 {
     TVar var = m_curScope->findVar(astVar);
     VarType type = astVar->type();
-    if (doCastTos)
-        castTos(type, true);
+    if (checkTos)
+        castTos(type);
 
     if (var.contextId == m_curScope->id()) {
         switch(var.id) {
@@ -197,6 +210,9 @@ TVisitor::storeVar(const AstVar *astVar, bool doCastTos)
         bc()->addUInt16(var.contextId);
         bc()->addUInt16(var.id);
     }
+
+    if (checkTos)
+        stackPop();
 }
 
 void
