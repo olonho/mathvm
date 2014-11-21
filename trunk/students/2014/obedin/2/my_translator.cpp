@@ -3,7 +3,6 @@
 
 TVisitor::TVisitor()
     : m_code(NULL)
-    , m_tosType(VT_INVALID)
     , m_curScope(NULL)
 {
 }
@@ -13,8 +12,10 @@ TVisitor::visit(Code *code, AstFunction *top)
 {
     m_code = code;
 
-    std::stack<uint32_t> empty;
-    m_sourcePos.swap(empty);
+    std::stack<uint32_t> emptyStack;
+    m_sourcePos.swap(emptyStack);
+    std::vector<VarType> emptyVector;
+    m_stack.swap(emptyVector);
 
     BytecodeFunction *bcFn = new BytecodeFunction(top);
     m_code->addFunction(bcFn);
