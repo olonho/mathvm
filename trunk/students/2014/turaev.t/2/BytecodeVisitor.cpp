@@ -389,7 +389,6 @@ namespace mathvm {
         uint16_t functionID = calledFunction->id();
         bc()->addInsn(BC_CALL);
         bc()->addUInt16(functionID);
-//        if (calledFunction->returnType() != VT_VOID)
         topOfStackType = calledFunction->returnType();
     }
 

@@ -61,17 +61,7 @@ namespace mathvm {
             LOG << typeToName(topOfStackType) << " -> ";
             switch (topOfStackType) {
                 case VT_STRING:
-                    switch (castToType) {
-                        case VT_DOUBLE:
-                            bc()->add(BC_S2I);
-                            bc()->add(BC_I2D);
-                            break;
-                        case VT_INT:
-                            bc()->add(BC_S2I);
-                            break;
-                        default:
-                            throw TranslationError(string("Incorrect casting. Trying cast STRING to ") + typeToName(castToType) + ". Where: " + where, node->position());
-                    }
+                    throw TranslationError(string("Incorrect casting. Trying cast STRING to ") + typeToName(castToType) + ". Where: " + where, node->position());
                     break;
                 case VT_DOUBLE:
                     switch (castToType) {
