@@ -1,0 +1,18 @@
+function int f(int a, int b, int c) {
+    function void g(int b, int c) {        
+        function void h(int c) {
+            print(' = ', c);
+        }        
+        int i;
+        for (i in 1..b) {
+            print('f');
+        }
+        print('(', b, ')');
+        h(c);
+    }
+    print(a);
+    g(b, c);
+    print('\n');
+}
+
+f(1, 2, 3);
