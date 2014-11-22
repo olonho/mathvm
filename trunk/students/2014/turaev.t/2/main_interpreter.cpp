@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include "mathvm.h"
 
 #include "parser.h"
@@ -68,16 +69,21 @@ int main(int argc, char **argv) {
     }
 
     if (code) {
-        LOG << "-----------------------------" << endl;
-        code->disassemble(LOG);
-        LOG << "------------RUN:-----------------" << endl;
+        LOG("-----------------------------");
+#ifdef DEBUG
+        code->disassemble(cout);
+#else
+        std::stringstream ss;
+        code->disassemble(ss);
+#endif
+        LOG("------------RUN:-----------------");
         std::vector<Var *> vars;
         Status *interpreterStatus = code->execute(vars);
         if (printErrorIfNeeded("simple interpretator", source, interpreterStatus)) {
             exit(200);
         }
     } else {
-        LOG << "CODE IS NULL" << endl;
+        cout << "Code is null!" << endl;
     }
 
     delete translateStatus;

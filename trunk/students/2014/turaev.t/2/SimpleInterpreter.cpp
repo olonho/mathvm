@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <cstdlib>
+#include <sstream>
 #include "SimpleInterpreter.hpp"
 #include "Errors.hpp"
 
@@ -8,7 +9,7 @@ namespace mathvm {
         try {
             stringstream ss;
             run(ss);
-            LOG << "---------RESULT-----------" << endl;
+            LOG("---------RESULT-----------");
             cout << ss.str();
         } catch (InterpretationError e) {
             return Status::Error(e.what());
@@ -34,8 +35,11 @@ namespace mathvm {
             indexType &currentIndex = indices.back();
             Bytecode &bytecode = *bytecodes.back();
             Instruction instruction = bytecode.getInsn(currentIndex);
-            size_t instructionLength;
-            LOG << "index: " << currentIndex << ", instruction: " << bytecodeName(instruction, &instructionLength) << endl;
+            size_t instructionLength = bytecodeLength(instruction);
+#ifdef DEBUG
+            const char* bcName = bytecodeName(instruction, 0);
+            cout << "index: " << currentIndex << ", instruction: " << bcName << endl;
+#endif
             switch (instruction) {
                 case BC_DLOAD:
                     pushVariable(bytecode.getDouble(currentIndex + 1));
@@ -119,8 +123,8 @@ namespace mathvm {
                     out << popVariable().getStringValue();
                     break;
                 case BC_SWAP: {
-                    Var v1 = popVariable();
-                    Var v2 = popVariable();
+                    auto v1 = popVariable();
+                    auto v2 = popVariable();
                     programStack.push_back(v1);
                     programStack.push_back(v2);
                     break;
@@ -223,9 +227,7 @@ namespace mathvm {
                     indices.pop_back();
                     bytecodes.pop_back();
                     if (!indices.empty()) {
-                        size_t len;
-                        bytecodeName(BC_CALL, &len);
-                        indices.back() += len;
+                        indices.back() += bytecodeLength(BC_CALL);
                     }
                     if (callsCounter[contextID.back()] > 0) {
                         callsCounter[contextID.back()]--;
