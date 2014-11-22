@@ -165,6 +165,7 @@ namespace mathvm{
 	  }
 	};
 
+	
 	Translator* Translator::create(const string& impl){
 	 if (impl == "printer"){
 	   return new AstPrinter();
@@ -172,5 +173,4 @@ namespace mathvm{
 	  return NULL;
 	 }
 	}
-	
 }  
