@@ -28,7 +28,6 @@ public:
     VarType type()
         { return m_t; }
 
-private:
     int64_t m_i;
     double  m_d;
     string  m_s;
@@ -73,7 +72,7 @@ public:
 
 private:
     IScope *m_curScope;
-    std::stack<StackItem> m_stack;
+    std::stack<StackItem, std::vector<StackItem> > m_stack;
 
     Bytecode *bc()
         { return m_curScope->fn->bytecode(); }
