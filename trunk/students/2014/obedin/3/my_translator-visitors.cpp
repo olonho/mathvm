@@ -245,6 +245,7 @@ TVisitor::visitFunctionNode(FunctionNode *node)
             node->body()->visit(this);
     }
 
+    bcFn->setLocalsNumber(m_curScope->vars.size());
     m_stack.swap(oldStack);
     m_curScope = m_curScope->parent;
 
