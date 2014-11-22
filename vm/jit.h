@@ -9,6 +9,7 @@ class MachCodeFunction;
 
 class MachCodeImpl : public Code {
     void* _code;
+    void* _data;
   public:
     MachCodeImpl();
     virtual ~MachCodeImpl();
@@ -20,6 +21,7 @@ class MachCodeImpl : public Code {
     void error(const char* format, ...);
 
     void setCode(void* code) { _code = code; }
+    void setData(void* data) { _data = data; }
 };
 
 class MachCodeFunction : public TranslatedFunction {
