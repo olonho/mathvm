@@ -20,11 +20,6 @@ StackItem
 mkStackItem<const string &>(const string &val)
 { return StackItem(VT_STRING, 0, 0.0, val); }
 
-template<>
-StackItem
-mkStackItem<string>(string val)
-{ return StackItem(VT_STRING, 0, 0.0, val); }
-
 
 #define GEN_AS_FOR(vt, m) \
     if (m_t != (vt)) \
@@ -40,11 +35,6 @@ template<>
 double
 StackItem::as<double>()
 { GEN_AS_FOR(VT_DOUBLE, m_d) }
-
-template<>
-string
-StackItem::as<string>()
-{ GEN_AS_FOR(VT_STRING, m_s) }
 
 template<>
 const string&
@@ -102,7 +92,7 @@ hILOAD:
         stackPush(mkStackItem(next<int64_t>()));
         DISPATCH
 hSLOAD:
-        stackPush(mkStackItem(next<const string&>()));
+        stackPush(mkStackItem<const string &>(next<const string&>()));
         DISPATCH
 hDLOAD0:
         stackPush(mkStackItem<double>(0.0));
