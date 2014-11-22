@@ -27,6 +27,7 @@ TVisitor::visit(Code *code, AstFunction *top)
         initFunctions(topScope);
         genBlock(top->node()->body());
         bc()->addInsn(BC_STOP);
+        bcFn->setLocalsNumber(m_curScope->vars.size());
         return Status::Ok();
 
     } catch (std::runtime_error &err) {
