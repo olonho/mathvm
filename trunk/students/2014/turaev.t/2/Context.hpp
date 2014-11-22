@@ -37,6 +37,10 @@ namespace mathvm {
             return code->makeStringConstant(value);
         }
 
+        uint16_t introduceNativeFunction(string const& name, Signature const& signature, const void* nativeAddress) {
+            return code->makeNativeFunction(name, signature, nativeAddress);
+        }
+
         uint16_t introduceFunction(BytecodeFunction *);
 
         BytecodeFunction *getFunction(std::string const &name);
