@@ -3,9 +3,10 @@
 #include "parser.h"
 #include "visitors.h"
 
-#include <AsmJit/AsmJit.h>
+#include <asmjit/asmjit.h>
 
-using namespace AsmJit;
+using namespace asmjit;
+using namespace asmjit::x86;
 using namespace std;
 
 namespace mathvm {
@@ -14,11 +15,11 @@ MachCodeImpl::MachCodeImpl() : _code(0) {
 }
 
 MachCodeImpl::~MachCodeImpl() {
-  MemoryManager::getGlobal()->free(_code);
+  (reinterpret_cast<JitRuntime*>(_data))->release(_code);
 }
 
 Status* MachCodeImpl::execute(vector<Var*>& vars) {
-  int result = function_cast<int (*)()>(_code)();
+  int result = asmjit_cast<int (*)()>(_code)();
   cout << "returned " << result << endl;
   return Status::Ok();
 }
@@ -37,11 +38,12 @@ void MachCodeImpl::error(const char* format, ...) {
 class MachCodeGenerator : public AstVisitor {
     AstFunction* _top;
     MachCodeImpl* _code;
-    Assembler _;
+    JitRuntime _runtime;
+    X86Assembler _;
 public:
     MachCodeGenerator(AstFunction* top,
                       MachCodeImpl* code) :
-    _top(top), _code(code) {
+    _top(top), _code(code), _(&_runtime) {
     }
 
     Status* generate();
@@ -55,18 +57,19 @@ public:
 
 Status* MachCodeGenerator::generate() {
   // Prologue.
-  _.push(nbp);
-  _.mov(nbp, nsp);
+  _.push(rbp);
+  _.mov(rbp, rsp);
 
   // Return value.
-  _.mov(nax, 239);
+  _.mov(rax, 239);
 
   // Epilogue.
-  _.mov(nsp, nbp);
-  _.pop(nbp);
+  _.mov(rsp, rbp);
+  _.pop(rbp);
   _.ret();
 
   _code->setCode(_.make());
+  _code->setData(&_runtime);
 
   return Status::Ok();
 }
