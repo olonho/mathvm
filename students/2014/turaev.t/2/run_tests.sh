@@ -9,11 +9,12 @@ SIMPLE_TESTS=${MATH_VM_TESTS}/.
 OPTIONAL=${MATH_VM_TESTS}/optional
 ADDITIONAL=${MATH_VM_TESTS}/additional
 FAIL=${MATH_VM_TESTS}/additional/fail
+PERF=${MATH_VM_TESTS}/perf
 MY_TESTS=./mytests
 
 function run_test {
     echo -n "test:" ${1##*/} "-- "
-    ${MATH_VM_BIN} ${1}.mvm > output
+    bench=$( { time ${MATH_VM_BIN} ${1}.mvm > output; } 2>&1 )
     program=$?
     if [[ -f ${1}.expect ]]; then
         diff output ${1}.expect
@@ -22,7 +23,7 @@ function run_test {
         diffresult=0
     fi
     if [ ${program} -eq $2 ] && [ ${diffresult} -eq 0 ]; then
-        printf "\e[1;32mOK\e[0m"
+        printf "\e[1;32m""OK - ""$(echo ${bench} | awk '{print $2}')""\e[0m"
     else
         printf "\e[1;31m!!! FAILED !!!\e[0m"
     fi
@@ -48,6 +49,12 @@ echo "-------------- additional tests (all should be OK) -------------- "
 for test in casts complex fib_closure function-call 'function' vars; do
     run_test ${ADDITIONAL}/${test} 0
 done
+
+echo "-------------- perf test (please wait for each test about 5 sec) (all should be OK) -------------- "
+for test in prime; do
+    run_test ${PERF}/${test} 0
+done
+
 
 echo "-------------- long tests (please wait for each test about 5-10sec) (all should be OK) -------------- "
 for test in ackermann ackermann_closure complex2 fib; do
