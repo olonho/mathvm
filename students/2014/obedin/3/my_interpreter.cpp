@@ -228,50 +228,82 @@ hIFICMPLE:
 hLOADDVAR0:
 hLOADIVAR0:
 hLOADSVAR0:
+        stackPush(localVar(0));
+        DISPATCH
 
 hLOADDVAR1:
 hLOADIVAR1:
 hLOADSVAR1:
+        stackPush(localVar(1));
+        DISPATCH
 
 hLOADDVAR2:
 hLOADIVAR2:
 hLOADSVAR2:
+        stackPush(localVar(2));
+        DISPATCH
 
 hLOADDVAR3:
 hLOADIVAR3:
 hLOADSVAR3:
+        stackPush(localVar(3));
+        DISPATCH
 
 hSTOREDVAR0:
 hSTOREIVAR0:
 hSTORESVAR0:
+        localVar(0) = stackPop();
+        DISPATCH
 
 hSTOREDVAR1:
 hSTOREIVAR1:
 hSTORESVAR1:
+        localVar(1) = stackPop();
+        DISPATCH
 
 hSTOREDVAR2:
 hSTOREIVAR2:
 hSTORESVAR2:
+        localVar(2) = stackPop();
+        DISPATCH
 
 hSTOREDVAR3:
 hSTOREIVAR3:
 hSTORESVAR3:
+        localVar(3) = stackPop();
+        DISPATCH
 
 hLOADDVAR:
 hLOADIVAR:
 hLOADSVAR:
+        stackPush(localVar(next<uint16_t>()));
+        DISPATCH
 
 hSTOREDVAR:
 hSTOREIVAR:
 hSTORESVAR:
+        localVar(next<uint16_t>()) = stackPop();
+        DISPATCH
 
 hLOADCTXDVAR:
 hLOADCTXIVAR:
 hLOADCTXSVAR:
+        {
+            ID ctx = next<uint16_t>();
+            ID id  = next<uint16_t>();
+            stackPush(ctxVar(ctx, id));
+        }
+        DISPATCH
 
 hSTORECTXDVAR:
 hSTORECTXIVAR:
 hSTORECTXSVAR:
+        {
+            ID ctx = next<uint16_t>();
+            ID id  = next<uint16_t>();
+            ctxVar(ctx, id) = stackPop();
+        }
+        DISPATCH
 
 hCALL:
 hCALLNATIVE:

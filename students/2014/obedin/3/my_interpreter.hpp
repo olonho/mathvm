@@ -14,21 +14,11 @@ using namespace mathvm;
 
 
 typedef uint64_t IP;
-
-class IScope {
-public:
-    BytecodeFunction *fn;
-    IScope *parent;
-    IP ip;
-
-    IScope(BytecodeFunction *fn, IScope *parent = NULL)
-        : fn(fn), parent(parent), ip(0)
-        {}
-};
+typedef uint16_t ID;
 
 class StackItem {
 public:
-    StackItem(VarType t, int64_t i = 0, double d = 0.0, const string &s = "")
+    StackItem(VarType t = VT_INVALID, int64_t i = 0, double d = 0.0, const string &s = "")
         : m_i(i), m_d(d), m_s(s), m_t(t)
         {}
 
@@ -45,6 +35,38 @@ private:
     VarType m_t;
 };
 
+class IScope {
+public:
+    BytecodeFunction *fn;
+    IScope *parent;
+    IP ip;
+    std::vector<StackItem> vars;
+
+    IScope(BytecodeFunction *fn, IScope *parent = NULL)
+        : fn(fn), parent(parent), ip(0), vars(fn->localsNumber())
+        {}
+
+    ID id()
+        { return fn->id(); }
+
+    StackItem &findVar(ID id)
+        {
+            if (id >= vars.size())
+                throw std::runtime_error("TODO: var not found");
+            return vars[id];
+        }
+
+    StackItem &findCtxVar(ID ctx, ID id)
+        {
+            IScope *scope = this;
+            while (scope && scope->id() != ctx)
+                scope = scope->parent;
+            if (scope == NULL)
+                throw std::runtime_error("TODO: ctx not found");
+            return scope->findVar(id);
+        }
+};
+
 class ICode: public Code {
 public:
     Status *execute(std::vector<Var *> &vars);
@@ -57,6 +79,10 @@ private:
         { return m_curScope->fn->bytecode(); }
     IP &ip()
         { return m_curScope->ip; }
+    StackItem &localVar(ID id)
+        { return m_curScope->findVar(id); }
+    StackItem &ctxVar(ID ctx, ID id)
+        { return m_curScope->findCtxVar(ctx, id); }
 
     void stackPush(const StackItem &x)
         { m_stack.push(x); }
