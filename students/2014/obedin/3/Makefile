@@ -31,4 +31,4 @@ $(OBJ)/my_interpreter$(OBJ_SUFF): my_interpreter.cpp my_interpreter.hpp
 SCRIPT=
 
 run:
-	$(BIN)/mvm $(SCRIPT)
+	time $(BIN)/mvm $(SCRIPT)
