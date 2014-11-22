@@ -52,33 +52,34 @@ ifneq ($(WITH_SDL),)
   CFLAGS += $(shell sdl-config --cflags)
 endif
 
+ASMJIT_OBJ_DIR = $(OBJ)/asmjit
 ifneq ($(NO_JIT),1)
 ASMJIT_OBJ = \
-		$(OBJ)/x86cpuinfo$(OBJ_SUFF) \
-		$(OBJ)/x86operand_regs$(OBJ_SUFF) \
-		$(OBJ)/x86assembler$(OBJ_SUFF) \
-		$(OBJ)/x86operand$(OBJ_SUFF) \
-		$(OBJ)/x86scheduler$(OBJ_SUFF) \
-		$(OBJ)/x86context$(OBJ_SUFF) \
-		$(OBJ)/x86inst$(OBJ_SUFF) \
-		$(OBJ)/x86compiler$(OBJ_SUFF) \
-		$(OBJ)/context$(OBJ_SUFF) \
-		$(OBJ)/containers$(OBJ_SUFF) \
-		$(OBJ)/cpuinfo$(OBJ_SUFF) \
-		$(OBJ)/error$(OBJ_SUFF) \
-		$(OBJ)/assembler$(OBJ_SUFF) \
-		$(OBJ)/runtime$(OBJ_SUFF) \
-		$(OBJ)/cputicks$(OBJ_SUFF) \
-		$(OBJ)/vmem$(OBJ_SUFF) \
-		$(OBJ)/operand$(OBJ_SUFF) \
-		$(OBJ)/zone$(OBJ_SUFF) \
-		$(OBJ)/compiler$(OBJ_SUFF) \
-		$(OBJ)/codegen$(OBJ_SUFF) \
-		$(OBJ)/globals$(OBJ_SUFF) \
-		$(OBJ)/constpool$(OBJ_SUFF) \
-		$(OBJ)/string$(OBJ_SUFF) \
-		$(OBJ)/logger$(OBJ_SUFF) \
-		$(OBJ)/intutil$(OBJ_SUFF)
+		$(ASMJIT_OBJ_DIR)/x86cpuinfo$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86operand_regs$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86assembler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86operand$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86scheduler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86context$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86inst$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86compiler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/context$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/containers$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/cpuinfo$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/error$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/assembler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/runtime$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/cputicks$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/vmem$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/operand$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/zone$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/compiler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/codegen$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/globals$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/constpool$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/string$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/logger$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/intutil$(OBJ_SUFF)
 else
 ASMJIT_OBJ = 
 endif
@@ -115,15 +116,16 @@ $(OBJ)/%$(OBJ_SUFF): $(ROOT)/%.cpp \
 	$(VM_ROOT)/common.mk $(USER_DEPS)
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
-$(OBJ)/x86%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/x86/x86%.cpp $(OBJ)/.dir
+$(ASMJIT_OBJ_DIR)/x86%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/x86/x86%.cpp $(OBJ)/.dir 
 	$(CXX) -c $(DEFS) $(CFLAGS) $(ASMJIT_CFLAGS) $(INCLUDE) $(ASMJIT_INCLUDE) $< -o $@
 
-$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/base/%.cpp $(OBJ)/.dir
+$(ASMJIT_OBJ_DIR)/%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/base/%.cpp $(OBJ)/.dir
 	$(CXX) -c $(DEFS) $(CFLAGS) $(ASMJIT_CFLAGS) $(INCLUDE) $(ASMJIT_INCLUDE) $< -o $@
 
 $(OBJ)/.dir:
 	mkdir -p $(OUT)
 	mkdir -p $(OBJ)
+	mkdir -p $(ASMJIT_OBJ_DIR)
 	mkdir -p $(BIN)
 	touch $@
 
