@@ -11,7 +11,8 @@ class RichFunction : public BytecodeFunction {
     map<string, uint16_t> _local_variables;
     uint16_t _variable_id;
 public:
-    RichFunction(AstFunction *function): BytecodeFunction(function) {
+    RichFunction(AstFunction *function): BytecodeFunction(function),
+        _variable_id(0) {
         for (uint16_t i = 0; i < parametersNumber(); ++i) {
             _local_variables[parameterName(i)] = _variable_id++;
         }
