@@ -19,7 +19,7 @@ LIBS_ROOT = $(VM_ROOT)/libs
 ASMJIT_CFLAGS = -Wno-error
 INCLUDE    = -I$(VM_ROOT)/include -I$(LIBS_ROOT)
 VM_INCLUDE = -I$(VM_ROOT)/vm
-ASMJIT_INCLUDE = -I$(LIBS_ROOT)/AsmJit
+ASMJIT_INCLUDE = -I$(LIBS_ROOT)/asmjit
 USER_INCLUDE = -I$(ROOT)
 DEFS       = $(USER_DEFS) -D_POSIX_SOURCE
 THREAD_LIB = -lpthread 
@@ -54,18 +54,31 @@ endif
 
 ifneq ($(NO_JIT),1)
 ASMJIT_OBJ = \
-        $(OBJ)/AssemblerX86X64$(OBJ_SUFF) \
-        $(OBJ)/CodeGenerator$(OBJ_SUFF) \
-        $(OBJ)/Compiler$(OBJ_SUFF) \
-        $(OBJ)/CompilerX86X64$(OBJ_SUFF) \
-        $(OBJ)/CpuInfo$(OBJ_SUFF) \
-        $(OBJ)/Defs$(OBJ_SUFF) \
-        $(OBJ)/DefsX86X64$(OBJ_SUFF) \
-        $(OBJ)/Logger$(OBJ_SUFF) \
-        $(OBJ)/MemoryManager$(OBJ_SUFF) \
-        $(OBJ)/OperandX86X64$(OBJ_SUFF) \
-        $(OBJ)/Platform$(OBJ_SUFF) \
-        $(OBJ)/Util$(OBJ_SUFF)
+		$(OBJ)/x86cpuinfo$(OBJ_SUFF) \
+		$(OBJ)/x86operand_regs$(OBJ_SUFF) \
+		$(OBJ)/x86assembler$(OBJ_SUFF) \
+		$(OBJ)/x86operand$(OBJ_SUFF) \
+		$(OBJ)/x86scheduler$(OBJ_SUFF) \
+		$(OBJ)/x86context$(OBJ_SUFF) \
+		$(OBJ)/x86inst$(OBJ_SUFF) \
+		$(OBJ)/x86compiler$(OBJ_SUFF) \
+		$(OBJ)/context$(OBJ_SUFF) \
+		$(OBJ)/containers$(OBJ_SUFF) \
+		$(OBJ)/cpuinfo$(OBJ_SUFF) \
+		$(OBJ)/error$(OBJ_SUFF) \
+		$(OBJ)/assembler$(OBJ_SUFF) \
+		$(OBJ)/runtime$(OBJ_SUFF) \
+		$(OBJ)/cputicks$(OBJ_SUFF) \
+		$(OBJ)/vmem$(OBJ_SUFF) \
+		$(OBJ)/operand$(OBJ_SUFF) \
+		$(OBJ)/zone$(OBJ_SUFF) \
+		$(OBJ)/compiler$(OBJ_SUFF) \
+		$(OBJ)/codegen$(OBJ_SUFF) \
+		$(OBJ)/globals$(OBJ_SUFF) \
+		$(OBJ)/constpool$(OBJ_SUFF) \
+		$(OBJ)/string$(OBJ_SUFF) \
+		$(OBJ)/logger$(OBJ_SUFF) \
+		$(OBJ)/intutil$(OBJ_SUFF)
 else
 ASMJIT_OBJ = 
 endif
@@ -102,7 +115,10 @@ $(OBJ)/%$(OBJ_SUFF): $(ROOT)/%.cpp \
 	$(VM_ROOT)/common.mk $(USER_DEPS)
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
-$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/AsmJit/%.cpp $(OBJ)/.dir
+$(OBJ)/x86%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/x86/x86%.cpp $(OBJ)/.dir
+	$(CXX) -c $(DEFS) $(CFLAGS) $(ASMJIT_CFLAGS) $(INCLUDE) $(ASMJIT_INCLUDE) $< -o $@
+
+$(OBJ)/%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/base/%.cpp $(OBJ)/.dir
 	$(CXX) -c $(DEFS) $(CFLAGS) $(ASMJIT_CFLAGS) $(INCLUDE) $(ASMJIT_INCLUDE) $< -o $@
 
 $(OBJ)/.dir:
