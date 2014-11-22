@@ -94,7 +94,6 @@ ICode::execute(std::vector<Var *> &vars)
     while (true) {
 hINVALID:
 hS2I:
-hBREAK:
         return Status::Error(MSG_INVALID_INSN);
 hDLOAD:
         stackPush(mkStackItem(next<double>()));
@@ -190,14 +189,19 @@ hD2I:
         DISPATCH
 
 hDCMP:
-        doComaprison<double>();
+        doComparison<double>();
         DISPATCH
 hICMP:
-        doComaprison<int64_t>();
+        doComparison<int64_t>();
         DISPATCH
 
 hSWAP:
-        stackSwap();
+        {
+            StackItem a = stackPop();
+            StackItem b = stackPop();
+            stackPush(a);
+            stackPush(b);
+        }
         DISPATCH
 hPOP:
         stackPop();
@@ -306,9 +310,20 @@ hSTORECTXSVAR:
         DISPATCH
 
 hCALL:
+        doCallFunction(next<uint16_t>());
+        DISPATCH
 hCALLNATIVE:
+        doCallNativeFunction(next<uint16_t>());
+        DISPATCH
 hRETURN:
+        {
+            IScope *scope = m_curScope;
+            m_curScope = scope->parent;
+            delete scope;
+        }
+        DISPATCH
 
+hBREAK:
 hDUMP:
 hSTOP:
         break;
@@ -342,7 +357,7 @@ ICode::doNumeric(TokenKind op)
 
 template<typename T>
 void
-ICode::doComaprison()
+ICode::doComparison()
 {
     T a = stackPop().as<T>();
     T b = stackPop().as<T>();
@@ -392,4 +407,19 @@ ICode::doCmpAndGo(TokenKind op)
             if (a <= b) ip() += offset; break;
         default: break;
     }
+}
+
+void
+ICode::doCallFunction(ID id)
+{
+    BytecodeFunction *fn = (BytecodeFunction*)functionById(id);
+    if (fn == NULL)
+        throw std::runtime_error("TODO: function not found");
+    m_curScope = new IScope(fn, m_curScope);
+}
+
+void
+ICode::doCallNativeFunction(ID id)
+{
+    // TODO: write this
 }

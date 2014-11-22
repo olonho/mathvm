@@ -94,14 +94,6 @@ private:
             return val;
         }
 
-    void stackSwap()
-        {
-            StackItem a = stackPop();
-            StackItem b = stackPop();
-            stackPush(a);
-            stackPush(b);
-        }
-
     template<typename T>
     T next();
 
@@ -109,10 +101,13 @@ private:
     void doNumeric(TokenKind op);
 
     template<typename T>
-    void doComaprison();
+    void doComparison();
 
     void doBitwise(TokenKind op);
     void doCmpAndGo(TokenKind op);
+
+    void doCallFunction(ID id);
+    void doCallNativeFunction(ID id);
 };
 
 #endif /* end of include guard: MY_INTERPRETER_HPP */
