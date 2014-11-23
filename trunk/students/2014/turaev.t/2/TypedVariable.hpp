@@ -5,7 +5,6 @@
 
 namespace mathvm {
     class TypedVariable {
-        VarType _type;
         union {
             double _doubleValue;
             int64_t _intValue;
@@ -28,6 +27,8 @@ namespace mathvm {
                     assert(false);
             }
         }
+
+        VarType _type;
 
         void setDoubleValue(double value) {
             assert(_type == VT_DOUBLE);
