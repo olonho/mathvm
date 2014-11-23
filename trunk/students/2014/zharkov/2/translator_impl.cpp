@@ -1,6 +1,7 @@
 #include "translator_impl.h"
 #include "typing_visitor.h"
 #include "interpreter_impl.h"
+#include "jit_builder.h"
 
 #include <map>
 
@@ -388,7 +389,8 @@ void TranslatorVisitor::pushScope(Scope * scope) {
     while (funcs_it.hasNext()) {
         AstFunction * func = funcs_it.next();
         if (isFunctionNative(*func)) {
-            index_t id = code_.makeNativeFunction(func->name(), func->node()->signature(), natives_map_[func]);
+            void * proxy_addr = JitBuilder::instance().buildNativeProxy(func->node()->signature(), (const void *)natives_map_[func]);
+            index_t id = code_.makeNativeFunction(func->name(), func->node()->signature(), proxy_addr);
             native_funcmap_[func->name()].push(id);
         } else {
             BytecodeFunction * bcf = new BytecodeFunction(func);
