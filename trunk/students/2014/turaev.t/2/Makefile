@@ -1,5 +1,6 @@
 ROOT   = .
 VM_ROOT = ../../../..
+WITH_SDL=1
 
 include $(VM_ROOT)/common.mk
 

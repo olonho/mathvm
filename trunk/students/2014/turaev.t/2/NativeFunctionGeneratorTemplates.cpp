@@ -70,6 +70,8 @@ namespace mathvm {
                 return Collector<0, 2, R, decltype(make_tuple())>::run(p, func, make_tuple());
             case 3:
                 return Collector<0, 3, R, decltype(make_tuple())>::run(p, func, make_tuple());
+            case 4:
+                return Collector<0, 4, R, decltype(make_tuple())>::run(p, func, make_tuple());
             default:
                 throw InterpretationError("Non-jit native caller can't process " + to_string(paramsCount) + " function parameters. Call AmJit insted");
         }
