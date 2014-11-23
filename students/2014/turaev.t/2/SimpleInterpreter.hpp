@@ -5,12 +5,17 @@
 #include "InterpreterCodeImpl.hpp"
 #include "logger.hpp"
 #include "TypedVariable.hpp"
+#include "Errors.hpp"
 
 namespace mathvm {
     class SimpleInterpreter : public InterpreterCodeImpl {
 
     public:
         virtual Status *execute(vector<Var *> &vars) override;
+
+        TypedVariable loadVariable(uint16_t id) {
+            return loadVariable(contextID.back(), id);
+        }
 
     private:
         typedef vector<TypedVariable> scope;
@@ -26,15 +31,12 @@ namespace mathvm {
         std::vector<unsignedIntType> callsCounter; //by contextID = functionID
 
         void run(ostream &out);
-
-        void callNative(uint16_t id);
-
         size_t bytecodeLength(Instruction instruction) {
             static const struct {
                 Instruction insn;
                 size_t length;
             } instructions[] = {
-#define BC_NAME(b, d, l) {BC_##b, l},
+            #define BC_NAME(b, d, l) {BC_##b, l},
                     FOR_BYTECODES(BC_NAME)
             };
 
@@ -43,6 +45,27 @@ namespace mathvm {
             }
             assert(0);
             return 0;
+        }
+
+        void callNativeFunctionViaTemplateMagic(void *f, size_t params, VarType returnType);
+
+        void callNativeFunctionViaAsmJit(void *f, const Signature *, VarType returnType);
+
+        void callNative(uint16_t id) {
+            const Signature *signature;
+            const std::string *name;
+            void *nativeFunctionAddress = (void *) nativeById(id, &signature, &name);
+            if (!nativeFunctionAddress) {
+                throw InterpretationError("Native function not found");
+            }
+
+            size_t paramsCount = signature->size() - 1;
+            VarType returnType = signature->at(0).first;
+            if (paramsCount <= 3) {
+                callNativeFunctionViaTemplateMagic(nativeFunctionAddress, paramsCount, returnType);
+            } else {
+                callNativeFunctionViaAsmJit(nativeFunctionAddress, signature, returnType);
+            }
         }
 
         void detectCallWithFunctionID(unsignedIntType functionID) {
@@ -74,10 +97,6 @@ namespace mathvm {
             TypedVariable var(VT_STRING);
             var.setStringValue(value);
             programStack.push_back(var);
-        }
-
-        TypedVariable loadVariable(uint16_t id) {
-            return loadVariable(contextID.back(), id);
         }
 
         TypedVariable loadVariable(unsignedIntType contextID, unsignedIntType variableID) {

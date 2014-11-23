@@ -10,7 +10,8 @@ USER_OBJ = \
    $(OBJ)/BytecodeVisitor$(OBJ_SUFF) \
    $(OBJ)/Context$(OBJ_SUFF) \
    $(OBJ)/SimpleInterpreter$(OBJ_SUFF) \
-   $(OBJ)/NativeFunctionGenerator$(OBJ_SUFF)
+   $(OBJ)/NativeFunctionGeneratorTemplates$(OBJ_SUFF) \
+   $(OBJ)/NativeFunctionGeneratorAsmJit$(OBJ_SUFF)
 
 MATHVM = $(BIN)/mvm
 TRANSLATOR = $(BIN)/bcp

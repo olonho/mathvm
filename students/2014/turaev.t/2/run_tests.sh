@@ -50,21 +50,21 @@ for test in casts complex fib_closure function-call 'function' vars; do
     run_test ${ADDITIONAL}/${test} 0
 done
 
-echo "-------------- perf test (please wait for each test about 5 sec) (all should be OK) -------------- "
-for test in prime; do
-    run_test ${PERF}/${test} 0
+echo "-------------- optional tests (all should be OK) -------------- "
+for test in function_native; do
+   run_test ${OPTIONAL}/${test} 0
 done
 
+echo "-------------- perf test (please wait for each test about 3 sec) (all should be OK) -------------- "
+for test in prime; do
+#    for i in {1..20}; do
+        run_test ${PERF}/${test} 0
+#    done
+done
 
 echo "-------------- long tests (please wait for each test about 5-10sec) (all should be OK) -------------- "
 for test in ackermann ackermann_closure complex2 fib; do
-    run_test ${ADDITIONAL}/${test} 0
+   run_test ${ADDITIONAL}/${test} 0
 done
-
-#echo "-------------- optional tests -------------- "
-#for test in function_native; do
-#    run_test ${OPTIONAL}/${test}
-#done
-
 
 rm output

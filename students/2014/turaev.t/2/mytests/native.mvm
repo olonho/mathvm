@@ -1,0 +1,2 @@
+function void printf(string s, int i1, double x1, string s1) native 'printf';
+printf('%d - %lf - %s\n', 1488, 345.67, 'neko desu');
