@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MATH_VM=/Users/doxer/Documents/SvnRepos/mathvm
+MATH_VM=../../../..
 
 MATH_VM_TESTS=${MATH_VM}/tests
 MATH_VM_BIN=./build/Debug/mvm
