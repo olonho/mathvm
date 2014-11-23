@@ -15,6 +15,7 @@ USER_OBJ = \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translator_impl$(OBJ_SUFF) \
    $(OBJ)/interpreter_impl$(OBJ_SUFF) \
+   $(OBJ)/jit_builder$(OBJ_SUFF) \
    $(OBJ)/stack_machine$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk

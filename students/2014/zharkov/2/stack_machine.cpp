@@ -354,118 +354,27 @@ bool StackMachine::processReturn() {
     return false;
 }
 
-typedef long long word_t;
-
-word_t make_call(double fargs[8], word_t iargs[6], const void * addr, word_t * args, word_t * last) {
-    register word_t* sp  asm("rsp"); 
-    
-    word_t stack_window = 32;
-    word_t stack_delta = stack_window * sizeof(word_t) ; 
-    word_t * copy = (sp - stack_window);
-    
-    while (args != last) {
-        *(copy++) = *(args++);
-    }
-    
-    register word_t iret asm("rax");
-    asm volatile ("movsd %0, %%xmm7;" : : "m" (fargs[7]) : "xmm7");
-
-    asm volatile ("\
-        movq %0, %%r11;\n\n\
-        movq %1, %%rdi;\n\n\
-        movq %2, %%rsi;\n\
-        movq %3, %%rdx;\n\
-        movq %4, %%rcx;\n\
-        movq %5, %%r8;\n\
-        movq %6, %%r9;\n\
-        movsd %7, %%xmm0;\n\
-        movsd %8, %%xmm1;\n\
-        movsd %9, %%xmm2;\n\
-        movsd %10, %%xmm3;\n\
-        movsd %11, %%xmm4;\n\
-        movsd %12, %%xmm5;\n\
-        movsd %13, %%xmm6;\n\
-        subq %14, %%rsp;\n\
-        call *%%r11;\n\
-        addq %14, %%rsp;\n\
-        " 
-        : 
-        : "g"(addr), "g"(iargs[0]), "g"(iargs[1]),"g"(iargs[2]),"g"(iargs[3]),"g"(iargs[4]),"g"(iargs[5]) 
-          ,"g"(fargs[0]),"g"(fargs[1]),"g"(fargs[2]),"g"(fargs[3]),"g"(fargs[4]),"g"(fargs[5]),"g"(fargs[6])
-          ,"g"(stack_delta), "g"(stack_delta) 
-        : "r11", "rdi", "edi", "rsi", "esi", "rdx", "edx", "rcx", "ecx", "r8", "r9", 
-          "xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7", "rsp"
-    );
-
-    return iret + 0*stack_delta;
-}
-
 void StackMachine::processNativeCall(index_t id) {
+
     Signature const * signature;
     string const * name;
-    
-    const void * addr = code_->nativeById(id, &signature, &name);
-    
-    word_t iargs[6];
-    double fargs[8];
-    
-    word_t * iarg = iargs;
-    double * farg = fargs;
-    
-    StackValue * p = stack_top_ptr_ - signature->size();
+    const void * proxy_addr = code_->nativeById(id, &signature, &name);
 
-    word_t args[256];
-    word_t *argframe = args;
-    
-    for (size_t i = 1; i < signature->size(); ++i) {
-        StackValue * value = p + i;
-        
-        switch((*signature)[i].first) {
-            case VT_DOUBLE:
-            {
-                double v = value->doubleValue();
-                if (fargs + 8 > farg) {
-                    *(farg++) = v;
-                } else {
-                    *((double *)(argframe++)) = v;
-                }
-
-                break;
-            }
-            case VT_STRING:
-            case VT_INT:
-            {
-                long long v = value->wordValue();
-                if (iargs + 6 > iarg) {
-                    *(iarg++) = v;
-                } else {
-                    *(argframe++) = v;
-                }
-                break;
-            }
-            default: 
-                throwError("unexpected type in native");
-                return;
-        }
-    }
-    
-    word_t res = make_call(fargs, iargs, addr, args, argframe);
-    auto kind = (*signature)[0].first;
-    
+    auto returnType = (*signature)[0].first;
     StackValue result;
+    StackValue * begin_offset = stack_top_ptr_ - signature->size();
 
-    switch(kind) {
+    switch(returnType) {
         case VT_DOUBLE:
         {
-            register double dret asm("xmm0");
-            result = double(dret);
+            result = reinterpret_cast<double (*)(StackValue *)>(proxy_addr)(begin_offset);
             break;
         }
         case VT_INT:
         case VT_STRING:
         case VT_VOID:
         {
-            result = vm_int_t(res);
+            result = reinterpret_cast<vm_int_t (*)(StackValue *)>(proxy_addr)(begin_offset);
             break;
         }
         default:
