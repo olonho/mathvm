@@ -1,0 +1,14 @@
+string s;
+s = 'kitty';
+
+if (s) {
+    print('ok s = ', s, '\n');
+} else {
+    print('no\n');
+}
+
+if (!s) {
+    print('ok s = ', s, '\n');
+} else {
+    print('no\n');
+}

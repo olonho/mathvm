@@ -7,10 +7,14 @@
 namespace mathvm {
     Status *SimpleInterpreter::execute(vector<Var *> &vars) {
         try {
+#ifdef DEBUG
             stringstream ss;
             run(ss);
             LOG("---------RESULT-----------");
             cout << ss.str();
+#else
+            run(cout);
+#endif
         } catch (InterpretationError e) {
             return Status::Error(e.what());
         }
@@ -115,12 +119,15 @@ namespace mathvm {
                     break;
                 case BC_IPRINT:
                     out << popVariable().getIntValue();
+                    out.flush();
                     break;
                 case BC_DPRINT:
                     out << popVariable().getDoubleValue();
+                    out.flush();
                     break;
                 case BC_SPRINT:
                     out << popVariable().getStringValue();
+                    out.flush();
                     break;
                 case BC_SWAP: {
                     auto v1 = popVariable();
@@ -244,6 +251,9 @@ namespace mathvm {
                     contextID.pop_back();
                     continue;
                 }
+                case BC_S2I:
+                    pushVariable((signedIntType) popVariable().getStringValue());
+                    break;
                 case BC_D2I:
                     pushVariable((signedIntType) popVariable().getDoubleValue());
                     break;
@@ -270,8 +280,6 @@ namespace mathvm {
                 case BC_LOADSVAR3:
                     programStack.push_back(loadVariable(3));
                     break;
-                case BC_S2I:
-                    throw InterpretationError("BC_S2I instruction deprecated");
                 case BC_BREAK:
                     break;
                 case BC_INVALID:

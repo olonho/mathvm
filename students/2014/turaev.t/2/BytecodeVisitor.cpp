@@ -83,7 +83,7 @@ namespace mathvm {
         Label end(bc());
 
         node->ifExpr()->visit(this);
-
+        cast(VT_INT, node, "cast in if expression");
         bc()->addInsn(BC_ILOAD0);
         bc()->addBranch(BC_IFICMPE, _else);
 
@@ -297,10 +297,12 @@ namespace mathvm {
                 break;
             }
             case tNOT: {
-                if (topOfStackType != VT_INT) {
+                if (topOfStackType != VT_INT && topOfStackType != VT_STRING) {
                     throw TranslationError(string("Incorrect type for NOT inside unary-node: ") + typeToName(topOfStackType), node->position());
                 }
-                bc()->addInsn(BC_INEG);
+                cast(VT_INT, node, "cast in unary op node");
+                bc()->addInsn(BC_ILOAD0);
+                bc()->addInsn(BC_ICMP);
                 break;
             }
             default:
