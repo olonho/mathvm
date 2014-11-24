@@ -1,0 +1,18 @@
+#include "mathvm.h"
+#include "visitors.h"
+#include "cstdio"
+
+namespace mathvm{
+
+   Status * BytecodeTranslatorImpl::translate(const string& program, 
+            Code* *codde){
+        printf(program.c_str());
+        return 0;
+        
+    }
+
+    Translator* Translator::create(const string& impl){
+        return new BytecodeTranslatorImpl();
+        
+    }
+}

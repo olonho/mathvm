@@ -1,0 +1,54 @@
+bytecodetranslatorimpl.cpp: In member function ‘virtual void mathvm::TranslatorVisitor::visitFunctionNode(mathvm::FunctionNode*)’:
+bytecodetranslatorimpl.cpp:50:43: error: no matching function for call to ‘mathvm::BytecodeFunction::BytecodeFunction()’
+bytecodetranslatorimpl.cpp:50:43: note: candidates are:
+In file included from bytecodetranslatorimpl.cpp:1:0:
+../../../../include/mathvm.h:449:5: note: mathvm::BytecodeFunction::BytecodeFunction(mathvm::AstFunction*)
+../../../../include/mathvm.h:449:5: note:   candidate expects 1 argument, 0 provided
+../../../../include/mathvm.h:445:7: note: mathvm::BytecodeFunction::BytecodeFunction(const mathvm::BytecodeFunction&)
+../../../../include/mathvm.h:445:7: note:   candidate expects 1 argument, 0 provided
+bytecodetranslatorimpl.cpp: In member function ‘virtual void mathvm::TranslatorVisitor::visitBinaryOpNode(mathvm::BinaryOpNode*)’:
+bytecodetranslatorimpl.cpp:75:41: error: ‘merge_codes’ was not declared in this scope
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tEOF’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tLPAREN’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tRPAREN’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tLBRACE’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tRBRACE’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tASSIGN’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tOR’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tAND’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tAOR’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tAAND’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tAXOR’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tNOT’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tEQ’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tNEQ’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tGT’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tGE’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tLT’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tLE’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tRANGE’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tMOD’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tINCRSET’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tDECRSET’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tDOUBLE’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tINT’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tSTRING’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tCOMMA’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tSEMICOLON’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tIDENT’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tERROR’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tUNDEF’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:96:28: error: enumeration value ‘tTokenCount’ not handled in switch [-Werror=switch]
+bytecodetranslatorimpl.cpp:114:48: error: ‘mt’ was not declared in this scope
+bytecodetranslatorimpl.cpp:67:23: error: unused variable ‘r_b’ [-Werror=unused-variable]
+bytecodetranslatorimpl.cpp:109:25: error: label ‘defaul’ defined but not used [-Werror=unused-label]
+bytecodetranslatorimpl.cpp: In member function ‘virtual void mathvm::TranslatorVisitor::visitUnaryOpNode(mathvm::UnaryOpNode*)’:
+bytecodetranslatorimpl.cpp:120:22: error: ‘nSUB’ was not declared in this scope
+bytecodetranslatorimpl.cpp: In member function ‘virtual void mathvm::TranslatorVisitor::visitStringLiteralNode(mathvm::StringLiteralNode*)’:
+bytecodetranslatorimpl.cpp:139:43: error: ‘strcpy’ was not declared in this scope
+bytecodetranslatorimpl.cpp: In member function ‘virtual void mathvm::TranslatorVisitor::visitDoubleLiteralNode(mathvm::DoubleLiteralNode*)’:
+bytecodetranslatorimpl.cpp:146:13: error: ‘bytecode’ was not declared in this scope
+bytecodetranslatorimpl.cpp: In member function ‘virtual void mathvm::TranslatorVisitor::visitIntLiteralNode(mathvm::IntLiteralNode*)’:
+bytecodetranslatorimpl.cpp:151:13: error: ‘bytecode’ was not declared in this scope
+cc1plus: all warnings being treated as errors
+make: *** [build/debug/bytecodetranslatorimpl.o] Error 1
