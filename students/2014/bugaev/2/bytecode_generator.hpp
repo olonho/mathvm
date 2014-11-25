@@ -351,7 +351,12 @@ public:
 
     void visitFunctionNode(FunctionNode *node)
     {
-        node->body()->visit(this);
+        bool native = node->body()->nodeAt(0)
+                && node->body()->nodeAt(0)->isNativeCallNode();
+        if (native)
+            node->body()->nodeAt(0)->visit(this);
+        else
+            node->body()->visit(this);
 
         if (returnType() != VT_VOID && returnCount() == 0) {
             throw BytecodeGeneratorException("Function has no return",
