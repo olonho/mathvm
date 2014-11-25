@@ -21,5 +21,7 @@ MATHVM = $(BIN)/mvm
 
 all: $(MATHVM)
 
+LIBS += -lrt    
+
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)
