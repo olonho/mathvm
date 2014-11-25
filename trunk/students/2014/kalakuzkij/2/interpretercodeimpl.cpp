@@ -16,12 +16,12 @@ namespace mathvm{
     void InterpreterCodeImpl::eval_func(BytecodeFunction* bf){
         //parameters
         scope_vars.push_back(map<int16_t, Var*>());
-        for(int i = 0; i < bf->parametersNumber(); ++i){
-            int vid = get_var_by_name(bf->parameterName(i));
-            scope_vars.back()[vid] = new Var(bf->parameterType(i), bf->parameterName(i));
-        }
+//        for(int i = 0; i < bf->parametersNumber(); ++i){
+//            int vid = get_var_by_name(bf->parameterName(i));
+//            scope_vars.back()[vid] = new Var(bf->parameterType(i), bf->parameterName(i));
+//        }
         //locals
-        AbstractVarContext::VarIterator vi(&a_vars, bf->scopeId()+1, bf->scopeId()+2);
+        AbstractVarContext::VarIterator vi(&a_vars, bf->scopeId());
         while(vi.hasNext()){
             string name;
             VarType type;
@@ -195,7 +195,7 @@ namespace mathvm{
             case BC_DPRINT:{
                 double a = _stack.get<double>();
                 stack_types.pop_back();
-                printf("%f", a);
+                printf("%F", a);
                 break;
             }
             case BC_SPRINT:{

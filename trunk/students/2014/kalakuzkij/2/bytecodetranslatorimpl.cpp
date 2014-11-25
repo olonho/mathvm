@@ -260,7 +260,7 @@ namespace mathvm{
             Scope* curscope = n->scope();
             Scope::VarIterator scope_vars(curscope);
             int varcount = 0;
-            (*code)->fresh_abs_var_context();
+            //(*code)->fresh_abs_var_context();
             while(scope_vars.hasNext()){
                 AstVar * av = scope_vars.next();
                 (*code)->present_var(av->name(), av->type());

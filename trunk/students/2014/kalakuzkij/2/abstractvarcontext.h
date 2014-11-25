@@ -19,31 +19,25 @@ public:
 
     class VarIterator{
         AbstractVarContext* parent;
-        int from;
+        int scope;
         int to;
         std::map<std::string, int16_t>::iterator cur_var;
     public:
-        VarIterator(AbstractVarContext* avc, int from_scope, int to_scope){
+        VarIterator(AbstractVarContext* avc, unsigned int scope){
             parent = avc;
-            from = from_scope;
-            to = to_scope;
-            if (to > (int)avc->vars.size()) to = avc->vars.size();
-            assert(from < (int)avc->vars.size() && from < to);
-            cur_var = avc->vars[from].begin();
+            this->scope = scope;
+            assert(scope < parent->vars.size());
+            cur_var = parent->vars[scope].begin();
         }
         bool hasNext(){
-            if (from >= to ) return false;
-            if (from +1 == to && cur_var == parent->vars[from].end()) return false;
-            return true;
+            bool a = cur_var != parent->vars[scope].end();
+            return a;
         }
         void next(int &id, std::string& name, mathvm::VarType& vt){
-            while (cur_var == parent->vars[from].end()){
-                ++from;
-                cur_var = parent->vars[from].begin();
-            }
             id = cur_var->second;
             name = cur_var->first;
             vt = parent->var_types[id];
+            ++cur_var;
         }
     };
 
