@@ -10,7 +10,7 @@ using namespace mathvm;
 using namespace std;
 
 int main(int argc, char** argv) {
-    string impl = "printer";
+    string impl = "interpreter";
     const char* script = NULL;
     for (int32_t i = 1; i < argc; i++) {
       if (string(argv[i]) == "-j") {
@@ -25,9 +25,17 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const char* expr = z"double x; double y;"
-                        "x += 8.0; y = 2.0;"
-                        "print('Hello, x=',x,' y=',y,'\n');";
+    const char* expr =
+            "double x; double y;"
+            "x += 8.0; y = 2.0;"
+            "print('Hello, x=',x,' y=',y,'\n');"
+            "function double encl(double b) {"
+            "   while(!b) {"
+            "       b -= 1;"
+            "   }"
+            "   return b;"
+            "}"
+            "encl(x);";
     bool isDefaultExpr = true;
 
     if (script != NULL) {
