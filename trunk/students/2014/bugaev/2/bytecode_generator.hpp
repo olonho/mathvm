@@ -53,7 +53,8 @@ public:
 
         Status *result = 0;
         try {
-            createFunction(top);
+            registerFunction(top);
+            translateFunction(top);
         } catch (BytecodeGeneratorException const &e) {
             result = Status::Error(e.what(), e.position());
         }
@@ -332,10 +333,8 @@ public:
             m_scopes.push_back(std::make_pair(static_cast<FunctionNode *>(0),
                                               node->scope()));
 
-        Scope::FunctionIterator fi(node->scope());
-        while (fi.hasNext()) {
-            createFunction(fi.next());
-        }
+        registerFunctions(Scope::FunctionIterator(node->scope()));
+        translateFunctions(Scope::FunctionIterator(node->scope()));
 
         for (uint32_t i = 0; i < node->nodes(); ++i) {
             node->nodeAt(i)->visit(this);
@@ -451,14 +450,35 @@ public:
     }
 
 private:
-    void createFunction(AstFunction *top)
+    void registerFunctions(Scope::FunctionIterator fi)
     {
-        if (m_code->functionByName(top->name())) {
-            throw BytecodeGeneratorException("Duplicate function declaration",
-                                             top->node()->position());
+        while (fi.hasNext()) {
+            registerFunction(fi.next());
         }
-        BytecodeFunction *func = new BytecodeFunction(top);
-        m_code->addFunction(func);
+    }
+
+    void registerFunction(AstFunction *func)
+    {
+        if (m_code->functionByName(func->name())) {
+            throw BytecodeGeneratorException("Duplicate function declaration",
+                                             func->node()->position());
+        }
+        BytecodeFunction *bfunc = new BytecodeFunction(func);
+        m_code->addFunction(bfunc);
+    }
+
+    void translateFunctions(Scope::FunctionIterator fi)
+    {
+        while (fi.hasNext()) {
+            translateFunction(fi.next());
+        }
+    }
+
+    void translateFunction(AstFunction *top)
+    {
+        BytecodeFunction *func = dynamic_cast<BytecodeFunction *>(
+                m_code->functionByName(top->name()));
+        assert(func);
 
         m_scopes.push_back(std::make_pair(top->node(),
                                           top->node()->body()->scope()));
