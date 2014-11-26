@@ -22,7 +22,7 @@ Translator * Translator::create(string const & impl) {
 
 int main(int argc, char** argv) {
     const char* script = NULL;
-    const size_t max_stack_size = 128 * 1024 * 1024;
+    const size_t max_stack_size = 512 * 1024 * 1024;
     string impl = "translate";
     for (int32_t i = 1; i < argc; i++) {
       if (string(argv[i]) == "-j") {

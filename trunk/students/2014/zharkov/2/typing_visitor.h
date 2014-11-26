@@ -64,14 +64,12 @@ public:
     
     virtual void visitUnaryOpNode(UnaryOpNode* node) {
         VarType a = typeOf(node->operand());
-        
-        assertThat(a == VT_DOUBLE || a == VT_INT, string("unary for ") + typeToName(a));
-
+         
         if (node->kind() == tNOT) {
-            assertThat(a == VT_INT, string("! applied to ") + typeToName(a));
+            markAs(node, VT_INT);
+        } else {
+            markAs(node, typeLup(a, VT_INT));
         }
-
-        markAs(node, a);
     }
     
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
@@ -129,7 +127,12 @@ public:
     
     virtual void visitReturnNode(ReturnNode* node) {
         processStatement(node);
-        checkIsAssignable(node->returnExpr() != 0 ? typeOf(node->returnExpr()) : VT_VOID, current_function_return_type_.top());
+        
+        VarType ret_type = node->returnExpr() != 0 ? typeOf(node->returnExpr()) : VT_VOID;
+        
+        if (current_function_return_type_.empty()) return; // top level
+
+        checkIsAssignable(ret_type, current_function_return_type_.top());
     }
     
     virtual void visitCallNode(CallNode* node) {

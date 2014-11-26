@@ -122,13 +122,16 @@ void StackMachine::run() {
                 break;
             case BC_IPRINT:
                 os_ << popInt();
+                os_.flush();
                 break;
             case BC_DPRINT:
                 os_ << popDouble();
+                os_.flush();
                 break;
             case BC_SPRINT:
                 v = popString();
                 os_ << (v == 0 ? "" : v);
+                os_.flush();
                 break;
             case BC_I2D:
                 push((double) popInt());
@@ -136,7 +139,7 @@ void StackMachine::run() {
             case BC_S2I:
                 v = popString();
                 try {
-                    push(v == 0 ? 0L : (vm_int_t)stoll(v));
+                    push((vm_int_t) v);
                 } catch (std::exception & e) {
                     throwError("S2I conversion error: " + string(v));
                 }

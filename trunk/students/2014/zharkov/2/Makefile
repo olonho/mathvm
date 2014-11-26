@@ -1,6 +1,7 @@
 OPT = true
 ROOT   = .
 VM_ROOT = ../../../../
+WITH_SDL = true
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
