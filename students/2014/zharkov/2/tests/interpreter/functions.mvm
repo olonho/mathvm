@@ -14,7 +14,6 @@ function string baz(string x) {
 }
 
 foo();
-bar(1,'1');
 bar(1.0, 1);
 
 print(bar(1, 1.0) == 1, '\n');
