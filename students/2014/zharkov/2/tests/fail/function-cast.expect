@@ -1,3 +1,0 @@
-terminate called after throwing an instance of 'std::runtime_error'
-  what():  S2I conversion error: hi
-Aborted

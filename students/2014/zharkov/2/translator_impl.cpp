@@ -96,6 +96,28 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode* node) {
     }
 
     VarType result_type = typeOf(node);
+    
+    if (node->kind() == tOR || node->kind() == tAND) {
+        gen(node->left(), result_type);
+        bytecodeStream().addInsn(BC_ILOAD0);
+        
+        Instruction cmp_insn = node->kind() == tOR ? BC_IFICMPNE : BC_IFICMPE;
+        
+        Label label1(&bytecodeStream());
+        bytecodeStream().addBranch(cmp_insn, label1);
+        
+        gen(node->right(), result_type);
+        
+        Label label2(&bytecodeStream());
+        bytecodeStream().addBranch(BC_JA, label2);
+
+        bytecodeStream().bind(label1);
+        bytecodeStream().addInsn(node->kind() == tOR ? BC_ILOAD1 : BC_ILOAD0);
+        
+        bytecodeStream().bind(label2);
+        return;
+    }
+
     gen(node->right(), result_type);
     gen(node->left(), result_type);
     
@@ -114,11 +136,9 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode* node) {
         case tDIV: 
             insn = chooseInsn(result_type, BC_IDIV, BC_DDIV);
             break;
-        case tOR:
         case tAOR:
             insn = BC_IAOR;
             break;
-        case tAND:
         case tAAND:
             insn = BC_IAAND;
             break;
@@ -188,9 +208,15 @@ void TranslatorVisitor::visitUnaryOpNode(UnaryOpNode* node) {
     
     switch (node->kind()) {
         case tNOT:
+            bytecodeStream().addInsn(BC_ILOAD0);
+            bytecodeStream().addInsn(BC_ICMP);
+            bytecodeStream().addInsn(BC_ILOAD);
+            bytecodeStream().addInt64(~(0L));
+
+            bytecodeStream().addInsn(BC_IAXOR);
             bytecodeStream().addInsn(BC_ILOAD1);
-            insn = BC_IAXOR;
-            break;
+            bytecodeStream().addInsn(BC_IAAND);
+            return;
         case tSUB:
             insn = chooseInsn(type, BC_INEG, BC_DNEG);
             break;
