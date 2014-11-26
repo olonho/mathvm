@@ -17,12 +17,12 @@ mkStackItem<double>(double val)
 
 template<>
 StackItem
-mkStackItem<const string &>(const string &val)
+mkStackItem<const char *>(const char *val)
 { return StackItem(VT_STRING, 0, 0.0, val); }
 
 
 #define GEN_AS_FOR(vt, m) \
-    if (m_t != (vt)) \
+    if (type != (vt)) \
         throw std::runtime_error("TODO: make msg for `StackItem::as`");\
     return (m);
 
@@ -37,8 +37,8 @@ StackItem::as<double>()
 { GEN_AS_FOR(VT_DOUBLE, m_d) }
 
 template<>
-const string&
-StackItem::as<const string&>()
+const char*
+StackItem::as<const char*>()
 { GEN_AS_FOR(VT_STRING, m_s) }
 
 #undef GEN_AS_FOR
@@ -54,10 +54,10 @@ ICode::next()
 }
 
 template<>
-const string &
-ICode::next<const string&>()
+const char*
+ICode::next<const char*>()
 {
-    return constantById(next<uint16_t>());
+    return constantById(next<uint16_t>()).c_str();
 }
 
 
@@ -92,7 +92,7 @@ hILOAD:
         stackPush(mkStackItem(next<int64_t>()));
         DISPATCH
 hSLOAD:
-        stackPush(mkStackItem<const string &>(next<const string&>()));
+        stackPush(mkStackItem<const char*>(next<const char*>()));
         DISPATCH
 hDLOAD0:
         stackPush(mkStackItem<double>(0.0));
@@ -101,7 +101,7 @@ hILOAD0:
         stackPush(mkStackItem<int64_t>(0));
         DISPATCH
 hSLOAD0:
-        stackPush(mkStackItem<const string&>(""));
+        stackPush(mkStackItem<const char*>(""));
         DISPATCH
 hDLOAD1:
         stackPush(mkStackItem<double>(1.0));
@@ -155,7 +155,7 @@ hDPRINT:
         std::cout << stackPop().as<double>();
         DISPATCH
 hSPRINT:
-        std::cout << stackPop().as<const string&>();
+        std::cout << stackPop().as<const char*>();
         DISPATCH
 
 hIMOD:

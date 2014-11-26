@@ -15,7 +15,7 @@ USER_OBJ = \
    $(OBJ)/my_translator$(OBJ_SUFF) \
    $(OBJ)/my_interpreter$(OBJ_SUFF)
 
-USER_CFLAGS = -Wno-unused -DDUMP_BYTECODE
+USER_CFLAGS = -Wno-unused -march=native
 
 include $(VM_ROOT)/common.mk
 

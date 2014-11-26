@@ -219,8 +219,18 @@ void
 TVisitor::initVars(Scope *scope)
 {
     Scope::VarIterator it(scope);
-    while (it.hasNext())
-        m_curScope->addVar(it.next());
+    while (it.hasNext()) {
+        AstVar *var = it.next();
+        m_curScope->addVar(var);
+        switch (var->type()) {
+            case VT_INT: bc()->addInsn(BC_ILOAD0); break;
+            case VT_DOUBLE: bc()->addInsn(BC_DLOAD0); break;
+            case VT_STRING: bc()->addInsn(BC_SLOAD0); break;
+            default:
+                throw std::runtime_error(MSG_UNLOADABLE_TYPE);
+        }
+        storeVar(var, false);
+    }
 }
 
 void
