@@ -18,20 +18,26 @@ typedef uint16_t ID;
 
 class StackItem {
 public:
-    StackItem(VarType t = VT_INVALID, int64_t i = 0, double d = 0.0, const string &s = "")
-        : m_i(i), m_d(d), m_s(s), m_t(t)
-        {}
+    StackItem(VarType t = VT_INVALID, int64_t i = 0, double d = 0.0, const char *s = "")
+        : type(t)
+        {
+            if (type == VT_INT)
+                m_i = i;
+            else if (type == VT_DOUBLE)
+                m_d = d;
+            else if (type == VT_STRING)
+                m_s = s;
+        }
 
     template<typename T>
     T as();
 
-    VarType type()
-        { return m_t; }
-
-    int64_t m_i;
-    double  m_d;
-    string  m_s;
-    VarType m_t;
+    VarType type;
+    union {
+        int64_t m_i;
+        double  m_d;
+        const char *m_s;
+    };
 };
 
 class IScope {
