@@ -5,6 +5,8 @@
 #include "bytecode_generator.h"
 
 namespace mathvm {
+const std::string BytecodeGenerator::tmpVarName = "$tmp";
+
 BytecodeGenerator::BytecodeGenerator() {
     initTables();
 }
@@ -13,6 +15,7 @@ Status* BytecodeGenerator::generateCode(AstFunction* top, Code* code) {
     status = Status::Ok();
     this->code = code;
 
+    top->scope()->declareVariable(tmpVarName, VT_INT);
     visitAstFunction(top);
 
     return status;
@@ -46,24 +49,6 @@ void BytecodeGenerator::initTables() {
     convertCommands[VT_INT][VT_DOUBLE] = BC_I2D;
     convertCommands[VT_DOUBLE][VT_INT] = BC_D2I;
 
-    binOpsKind[tOR] = BIN_LOGIC;
-    binOpsKind[tAND] = BIN_LOGIC;
-    binOpsKind[tAOR] = BIN_ARITHMETIC;
-    binOpsKind[tAAND] = BIN_ARITHMETIC;
-    binOpsKind[tAXOR] = BIN_ARITHMETIC;
-    binOpsKind[tEQ] = BIN_CMP;
-    binOpsKind[tNEQ] = BIN_CMP;
-    binOpsKind[tGT] = BIN_CMP;
-    binOpsKind[tGE] = BIN_CMP;
-    binOpsKind[tLT] = BIN_CMP;
-    binOpsKind[tLE] = BIN_CMP;
-    binOpsKind[tRANGE] = BIN_NOP;
-    binOpsKind[tADD] = BIN_ARITHMETIC;
-    binOpsKind[tSUB] = BIN_ARITHMETIC;
-    binOpsKind[tMUL] = BIN_ARITHMETIC;
-    binOpsKind[tDIV] = BIN_ARITHMETIC;
-    binOpsKind[tMOD] = BIN_ARITHMETIC;
-
     memset(storeCommands, 0, sizeof(storeCommands));
     storeCommands[0][VT_INT] = BC_STOREIVAR;
     storeCommands[0][VT_DOUBLE] = BC_STOREDVAR;
@@ -82,9 +67,11 @@ void BytecodeGenerator::initTables() {
 }
 
 void BytecodeGenerator::generateDuplicateIntTOS() {
-    bytecode->addInsn(BC_STOREIVAR0);
-    bytecode->addInsn(BC_LOADIVAR0);
-    bytecode->addInsn(BC_LOADIVAR0);
+    AstVar* tmpVar = scope->lookupVariable(tmpVarName);
+    
+    storeVar(tmpVar);
+    loadVar(tmpVar);
+    loadVar(tmpVar);
 }
 
 
@@ -140,29 +127,15 @@ void BytecodeGenerator::visitCmpBinOpNode(BinaryOpNode* node) {
     bytecode->bind(end);
 }
 
+void BytecodeGenerator::visitRangeBinOpNode(BinaryOpNode* node) {
+    node->right()->visit(this);
+    node->left()->visit(this);
+}
+
 void BytecodeGenerator::convertIfNecessary(VarType have, VarType expect) {
     if(have != expect) {
         assert(convertCommands[have][expect] != BC_INVALID);
         bytecode->addInsn(convertCommands[have][expect]);
-    }
-}
-
-void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode* node) {
-    BinOpKind kind = binOpsKind[node->kind()];
-    
-    switch(kind) {
-        case BIN_LOGIC:
-            visitBooleanBinOpNode(node);
-            break;
-        case BIN_ARITHMETIC:
-            visitArithmeticBinOpNode(node);
-            break;
-        case BIN_CMP:
-            visitCmpBinOpNode(node);
-            break;
-        default:
-            node->right()->visit(this);
-            node->left()->visit(this);
     }
 }
 

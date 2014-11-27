@@ -1,5 +1,6 @@
 #include "validating_visitor.h"
 #include <algorithm>
+#include "my_util.h"
 
 namespace mathvm {
 
@@ -9,53 +10,60 @@ Status* ValidatingVisitor::checkProgram(AstFunction* top) {
     return status;
 }
 
-bool ValidatingVisitor::isBinaryOk(VarType left, VarType right, TokenKind op) {
-    static const TokenKind intOnly[7] = {tOR, tAND, tAAND, tAOR, tAXOR, tRANGE, tMOD};
-    static const TokenKind numericOnly[10] = {tEQ, tNEQ, tGT, tGE, tLT, tLE, tADD, tSUB, tMUL, tDIV};
-
-    if(left != right) {
-        return false;
-    }
-
-    if(std::find(numericOnly, numericOnly + 10, op) != numericOnly + 10) {
-        return (left == VT_DOUBLE || left == VT_INT);
-    } 
-
-    if(std::find(intOnly, intOnly + 7, op) != intOnly + 7) {
-        return left == VT_INT;
-    }
-
-    return false;
-}
-
 void ValidatingVisitor::visitBinaryOpNode(BinaryOpNode* node) {
     node->visitChildren(this); 
     if(status->isError()) return;
 
+    DetailedBinaryVisitor::visitBinaryOpNode(node);
+}
+
+void ValidatingVisitor::checkBinOpNode(BinaryOpNode* node, bool intOnly) {
     NodeData* left = (NodeData*)node->left()->info();
     NodeData* right = (NodeData*)node->right()->info();
 
-    if(!isBinaryOk(left->type, right->type, node->kind())) {
-        fail(string("Operation \'") + tokenOp(node->kind()) + "\' is not allowed for " + 
-                typeToName(left->type) + " and " + typeToName(right->type), node->position());
-    }
-
-    VarType resType;
-    if(node->kind() == tEQ || node->kind() == tNEQ || node->kind() == tGT ||
-            node->kind() == tGE || node->kind() == tLT || node->kind() == tLE) {
-        resType = VT_INT;
+    VarType resType = getWidestType(left->type, right->type);
+    
+    bool isOk = true;
+    if(intOnly) {
+        isOk = resType == VT_INT;
     }
     else {
-        if(node->kind() == tRANGE) {
-            resType = VT_INVALID;
-        }
-        else {
-            resType = left->type;
-        }
+        isOk = (resType == VT_INT) || (resType == VT_DOUBLE);
+    }
+
+    if(!isOk) {
+        binOpFail(node);
     }
 
     node->setInfo(NodeData::getTyped(resType));
 }
+
+void ValidatingVisitor::visitBooleanBinOpNode(BinaryOpNode* node) {
+    checkBinOpNode(node, true);
+}
+
+void ValidatingVisitor::visitArithmeticBinOpNode(BinaryOpNode* node) {
+    TokenKind op = node->kind(); 
+    bool intOnly = op == tAOR  ||
+                   op == tAAND ||
+                   op == tAXOR ||
+                   op == tMOD;
+
+    checkBinOpNode(node, intOnly);
+}
+
+void ValidatingVisitor::visitCmpBinOpNode(BinaryOpNode* node) {
+    checkBinOpNode(node, false);
+
+    node->setInfo(NodeData::getTyped(VT_INT));
+}
+
+void ValidatingVisitor::visitRangeBinOpNode(BinaryOpNode* node) {
+    checkBinOpNode(node, true);
+
+    node->setInfo(NodeData::getTyped(VT_INVALID));
+}
+
 
 bool ValidatingVisitor::isUnaryOk(VarType type, TokenKind token) {
     switch(token) {
@@ -103,7 +111,8 @@ void ValidatingVisitor::visitStoreNode(StoreNode* node) {
     node->setInfo(NodeData::getTyped());
 
     NodeData* valData = (NodeData*) node->value()->info();
-    if(valData->type != node->var()->type()) {
+
+    if(!canCast(valData->type, node->var()->type())) {
         typeFail(node->var()->type(), valData->type, node->value()->position());    
     }
 
@@ -183,7 +192,7 @@ void ValidatingVisitor::visitReturnNode(ReturnNode* node) {
     else { 
         NodeData* exprData = (NodeData*)node->returnExpr()->info();
         if(!isLvalueType(exprData->type) ||
-                currentFunction->returnType() != exprData->type) {
+                !canCast(exprData->type, currentFunction->returnType())) {
 
             fail("Attempt to return " + string(typeToName(exprData->type)) + " from " + 
                     typeToName(currentFunction->returnType()) + " function", node->position());
@@ -209,7 +218,11 @@ void ValidatingVisitor::visitCallNode(CallNode* node) {
     }
 
     for(uint32_t i = 0; i < node->parametersNumber(); ++i) {
-        expectType(node->parameterAt(i), func->parameterType(i));
+        NodeData* paramData = (NodeData*) node->parameterAt(i)->info();
+
+        if(!canCast(paramData->type, func->parameterType(i))) {
+            typeFail(func->parameterType(i), paramData->type, node->parameterAt(i)->position());
+        }
     }
 }
 
@@ -227,7 +240,7 @@ void ValidatingVisitor::visitPrintNode(PrintNode* node) {
         NodeData* data = (NodeData*)operand->info();
 
         if(!isLvalueType(data->type)) {
-            fail("Wrong operand for printing", operand->position());
+            fail("Wrong operand for printing ", operand->position());
         }
     }
 }
@@ -279,6 +292,16 @@ void ValidatingVisitor::typeFail(VarType expected, VarType found, uint32_t posit
         " expected but " + typeToName(found) + " found";
 
     fail(msg, position);
+}
+
+void ValidatingVisitor::binOpFail(BinaryOpNode* node) {
+    NodeData* left = (NodeData*)node->left()->info();
+    NodeData* right = (NodeData*)node->right()->info();
+
+    string msg = string("Operation \'") + tokenOp(node->kind()) + "\' is not allowed for " + 
+            typeToName(left->type) + " and " + typeToName(right->type);
+
+    fail(msg, node->position());
 }
 
 bool ValidatingVisitor::isLvalueType(VarType type) {
