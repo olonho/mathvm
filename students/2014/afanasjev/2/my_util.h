@@ -20,4 +20,18 @@ inline VarType getWidestType(VarType first, VarType second) {
         return VT_INVALID;
     }
 }
+
+inline bool canCast(VarType from, VarType to) {
+    if(from == to) {
+        return true;
+    }
+
+    if((from == VT_INT || from == VT_DOUBLE) &&
+       (to == VT_INT || to == VT_INT)) {
+        return true;
+    } 
+
+    return false;
+}
+
 }

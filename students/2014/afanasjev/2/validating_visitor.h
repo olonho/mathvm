@@ -1,6 +1,6 @@
 #pragma once
 
-#include "visitors.h"
+#include "detailed_binary_visitor.h"
 
 namespace mathvm {
 
@@ -30,7 +30,7 @@ private:
 };
 
 
-class ValidatingVisitor : public AstVisitor {
+class ValidatingVisitor : public DetailedBinaryVisitor {
 public:
     ValidatingVisitor() {}
     
@@ -39,7 +39,14 @@ public:
     Status* checkProgram(AstFunction* top);
 
     bool isBinaryOk(VarType left, VarType right, TokenKind op);
+
+
+    virtual void visitBooleanBinOpNode(BinaryOpNode* node);
+    virtual void visitArithmeticBinOpNode(BinaryOpNode* node);
+    virtual void visitCmpBinOpNode(BinaryOpNode* node);
+    virtual void visitRangeBinOpNode(BinaryOpNode* node);
     virtual void visitBinaryOpNode(BinaryOpNode* node);
+    void checkBinOpNode(BinaryOpNode* node, bool intOnly);
 
     bool isUnaryOk(VarType type, TokenKind token);
     virtual void visitUnaryOpNode(UnaryOpNode* node);
@@ -68,6 +75,7 @@ private:
     
     void fail(string const & msg, uint32_t position);
     void typeFail(VarType expected, VarType found, uint32_t position);
+    void binOpFail(BinaryOpNode* node);
 
     bool isLvalueType(VarType type);
 

@@ -1,20 +1,21 @@
 #pragma once
 
-#include "visitors.h"
+#include "detailed_binary_visitor.h"
 #include "validating_visitor.h"
 
 namespace mathvm {
-class BytecodeGenerator : public AstVisitor {
+class BytecodeGenerator : public DetailedBinaryVisitor {
 public:
     BytecodeGenerator();
     virtual ~BytecodeGenerator() {}
 
     Status* generateCode(AstFunction* top, Code* code);
     
-    void visitBooleanBinOpNode(BinaryOpNode* node);
-    void visitArithmeticBinOpNode(BinaryOpNode* node);
-    void visitCmpBinOpNode(BinaryOpNode* node);
-    virtual void visitBinaryOpNode(BinaryOpNode* node);
+    virtual void visitBooleanBinOpNode(BinaryOpNode* node);
+    virtual void visitArithmeticBinOpNode(BinaryOpNode* node);
+    virtual void visitCmpBinOpNode(BinaryOpNode* node);
+    virtual void visitRangeBinOpNode(BinaryOpNode* node);
+
     virtual void visitUnaryOpNode(UnaryOpNode* node);
 
     virtual void visitStringLiteralNode(StringLiteralNode* node);
@@ -62,14 +63,10 @@ private:
         uint16_t idx;
     };
 
-    enum BinOpKind {
-        BIN_LOGIC, BIN_CMP, BIN_ARITHMETIC, BIN_NOP
-    };
 
     Instruction arithmeticCommands[tTokenCount][5];
     Instruction cmpCommands[tTokenCount];
     Instruction convertCommands[5][5];
-    BinOpKind binOpsKind[tTokenCount];
     Instruction storeCommands[2][5];
     Instruction loadCommands[2][5];
 
@@ -81,5 +78,7 @@ private:
 
     Status* status;
     Code* code;
+
+    static const std::string tmpVarName;
 };
 }
