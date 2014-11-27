@@ -2,11 +2,15 @@
 #include <vector>
 using std::vector;
 #include "mathvm.h"
-
+#include <iostream>
+using std::cout;
 
 namespace mathvm{
     Status *InterpreterCodeImpl::execute(vector<Var *> &vars) {
-        this->disassemble();
+        stack_types.clear();
+        stack_types.reserve(256);
+
+        //this->disassemble();
         running = true;
 
         BytecodeFunction * f = (BytecodeFunction *) functionById(0);
@@ -16,10 +20,6 @@ namespace mathvm{
     void InterpreterCodeImpl::eval_func(BytecodeFunction* bf){
         //parameters
         scope_vars.push_back(map<int16_t, Var*>());
-//        for(int i = 0; i < bf->parametersNumber(); ++i){
-//            int vid = get_var_by_name(bf->parameterName(i));
-//            scope_vars.back()[vid] = new Var(bf->parameterType(i), bf->parameterName(i));
-//        }
         //locals
         AbstractVarContext::VarIterator vi(&a_vars, bf->scopeId());
         while(vi.hasNext()){
@@ -29,11 +29,45 @@ namespace mathvm{
             vi.next(id, name, type);
             scope_vars.back()[id] = new Var(type, name);
         }
+        //parameters
+        for(int i = bf->parametersNumber() - 1; i >= 0; --i){
+            int vid = get_var_by_name(bf->parameterName(i));
+            switch(bf->parameterType(i)){
+            case VT_INT:
+                scope_vars.back()[vid]->setIntValue(_stack.get<int64_t>());
+                break;
+            case VT_DOUBLE:
+                scope_vars.back()[vid]->setDoubleValue(_stack.get<double>());
+                break;
+            case VT_STRING:{
+                int sid = _stack.get<int16_t>();
+                scope_vars.back()[vid]->setStringValue(constantById(sid).c_str());
+                }
+                break;
+            default:
+                break;
+            }
+            stack_types.pop_back();
+
+            //scope_vars.back()[vid] = new Var(bf->parameterType(i), bf->parameterName(i));
+        }
         Bytecode* bc = bf->bytecode();
 
         for (size_t bci = 0; bci < bc->length() && running;) {
             size_t length;
             Instruction insn = bc->getInsn(bci);
+//            int64_t tos = 8080808080808;
+//            if (stack_types.back() == VT_INT){
+//                tos = _stack.get<int64_t>();
+//                _stack.add<int64_t>(tos);
+//                if (tos == 13){
+//                    int a = 0;
+//                    ++a;
+//                }
+//                //cout << "Top of Stack: " << t << ":   " << std::endl;
+//            }
+            /*_stack.print(stack_types);
+            cout << */
             bytecodeName(insn, &length);
             switch (insn) {
             case BC_LAST:
@@ -107,14 +141,14 @@ namespace mathvm{
             case BC_DSUB:{
                 double a = _stack.get<double>();
                 double b = _stack.get<double>();
-                _stack.add<double>(a-b);
+                _stack.add<double>(b-a);
                 stack_types.pop_back();
                 break;
             }
             case BC_ISUB:{
                 int64_t a = _stack.get<int64_t>();
                 int64_t b = _stack.get<int64_t>();
-                _stack.add<int64_t>(a-b);
+                _stack.add<int64_t>(b-a);
                 stack_types.pop_back();
                 break;
             }
@@ -135,14 +169,14 @@ namespace mathvm{
             case BC_DDIV:{
                 double a = _stack.get<double>();
                 double b = _stack.get<double>();
-                _stack.add<double>(a/b);
+                _stack.add<double>(b/a);
                 stack_types.pop_back();
                 break;
             }
             case BC_IDIV:{
                 int64_t a = _stack.get<int64_t>();
                 int64_t b = _stack.get<int64_t>();
-                _stack.add<int64_t>(a/b);
+                _stack.add<int64_t>(b/a);
                 stack_types.pop_back();
                 break;
             }
@@ -156,13 +190,11 @@ namespace mathvm{
             case BC_DNEG:{
                 double a = _stack.get<double>();
                 _stack.add<double>(-a);
-                stack_types.pop_back();
                 break;
             }
             case BC_INEG:{
                 int64_t a = _stack.get<int64_t>();
                 _stack.add<int64_t>(-a);
-                stack_types.pop_back();
                 break;
             }
             case BC_IAOR:{
@@ -189,19 +221,19 @@ namespace mathvm{
             case BC_IPRINT:{
                 int64_t a = _stack.get<int64_t>();
                 stack_types.pop_back();
-                printf("%ld", a);
+                cout << a;
                 break;
             }
             case BC_DPRINT:{
                 double a = _stack.get<double>();
                 stack_types.pop_back();
-                printf("%F", a);
+                cout << a;
                 break;
             }
             case BC_SPRINT:{
                 int16_t sid = _stack.get<int16_t>();
                 stack_types.pop_back();
-                printf("%s", this->constantById(sid).c_str());
+                cout << this->constantById(sid);
                 break;
             }
             case BC_I2D:{
@@ -278,6 +310,8 @@ namespace mathvm{
                 default:
                     break;
                 }
+
+                stack_types.pop_back();
                 break;
             }
             case BC_LOADDVAR0://, "Load double from variable 0, push on TOS.", 1)
@@ -370,13 +404,75 @@ namespace mathvm{
                 break;
             }
             case BC_JA://, "Jump always, next two bytes - signed offset of jump destination.", 3)
-            case BC_IFICMPNE://, "Compare two topmost integers and jump if upper != lower, next two bytes - signed offset of jump destination.", 3)
-            case BC_IFICMPE://, "Compare two topmost integers and jump if upper == lower, next two bytes - signed offset of jump destination.", 3)
-            case BC_IFICMPG://, "Compare two topmost integers and jump if upper > lower, next two bytes - signed offset of jump destination.", 3)
-            case BC_IFICMPGE://, "Compare two topmost integers and jump if upper >= lower, next two bytes - signed offset of jump destination.", 3)
-            case BC_IFICMPL://, "Compare two topmost integers and jump if upper < lower, next two bytes - signed offset of jump destination.", 3)
-            case BC_IFICMPLE://, "Compare two topmost integers and jump if upper <= lower, next two bytes - signed offset of jump destination.", 3)
+                length = bc->getInt16(bci+1)+1;
                 break;
+            case BC_IFICMPNE://, "Compare two topmost integers and jump if upper != lower, next two bytes - signed offset of jump destination.", 3)
+            {
+                int64_t a = _stack.get<int64_t>();
+                int64_t b = _stack.get<int64_t>();
+                _stack.add<int64_t>(b);
+                _stack.add<int64_t>(a);
+                if (a != b){
+                    length = bc->getInt16(bci+1)+1;
+                }
+
+                break;
+            }
+            case BC_IFICMPE://, "Compare two topmost integers and jump if upper == lower, next two bytes - signed offset of jump destination.", 3)
+            {
+                int64_t a = _stack.get<int64_t>();
+                int64_t b = _stack.get<int64_t>();
+                _stack.add<int64_t>(b);
+                _stack.add<int64_t>(a);
+                if (a == b){
+                    length = bc->getInt16(bci+1)+1;
+                }
+                break;
+            }
+            case BC_IFICMPG://, "Compare two topmost integers and jump if upper > lower, next two bytes - signed offset of jump destination.", 3)
+            {
+                int64_t a = _stack.get<int64_t>();
+                int64_t b = _stack.get<int64_t>();
+                _stack.add<int64_t>(b);
+                _stack.add<int64_t>(a);
+                if (a > b){
+                    length = bc->getInt16(bci+1)+1;
+                }
+                break;
+            }
+            case BC_IFICMPGE://, "Compare two topmost integers and jump if upper >= lower, next two bytes - signed offset of jump destination.", 3)
+            {
+                int64_t a = _stack.get<int64_t>();
+                int64_t b = _stack.get<int64_t>();
+                _stack.add<int64_t>(b);
+                _stack.add<int64_t>(a);
+                if (a >= b){
+                    length = bc->getInt16(bci+1)+1;
+                }
+                break;
+            }
+            case BC_IFICMPL://, "Compare two topmost integers and jump if upper < lower, next two bytes - signed offset of jump destination.", 3)
+            {
+                int64_t a = _stack.get<int64_t>();
+                int64_t b = _stack.get<int64_t>();
+                _stack.add<int64_t>(b);
+                _stack.add<int64_t>(a);
+                if (a < b){
+                    length = bc->getInt16(bci+1)+1;
+                }
+                break;
+            }
+            case BC_IFICMPLE://, "Compare two topmost integers and jump if upper <= lower, next two bytes - signed offset of jump destination.", 3)
+            {
+                int64_t a = _stack.get<int64_t>();
+                int64_t b = _stack.get<int64_t>();
+                _stack.add<int64_t>(b);
+                _stack.add<int64_t>(a);
+                if (a <= b){
+                    length = bc->getInt16(bci+1)+1;
+                }
+                break;
+            }
             case BC_DUMP://, "Dump value on TOS, without removing it.", 1)
                 //it's like print. It's needless
                 break;
@@ -391,12 +487,14 @@ namespace mathvm{
             }
             case BC_CALLNATIVE://, "Call native function, next two bytes - id of the native function.", 3)
             case BC_RETURN://, "Return to call location", 1)
+                scope_vars.pop_back();
                 return;
             case BC_BREAK:// , "Breakpoint for the debugger.", 1)
                 break;
             }
             bci += length;
         }
+
         return;
     }
 }

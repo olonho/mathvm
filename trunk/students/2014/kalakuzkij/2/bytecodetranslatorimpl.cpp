@@ -29,7 +29,7 @@ namespace mathvm{
             if ( (l == VT_STRING && r == VT_INT) ||
                  (r == VT_STRING && l == VT_INT) ) return VT_INT;
 
-            cerr << "can't get max type bw " << l << " and " << r << endl;
+            //cerr << "can't get max type bw " << l << " and " << r << endl;
            return VT_INVALID; 
         }
 
@@ -76,7 +76,42 @@ namespace mathvm{
             if (r_t != m_t && r_t == VT_INT){
                 curfun->bytecode()->addInsn(BC_I2D);
             }
+            if (n->kind() >= tEQ && n->kind() <= tLE){
+                Label end(curfun->bytecode());
+                Label _false(curfun->bytecode());
+                if (top_type == VT_INT){
+                    curfun->bytecode()->addInsn(BC_ICMP);
+                } else if(top_type == VT_DOUBLE) {
+                    curfun->bytecode()->addInsn(BC_DCMP);
+                } else {
+                    //todo throw error
+                }
+                if (n->kind() == tEQ || n->kind() == tNEQ){
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                } else if (n->kind() == tLT || n->kind() == tGE){
+                    curfun->bytecode()->addInsn(BC_ILOAD1);
+                } else if (n->kind() == tGT || n->kind() == tLE){
+                    curfun->bytecode()->addInsn(BC_ILOADM1);
+                } else {
+                    //todo throw error
+                }
+                if (n->kind() == tEQ || n->kind() == tLT || n->kind() == tGT){
+                    curfun->bytecode()->addBranch(BC_IFICMPE, _false);
+                }else {
+                    curfun->bytecode()->addBranch(BC_IFICMPNE, _false);
+                }
 
+                curfun->bytecode()->addInsn(BC_POP);
+                curfun->bytecode()->addInsn(BC_POP);
+                curfun->bytecode()->addInsn(BC_ILOAD0);
+                curfun->bytecode()->addBranch(BC_JA, end);
+                curfun->bytecode()->bind(_false);
+                curfun->bytecode()->addInsn(BC_POP);
+                curfun->bytecode()->addInsn(BC_POP);
+                curfun->bytecode()->addInsn(BC_ILOAD1);
+                curfun->bytecode()->bind(end);
+                top_type = VT_INT;
+            } else
             if (m_t == VT_DOUBLE){
                 switch (n->kind()){
                 case tADD:
@@ -92,7 +127,9 @@ namespace mathvm{
                     curfun->bytecode()->addInsn(BC_DMUL);
                     break;
                 default:
-                    cerr << "for int add insn" << n->kind() << endl;
+                    //todo throw error
+                    break;
+                    //cerr << "for int add insn" << n->kind() << endl;
                 }
             } else if(m_t == VT_INT){
                 switch (n->kind()){
@@ -120,11 +157,63 @@ namespace mathvm{
                 case tAXOR:
                     curfun->bytecode()->addInsn(BC_IAXOR);
                     break;
+                case tOR:{
+                    Label end(curfun->bytecode());
+                    Label _true1(curfun->bytecode());
+                    Label _true2(curfun->bytecode());
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                    curfun->bytecode()->addBranch(BC_IFICMPNE, _true1);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                    curfun->bytecode()->addBranch(BC_IFICMPNE, _true2);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                    curfun->bytecode()->addBranch(BC_JA, end);
+                    curfun->bytecode()->bind(_true1);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->bind(_true2);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_ILOAD1);
+                    curfun->bytecode()->bind(end);
+                    top_type = VT_INT;
+                    break;
+                    }
+                case tAND:{
+                    Label end(curfun->bytecode());
+                    Label _false1(curfun->bytecode());
+                    Label _false2(curfun->bytecode());
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                    curfun->bytecode()->addBranch(BC_IFICMPE, _false1);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                    curfun->bytecode()->addBranch(BC_IFICMPE, _false2);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_ILOAD1);
+                    curfun->bytecode()->addBranch(BC_JA, end);
+                    curfun->bytecode()->bind(_false1);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->bind(_false2);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                    curfun->bytecode()->bind(end);
+                    top_type = VT_INT;
+                    break;
+                }
                 default:
-                    cerr << "for int add insn" << n->kind() << endl;
+                    //todo throw error
+                    break;
+                    //cerr << "for int add insn" << n->kind() << endl;
                 }
             } else {
-                cerr << "Double opp with bad type: " << m_t << endl;
+                //todo throw error
+
+                //cerr << "Double opp with bad type: " << m_t << endl;
             }
 		}
         virtual void visitUnaryOpNode(UnaryOpNode *n){
@@ -139,16 +228,38 @@ namespace mathvm{
                             curfun->bytecode()->addInsn(BC_DNEG);
                             break;
                         default:
-                            cerr << "add type for unary - " << top_type << endl;
+                            //todo throw error
+                            break;
+                            //cerr << "add type for unary - " << top_type << endl;
                     }
                     break;
+                case tNOT:
+                if (top_type ==  VT_INT) {
+                    Label end(curfun->bytecode());
+                    Label zero(curfun->bytecode());
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                    curfun->bytecode()->addBranch(BC_IFICMPNE, zero);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_ILOAD1);
+                    curfun->bytecode()->addBranch(BC_JA, end);
+                    curfun->bytecode()->bind(zero);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_POP);
+                    curfun->bytecode()->addInsn(BC_ILOAD0);
+                    curfun->bytecode()->bind(end);
+                } else {
+                    //todo throw error
+                }
                 default:
-                    cerr << "add unary op: " << n->kind() << endl;
+                //todo throw error
+                break;
+                //cerr << "add unary op: " << n->kind() << endl;
             }
 		}
 
         virtual void visitStringLiteralNode(StringLiteralNode *n){
-            cerr << "string literal: " << n->literal() << endl;
+            //cerr << "string literal: " << n->literal() << endl;
 
             curfun->bytecode()->addInsn(BC_SLOAD);
             curfun->bytecode()->addInt16((*code)->makeStringConstant(n->literal().c_str()));
@@ -157,21 +268,21 @@ namespace mathvm{
 		}
 
         virtual void visitDoubleLiteralNode(DoubleLiteralNode *n){
-            cerr << "double literal: "<< n->literal() << endl;
+            //cerr << "double literal: "<< n->literal() << endl;
             curfun->bytecode()->addInsn(BC_DLOAD);
             curfun->bytecode()->addDouble(n->literal());
 
             top_type = VT_DOUBLE;
 		}
         virtual void visitIntLiteralNode(IntLiteralNode *n){
-            cerr <<"int literal: "<< n->literal() << endl;
+            //cerr <<"int literal: "<< n->literal() << endl;
             curfun->bytecode()->addInsn(BC_ILOAD);
             curfun->bytecode()->addInt64(n->literal());
             top_type = VT_INT;
 
 		}
         virtual void visitLoadNode(LoadNode *n){
-            cerr << "load node: " << n->var()->name() << endl;
+            //cerr << "load node: " << n->var()->name() << endl;
             int16_t vid = (*code)->get_var_by_name(n->var()->name());
             top_type = n->var()->type();
             switch (n->var()->type()){
@@ -193,10 +304,86 @@ namespace mathvm{
         }
 
         virtual void visitStoreNode(StoreNode *n){
-			n->value()->visit(this);
             int16_t varid = (*code)->get_var_by_name(n->var()->name());
-            //todo switch on n->op()
-            cerr << "store node: " << n->var()->name() << endl;
+            if (n->op() != tASSIGN){
+                switch (n->op()){
+                case tINCRSET:
+                    switch(n->var()->type()){
+                    case VT_INT:
+                        curfun->bytecode()->addInsn(BC_LOADIVAR);
+                        curfun->bytecode()->addInt16(varid);
+                        break;
+                    case VT_DOUBLE:
+                        curfun->bytecode()->addInsn(BC_LOADDVAR);
+                        curfun->bytecode()->addInt16(varid);
+                        break;
+                    default:
+                        //todo throw error;
+                        break;
+                    }
+                    break;
+                case tDECRSET:
+                    switch(n->var()->type()){
+                    case VT_INT:
+                        curfun->bytecode()->addInsn(BC_LOADIVAR);
+                        curfun->bytecode()->addInt16(varid);
+                        break;
+                    case VT_DOUBLE:
+                        curfun->bytecode()->addInsn(BC_LOADDVAR);
+                        curfun->bytecode()->addInt16(varid);
+                        break;
+                    default:
+                        //todo throw error;
+                        break;
+                    }
+                    break;
+                default:
+                    //tood throw error
+                    break;
+                }
+            }
+            n->value()->visit(this);
+            switch (n->var()->type()){
+            case VT_INT:
+                if (top_type == VT_DOUBLE){
+                    curfun->bytecode()->addInsn(BC_D2I);
+                }else if (top_type != VT_INT){
+                    //todo throw error
+                }
+                break;
+            case VT_DOUBLE:
+                if (top_type == VT_INT){
+                    curfun->bytecode()->addInsn(BC_I2D);
+                }else if (top_type != VT_DOUBLE){
+                    //todo throw error
+                }
+                break;
+            case VT_STRING:
+                if (top_type != VT_STRING){
+                    //todo throw error
+                }
+                break;
+            default:
+                //todo throw error
+                break;
+            }
+            if (n->op() != tASSIGN){
+                if (n->op() == tINCRSET){
+                    if (n->var()->type() == VT_INT){
+                        curfun->bytecode()->addInsn(BC_IADD);
+                    }else{
+                        curfun->bytecode()->addInsn(BC_DADD);
+
+                    }
+               }else{
+                    if (n->var()->type() == VT_INT){
+                        curfun->bytecode()->addInsn(BC_ISUB);
+                    }else{
+                        curfun->bytecode()->addInsn(BC_DSUB);
+                    }
+                }
+            }
+
             switch (n->var()->type()){
             case VT_INT:
                 curfun->bytecode()->addInsn(BC_STOREIVAR);
@@ -216,15 +403,45 @@ namespace mathvm{
         }
 
         virtual void visitForNode(ForNode *n){
+
             Label end(curfun->bytecode());
+            if (!n->inExpr()->isBinaryOpNode() || n->inExpr()->asBinaryOpNode()->kind() != tRANGE){
+                //todo throw error
+            }
+            n->inExpr()->asBinaryOpNode()->left()->visit(this);
+            if (top_type != VT_INT) {
+                //todo throw error
+            }
+
+            int varid = (*code)->get_var_by_name(n->var()->name());
+            curfun->bytecode()->addInsn(BC_STOREIVAR);
+            curfun->bytecode()->addInt16(varid);
+
+            n->inExpr()->asBinaryOpNode()->right()->visit(this);
+            if (top_type != VT_INT) {
+                //todo throw error
+            }
 
             Label start(curfun->bytecode());
             curfun->bytecode()->bind(start);
-            n->inExpr()->visit(this);
-            curfun->bytecode()->addInsn(BC_ILOAD0);
-            curfun->bytecode()->addBranch(BC_IFICMPE, end);
-			n->body()->visit(this);
+            // condition
+            curfun->bytecode()->addInsn(BC_LOADIVAR);
+            curfun->bytecode()->addInt16(varid);
+            curfun->bytecode()->addBranch(BC_IFICMPG, end);
+            curfun->bytecode()->addInsn(BC_POP);
+            // body
+            n->body()->visit(this);
+            // increment and jump back
+            curfun->bytecode()->addInsn(BC_LOADIVAR);
+            curfun->bytecode()->addInt16(varid);
+            curfun->bytecode()->addInsn(BC_ILOAD1);
+            curfun->bytecode()->addInsn(BC_IADD);
+            curfun->bytecode()->addInsn(BC_STOREIVAR);
+            curfun->bytecode()->addInt16(varid);
+            curfun->bytecode()->addBranch(BC_JA, start);
             curfun->bytecode()->bind(end);
+            curfun->bytecode()->addInsn(BC_POP);
+            curfun->bytecode()->addInsn(BC_POP);
 
 		}
         virtual void visitWhileNode(WhileNode *n){
@@ -234,8 +451,13 @@ namespace mathvm{
             n->whileExpr()->visit(this);
             curfun->bytecode()->addInsn(BC_ILOAD0);
             curfun->bytecode()->addBranch(BC_IFICMPE, end);
+            curfun->bytecode()->addInsn(BC_POP);
+            curfun->bytecode()->addInsn(BC_POP);
             n->loopBlock()->visit(this);
+            curfun->bytecode()->addBranch(BC_JA, start);
             curfun->bytecode()->bind(end);
+            curfun->bytecode()->addInsn(BC_POP);
+            curfun->bytecode()->addInsn(BC_POP);
 		}
 
         virtual void visitIfNode(IfNode *n){
@@ -245,11 +467,14 @@ namespace mathvm{
             n->ifExpr()->visit(this);
             curfun->bytecode()->addInsn(BC_ILOAD0);
             curfun->bytecode()->addBranch(BC_IFICMPE, _else);
-
+            curfun->bytecode()->addInsn(BC_POP);
+            curfun->bytecode()->addInsn(BC_POP);
             n->thenBlock()->visit(this);
             curfun->bytecode()->addBranch(BC_JA, end);
 
             curfun->bytecode()->bind(_else);
+            curfun->bytecode()->addInsn(BC_POP);
+            curfun->bytecode()->addInsn(BC_POP);
             if (n->elseBlock()) {
                 n->elseBlock()->visit(this);
             }
@@ -299,23 +524,23 @@ namespace mathvm{
 
 			for(uint i = 0; i < n->parametersNumber(); ++i){
 				n->parameterAt(i)->visit(this);
-                int16_t vid = (*code)->get_var_by_name(f->parameterName(i), f->scopeId());
-                switch(f->parameterType(i)){
-                case VT_DOUBLE:
-                    curfun->bytecode()->addInsn(BC_STOREDVAR);
-                    curfun->bytecode()->addInt16(vid);
-                    break;
-                case VT_INT:
-                    curfun->bytecode()->addInsn(BC_STOREIVAR);
-                    curfun->bytecode()->addInt16(vid);
-                    break;
-                case VT_STRING:
-                    curfun->bytecode()->addInsn(BC_STORESVAR);
-                    curfun->bytecode()->addInt16(vid);
-                    break;
-                default:
-                    break; //todo throw error
-                }
+//                int16_t vid = (*code)->get_var_by_name(f->parameterName(i), f->scopeId());
+//                switch(f->parameterType(i)){
+//                case VT_DOUBLE:
+//                    curfun->bytecode()->addInsn(BC_STOREDVAR);
+//                    curfun->bytecode()->addInt16(vid);
+//                    break;
+//                case VT_INT:
+//                    curfun->bytecode()->addInsn(BC_STOREIVAR);
+//                    curfun->bytecode()->addInt16(vid);
+//                    break;
+//                case VT_STRING:
+//                    curfun->bytecode()->addInsn(BC_STORESVAR);
+//                    curfun->bytecode()->addInt16(vid);
+//                    break;
+//                default:
+//                    break; //todo throw error
+//                }
 			}
 
             curfun->bytecode()->addInsn(BC_CALL);

@@ -10,8 +10,9 @@ class InterpreterCodeImpl:public Code{
 private:
 
 
-    vmStack _stack;
+
     vector<VarType> stack_types;
+    vmStack _stack;
     AbstractVarContext a_vars;
     vector<map<int16_t, Var*> >scope_vars;
     bool running;
@@ -21,6 +22,7 @@ private:
  public:
     virtual Status *execute(vector<Var*>& vars);
     ~InterpreterCodeImpl(){
+        //todo clear this useless stuff
         int a = 0;
         a ++;
     }
