@@ -88,7 +88,6 @@ private:
     inline void castTos(VarType to);
     inline void booleanizeTos();
 
-    void genBooleanOp(TokenKind op);
     void genBitwiseOp(TokenKind op);
     void genComparisonOp(TokenKind op);
     void genNumericOp(TokenKind op);

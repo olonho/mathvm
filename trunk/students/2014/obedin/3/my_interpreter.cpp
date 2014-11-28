@@ -1,5 +1,7 @@
 #include "my_interpreter.hpp"
 
+#include "asmjit/asmjit.h"
+
 
 template<typename T>
 StackItem
@@ -411,5 +413,12 @@ ICode::doCallFunction(ID id)
 void
 ICode::doCallNativeFunction(ID id)
 {
-    // TODO: write this
+    const Signature *sig;
+    const string *name;
+    const void *addr = nativeById(id, &sig, &name);
+    if (addr == NULL)
+        throw std::runtime_error("TODO: function not found");
+
+    asmjit::JitRuntime runtime;
+    asmjit::X86Compiler compiler(&runtime);
 }
