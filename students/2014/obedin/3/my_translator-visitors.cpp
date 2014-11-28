@@ -7,13 +7,39 @@ TVisitor::visitBinaryOpNode(BinaryOpNode *node)
 {
     PUSH_NODE
 
+    TokenKind op = node->kind();
+
+    if (op == tOR || op == tAND) {
+        Label lLazyEnd(bc()), lEnd(bc());
+
+        node->left()->visit(this);
+        castTos(VT_INT);
+
+        bc()->addInsn(BC_ILOAD0);
+        if (op == tOR)
+            bc()->addBranch(BC_IFICMPNE, lLazyEnd);
+        else
+            bc()->addBranch(BC_IFICMPE, lLazyEnd);
+
+        node->right()->visit(this);
+        booleanizeTos();
+        bc()->addBranch(BC_JA, lEnd);
+
+        bc()->bind(lLazyEnd);
+        if (op == tOR)
+            bc()->addInsn(BC_ILOAD1);
+        else
+            bc()->addInsn(BC_ILOAD0);
+        bc()->bind(lEnd);
+
+        POP_NODE
+        return;
+    }
+
     node->right()->visit(this);
     node->left()->visit(this);
 
-    TokenKind op = node->kind();
     switch (op) {
-        case tOR: case tAND:
-            genBooleanOp(op); break;
         case tAOR: case tAAND: case tAXOR:
             genBitwiseOp(op); break;
         case tEQ: case tNEQ: case tGT: case tGE: case tLT: case tLE:
@@ -175,6 +201,7 @@ TVisitor::visitWhileNode(WhileNode *node)
     Label lStart(bc()), lEnd(bc());
     bc()->bind(lStart);
     node->whileExpr()->visit(this);
+    castTos(VT_INT);
     bc()->addInsn(BC_ILOAD0);
     bc()->addBranch(BC_IFICMPE, lEnd);
     node->loopBlock()->visit(this);
@@ -191,6 +218,7 @@ TVisitor::visitIfNode(IfNode *node)
 
     Label lElse(bc()), lEnd(bc());
     node->ifExpr()->visit(this);
+    castTos(VT_INT);
     bc()->addInsn(BC_ILOAD0);
     bc()->addBranch(BC_IFICMPE, lElse);
     node->thenBlock()->visit(this);

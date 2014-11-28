@@ -39,23 +39,6 @@ TVisitor::booleanizeTos()
 }
 
 void
-TVisitor::genBooleanOp(TokenKind op)
-{
-    castTosAndPrevToSameNumType();
-
-    switch (op) {
-        case tOR:
-            bc()->addInsn(NUMERIC_INSN(tosType(), ADD)); break;
-        case tAND:
-            bc()->addInsn(NUMERIC_INSN(tosType(), MUL)); break;
-        default: break;
-    }
-
-    stackPop();
-    booleanizeTos();
-}
-
-void
 TVisitor::genBitwiseOp(TokenKind op)
 {
     // TODO: optimization -- don't cast and swap if they're already ints
