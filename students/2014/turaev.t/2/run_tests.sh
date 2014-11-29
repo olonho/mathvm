@@ -46,7 +46,7 @@ for test in for_range for_var function-return-void if-fun op_bin op_not op_streq
 done
 
 echo "-------------- additional tests (all should be OK) -------------- "
-for test in casts complex fib_closure function-call 'function' vars; do
+for test in casts complex fib_closure function-call 'function' function-cast vars; do
     run_test ${ADDITIONAL}/${test} 0
 done
 
