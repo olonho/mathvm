@@ -166,24 +166,41 @@ namespace mathvm {
     void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
         LOG_Visitor("visitBinaryOpNode");
 
+        TokenKind tokenKind = node->kind();
+        if (tokenKind == tAND || tokenKind == tOR) {
+
+            node->left()->visit(this);
+
+            bc()->addInsn(BC_ILOAD0);
+            Label exitWithResult(bc());
+            bc()->addBranch(node->kind() == tAND ? BC_IFICMPE : BC_IFICMPNE, exitWithResult);
+
+            node->right()->visit(this);
+
+            Label exit(bc());
+            bc()->addBranch(BC_JA, exit);
+
+            bc()->bind(exitWithResult);
+            bc()->addInsn(node->kind() == tAND ? BC_ILOAD0 : BC_ILOAD1);
+
+            bc()->bind(exit);
+            return;
+        }
+
         node->left()->visit(this);
         VarType leftType = topOfStackType;
         node->right()->visit(this);
         VarType rightType = topOfStackType;
 
-        switch (node->kind()) {
-            case tOR:
-            case tAND:
+        switch (tokenKind) {
             case tAOR:
             case tAAND:
             case tAXOR:
             case tMOD: {
-                switch (node->kind()) {
-                    case tAND:
+                switch (tokenKind) {
                     case tAAND:
                         bc()->addInsn(BC_IAAND);
                         break;
-                    case tOR:
                     case tAOR:
                         bc()->addInsn(BC_IAOR);
                         break;
@@ -216,7 +233,7 @@ namespace mathvm {
                 }
                 Label _else(bc());
                 Label end(bc());
-                switch (node->kind()) {
+                switch (tokenKind) {
                     case tEQ:
                         bc()->addBranch(BC_IFICMPE, _else);
                         break;
@@ -236,7 +253,6 @@ namespace mathvm {
                         bc()->addBranch(BC_IFICMPLE, _else);
                         break;
                     default:;
-                        break;
                 }
                 bc()->addInsn(BC_ILOAD0);
                 bc()->addBranch(BC_JA, end);
@@ -258,7 +274,7 @@ namespace mathvm {
                 if (!isNumericType(varType)) {
                     throw TranslationError(string("Incorrect type for ARITHMETIC inside binary-node: ") + typeToName(varType), node->position());
                 }
-                switch (node->kind()) {
+                switch (tokenKind) {
                     case tADD:
                         bc()->addInsn(varType == VT_DOUBLE ? BC_DADD : BC_IADD);
                         break;
@@ -280,7 +296,7 @@ namespace mathvm {
                 break;
             }
             default:
-                throw TranslationError(string("Unknown binary operation token: ") + tokenStr(node->kind()), node->position());
+                throw TranslationError(string("Unknown binary operation token: ") + tokenStr(tokenKind), node->position());
         }
     }
 

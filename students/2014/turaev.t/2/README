@@ -3,9 +3,9 @@ How to build:
 ________
 
 How to run TRANSLATOR (it's just bytecode printer):
-	./build/debug/bcp <filename>
+	./build/opt/bcp <filename>
 ________
 
 How to run INTERPRETATOR:
-	./build/debug/mvm <filename>
+	./build/opt/mvm <filename>
 	./run_tests.sh -- tests for INTERPRETATOR

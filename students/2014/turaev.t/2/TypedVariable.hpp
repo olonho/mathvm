@@ -4,24 +4,23 @@
 #include "mathvm.h"
 
 namespace mathvm {
-    class TypedVariable {
-        union {
-            double _doubleValue;
-            int64_t _intValue;
-            const char *_stringValue;
-        };
+    struct TypedVariable {
+    private:
+        double _doubleValue;
+        int64_t _intValue;
+        const char *_stringValue;
 
     public:
-        TypedVariable(VarType type) : _type(type) {
+        TypedVariable(VarType type = VT_INT) : _type(type) {
             switch (type) {
                 case VT_DOUBLE:
-                    setDoubleValue(0.0);
+                    _doubleValue = 0.0;
                     break;
                 case VT_INT:
-                    setIntValue(0);
+                    _intValue = 0;
                     break;
                 case VT_STRING:
-                    setStringValue(0);
+                    _stringValue = NULL;
                     break;
                 default:
                     assert(false);
