@@ -15,6 +15,7 @@ class BytecodeTranslatorVisitor: public AstVisitor {
     /* var->setInfo(descriptor); */
     struct VarDescriptor {
         uint16_t functionId, localIndex;
+        bool initialized;
     };
 
     struct Context {
@@ -66,6 +67,7 @@ class BytecodeTranslatorVisitor: public AstVisitor {
 
     void declareFunction(AstFunction* f);
     uint16_t getFunctionId(AstFunction* f) const;
+    VarDescriptor* getDescriptor(const AstVar* x) const;
 
     void variableInScope(AstVar* x);
     void variableOutOfScope(AstVar* x);
@@ -97,7 +99,7 @@ class BytecodeTranslatorVisitor: public AstVisitor {
     void beforeProcessBlock();
     void processBlockNode(BlockNode* node);
     void afterProcessBlock();
-    void processNativeCallNode(NativeCallNode* node);
+    void processNativeCallNode(AstFunction* f);
 
     void falseJump(AstNode* node, Label& label);
 
@@ -136,11 +138,6 @@ class BytecodeTranslatorVisitor: public AstVisitor {
 
     BytecodeFunction* bytecodeFunction() const {
         return (BytecodeFunction*)function()->info();
-    }
-
-    const VarDescriptor* getDescriptor(const AstVar* x) const {
-        assert(x->info());
-        return (VarDescriptor *)x->info();
     }
 };
 

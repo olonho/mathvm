@@ -320,7 +320,7 @@ void BytecodeTranslatorVisitor::visitCallNode(CallNode* node) {
     onVisitNode(node);
 
     AstFunction* f = scope()->lookupFunction(node->name());
-    assert(f);
+    if (!f) ERROR("Unknown function " + f->name());
     checkSignature(node, f);
 
     for (uint16_t i = 0; i < node->parametersNumber(); i++)
@@ -406,7 +406,7 @@ void BytecodeTranslatorVisitor::visitTyped(AstNode* node, VarType type) {
 
 void BytecodeTranslatorVisitor::declareFunction(AstFunction* f) {
     if (isNative(f)) {
-        processNativeCallNode(getNativeCallNode(f));
+        processNativeCallNode(f);
         return;
     }
     BytecodeFunction* bf = new BytecodeFunction(f);
@@ -416,17 +416,22 @@ void BytecodeTranslatorVisitor::declareFunction(AstFunction* f) {
 
 uint16_t BytecodeTranslatorVisitor::getFunctionId(AstFunction* f) const {
     if (isNative(f)) {
-        NativeCallNode* call = getNativeCallNode(f);
-        return code()->getNativeId(call->nativeName());
+        return code()->getNativeId(f->name());
     }
     return ((BytecodeFunction*) f->info())->id();
+}
+
+BytecodeTranslatorVisitor::VarDescriptor*
+BytecodeTranslatorVisitor::getDescriptor(const AstVar* x) const {
+    if (!x->info()) ERROR("Unknown variable " + x->name());
+    return (VarDescriptor *)x->info();
 }
 
 void BytecodeTranslatorVisitor::variableInScope(AstVar* x) {
     assert(x->info() == NULL);
     if (locals() == (uint16_t) -1)
         ERROR("Too many vars");
-    x->setInfo(new VarDescriptor({functionId(), locals()++}));
+    x->setInfo(new VarDescriptor({functionId(), locals()++, false}));
     bytecodeFunction()->setLocalsNumber(std::max(locals(), (uint16_t) bytecodeFunction()->localsNumber()));
 }
 
@@ -531,7 +536,10 @@ void BytecodeTranslatorVisitor::ensureTopIsNumeric() const {
 }
 
 void BytecodeTranslatorVisitor::loadStore(const AstVar* x, bool load) {
-    const VarDescriptor* descriptor = getDescriptor(x);
+    VarDescriptor* descriptor = getDescriptor(x);
+    if (!load) descriptor->initialized = true;
+    warningIf(load && !descriptor->initialized,
+              ("Use of uninitialized var " + x->name()).c_str());
 
     if (descriptor->functionId == functionId())
         loadStoreLocal(descriptor->localIndex, x->type(), load);
@@ -683,12 +691,13 @@ void BytecodeTranslatorVisitor::afterProcessBlock() {
         variableOutOfScope(iter.next());
 }
 
-void BytecodeTranslatorVisitor::processNativeCallNode(NativeCallNode* node) {
+void BytecodeTranslatorVisitor::processNativeCallNode(AstFunction* f) {
+    NativeCallNode* node = getNativeCallNode(f);
     void* address = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
     if (address == NULL)
         ERROR("Cannot link native: " + node->nativeName());
 
-    code()->makeNativeFunction(node->nativeName(),
+    code()->makeNativeFunction(f->name(),
                                node->nativeSignature(),
                                address);
 }
