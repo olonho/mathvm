@@ -457,6 +457,8 @@ public:
     virtual void disassemble(ostream& out) const {
         _bytecode.dump(out);
     }
+
+    virtual ~BytecodeFunction() {}
 };
 
 class FunctionFilter {
