@@ -1,0 +1,32 @@
+int andPassed;
+int orPassed;
+
+andPassed = 1;
+orPassed = 1;
+
+function void testAnd() {
+    if ((1 < 2) || failAnd()) {
+        return;
+    }
+}
+
+function void testOr() {
+    if ((1 > 2) && failOr()) {
+        return;
+    }
+}
+
+function int failAnd() {
+    andPassed = 0;
+    return 0;
+}
+
+function int failOr() {
+    orPassed = 0;
+    return 0;
+}
+
+testAnd();
+testOr();
+print('Lazy and passed: ', andPassed, '\n');
+print('Lazy  or passed: ',  orPassed, '\n');
