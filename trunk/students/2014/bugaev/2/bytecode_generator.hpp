@@ -61,6 +61,7 @@ private:
     void storeVariable(AstNode const *node,
                        VarType type, uint16_t ctx, uint16_t id,
                        char const *errMsg = 0);
+    void makeLazyLogicalOp(BinaryOpNode *node);
     VarType makeIBinaryOp(AstNode const *node, Instruction insn);
     VarType makeIDBinaryOp(AstNode const *node,
                            Instruction ibc, Instruction dbc);
