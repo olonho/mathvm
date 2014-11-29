@@ -25,7 +25,7 @@ mkStackItem<const char *>(const char *val)
 
 #define GEN_AS_FOR(vt, m) \
     if (type != (vt)) \
-        throw std::runtime_error("TODO: make msg for `StackItem::as`");\
+        throw std::runtime_error(MSG_UNEXPECTED_TOS);\
     return (m);
 
 template<>
@@ -406,7 +406,7 @@ ICode::doCallFunction(ID id)
 {
     BytecodeFunction *fn = (BytecodeFunction*)functionById(id);
     if (fn == NULL)
-        throw std::runtime_error("TODO: function not found");
+        throw std::runtime_error(MSG_FUNCTION_NOT_FOUND);
     m_curScope = new IScope(fn, m_curScope);
 }
 
@@ -420,7 +420,7 @@ varTypeToAsmJit(VarType t)
         case VT_STRING:
             return asmjit::kVarTypeInt64;
         default:
-            throw std::runtime_error("TODO: Can't convert type");
+            throw std::runtime_error(MSG_CANT_CONVERT_TO_ASMJIT_TYPE);
     }
 }
 
@@ -431,7 +431,7 @@ ICode::doCallNativeFunction(ID id)
     const string *name;
     const void *addr = nativeById(id, &sig, &name);
     if (addr == NULL)
-        throw std::runtime_error("TODO: function not found");
+        throw std::runtime_error(MSG_NATIVE_NOT_FOUND);
     const VarType returnType = sig->at(0).first;
 
     using namespace asmjit;
@@ -478,7 +478,7 @@ ICode::doCallNativeFunction(ID id)
                 break;
             }
             default:
-                throw std::runtime_error("TODO: Can't convert type");
+                throw std::runtime_error(MSG_CANT_CONVERT_TO_ASMJIT_TYPE);
         }
     }
 
@@ -504,7 +504,7 @@ ICode::doCallNativeFunction(ID id)
             break;
         }
         default:
-            throw std::runtime_error("TODO: Can't convert type");
+            throw std::runtime_error(MSG_CANT_CONVERT_TO_ASMJIT_TYPE);
     }
 
     compiler.endFunc();
@@ -529,7 +529,7 @@ ICode::doCallNativeFunction(ID id)
             break;
         }
         default:
-            throw std::runtime_error("TODO: Can't convert type");
+            throw std::runtime_error(MSG_CANT_CONVERT_TO_ASMJIT_TYPE);
     }
 
     runtime.release(mainFnPtr);

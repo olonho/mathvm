@@ -57,7 +57,7 @@ public:
     inline StackItem &findVar(ID id)
         {
             if (id >= vars.size())
-                throw std::runtime_error("TODO: var not found");
+                throw std::runtime_error(MSG_VAR_NOT_FOUND);
             return vars[id];
         }
 
@@ -67,7 +67,7 @@ public:
             while (scope && scope->id() != ctx)
                 scope = scope->parent;
             if (scope == NULL)
-                throw std::runtime_error("TODO: ctx not found");
+                throw std::runtime_error(MSG_CTX_NOT_FOUND);
             return scope->findVar(id);
         }
 };

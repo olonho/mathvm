@@ -19,6 +19,9 @@
 #define MSG_NATIVE_NOT_FOUND    "Native function is not found"
 
 #define MSG_INVALID_INSN        "Invaid instruction"
+#define MSG_CTX_NOT_FOUND       "Context is not found"
+#define MSG_UNEXPECTED_TOS      "Unexpected type of TOS"
+#define MSG_CANT_CONVERT_TO_ASMJIT_TYPE "Can't convert VM type to AsmJit type"
 
 
 #define NUMERIC_INSN(t, insn) ((t) == VT_INT ? BC_I##insn : (t) == VT_DOUBLE ? BC_D##insn : throw std::runtime_error(MSG_NAN_ON_TOS))
