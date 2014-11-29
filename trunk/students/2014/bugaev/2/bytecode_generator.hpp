@@ -111,10 +111,12 @@ private:
 
     uint16_t currentContext() const
     {
-        uint16_t const result = static_cast<uint16_t>(m_scopes.size());
-        assert(result == m_scopes.size());
-        assert(result > 0);
-        return result - 1;
+        return 1;
+    }
+
+    uint16_t nextContext() const
+    {
+        return 0;
     }
 
     Bytecode *bc()

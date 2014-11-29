@@ -329,7 +329,7 @@ void BytecodeGenerator::visitBlockNode(BlockNode *node)
 
 void BytecodeGenerator::visitFunctionNode(FunctionNode *node)
 {
-    bool native = node->body()->nodeAt(0)
+    bool native = node->body()->nodes() > 0 && node->body()->nodeAt(0)
             && node->body()->nodeAt(0)->isNativeCallNode();
     if (native)
         node->body()->nodeAt(0)->visit(this);
@@ -380,12 +380,12 @@ void BytecodeGenerator::visitCallNode(CallNode *node)
 
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
-        storeVariable(node, tosType(), currentContext() + 1, i + 1);
+        storeVariable(node, tosType(), nextContext(), i + 1);
     }
     bc()->addInsn(BC_CALL);
     bc()->addInt16(tf->id());
 
-    loadVariable(node, tf->returnType(), currentContext() + 1, 0);
+    loadVariable(node, tf->returnType(), nextContext(), 0);
 }
 
 
@@ -471,42 +471,63 @@ void BytecodeGenerator::findVariable(
         AstNode const *node, std::string const &name,
         uint16_t &ctx, uint16_t &id, VarType &type)
 {
-    uint16_t curCtx = currentContext();
-    while (true) {
-        FunctionNode *fn = m_scopes[curCtx].first;
-        Scope *scp = m_scopes[curCtx].second;
+    assert(!m_scopes.empty());
+    int i = static_cast<int>(m_scopes.size()) - 1;
+
+    ctx = 1;
+    id = 0;
+
+    bool found = false;
+    for (; !found && i >= 0; --i) {
+        FunctionNode *fn = m_scopes[i].first;
+        Scope *scp = m_scopes[i].second;
 
         if (fn) {
-            for (uint32_t i = 0; i < fn->parametersNumber(); ++i) {
-                if (fn->parameterName(i) == name) {
-                    ctx = curCtx;
-                    id = 1 + i;
+            for (uint32_t j = 0; j < fn->parametersNumber(); ++j) {
+                if (fn->parameterName(j) == name) {
+                    id = 1 + j;
                     type = fn->parameterType(i);
                     return;
                 }
             }
         }
 
-        int i = 0;
+        uint16_t j = 0;
         Scope::VarIterator vi(scp);
         while (vi.hasNext()) {
             AstVar *av = vi.next();
             if (av->name() == name) {
-                ctx = curCtx;
-                id = 1 + i + fn->parametersNumber();
+                id = 1 + j + (fn ? fn->parametersNumber() : 0);
                 type = av->type();
-                return;
+                found = true;
+                break;
             }
-            ++i;
+            ++j;
         }
 
-        if (curCtx == 0)
-            break;
-        --curCtx;
+        ctx += !found && fn != 0;
     }
 
-    throw BytecodeGeneratorException("Undefined variable",
-                                     node->position());
+    if (!found) {
+        throw BytecodeGeneratorException("Undefined variable",
+                                         node->position());
+    }
+
+    ++i;
+    if (i == 0 || m_scopes[i].first)
+        return;
+
+    --i;
+    for (; i >= 0; --i) {
+        FunctionNode *fn = m_scopes[i].first;
+        Scope *scp = m_scopes[i].second;
+
+        id += scp->variablesCount();
+        if (fn) {
+            id += fn->parametersNumber();
+            break;
+        }
+    }
 }
 
 
