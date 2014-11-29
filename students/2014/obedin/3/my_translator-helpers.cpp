@@ -41,11 +41,14 @@ TVisitor::booleanizeTos()
 void
 TVisitor::genBitwiseOp(TokenKind op)
 {
-    // TODO: optimization -- don't cast and swap if they're already ints
-    castTos(VT_INT);
-    swapTos();
-    castTos(VT_INT);
-    swapTos();
+    if (tosType() != VT_INT)
+        castTos(VT_INT);
+
+    if (m_stack[m_stack.size()-2] != VT_INT) {
+        swapTos();
+        castTos(VT_INT);
+        swapTos();
+    }
 
     switch (op) {
         case tAOR:
