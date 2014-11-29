@@ -28,6 +28,11 @@ Status *BytecodeGenerator::generate(InterpreterCodeImpl *code,
 
 void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode *node)
 {
+    if (node->kind() == tOR || node->kind() == tAND) {
+        makeLazyLogicalOp(node);
+        return;
+    }
+
     node->right()->visit(this);
     node->left()->visit(this);
 
@@ -35,10 +40,10 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode *node)
 
     switch (node->kind()) {
     case tOR:
-        resultType = makeIBinaryOp(node, BC_IAOR);
+        assert(false);
         break;
     case tAND:
-        resultType = makeIBinaryOp(node, BC_IAAND);
+        assert(false);
         break;
     case tAOR:
         resultType = makeIBinaryOp(node, BC_IAOR);
@@ -563,6 +568,39 @@ void BytecodeGenerator::storeVariable(
     bc()->addInt16(id);
 
     popType();
+}
+
+
+void BytecodeGenerator::makeLazyLogicalOp(BinaryOpNode *node)
+{
+    assert(node->kind() == tOR || node->kind() == tAND);
+    bool const andOp = node->kind() == tAND;
+
+    node->left()->visit(this);
+    if (tosType() != VT_INT) {
+        throw BytecodeGeneratorException("Illegal operands",
+                                         node->position());
+    }
+    popType();
+
+    bc()->addInsn(BC_ILOAD0);
+    Label l1(bc());
+    bc()->addBranch(andOp ? BC_IFICMPNE : BC_IFICMPE, l1);
+
+    bc()->addInsn(andOp ? BC_ILOAD0 : BC_ILOAD1);
+    Label l2(bc());
+    bc()->addBranch(BC_JA, l2);
+
+    bc()->bind(l1);
+    node->right()->visit(this);
+    if (tosType() != VT_INT) {
+        throw BytecodeGeneratorException("Illegal operands",
+                                         node->position());
+    }
+    popType();
+
+    bc()->bind(l2);
+    pushType(VT_INT);
 }
 
 
