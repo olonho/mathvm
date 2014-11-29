@@ -51,7 +51,7 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& ignored) {
     prevTop = POP();         \
     PUSH(FUN<Type>()(top, prevTop))
 
-#define CMP_OP(FUN)         \
+#define CMP_OP(FUN)          \
     top     = POP();         \
     prevTop = POP();         \
     FUN<Int>()(top, prevTop) ? JUMP() : bci += 2
