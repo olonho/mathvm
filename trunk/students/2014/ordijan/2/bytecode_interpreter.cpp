@@ -16,8 +16,8 @@ struct Cmp {
 #define CONTEXT_SIZE 1024 * 1024 * 8
 #endif
 
-std::vector<StackValue> context(CONTEXT_SIZE);   /* 64mb */
-std::vector<StackValue>   stack(  STACK_SIZE);   /* 16mb */
+std::vector<StackValue> context(CONTEXT_SIZE, 0xCCCCCCCCL);   /* 64mb */
+std::vector<StackValue>   stack(  STACK_SIZE, 0xCCCCCCCCL);   /* 16mb */
 
 
 namespace mathvm {
@@ -291,9 +291,6 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& ignored) {
     const void* address = nativeById(NEXT_UINT16(), &signature, &name);
     const size_t argsNumber = signature->size() - 1;
     tos -= argsNumber;
-    /*
-     * Bug note: + 1 !
-    */
     StackValue* argsStart = &stack[tos + 1];
 
     switch (signature->operator[](0).first) {
@@ -337,7 +334,7 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& ignored) {
     fun = getFunction(funId);
     code = fun->bytecode();
     bci = frame.bci;
-    funContextStart[frame.functionId] = frame.prev;
+    funContextStart[frame.functionId] = frame.prevContextStart;
     contextTop -= getFunction(frame.functionId)->localsNumber();
     DISPATCH();
  BREAK:

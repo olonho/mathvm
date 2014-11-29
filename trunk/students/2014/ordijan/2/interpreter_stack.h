@@ -24,7 +24,7 @@ union StackValue {
 
 struct StackFrame {
     uint16_t functionId;
-    uint32_t prev;
+    uint32_t prevContextStart;
     uint32_t bci;
 };
 

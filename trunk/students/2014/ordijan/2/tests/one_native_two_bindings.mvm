@@ -1,0 +1,14 @@
+function void printInt(int x) {
+    function void printIntHelper(string format, int x) native 'printf';
+    printIntHelper('%li', x);
+}
+
+function void printDouble(double x) {
+    function void printDoubleHelper(string format, double x) native 'printf';
+    printDoubleHelper('%lf', x)
+}
+
+printInt(42);
+print('\n');
+printDouble(3.1415926);
+print('\n');
