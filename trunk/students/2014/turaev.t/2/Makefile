@@ -1,10 +1,11 @@
 ROOT   = .
 VM_ROOT = ../../../..
 WITH_SDL=1
+OPT=1
 
 include $(VM_ROOT)/common.mk
 
-USER_CFLAGS += -std=c++11 -Wall -Wno-unused -g0 -Ofast
+USER_CFLAGS += -std=c++11 -Wno-unused
 
 USER_OBJ = \
    $(JIT_OBJ) \

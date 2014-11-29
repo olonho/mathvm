@@ -2,7 +2,6 @@
 #include <cstdlib>
 #include <sstream>
 #include "SimpleInterpreter.hpp"
-#include "Errors.hpp"
 
 namespace mathvm {
     Status *SimpleInterpreter::execute(vector<Var *> &vars) {
@@ -26,7 +25,7 @@ namespace mathvm {
 #pragma clang diagnostic ignored "-Wincompatible-pointer-types"
 
     void SimpleInterpreter::run(ostream &out) {
-        programStack.clear();
+        stack.resize(50);
         bytecodes.clear();
         indices.clear();
         vars.clear();
@@ -34,6 +33,7 @@ namespace mathvm {
         indices.push_back(0);
         contextID.push_back(0);
         callsCounter.push_back(0);
+        SP = 0;
 
         while (!bytecodes.empty()) {
             indexType &currentIndex = indices.back();
@@ -45,142 +45,121 @@ namespace mathvm {
             cout << "index: " << currentIndex << ", instruction: " << bcName << endl;
 #endif
             switch (instruction) {
-                case BC_DLOAD:
-                    pushVariable(bytecode.getDouble(currentIndex + 1));
+                case BC_DLOAD: pushVariable(bytecode.getDouble(currentIndex + 1));
                     break;
-                case BC_ILOAD:
-                    pushVariable(bytecode.getInt64(currentIndex + 1));
+                case BC_ILOAD: pushVariable(bytecode.getInt64(currentIndex + 1));
                     break;
-                case BC_SLOAD:
-                    pushVariable(constantById(bytecode.getUInt16(currentIndex + 1)).c_str());
+                case BC_SLOAD: pushVariable(constantById(bytecode.getUInt16(currentIndex + 1)).c_str());
                     break;
-                case BC_DLOAD0:
-                    pushVariable(0.0);
+                case BC_DLOAD0: pushVariable(0.0);
                     break;
-                case BC_ILOAD0:
-                    pushVariable((signedIntType) 0);
+                case BC_ILOAD0: pushVariable((signedIntType) 0);
                     break;
-                case BC_SLOAD0:
-                    pushVariable("");
+                case BC_SLOAD0: pushVariable("");
                     break;
-                case BC_DLOAD1:
-                    pushVariable(1.0);
+                case BC_DLOAD1: pushVariable(1.0);
                     break;
-                case BC_ILOAD1:
-                    pushVariable((signedIntType) 1);
+                case BC_ILOAD1: pushVariable((signedIntType) 1);
                     break;
-                case BC_DLOADM1:
-                    pushVariable(-1.0);
+                case BC_DLOADM1: pushVariable(-1.0);
                     break;
-                case BC_ILOADM1:
-                    pushVariable((signedIntType) -1);
+                case BC_ILOADM1: pushVariable((signedIntType) - 1);
                     break;
-                case BC_DADD:
-                    binary_operation(VT_DOUBLE, add<double>);
+                case BC_DADD: binary_operation(VT_DOUBLE, add<double>);
                     break;
-                case BC_IADD:
-                    binary_operation(VT_INT, add<signedIntType>);
+                case BC_IADD: binary_operation(VT_INT, add < signedIntType > );
                     break;
-                case BC_DSUB:
-                    binary_operation(VT_DOUBLE, sub<double>);
+                case BC_DSUB: binary_operation(VT_DOUBLE, sub<double>);
                     break;
-                case BC_ISUB:
-                    binary_operation(VT_INT, sub<signedIntType>);
+                case BC_ISUB: binary_operation(VT_INT, sub < signedIntType > );
                     break;
-                case BC_DMUL:
-                    binary_operation(VT_DOUBLE, mul<double>);
+                case BC_DMUL: binary_operation(VT_DOUBLE, mul<double>);
                     break;
-                case BC_IMUL:
-                    binary_operation(VT_INT, mul<signedIntType>);
+                case BC_IMUL: binary_operation(VT_INT, mul < signedIntType > );
                     break;
-                case BC_DDIV:
-                    binary_operation(VT_DOUBLE, _div<double>);
+                case BC_DDIV: binary_operation(VT_DOUBLE, _div<double>);
                     break;
-                case BC_IDIV:
-                    binary_operation(VT_INT, _div<signedIntType>);
+                case BC_IDIV: binary_operation(VT_INT, _div < signedIntType > );
                     break;
-                case BC_IMOD:
-                    binary_operation(VT_INT, mod<signedIntType>);
+                case BC_IMOD: binary_operation(VT_INT, mod < signedIntType > );
                     break;
-                case BC_DNEG:
-                    unary_operation(VT_DOUBLE, neg<double>);
+                case BC_DNEG: unary_operation(VT_DOUBLE, neg<double>);
                     break;
-                case BC_INEG:
-                    unary_operation(VT_INT, neg<signedIntType>);
+                case BC_INEG: unary_operation(VT_INT, neg < signedIntType > );
                     break;
-                case BC_IAOR:
-                    binary_operation(VT_INT, _or<signedIntType>);
+                case BC_IAOR: binary_operation(VT_INT, _or < signedIntType > );
                     break;
-                case BC_IAAND:
-                    binary_operation(VT_INT, _and<signedIntType>);
+                case BC_IAAND: binary_operation(VT_INT, _and < signedIntType > );
                     break;
-                case BC_IAXOR:
-                    binary_operation(VT_INT, _xor<signedIntType>);
+                case BC_IAXOR: binary_operation(VT_INT, _xor < signedIntType > );
                     break;
-                case BC_IPRINT:
-                    out << popVariable().getIntValue();
+                case BC_IPRINT: out << popVariable().getIntValue();
                     out.flush();
                     break;
-                case BC_DPRINT:
-                    out << popVariable().getDoubleValue();
+                case BC_DPRINT: out << popVariable().getDoubleValue();
                     out.flush();
                     break;
-                case BC_SPRINT:
-                    out << popVariable().getStringValue();
+                case BC_SPRINT: out << popVariable().getStringValue();
                     out.flush();
                     break;
                 case BC_SWAP: {
                     auto v1 = popVariable();
                     auto v2 = popVariable();
-                    programStack.push_back(v1);
-                    programStack.push_back(v2);
+                    pushVariable(v1);
+                    pushVariable(v2);
                     break;
                 }
                 case BC_STOREDVAR0:
                 case BC_STOREIVAR0:
-                case BC_STORESVAR0:
-                    storeVariable(0);
+                case BC_STORESVAR0: storeVariable(0);
                     break;
                 case BC_STOREDVAR1:
                 case BC_STOREIVAR1:
-                case BC_STORESVAR1:
-                    storeVariable(1);
+                case BC_STORESVAR1: storeVariable(1);
                     break;
                 case BC_STOREDVAR2:
                 case BC_STOREIVAR2:
-                case BC_STORESVAR2:
-                    storeVariable(2);
+                case BC_STORESVAR2: storeVariable(2);
                     break;
                 case BC_STOREDVAR3:
                 case BC_STOREIVAR3:
-                case BC_STORESVAR3:
-                    storeVariable(3);
+                case BC_STORESVAR3: storeVariable(3);
                     break;
                 case BC_LOADDVAR:
                 case BC_LOADIVAR:
-                case BC_LOADSVAR:
-                    programStack.push_back(loadVariable(bytecode.getUInt16(currentIndex + 1)));
+                case BC_LOADSVAR: pushVariable(loadVariable(bytecode.getUInt16(currentIndex + 1)));
+                    break;
+                case BC_LOADDVAR0:
+                case BC_LOADIVAR0:
+                case BC_LOADSVAR0: pushVariable(loadVariable(0));
+                    break;
+                case BC_LOADDVAR1:
+                case BC_LOADIVAR1:
+                case BC_LOADSVAR1: pushVariable(loadVariable(1));
+                    break;
+                case BC_LOADIVAR2:
+                case BC_LOADSVAR2:
+                case BC_LOADDVAR2: pushVariable(loadVariable(2));
+                    break;
+                case BC_LOADDVAR3:
+                case BC_LOADIVAR3:
+                case BC_LOADSVAR3: pushVariable(loadVariable(3));
                     break;
                 case BC_STOREDVAR:
                 case BC_STOREIVAR:
-                case BC_STORESVAR:
-                    storeVariable(bytecode.getUInt16(currentIndex + 1));
+                case BC_STORESVAR: storeVariable(bytecode.getUInt16(currentIndex + 1));
                     break;
                 case BC_LOADCTXDVAR:
                 case BC_LOADCTXIVAR:
-                case BC_LOADCTXSVAR:
-                    programStack.push_back(loadVariable(bytecode.getUInt16(currentIndex + 1), bytecode.getUInt16(currentIndex + 3)));
+                case BC_LOADCTXSVAR: pushVariable(loadVariable(bytecode.getUInt16(currentIndex + 1), bytecode.getUInt16(currentIndex + 3)));
                     break;
                 case BC_STORECTXDVAR:
                 case BC_STORECTXIVAR:
-                case BC_STORECTXSVAR:
-                    storeVariable(bytecode.getUInt16(currentIndex + 1), bytecode.getUInt16(currentIndex + 3));
+                case BC_STORECTXSVAR: storeVariable(bytecode.getUInt16(currentIndex + 1), bytecode.getUInt16(currentIndex + 3));
                     break;
-                case BC_DCMP:
-                    binary_operation<double, signedIntType>(VT_DOUBLE, _cmp<double>, VT_INT);
+                case BC_DCMP: binary_operation<double, signedIntType>(VT_DOUBLE, _cmp<double>);
                     break;
-                case BC_ICMP:
-                    binary_operation(VT_INT, _cmp<signedIntType>);
+                case BC_ICMP: binary_operation(VT_INT, _cmp < signedIntType > );
                     break;
                 case BC_JA: {
                     currentIndex += bytecode.getInt16(currentIndex + 1) + 1;
@@ -251,41 +230,15 @@ namespace mathvm {
                     contextID.pop_back();
                     continue;
                 }
-                case BC_S2I:
-                    pushVariable((signedIntType) popVariable().getStringValue());
+                case BC_I2D: pushVariable((double) popVariable().getIntValue());
                     break;
-                case BC_D2I:
-                    pushVariable((signedIntType) popVariable().getDoubleValue());
+                case BC_D2I: pushVariable((signedIntType) popVariable().getDoubleValue());
                     break;
-                case BC_I2D:
-                    pushVariable((double) popVariable().getIntValue());
+                case BC_S2I: pushVariable((signedIntType) popVariable().getStringValue());
                     break;
-                case BC_LOADDVAR0:
-                case BC_LOADIVAR0:
-                case BC_LOADSVAR0:
-                    programStack.push_back(loadVariable(0));
-                    break;
-                case BC_LOADDVAR1:
-                case BC_LOADIVAR1:
-                case BC_LOADSVAR1:
-                    programStack.push_back(loadVariable(1));
-                    break;
-                case BC_LOADIVAR2:
-                case BC_LOADSVAR2:
-                case BC_LOADDVAR2:
-                    programStack.push_back(loadVariable(2));
-                    break;
-                case BC_LOADDVAR3:
-                case BC_LOADIVAR3:
-                case BC_LOADSVAR3:
-                    programStack.push_back(loadVariable(3));
-                    break;
-                case BC_BREAK:
-                    break;
-                case BC_INVALID:
-                    throw InterpretationError("BC_Invalid instruction");
-                default:
-                    throw InterpretationError(string("Unknown interpreting instruction: ") + bytecodeName(instruction, 0));
+                case BC_BREAK: break;
+                case BC_INVALID: throw InterpretationError("BC_Invalid instruction");
+                default: throw InterpretationError(string("Unknown interpreting instruction: ") + bytecodeName(instruction, 0));
             }
             currentIndex += instructionLength;
         }

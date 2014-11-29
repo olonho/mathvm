@@ -3,7 +3,7 @@
 MATH_VM=../../../..
 
 MATH_VM_TESTS=${MATH_VM}/tests
-MATH_VM_BIN=./build/Debug/mvm
+MATH_VM_BIN=./build/opt/mvm
 
 SIMPLE_TESTS=${MATH_VM_TESTS}/.
 OPTIONAL=${MATH_VM_TESTS}/optional

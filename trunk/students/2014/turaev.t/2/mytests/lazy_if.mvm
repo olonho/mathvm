@@ -1,0 +1,12 @@
+function int f(int x) {
+    print('F!\n');
+    return x;
+}
+
+if (f(1) || f(1)) {
+    print('or\n');
+}
+
+if (f(0) && f(1)) {
+    print('and\n');
+}
