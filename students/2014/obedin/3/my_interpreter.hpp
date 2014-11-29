@@ -51,17 +51,17 @@ public:
         : fn(fn), parent(parent), ip(0), vars(fn->localsNumber())
         {}
 
-    ID id()
+    inline ID id()
         { return fn->id(); }
 
-    StackItem &findVar(ID id)
+    inline StackItem &findVar(ID id)
         {
             if (id >= vars.size())
                 throw std::runtime_error("TODO: var not found");
             return vars[id];
         }
 
-    StackItem &findCtxVar(ID ctx, ID id)
+    inline StackItem &findCtxVar(ID ctx, ID id)
         {
             IScope *scope = this;
             while (scope && scope->id() != ctx)

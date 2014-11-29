@@ -410,6 +410,20 @@ ICode::doCallFunction(ID id)
     m_curScope = new IScope(fn, m_curScope);
 }
 
+uint32_t
+varTypeToAsmJit(VarType t)
+{
+    switch (t) {
+        case VT_DOUBLE:
+            return asmjit::kX86VarTypeXmmSd;
+        case VT_INT:
+        case VT_STRING:
+            return asmjit::kVarTypeInt64;
+        default:
+            throw std::runtime_error("TODO: Can't convert type");
+    }
+}
+
 void
 ICode::doCallNativeFunction(ID id)
 {
@@ -418,7 +432,105 @@ ICode::doCallNativeFunction(ID id)
     const void *addr = nativeById(id, &sig, &name);
     if (addr == NULL)
         throw std::runtime_error("TODO: function not found");
+    const VarType returnType = sig->at(0).first;
 
-    asmjit::JitRuntime runtime;
-    asmjit::X86Compiler compiler(&runtime);
+    using namespace asmjit;
+
+    JitRuntime runtime;
+    X86Compiler compiler(&runtime);
+
+    FuncBuilderX nativeFnBuilder, mainFnBuilder;
+    if (returnType != VT_VOID) {
+        nativeFnBuilder.setRet(varTypeToAsmJit(returnType));
+        mainFnBuilder.setRet(varTypeToAsmJit(returnType));
+    }
+    compiler.addFunc(kFuncConvHost, mainFnBuilder);
+
+    X86GpVar nativeFnPtr(compiler, kVarTypeIntPtr);
+    compiler.mov(nativeFnPtr, imm_ptr((void *)addr));
+
+    vector<asmjit::Var> args;
+    for (uint16_t i = 1; i < sig->size(); ++i) {
+        uint32_t varType = varTypeToAsmJit(sig->at(i).first);
+        nativeFnBuilder.addArg(varType);
+
+        switch (sig->at(i).first) {
+            case VT_DOUBLE: {
+                X86XmmVar arg(compiler, varType);
+                X86GpVar tmp = compiler.newGpVar();
+                double val = localVar(i-1).as<double>();
+                compiler.mov(tmp, *(reinterpret_cast<uint64_t *>(&val)));
+                compiler.movq(arg, tmp.m());
+                compiler.unuse(tmp);
+                args.push_back(arg);
+                break;
+            }
+            case VT_INT: {
+                X86GpVar arg(compiler, varType);
+                compiler.mov(arg, localVar(i-1).as<int64_t>());
+                args.push_back(arg);
+                break;
+            }
+            case VT_STRING: {
+                X86GpVar arg(compiler, varType);
+                compiler.mov(arg, (int64_t)localVar(i-1).as<const char *>());
+                args.push_back(arg);
+                break;
+            }
+            default:
+                throw std::runtime_error("TODO: Can't convert type");
+        }
+    }
+
+    X86CallNode *nativeFnCall = compiler.call(nativeFnPtr, kFuncConvHost, nativeFnBuilder);
+    for (size_t i = 0; i < args.size(); ++i)
+        nativeFnCall->setArg(i, args[i]);
+
+    switch (returnType) {
+        case VT_VOID:
+            compiler.ret();
+            break;
+        case VT_DOUBLE: {
+            X86XmmVar rvar(compiler, varTypeToAsmJit(returnType));
+            nativeFnCall->setRet(0, rvar);
+            compiler.ret(rvar);
+            break;
+        }
+        case VT_INT:
+        case VT_STRING: {
+            X86GpVar rvar(compiler, varTypeToAsmJit(returnType));
+            nativeFnCall->setRet(0, rvar);
+            compiler.ret(rvar);
+            break;
+        }
+        default:
+            throw std::runtime_error("TODO: Can't convert type");
+    }
+
+    compiler.endFunc();
+    void *mainFnPtr = compiler.make();
+    switch (returnType) {
+        case VT_VOID:
+            asmjit_cast<void (*)()>(mainFnPtr)();
+            break;
+        case VT_DOUBLE: {
+            double result = asmjit_cast<double (*)()>(mainFnPtr)();
+            stackPush(mkStackItem<double>(result));
+            break;
+        }
+        case VT_INT: {
+            int64_t result = asmjit_cast<int64_t (*)()>(mainFnPtr)();
+            stackPush(mkStackItem<int64_t>(result));
+            break;
+        }
+        case VT_STRING: {
+            const char *result = asmjit_cast<const char * (*)()>(mainFnPtr)();
+            stackPush(mkStackItem<const char*>(result));
+            break;
+        }
+        default:
+            throw std::runtime_error("TODO: Can't convert type");
+    }
+
+    runtime.release(mainFnPtr);
 }
