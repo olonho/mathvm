@@ -23,10 +23,6 @@ union StackValue {
 };
 
 struct StackFrame {
-    StackFrame() = default;
-    StackFrame(uint16_t functionId, uint32_t prev, uint32_t bci):
-        functionId(functionId), prev(prev), bci(bci) {
-    }
     uint16_t functionId;
     uint32_t prev;
     uint32_t bci;
