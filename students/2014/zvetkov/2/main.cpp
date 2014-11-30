@@ -1,3 +1,6 @@
+#include "bytecode_generator.hpp"
+#include "bytecode_interpreter.hpp"
+#include "errors.hpp"
 #include "mathvm.h"
 
 #include <cstdio>
@@ -13,56 +16,71 @@ using namespace mathvm;
 using namespace std;
 
 Translator* Translator::create(const string& impl) {
-    if (impl == "bytecode_translator") {
-      return new BytecodeTranslatorImpl();
-    } 
+  if (impl == "bytecode_translator") {
+    return new BytecodeTranslatorImpl();
+  } 
 
-    return NULL;
+  return 0;
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2) { 
-        cerr << "Not enough arguments" << endl;
-        return EXIT_FAILURE;
+  string program;
+
+  for (int i = 0; i < argc; ++i) {
+    string arg = argv[i];
+
+    if (arg == "-e" && i + 1 < argc) {
+        program = argv[++i];
+        continue;
     }
 
-    const char* script = argv[1];
-    const char* program = loadFile(script);
+    program = loadFile(arg.c_str());
+  }
 
-    if (program == NULL) { 
-        cerr << "Cannot read file" << endl;
-        return EXIT_FAILURE;
-    }    
+  if (program.empty()) { 
+    cerr << "Could not load program\n"
+    << "Usage:\n"
+    << "mvm PATH_TO_SOURCE\n"
+    << "mvm -e SCRIPT" << endl; 
+    return EXIT_FAILURE;
+  }    
 
-    Translator* translator = Translator::create("bytecode_translator");
-    
-    if (translator == NULL) { 
-        cerr << "Define translator impl at factory" << endl;
-        return EXIT_FAILURE;
-    }
+  Translator* translator = Translator::create("bytecode_translator");
 
-    Code* code = NULL;
-    Status* translateStatus = translator->translate(program, &code);
+  if (!translator) { 
+    cerr << "Define translator impl at factory" << endl;
+    return EXIT_FAILURE;
+  }
 
-    if (translateStatus->isError()) {
-        uint32_t position = translateStatus->getPosition();
-        uint32_t line = 0, offset = 0;
-        positionToLineOffset(program, position, line, offset);
-        cerr << "Cannot translate program: "
-             << "at line: "  << line 
-             << ", offset: " << offset 
-             << ", error: "  << translateStatus->getError().c_str() 
-             << endl;
-        return EXIT_FAILURE;
-    }
+  Code* code = 0;
+  Status* translateStatus;
+  
+  try {
+    translateStatus = translator->translate(program, &code);
+  } catch (TranslationException& e) {
+    cerr << errorMessage(program.c_str(), e.what(), e.position()) << endl;
+    return EXIT_FAILURE;
+  } 
 
-    if (code != NULL) {
-        delete code;
-    }
+  if (translateStatus->isError()) {
+    cerr << errorMessage(program.c_str(), translateStatus) << endl;
+    return EXIT_FAILURE;
+  }
 
-    delete [] program;
-    delete translator;
-    delete translateStatus;
+  try {
+    BytecodeInterpreter vm(code);
+    vm.execute();
+  } catch (InterpreterException& e) {
+    cerr << e.what() << endl;
+    return EXIT_FAILURE;
+  } 
 
-    return 0;
+  if (code) {
+    delete code;
+  }
+
+  delete translator;
+  delete translateStatus;
+
+  return 0;
 }
