@@ -23,7 +23,7 @@ void BcInterpreter::interpFun(BytecodeFunction* fun) {
 
 int32_t BcInterpreter::execInsn(Bytecode* bc, uint32_t pos) {
     Instruction insn = bc->getInsn(pos);
-//    DEBUG_MSG("execInsn: " + string(bytecodeName(insn)));
+    DEBUG_MSG("execInsn: " + string(bytecodeName(insn)));
     switch (insn) {
     case BC_DLOAD:
         return dload(bc, ++pos);
@@ -146,13 +146,13 @@ int32_t BcInterpreter::execInsn(Bytecode* bc, uint32_t pos) {
         auto dOps = getOperandsAsDoubles();
         if (dOps.first == dOps.second)     {
             _programStack.push_back(StackVal((int64_t)0));
-//            DEBUG_MSG("prog stack PUSH: " + to_string(0));
+            DEBUG_MSG("prog stack PUSH: " + to_string(0));
         } else if (dOps.first < dOps.second) {
             _programStack.push_back(StackVal((int64_t)-1));
-//            DEBUG_MSG("prog stack PUSH: " + to_string(-1));
+            DEBUG_MSG("prog stack PUSH: " + to_string(-1));
         } else {
             _programStack.push_back(StackVal((int64_t)1));
-//            DEBUG_MSG("prog stack PUSH: " + to_string(1));
+            DEBUG_MSG("prog stack PUSH: " + to_string(1));
         }
         return 1;
     }
@@ -160,13 +160,13 @@ int32_t BcInterpreter::execInsn(Bytecode* bc, uint32_t pos) {
         auto iOps = getOperandsAsInts();
         if (iOps.first == iOps.second) {
             _programStack.push_back(StackVal((int64_t)0));
-//            DEBUG_MSG("prog stack PUSH: " + to_string(0));
+            DEBUG_MSG("prog stack PUSH: " + to_string(0));
         } else if (iOps.first < iOps.second) {
             _programStack.push_back(StackVal((int64_t)-1));
-//            DEBUG_MSG("prog stack PUSH: " + to_string(-1));
+            DEBUG_MSG("prog stack PUSH: " + to_string(-1));
         } else {
             _programStack.push_back(StackVal((int64_t)1));
-//            DEBUG_MSG("prog stack PUSH: " + to_string(1));
+            DEBUG_MSG("prog stack PUSH: " + to_string(1));
         }
         return 1;
     }

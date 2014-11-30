@@ -43,7 +43,6 @@ public:
 private:
     typedef pair<bool, Instruction> MaybeInsn;
 
-    void visitFuncNodeWithInit(AstFunction* astFun);
     void visitVarDecls(BlockNode* node);
     void visitFunDefs(BlockNode* node);
     void visitExprs(BlockNode* node);
@@ -147,6 +146,30 @@ private:
     }
     string invalidBinOpMsg(TokenKind op) {
         return "invalid bunary operator " + string(tokenOp(op));
+    }
+
+    //visitProgram impl
+    BytecodeFunction* initFun(AstFunction* astFun);
+    void genFunBc(Bytecode *bc, FunctionNode *funNode);
+
+    // visitCallNode impl
+    void visitCallArguments(CallNode* node, TranslatedFunction* funToCall);
+    void genCastBcOrThrow(Bytecode* bc, VarType expectedType, VarType actualType, string const& throwMsg);
+    MaybeInsn getFstToSndCastBc(VarType fstType, VarType sndType);
+
+    string invalidFunArgType(string const& funName, VarType expected, VarType actual) {
+        string const expectedTypeName = string(typeToName(expected));
+        string const actualTypeName = string(typeToName(actual));
+        return "function '" + funName + "': invalid arg type in call, expected - " +
+                expectedTypeName + ", actual - " + actualTypeName;
+    }
+
+    // visitReturnNode impl
+    string invalidTypeToReturn(string const& funName, VarType expected, VarType actual) {
+        string const expectedTypeName = string(typeToName(expected));
+        string const actualTypeName = string(typeToName(actual));
+        return "function " + funName + ": invalid type in 'return' expr, expected - " +
+                expectedTypeName + ", actual - " + actualTypeName;
     }
 };
 

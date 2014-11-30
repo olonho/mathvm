@@ -3,32 +3,23 @@
 #include "my_utils.h"
 
 #include <memory>
+#include <deque>
 
 using std::shared_ptr;
+using std::deque;
 
 namespace mathvm {
 
 void BytecodeGenerator::visitProgram(AstFunction* astFun) {
     DEBUG_MSG("visitProgram start");
     DEBUG_MSG(_typesStack);
-    visitFuncNodeWithInit(astFun);
-    DEBUG_MSG("visitProgram end");
-    DEBUG_MSG(_typesStack);
-}
 
-void BytecodeGenerator::visitFuncNodeWithInit(AstFunction* astFun) {
-    DEBUG_MSG("visitFuncNodeWithInit start");
-    DEBUG_MSG(_typesStack);
-    BytecodeFunction* bcFun = createBytecodeFun(astFun);
-    shared_ptr<Context> ctx = createContextWithArgs(astFun->node(), bcFun->id());
-    genArgsStoreBc(bcFun->bytecode(), astFun->node());
-
+    BytecodeFunction* bcFun = initFun(astFun);
     _funIdsStack.push_back(bcFun->id());
-    astFun->node()->visit(this);
+    genFunBc(bcFun->bytecode(), astFun->node());
     _funIdsStack.pop_back();
 
-    bcFun->setLocalsNumber(ctx->varsNumber() - bcFun->parametersNumber());
-    DEBUG_MSG("visitFuncNodeWithInit end");
+    DEBUG_MSG("visitProgram end");
     DEBUG_MSG(_typesStack);
 }
 
@@ -58,6 +49,7 @@ void BytecodeGenerator::visitBlockNode(BlockNode* node) {
     DEBUG_MSG("visitBlockNode start");
     DEBUG_MSG(_typesStack);
     visitVarDecls(node);
+    currentBcFunction()->setLocalsNumber(currentCtx()->varsNumber() - currentBcFunction()->parametersNumber());
     visitFunDefs(node);
     visitExprs(node);
     _typesStack.push_back(VT_VOID);
@@ -225,21 +217,18 @@ void BytecodeGenerator::visitPrintNode(PrintNode* node) {
 void BytecodeGenerator::visitCallNode(CallNode* node) {
     DEBUG_MSG("visitCallNode start: " + node->name());
     DEBUG_MSG(_typesStack);
-    for(size_t i = node->parametersNumber(); i > 0; --i) {
-        node->parameterAt(i - 1)->visit(this);
-    }
-    TranslatedFunction* funPtr = _code->functionByName(node->name());
-    if(funPtr) {
-        Bytecode* bc = currentBcToFill();
-        bc->addInsn(BC_CALL);
-        bc->addInt16(funPtr->id());
-    } else {
+    TranslatedFunction* funToCall = _code->functionByName(node->name());
+    if(!funToCall) {
         throw TranslatorException(undefFunMsg(node->name()), node->position());
     }
+    visitCallArguments(node, funToCall);
+    Bytecode* bc = currentBcToFill();
+    bc->addInsn(BC_CALL);
+    bc->addInt16(funToCall->id());
     for(size_t i = node->parametersNumber(); i > 0; --i) {
         _typesStack.pop_back();
     }
-    _typesStack.push_back(funPtr->returnType());
+    _typesStack.push_back(funToCall->returnType());
     DEBUG_MSG("visitCallNode end: " + node->name());
     DEBUG_MSG(_typesStack);
 }
@@ -247,12 +236,17 @@ void BytecodeGenerator::visitCallNode(CallNode* node) {
 void BytecodeGenerator::visitReturnNode(ReturnNode* node) {
     DEBUG_MSG("visitReturnNode start");
     DEBUG_MSG(_typesStack);
-    if(node->returnExpr() != 0) {
-        node->returnExpr()->visit(this);
-    } else {
-        _typesStack.push_back(VT_VOID);
-    }
     Bytecode* bc = currentBcToFill();
+    if(node->returnExpr() == 0) {
+        _typesStack.push_back(VT_VOID);
+    } else {
+        node->returnExpr()->visit(this);
+        VarType retType = currentBcFunction()->returnType();
+        if(retType != _typesStack.back()) {
+            string const throwMsg = invalidTypeToReturn(currentBcFunction()->name(), retType, _typesStack.back());
+            genCastBcOrThrow(bc, retType, _typesStack.back(), throwMsg);
+        }
+    }
     bc->addInsn(BC_RETURN);
     DEBUG_MSG("visitReturnNode end");
     DEBUG_MSG(_typesStack);
@@ -367,11 +361,21 @@ void BytecodeGenerator::visitVarDecls(BlockNode* node) {
 void BytecodeGenerator::visitFunDefs(BlockNode* node) {
     DEBUG_MSG("visitFunDefs start");
     DEBUG_MSG(_typesStack);
-    Scope::FunctionIterator funIt(node->scope());
-    while(funIt.hasNext()) {
-        AstFunction* fun = funIt.next();
-        visitFuncNodeWithInit(fun);
+
+    deque<uint16_t> newFunsIds;
+    Scope::FunctionIterator initFunIt(node->scope());
+    while(initFunIt.hasNext()) {
+        BytecodeFunction* bcFun = initFun(initFunIt.next());
+        newFunsIds.push_back(bcFun->id());
     }
+    Scope::FunctionIterator genFunBcIt(node->scope());
+    while(genFunBcIt.hasNext()) {
+        _funIdsStack.push_back(newFunsIds.front());
+        genFunBc(currentBcToFill(), genFunBcIt.next()->node());
+        _funIdsStack.pop_back();
+        newFunsIds.pop_front();
+    }
+
     DEBUG_MSG("visitFunDefs end");
     DEBUG_MSG(_typesStack);
 }
@@ -409,8 +413,8 @@ shared_ptr<Context> BytecodeGenerator::createContextWithArgs(FunctionNode* fNode
 
 shared_ptr<Context> BytecodeGenerator::findVarInOuterCtx(string const& name) {
     if(_funIdsStack.size() > 1) {
-        for(size_t i = _funIdsStack.size() - 2; i >= 0; --i) {
-            shared_ptr<Context> outerCtx = _code->ctxById(i);
+        for(auto it = _funIdsStack.rbegin() + 1; it != _funIdsStack.rend(); ++it) {
+            shared_ptr<Context> outerCtx = _code->ctxById(*it);
             if(outerCtx->hasVar(name)) {
                 return outerCtx;
             }
@@ -789,6 +793,56 @@ BytecodeGenerator::MaybeInsn BytecodeGenerator::typedInsnNumericsOnly(VarType va
         return make_pair(true, doubleCaseInsn);
     }
     return make_pair(false, BC_INVALID);
+}
+
+// visitProgramImpl
+
+BytecodeFunction* BytecodeGenerator::initFun(AstFunction* astFun) {
+    DEBUG_MSG("initFun start");
+    DEBUG_MSG(_typesStack);
+
+    BytecodeFunction* bcFun = createBytecodeFun(astFun);
+    createContextWithArgs(astFun->node(), bcFun->id());
+
+    DEBUG_MSG("initFun end");
+    DEBUG_MSG(_typesStack);
+
+    return bcFun;
+}
+
+void BytecodeGenerator::genFunBc(Bytecode *bc, FunctionNode *funNode) {
+    genArgsStoreBc(bc, funNode);
+    funNode->visit(this);
+}
+
+// visitCallNode impl
+
+void BytecodeGenerator::visitCallArguments(CallNode* node, TranslatedFunction* funToCall) {
+    for(size_t i = node->parametersNumber(); i > 0; --i) {
+        node->parameterAt(i - 1)->visit(this);
+        VarType paramType = funToCall->parameterType(i - 1);
+        string const throwMsg = invalidFunArgType(funToCall->name(), paramType, _typesStack.back());
+        if(paramType != _typesStack.back()) {
+            genCastBcOrThrow(currentBcToFill(), paramType, _typesStack.back(), throwMsg);
+        }
+    }
+}
+
+void BytecodeGenerator::genCastBcOrThrow(Bytecode* bc, VarType expectedType, VarType actualType, string const& throwMsg) {
+    MaybeInsn mbCastInsn = getFstToSndCastBc(actualType, expectedType);
+    if(!mbCastInsn.first) {
+        throw TranslatorException(throwMsg, 0);
+    }
+    bc->addInsn(mbCastInsn.second);
+}
+
+BytecodeGenerator::MaybeInsn BytecodeGenerator::getFstToSndCastBc(VarType fstType, VarType sndType) {
+    if((fstType == VT_INT || fstType == VT_DOUBLE) && sndType == VT_DOUBLE) {
+        return MaybeInsn(true, BC_I2D);
+    } else if ((fstType == VT_INT || fstType == VT_DOUBLE) && sndType == VT_INT) {
+        return MaybeInsn(true, BC_D2I);
+    }
+    return MaybeInsn(false, BC_INVALID);
 }
 
 }

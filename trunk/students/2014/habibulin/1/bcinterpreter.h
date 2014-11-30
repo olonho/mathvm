@@ -30,25 +30,25 @@ private:
 
     inline uint8_t iload(Bytecode* bc, uint32_t pos) {
         _programStack.push_back(StackVal(bc->getInt64(pos)));
-//        DEBUG_MSG("prog stack PUSH: " + to_string(bc->getInt64(pos)));
+        DEBUG_MSG("prog stack PUSH: " + to_string(bc->getInt64(pos)));
         return 9;
     }
 
     inline uint8_t dload(Bytecode* bc, uint32_t pos) {
         _programStack.push_back(StackVal(bc->getDouble(pos)));
-//        DEBUG_MSG("prog stack PUSH: " + to_string(bc->getDouble(pos)));
+        DEBUG_MSG("prog stack PUSH: " + to_string(bc->getDouble(pos)));
         return 9;
     }
 
     inline uint8_t sload(Bytecode* bc, uint32_t pos) {
         _programStack.push_back(StackVal((int64_t)bc->getInt16(pos)));
-//        DEBUG_MSG("prog stack PUSH: " + to_string((int64_t)bc->getInt16(pos)));
+        DEBUG_MSG("prog stack PUSH: " + to_string((int64_t)bc->getInt16(pos)));
         return 3;
     }
 
     inline uint8_t pushReturn(StackVal stVal, uint8_t retVal) {
         _programStack.push_back(stVal);
-//        DEBUG_MSG("prog stack PUSH: " + to_string(stVal.vInt) + "(int), " + to_string(stVal.vDouble) + "(double)");
+        DEBUG_MSG("prog stack PUSH: " + to_string(stVal.vInt) + "(int), " + to_string(stVal.vDouble) + "(double)");
         return retVal;
     }
 
@@ -62,7 +62,7 @@ private:
         pair<int64_t, int64_t> ops = getOperandsAsInts();
         _programStack.pop_back();
         _programStack.pop_back();
-//        DEBUG_MSG("prog stack POP 2: " + to_string(ops.first) + "(upper), " + to_string(ops.second) + "(lower)");
+        DEBUG_MSG("prog stack POP 2: " + to_string(ops.first) + "(upper), " + to_string(ops.second) + "(lower)");
         return ops;
     }
 
@@ -76,14 +76,14 @@ private:
         pair<double, double> ops = getOperandsAsDoubles();
         _programStack.pop_back();
         _programStack.pop_back();
-//        DEBUG_MSG("prog stack POP 2: " + to_string(ops.first) + "(upper), " + to_string(ops.second) + "(lower)");
+        DEBUG_MSG("prog stack POP 2: " + to_string(ops.first) + "(upper), " + to_string(ops.second) + "(lower)");
         return ops;
     }
 
     inline uint8_t updateTopReturn(StackVal newSv) {
         _programStack.pop_back();
         _programStack.push_back(newSv);
-//        DEBUG_MSG("prog stack UPDATE: " + to_string(newSv.vInt) + "(int), " + to_string(newSv.vDouble) + "(double)");
+        DEBUG_MSG("prog stack UPDATE: " + to_string(newSv.vInt) + "(int), " + to_string(newSv.vDouble) + "(double)");
         return 1;
     }
 
@@ -98,7 +98,7 @@ private:
         shared_ptr<StackVal> svPtr = _ctxStack.back().get(varId).second;
         assert(svPtr);
         _programStack.push_back(*svPtr);
-//        DEBUG_MSG("prog stack PUSH: " + to_string(svPtr->vInt) + "(int), " + to_string(svPtr->vDouble) + "(double)");
+        DEBUG_MSG("prog stack PUSH: " + to_string(svPtr->vInt) + "(int), " + to_string(svPtr->vDouble) + "(double)");
         return 3;
     }
 
@@ -128,7 +128,7 @@ private:
         shared_ptr<StackVal> svPtr = _ctxStack[ctxIndex].get(varId).second;
         assert(svPtr);
         _programStack.push_back(*svPtr);
-//        DEBUG_MSG("prog stack PUSH: " + to_string(svPtr->vInt) + "(int), " + to_string(svPtr->vDouble) + "(double)");
+        DEBUG_MSG("prog stack PUSH: " + to_string(svPtr->vInt) + "(int), " + to_string(svPtr->vDouble) + "(double)");
         return 5;
     }
 
