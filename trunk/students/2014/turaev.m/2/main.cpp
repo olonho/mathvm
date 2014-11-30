@@ -57,14 +57,13 @@ int main(int argc, char **argv) {
                translateStatus->getError().c_str());
     } else {
         assert(code != 0);
-        code->disassemble();
+        // code->disassemble();
         vector<Var *> vars;
         Status *execStatus = code->execute(vars);
         if (execStatus->isError()) {
             printf("Cannot execute expression: error: %s\n",
                    execStatus->getError().c_str());
         } else {
-            printf("OK");
             for (uint32_t i = 0; i < vars.size(); i++) {
                 delete vars[i];
             }
