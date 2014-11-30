@@ -85,6 +85,8 @@ private:
     bool handleRangeOp(VarType leftOpType, BinaryOpNode* node, Bytecode* bc);
 
     void castIfNeeded(VarType valueType, StoreNode* node, Bytecode* bc, VarType varType);
+    void genStoreNodeBc(Bytecode* bc, string const& varName, VarType varType,
+                        shared_ptr<Context> curCtx, StoreNode* node);
     void genAssignOpBc(StoreNode* node, Bytecode* bc, VarType varType);
 
     // general bc pieces generation utils

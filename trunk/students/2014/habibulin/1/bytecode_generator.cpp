@@ -9,42 +9,65 @@ using std::shared_ptr;
 namespace mathvm {
 
 void BytecodeGenerator::visitProgram(AstFunction* astFun) {
+    DEBUG_MSG("visitProgram start");
+    DEBUG_MSG(_typesStack);
     visitFuncNodeWithInit(astFun);
+    DEBUG_MSG("visitProgram end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitFuncNodeWithInit(AstFunction* astFun) {
-    BytecodeFunction* translatedFun = createBytecodeFun(astFun);
-    shared_ptr<Context> ctx = createContextWithArgs(astFun->node(), translatedFun->id());
-    genArgsStoreBc(translatedFun->bytecode(), astFun->node());
+    DEBUG_MSG("visitFuncNodeWithInit start");
+    DEBUG_MSG(_typesStack);
+    BytecodeFunction* bcFun = createBytecodeFun(astFun);
+    shared_ptr<Context> ctx = createContextWithArgs(astFun->node(), bcFun->id());
+    genArgsStoreBc(bcFun->bytecode(), astFun->node());
 
-    _funIdsStack.push_back(translatedFun->id());
+    _funIdsStack.push_back(bcFun->id());
     astFun->node()->visit(this);
     _funIdsStack.pop_back();
 
-    translatedFun->setLocalsNumber(ctx->varsNumber() - translatedFun->parametersNumber());
+    bcFun->setLocalsNumber(ctx->varsNumber() - bcFun->parametersNumber());
+    DEBUG_MSG("visitFuncNodeWithInit end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitFunctionNode(FunctionNode* node) {
-    DEBUG_MSG("visitFunctionNode: " + currentBcFunction()->name());
-    if(node->body()->nodeAt(0)->isNativeCallNode()) {
+    DEBUG_MSG("visitFunctionNode start: " + currentBcFunction()->name());
+    DEBUG_MSG(_typesStack);
+    if(node->body()->nodes() != 0 && node->body()->nodeAt(0)->isNativeCallNode()) {
         node->body()->nodeAt(0)->asNativeCallNode()->visit(this);
     } else {
         node->body()->visit(this);
+        _typesStack.pop_back();
     }
+    DEBUG_MSG("visitFunctionNode end: " + currentBcFunction()->name());
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitNativeCallNode(NativeCallNode *node) {
+    DEBUG_MSG("visitNativeCallNode start");
+    DEBUG_MSG(_typesStack);
     // not implemented
+    // push return type
+    DEBUG_MSG("visitNativeCallNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitBlockNode(BlockNode* node) {
+    DEBUG_MSG("visitBlockNode start");
+    DEBUG_MSG(_typesStack);
     visitVarDecls(node);
     visitFunDefs(node);
     visitExprs(node);
+    _typesStack.push_back(VT_VOID);
+    DEBUG_MSG("visitBlockNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode* node) {
-    DEBUG_MSG("visitUnaryOpNode");
+    DEBUG_MSG("visitUnaryOpNode start");
+    DEBUG_MSG(_typesStack);
     node->operand()->visit(this);
     Bytecode* bc = currentBcToFill();
     if(node->kind() == tSUB) {
@@ -62,9 +85,13 @@ void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode* node) {
     } else {
         throw TranslatorException(invalidUnaryOperatorMsg(node->kind()), node->position());
     }
+    DEBUG_MSG("visitUnaryOpNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode* node) {
+    DEBUG_MSG("visitBinaryOpNode start");
+    DEBUG_MSG(_typesStack);
     node->right()->visit(this);
     node->left()->visit(this);
     VarType rightOpType = _typesStack[_typesStack.size() - 2];
@@ -87,10 +114,13 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode* node) {
             throw TranslatorException(invalidBinOpMsg(node->kind()), node->position());
         }
     }
+    DEBUG_MSG("visitBinaryOpNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitLoadNode(LoadNode* node) {
-    DEBUG_MSG("visitLoadNode: " + node->var()->name());
+    DEBUG_MSG("visitLoadNode start: " + node->var()->name());
+    DEBUG_MSG(_typesStack);
     string const& varName = node->var()->name();
     VarType varType = node->var()->type();
     _typesStack.push_back(varType);
@@ -114,10 +144,13 @@ void BytecodeGenerator::visitLoadNode(LoadNode* node) {
         }
         genBcInsnWithTwoIds(bc, mbInsn.second, outerCtx->id(), outerCtx->getVarId(varName));
     }
+    DEBUG_MSG("visitLoadNode end: " + node->var()->name());
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitStoreNode(StoreNode* node) {
-    DEBUG_MSG("visitStoreNode: " + node->var()->name());
+    DEBUG_MSG("visitStoreNode start: " + node->var()->name());
+    DEBUG_MSG(_typesStack);
     string const& varName = node->var()->name();
     VarType varType = node->var()->type();
 
@@ -130,60 +163,49 @@ void BytecodeGenerator::visitStoreNode(StoreNode* node) {
     castIfNeeded(valueType, node, bc, varType);
 
     shared_ptr<Context> curCtx = currentCtx();
-    if(curCtx->hasVar(varName)) {
-        uint16_t varId = curCtx->getVarId(varName);
-        if(node->op() != tASSIGN) {
-            if(varType == VT_STRING) {
-                throw TranslatorException(invalidStrOperationMsg(), node->position());
-            }
-            Instruction bcLoadvar = typedInsnNumericsOnly(varType, BC_LOADIVAR, BC_LOADDVAR).second;
-            genBcInsnWithId(bc, bcLoadvar, varId);
-            genAssignOpBc(node, bc, varType);
-        }
-        Instruction bcStore = typedInsn(varType, BC_STOREIVAR, BC_STOREDVAR, BC_STORESVAR).second;
-        genBcInsnWithId(bc, bcStore, varId);
-    } else {
-        shared_ptr<Context> outerCtx = findVarInOuterCtx(varName);
-        if(!outerCtx) {
-            throw TranslatorException(varNotDeclaredMsg(varName), node->position());
-        }
-        uint16_t varId = outerCtx->getVarId(varName);
-        if(node->op() != tASSIGN) {
-            if(varType == VT_STRING) {
-                throw TranslatorException(invalidStrOperationMsg(), node->position());
-            }
-            Instruction bcLoadctxvar = typedInsnNumericsOnly(varType, BC_LOADCTXIVAR, BC_LOADCTXDVAR).second;
-            genBcInsnWithTwoIds(bc, bcLoadctxvar, outerCtx->id(), varId);
-            genAssignOpBc(node, bc, varType);
-        }
-        Instruction bcStorectx = typedInsn(varType, BC_STORECTXIVAR, BC_STORECTXDVAR, BC_STORECTXSVAR).second;
-        genBcInsnWithTwoIds(bc, bcStorectx, outerCtx->id(), varId);
-    }
+    genStoreNodeBc(bc, varName, varType, curCtx, node);
     _typesStack.push_back(varType);
+    DEBUG_MSG("visitStoreNode end: " + node->var()->name());
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitIntLiteralNode(IntLiteralNode* node) {
+    DEBUG_MSG("visitIntLiteralNode start");
+    DEBUG_MSG(_typesStack);
     Bytecode* bc = currentBcToFill();
+    DEBUG_MSG(bc);
     bc->addInsn(BC_ILOAD);
     bc->addInt64(node->literal());
     _typesStack.push_back(VT_INT);
+    DEBUG_MSG("visitIntLiteralNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitDoubleLiteralNode(DoubleLiteralNode* node) {
+    DEBUG_MSG("visitIntLiteralNode start");
+    DEBUG_MSG(_typesStack);
     Bytecode* bc = currentBcToFill();
     bc->addInsn(BC_DLOAD);
     bc->addDouble(node->literal());
     _typesStack.push_back(VT_DOUBLE);
+    DEBUG_MSG("visitIntLiteralNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitStringLiteralNode(StringLiteralNode* node) {
+    DEBUG_MSG("visitIntLiteralNode start");
+    DEBUG_MSG(_typesStack);
     uint16_t stringId = _code->makeStringConstant(node->literal());
     Bytecode* bc = currentBcToFill();
     genBcInsnWithId(bc, BC_SLOAD, stringId);
     _typesStack.push_back(VT_STRING);
+    DEBUG_MSG("visitIntLiteralNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitPrintNode(PrintNode* node) {
+    DEBUG_MSG("visitPrintNode start");
+    DEBUG_MSG(_typesStack);
     Bytecode* bc = currentBcToFill();
     for(size_t i = 0; i != node->operands(); ++i) {
         node->operandAt(i)->visit(this);
@@ -196,10 +218,13 @@ void BytecodeGenerator::visitPrintNode(PrintNode* node) {
         }
     }
     _typesStack.push_back(VT_VOID);
+    DEBUG_MSG("visitPrintNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitCallNode(CallNode* node) {
-    DEBUG_MSG("visitCallNode: " + node->name());
+    DEBUG_MSG("visitCallNode start: " + node->name());
+    DEBUG_MSG(_typesStack);
     for(size_t i = node->parametersNumber(); i > 0; --i) {
         node->parameterAt(i - 1)->visit(this);
     }
@@ -211,24 +236,37 @@ void BytecodeGenerator::visitCallNode(CallNode* node) {
     } else {
         throw TranslatorException(undefFunMsg(node->name()), node->position());
     }
+    for(size_t i = node->parametersNumber(); i > 0; --i) {
+        _typesStack.pop_back();
+    }
+    _typesStack.push_back(funPtr->returnType());
+    DEBUG_MSG("visitCallNode end: " + node->name());
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitReturnNode(ReturnNode* node) {
-    DEBUG_MSG("visitReturnNode");
+    DEBUG_MSG("visitReturnNode start");
+    DEBUG_MSG(_typesStack);
     if(node->returnExpr() != 0) {
         node->returnExpr()->visit(this);
+    } else {
+        _typesStack.push_back(VT_VOID);
     }
     Bytecode* bc = currentBcToFill();
     bc->addInsn(BC_RETURN);
+    DEBUG_MSG("visitReturnNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitIfNode(IfNode* node) {
-    DEBUG_MSG("visitIfNode");
+    DEBUG_MSG("visitIfNode start");
+    DEBUG_MSG(_typesStack);
     Bytecode* bc = currentBcToFill();
     node->ifExpr()->visit(this);
     if(_typesStack.back() != VT_INT) {
         throw TranslatorException(wrongTypeMsg(VT_INT), node->ifExpr()->position());
     }
+    _typesStack.pop_back();
     bc->addInsn(BC_ILOAD0);
     bc->addInsn(BC_ICMP);
     Label labelElse(bc);
@@ -236,18 +274,24 @@ void BytecodeGenerator::visitIfNode(IfNode* node) {
     const size_t COND_CHECK_RESULTS_ON_STACK = 3;
     genInsnNTimes(bc, BC_POP, COND_CHECK_RESULTS_ON_STACK);
     node->thenBlock()->visit(this);
+    _typesStack.pop_back();
     Label labelAfterElse(bc);
     bc->addBranch(BC_JA, labelAfterElse);
     bc->bind(labelElse);
     genInsnNTimes(bc, BC_POP, COND_CHECK_RESULTS_ON_STACK);
     if(node->elseBlock() != 0) {
         node->elseBlock()->visit(this);
+        _typesStack.pop_back();
     }
     bc->bind(labelAfterElse);
+    _typesStack.push_back(VT_VOID);
+    DEBUG_MSG("visitIfNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitWhileNode(WhileNode* node) {
-    DEBUG_MSG("visitWhileNode");
+    DEBUG_MSG("visitWhileNode start");
+    DEBUG_MSG(_typesStack);
     Bytecode* bc = currentBcToFill();
     Label whileStart(bc);
     bc->bind(whileStart);
@@ -255,6 +299,7 @@ void BytecodeGenerator::visitWhileNode(WhileNode* node) {
     if(_typesStack.back() != VT_INT) {
         throw TranslatorException(wrongTypeMsg(VT_INT), node->whileExpr()->position());
     }
+    _typesStack.pop_back();
     bc->addInsn(BC_ILOAD0);
     bc->addInsn(BC_ICMP);
     Label whileEnd(bc);
@@ -262,13 +307,18 @@ void BytecodeGenerator::visitWhileNode(WhileNode* node) {
     const size_t COND_CHECK_RESULTS_ON_STACK = 3;
     genInsnNTimes(bc, BC_POP, COND_CHECK_RESULTS_ON_STACK);
     node->loopBlock()->visit(this);
+    _typesStack.pop_back();
     bc->addBranch(BC_JA, whileStart);
     bc->bind(whileEnd);
     genInsnNTimes(bc, BC_POP, COND_CHECK_RESULTS_ON_STACK);
+    _typesStack.push_back(VT_VOID);
+    DEBUG_MSG("visitWhileNode end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitForNode(ForNode* node) {
-    DEBUG_MSG("visitForNode: " + node->var()->name());
+    DEBUG_MSG("visitForNode start: " + node->var()->name());
+    DEBUG_MSG(_typesStack);
     shared_ptr<Context> ctx = currentCtx();
     string const& iterVarName = node->var()->name();
     if(!ctx->hasVar(iterVarName)) {
@@ -289,11 +339,16 @@ void BytecodeGenerator::visitForNode(ForNode* node) {
         genForNodeBc(bc, node, iterVarId, upperVarId,
                      BC_STOREDVAR, BC_LOADDVAR, BC_DCMP, BC_DLOAD1, BC_DADD);
     }
+    _typesStack.push_back(VT_VOID);
+    DEBUG_MSG("visitForNode end: " + node->var()->name());
+    DEBUG_MSG(_typesStack);
 }
 
 // private methods section
 
 void BytecodeGenerator::visitVarDecls(BlockNode* node) {
+    DEBUG_MSG("visitVarDecls start");
+    DEBUG_MSG(_typesStack);
     Bytecode* bc = currentBcToFill();
     shared_ptr<Context> ctx = currentCtx();
 
@@ -305,21 +360,31 @@ void BytecodeGenerator::visitVarDecls(BlockNode* node) {
             throw TranslatorException(wrongVarDeclMsg(currentBcFunction()->name(), var->name()), 0);
         }
     }
+    DEBUG_MSG("visitVarDecls end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitFunDefs(BlockNode* node) {
+    DEBUG_MSG("visitFunDefs start");
+    DEBUG_MSG(_typesStack);
     Scope::FunctionIterator funIt(node->scope());
     while(funIt.hasNext()) {
         AstFunction* fun = funIt.next();
         visitFuncNodeWithInit(fun);
     }
+    DEBUG_MSG("visitFunDefs end");
+    DEBUG_MSG(_typesStack);
 }
 
 void BytecodeGenerator::visitExprs(BlockNode* node) {
-    DEBUG_MSG("visitExprs");
+    DEBUG_MSG("visitExprs start");
+    DEBUG_MSG(_typesStack);
     for(size_t i = 0; i != node->nodes(); ++i) {
         node->nodeAt(i)->visit(this);
+        _typesStack.pop_back();
     }
+    DEBUG_MSG("visitExprs end");
+    DEBUG_MSG(_typesStack);
 }
 
 BytecodeFunction* BytecodeGenerator::createBytecodeFun(AstFunction* astFun) {
@@ -338,7 +403,6 @@ shared_ptr<Context> BytecodeGenerator::createContextWithArgs(FunctionNode* fNode
     }
     for(size_t i = 0; i != fNode->parametersNumber(); ++i) {
         newCtx->addVar(fNode->parameterName(i));
-        _typesStack.pop_back();
     }
     return newCtx;
 }
@@ -391,7 +455,7 @@ void BytecodeGenerator::genForNodeBc(Bytecode* bc, ForNode* node,
     bc->bind(forStart);
     genTransferDataBc(bc, bcLoadVar, varsIds);
     bc->addInsn(bcCmp);
-    bc->addInsn(BC_ILOAD1);
+    bc->addInsn(BC_ILOADM1);
     Label forEnd(bc);
     bc->addBranch(BC_IFICMPE, forEnd);
     // then
@@ -446,17 +510,18 @@ void BytecodeGenerator::handleStrBinOps(BinaryOpNode* node, Bytecode* bc) {
 
 void BytecodeGenerator::makeTypesSameIfNeeded(Bytecode* bc, VarType& leftOpType, VarType& rightOpType) {
     if(leftOpType == VT_INT && rightOpType == VT_DOUBLE) {
-        bc->addInsn(BC_SWAP);
         bc->addInsn(BC_I2D);
-        bc->addInsn(BC_SWAP);
-        leftOpType == VT_DOUBLE;
+        leftOpType = VT_DOUBLE;
     } else if(leftOpType == VT_DOUBLE && rightOpType == VT_INT) {
+        bc->addInsn(BC_SWAP);
         bc->addInsn(BC_I2D);
+        bc->addInsn(BC_SWAP);
         rightOpType = VT_DOUBLE;
     }
 }
 
 bool BytecodeGenerator::handleBaseArithmOps(VarType leftOpType, BinaryOpNode* node, Bytecode* bc) {
+    DEBUG_MSG("handleBaseArithmOps");
     if(node->kind() == tADD) {
         MaybeInsn mbAdd = typedInsnNumericsOnly(leftOpType, BC_IADD, BC_DADD);
         bc->addInsn(mbAdd.second);
@@ -477,6 +542,7 @@ bool BytecodeGenerator::handleBaseArithmOps(VarType leftOpType, BinaryOpNode* no
 }
 
 bool BytecodeGenerator::handleIntArithmOps(VarType leftOpType, BinaryOpNode* node, Bytecode* bc) {
+    DEBUG_MSG("handleIntArithmOps");
     MaybeInsn mbOp(false, BC_INVALID);
     if(node->kind() == tMOD) {
         mbOp = MaybeInsn(true, BC_IMOD);
@@ -499,6 +565,7 @@ bool BytecodeGenerator::handleIntArithmOps(VarType leftOpType, BinaryOpNode* nod
 }
 
 bool BytecodeGenerator::handleIntCompOps(VarType leftOpType, BinaryOpNode* node, Bytecode* bc) {
+    DEBUG_MSG("handleIntCompOps");
     if(leftOpType != VT_INT) {
         return false;
     }
@@ -515,38 +582,57 @@ bool BytecodeGenerator::handleIntCompOps(VarType leftOpType, BinaryOpNode* node,
         genBoolFromIficmp(bc, BC_IFICMPL, OPERANDS_ON_STACK);
     } else if(node->kind() == tLE) {
         genBoolFromIficmp(bc, BC_IFICMPLE, OPERANDS_ON_STACK);
+    } else {
+        return false;
     }
     _typesStack.push_back(VT_INT);
     return true;
 }
 
 bool BytecodeGenerator::handleDoubleCompOps(VarType leftOpType, BinaryOpNode* node, Bytecode* bc) {
+    DEBUG_MSG("handleDoubleCompOps");
     if(leftOpType != VT_DOUBLE) {
         return false;
     }
-    bc->addInsn(BC_DCMP);
-    bc->addInsn(BC_DLOAD0);
     const size_t OPERANDS_ON_STACK = 4;
     if(node->kind() == tEQ) {
+        bc->addInsn(BC_DCMP);
+        bc->addInsn(BC_DLOAD0);
         genBoolFromIficmp(bc, BC_IFICMPE, OPERANDS_ON_STACK);
     } else if(node->kind() == tNEQ) {
+        bc->addInsn(BC_DCMP);
+        bc->addInsn(BC_DLOAD0);
         genBoolFromIficmp(bc, BC_IFICMPNE, OPERANDS_ON_STACK);
     } else if(node->kind() == tGT) {
+        bc->addInsn(BC_DCMP);
+        bc->addInsn(BC_DLOAD0);
         genBoolFromIficmp(bc, BC_IFICMPL, OPERANDS_ON_STACK);
     } else if(node->kind() == tGE) {
+        bc->addInsn(BC_DCMP);
+        bc->addInsn(BC_DLOAD0);
         genBoolFromIficmp(bc, BC_IFICMPLE, OPERANDS_ON_STACK);
     } else if(node->kind() == tLT) {
+        bc->addInsn(BC_DCMP);
+        bc->addInsn(BC_DLOAD0);
         genBoolFromIficmp(bc, BC_IFICMPG, OPERANDS_ON_STACK);
     } else if(node->kind() == tLE) {
+        bc->addInsn(BC_DCMP);
+        bc->addInsn(BC_DLOAD0);
         genBoolFromIficmp(bc, BC_IFICMPGE, OPERANDS_ON_STACK);
+    } else {
+        return false;
     }
     _typesStack.push_back(VT_INT);
     return true;
 }
 
 bool BytecodeGenerator::handleLogicOps(VarType leftOpType, BinaryOpNode* node, Bytecode* bc) {
+    DEBUG_MSG("handleLogicOps");
     MaybeInsn mbLoad0 = typedInsnNumericsOnly(leftOpType, BC_ILOAD0, BC_DLOAD0);
     if(!mbLoad0.first) {
+        return false;
+    }
+    if(node->kind() != tOR && node->kind() != tAND) {
         return false;
     }
     Instruction bcLoad0 = mbLoad0.second;
@@ -554,11 +640,10 @@ bool BytecodeGenerator::handleLogicOps(VarType leftOpType, BinaryOpNode* node, B
     genConvertToBool(bc, bcLoad0, bcCmp);
     bc->addInsn(BC_SWAP);
     genConvertToBool(bc, bcLoad0, bcCmp);
-    bc->addInsn(BC_IADD);
     if(node->kind() == tOR) {
         bc->addInsn(BC_IAOR);
     } else if (node->kind() == tAND) {
-        bc->addInsn(BC_IADD);
+        bc->addInsn(BC_IAAND);
     } else {
         return false;
     }
@@ -567,6 +652,7 @@ bool BytecodeGenerator::handleLogicOps(VarType leftOpType, BinaryOpNode* node, B
 }
 
 bool BytecodeGenerator::handleRangeOp(VarType leftOpType, BinaryOpNode* node, Bytecode* bc) {
+    DEBUG_MSG("handleRangeOp");
     if(node->kind() != tRANGE) {
         return false;
     }
@@ -588,6 +674,39 @@ void BytecodeGenerator::genAssignOpBc(StoreNode* node, Bytecode* bc, VarType var
         bcOp = typedInsnNumericsOnly(varType, BC_ISUB, BC_DSUB).second;
     }
     bc->addInsn(bcOp);
+}
+
+void BytecodeGenerator::genStoreNodeBc(Bytecode* bc, string const& varName, VarType varType,
+                                       shared_ptr<Context> curCtx, StoreNode* node) {
+    if(curCtx->hasVar(varName)) {
+        uint16_t varId = curCtx->getVarId(varName);
+        if(node->op() != tASSIGN) {
+            if(varType == VT_STRING) {
+                throw TranslatorException(invalidStrOperationMsg(), node->position());
+            }
+            Instruction bcLoadvar = typedInsnNumericsOnly(varType, BC_LOADIVAR, BC_LOADDVAR).second;
+            genBcInsnWithId(bc, bcLoadvar, varId);
+            genAssignOpBc(node, bc, varType);
+        }
+        Instruction bcStore = typedInsn(varType, BC_STOREIVAR, BC_STOREDVAR, BC_STORESVAR).second;
+        genBcInsnWithId(bc, bcStore, varId);
+    } else {
+        shared_ptr<Context> outerCtx = findVarInOuterCtx(varName);
+        if(!outerCtx) {
+            throw TranslatorException(varNotDeclaredMsg(varName), node->position());
+        }
+        uint16_t varId = outerCtx->getVarId(varName);
+        if(node->op() != tASSIGN) {
+            if(varType == VT_STRING) {
+                throw TranslatorException(invalidStrOperationMsg(), node->position());
+            }
+            Instruction bcLoadctxvar = typedInsnNumericsOnly(varType, BC_LOADCTXIVAR, BC_LOADCTXDVAR).second;
+            genBcInsnWithTwoIds(bc, bcLoadctxvar, outerCtx->id(), varId);
+            genAssignOpBc(node, bc, varType);
+        }
+        Instruction bcStorectx = typedInsn(varType, BC_STORECTXIVAR, BC_STORECTXDVAR, BC_STORECTXSVAR).second;
+        genBcInsnWithTwoIds(bc, bcStorectx, outerCtx->id(), varId);
+    }
 }
 
 
@@ -643,7 +762,7 @@ void BytecodeGenerator::genBoolFromIficmp(Bytecode* bc, Instruction ificmp, size
 void BytecodeGenerator::genConvertToBool(Bytecode* bc, Instruction bcLoad0, Instruction bcCmp) {
     bc->addInsn(bcLoad0);
     bc->addInsn(bcCmp);
-    const size_t OPERANDS_ON_STACK = 2;
+    const size_t OPERANDS_ON_STACK = 3;
     genBoolFromIficmp(bc, BC_IFICMPNE, OPERANDS_ON_STACK);
 }
 

@@ -6,6 +6,9 @@
 
 #include <iostream>
 
+#include "bcinterpreter.h"
+#include "my_utils.h"
+
 using namespace mathvm;
 using namespace std;
 
@@ -13,6 +16,7 @@ int main(int argc, char** argv) {
     string impl = "interpreter";
     const char* script = NULL;
     for (int32_t i = 1; i < argc; i++) {
+        DEBUG_MSG(argv[i]);
       if (string(argv[i]) == "-j") {
         impl = "jit";
       } else {
@@ -26,18 +30,12 @@ int main(int argc, char** argv) {
     }
 
     const char* expr =
-            "double x; double y;"
-            "x += 8.0; y = 2.0;"
-            "print('Hello, x=',x,' y=',y,'\n');"
-            "function double encl(double b) {"
-            "   while(!b) {"
-            "       b -= 1;"
-            "   }"
-            "   return b;"
-            "}"
-            "encl(x);";
+            "function int add(int x, int y) {"
+            "   return 0;"
+            "}";
     bool isDefaultExpr = true;
 
+    script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/1/mytests/fib_closure.mvm";
     if (script != NULL) {
         expr = loadFile(script);
         if (expr == 0) {
@@ -59,6 +57,15 @@ int main(int argc, char** argv) {
                line, offset,
                translateStatus->getError().c_str());
     } else {
+        BcInterpreter interpreter;
+        try {
+            interpreter.interpret(code);
+            delete code;
+        } catch (exception const& e) {
+            cout << "interpretation error:\n" << e.what() << endl;
+            delete code;
+        }
+
 //        assert(code != 0);
 //        vector<Var*> vars;
 
