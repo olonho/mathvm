@@ -30,9 +30,10 @@ int main(int argc, char** argv) {
     }
 
     const char* expr =
-            "function int add(int x, int y) {"
-            "   return 0;"
-            "}";
+            "function int a() {"
+            "   return 11;"
+            "}"
+            "print(a());";
     bool isDefaultExpr = true;
 
     script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/1/mytests/fib_closure.mvm";

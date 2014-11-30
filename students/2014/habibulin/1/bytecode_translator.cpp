@@ -27,7 +27,7 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
     }
     *code = iCode;
     DEBUG_MSG("translation finished");
-//    iCode->disassemble();
+    iCode->disassemble();
     return Status::Ok();
 }
 
