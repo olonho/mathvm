@@ -3,13 +3,9 @@
 #include "validating_visitor.h"
 #include "bytecode_generator.h"
 #include "ast_printer.h"
+#include "interpreter_impl.h"
 
 namespace mathvm {
-class InterpreterCodeImpl : public Code {
-    virtual Status* execute(vector<Var*>& vars) {
-        return Status::Error("Not implemented");
-    }
-};
 
 class TranslatorImpl : public Translator {
     Status* translate(const string& program, Code* *code) {

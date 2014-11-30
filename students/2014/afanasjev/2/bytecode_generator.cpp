@@ -15,8 +15,10 @@ Status* BytecodeGenerator::generateCode(AstFunction* top, Code* code) {
     status = Status::Ok();
     this->code = code;
 
-    top->scope()->declareVariable(tmpVarName, VT_INT);
-    visitAstFunction(top);
+    // declate tmp var as top function local variable
+    top->node()->body()->scope()->declareVariable(tmpVarName, VT_INT);
+
+    startScope(top->owner());
 
     return status;
 }
@@ -103,6 +105,10 @@ void BytecodeGenerator::visitArithmeticBinOpNode(BinaryOpNode* node) {
 
 void BytecodeGenerator::visitCmpBinOpNode(BinaryOpNode* node) {
     VarType type = getWidestType(getType(node->left()), getType(node->right())); 
+    
+    if(type == VT_DOUBLE) {
+        bytecode->addInsn(BC_ILOAD0);
+    }
 
     node->right()->visit(this);
     convertIfNecessary(getType(node->right()), type);
@@ -113,7 +119,6 @@ void BytecodeGenerator::visitCmpBinOpNode(BinaryOpNode* node) {
     
     if(type == VT_DOUBLE) {
         bytecode->addInsn(BC_DCMP);
-        bytecode->addInsn(BC_ILOAD0);
     }
     
     Instruction jmpCmd = cmpCommands[node->kind()];
@@ -332,9 +337,45 @@ void BytecodeGenerator::visitIfNode(IfNode* node) {
     }
 }
 
+int BytecodeGenerator::valsLeftOnStack(AstNode* node) {
+    if(node->isCallNode()) {
+        string const & funName = node->asCallNode()->name();
+        AstFunction* astFunction = scope->lookupFunction(funName);
+
+        return astFunction->returnType() == VT_VOID ? 0 : 1;
+    }
+
+    if(node->isBinaryOpNode()) {
+        BinaryOpNode* binNode = node->asBinaryOpNode();
+        return binNode->kind() == tRANGE ? 2 : 1;
+    } 
+
+    if(node->isStringLiteralNode() ||
+       node->isDoubleLiteralNode() ||
+       node->isIntLiteralNode()    ||
+       node->isLoadNode()          ||
+       node->isUnaryOpNode()) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
+
 void BytecodeGenerator::visitBlockNode(BlockNode* node) {
     Scope* old = startScope(node->scope());
-    node->visitChildren(this);
+    
+    for (uint32_t i = 0; i < node->nodes(); i++) {
+        AstNode* cur = node->nodeAt(i);
+
+        cur->visit(this);
+
+        int unusedValsCnt = valsLeftOnStack(cur);
+        for(int i = 0; i < unusedValsCnt; ++i) {
+            bytecode->addInsn(BC_POP);
+        }
+    }
+
     endScope(node->scope(), old);
 }
 
@@ -366,22 +407,25 @@ void BytecodeGenerator::visitReturnNode(ReturnNode* node) {
 
 void BytecodeGenerator::visitCallNode(CallNode* node) {
     AstFunction* astFunction = scope->lookupFunction(node->name());
-    BytecodeFunction* function = (BytecodeFunction*) astFunction->info(); 
 
     for(uint32_t i = 0; i < node->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
-        convertIfNecessary(getType(node->parameterAt(i)), function->parameterType(i));
+        convertIfNecessary(getType(node->parameterAt(i)), astFunction->parameterType(i));
     }
 
-    bytecode->addInsn(BC_CALL);
-    bytecode->addUInt16(function->id());
+    if(isFunctionNative(astFunction)) {
+        astFunction->node()->body()->nodeAt(0)->visit(this); 
+    }
+    else {
+        BytecodeFunction* function = (BytecodeFunction*) astFunction->info(); 
+        bytecode->addInsn(BC_CALL);
+        bytecode->addUInt16(function->id());
+    }
 }
 
 
 void BytecodeGenerator::visitNativeCallNode(NativeCallNode* node) {
-    void* nativeCode = locateNativeFunction(node->nativeName());
-    
-    uint16_t id = code->makeNativeFunction(node->nativeName(), node->nativeSignature(), nativeCode);
+    uint16_t id = code->makeNativeFunction(node->nativeName(), node->nativeSignature(), 0);
     bytecode->addInsn(BC_CALLNATIVE);
     bytecode->addUInt16(id);
 }
@@ -421,10 +465,32 @@ Scope* BytecodeGenerator::startScope(Scope* scope) {
     while(varIt.hasNext()) {
         declareVar(varIt.next());
     }
-
+    
     Scope::FunctionIterator funIt(scope);
     while(funIt.hasNext()) {
-        visitAstFunction(funIt.next());
+        AstFunction* astFun = funIt.next();
+        if(!isFunctionNative(astFun)) {
+            BytecodeFunction* bytecodeFun = new BytecodeFunction(astFun);
+            code->addFunction(bytecodeFun);
+            astFun->setInfo(bytecodeFun);
+        }
+        else {
+            NativeCallNode* node = astFun->node()->body()->nodeAt(0)->asNativeCallNode();
+            void* nativeCode = locateNativeFunction(node->nativeName());
+            if(nativeCode == 0) {
+                fail("Can't load native function " + node->nativeName(), node->position());
+            }
+
+            code->makeNativeFunction(node->nativeName(), node->nativeSignature(), nativeCode);
+        }
+    }
+
+    funIt = Scope::FunctionIterator(scope);
+    while(funIt.hasNext()) {
+        AstFunction* astFun = funIt.next();
+        if(!isFunctionNative(astFun)) {
+            visitAstFunction(astFun);
+        }
     }
     
     return old;
@@ -445,9 +511,7 @@ void BytecodeGenerator::visitAstFunction(AstFunction* function) {
     uint16_t oldLocals = locals;
     Scope* oldScope = scope;
 
-    BytecodeFunction* newFunction = new BytecodeFunction(function);
-    code->addFunction(newFunction);
-    function->setInfo(newFunction);
+    BytecodeFunction* newFunction = (BytecodeFunction*) function->info();
     
     currentFunction = newFunction;
     bytecode = newFunction->bytecode();
@@ -455,6 +519,9 @@ void BytecodeGenerator::visitAstFunction(AstFunction* function) {
     scope = function->scope(); 
 
     function->node()->visit(this);
+
+    currentFunction->setLocalsNumber(currentFunction->localsNumber() - 
+            currentFunction->parametersNumber());
     
     currentFunction = oldFunction;
     bytecode = oldBytecode;

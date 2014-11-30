@@ -13,7 +13,9 @@ USER_OBJ = \
    $(OBJ)/validating_visitor$(OBJ_SUFF) \
    $(OBJ)/ast_printer$(OBJ_SUFF) \
    $(OBJ)/bytecode_generator$(OBJ_SUFF) \
-   $(OBJ)/my_translator$(OBJ_SUFF)
+   $(OBJ)/my_translator$(OBJ_SUFF) \
+   $(OBJ)/interpreter_impl$(OBJ_SUFF) \
+   $(OBJ)/native_call_builder$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 

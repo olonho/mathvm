@@ -174,9 +174,11 @@ void ValidatingVisitor::visitFunctionNode(FunctionNode* node) {
             return;
         }
     }
-
-    node->visitChildren(this);
+    
     node->setInfo(NodeData::getTyped());
+    if(!isFunctionNative(node)) {
+        node->visitChildren(this);
+    }
 }
 
 void ValidatingVisitor::visitReturnNode(ReturnNode* node) {

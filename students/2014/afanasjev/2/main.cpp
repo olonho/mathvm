@@ -23,28 +23,20 @@ int main(int argc, char** argv) {
     }
     Translator* translator = Translator::create(impl);
 
-    if (translator == 0) {
-        cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
+    if (script == NULL) {
+        printf("Please specify input file\n");
         return 1;
     }
 
-    const char* expr = "double x; double y;"
-                        "x += 8.0; y = 2.0;"
-                        "print('Hello, x=',x,' y=',y,'\n');";
-    bool isDefaultExpr = true;
-
-    if (script != NULL) {
-        expr = loadFile(script);
-        if (expr == 0) {
-            printf("Cannot read file: %s\n", script);
-            return 1;
-        }
-        isDefaultExpr = false;
+    const char* expr = loadFile(script);
+    if (expr == 0) {
+        printf("Cannot read file: %s\n", script);
+        return 1;
     }
 
     Code* code = 0;
-
     Status* translateStatus = translator->translate(expr, &code);
+
     if (translateStatus->isError()) {
         uint32_t position = translateStatus->getPosition();
         uint32_t line = 0, offset = 0;
@@ -54,41 +46,28 @@ int main(int argc, char** argv) {
                line, offset,
                translateStatus->getErrorCstr());
     } else {
-        code->disassemble(cout);
+        //code->disassemble(cerr);
 
         if (impl != "printer") {
-          assert(code != 0);
-          vector<Var*> vars;
+            assert(code != 0);
 
-          if (isDefaultExpr) {
-            Var* xVar = new Var(VT_DOUBLE, "x");
-            Var* yVar = new Var(VT_DOUBLE, "y");
-            vars.push_back(xVar);
-            vars.push_back(yVar);
-            xVar->setDoubleValue(42.0);
-          }
-          Status* execStatus = code->execute(vars);
-          if (execStatus->isError()) {
-            printf("Cannot execute expression: error: %s\n",
-                   execStatus->getErrorCstr());
-          } else {
-            if (isDefaultExpr) {
-              printf("x evaluated to %f\n", vars[0]->getDoubleValue());
-              for (uint32_t i = 0; i < vars.size(); i++) {
-                delete vars[i];
-              }
+            vector<Var*> vars;
+            Status* execStatus = code->execute(vars);
+
+            if (execStatus->isError()) {
+                printf("Cannot execute expression: error: %s\n",
+                        execStatus->getErrorCstr());
             }
-          }
-          delete code;
-          delete execStatus;
+
+            delete code;
+            delete execStatus;
         }
     }
+
     delete translateStatus;
     delete translator;
 
-    if (!isDefaultExpr) {
-      delete [] expr;
-    }
+    delete [] expr;
 
     return 0;
 }
