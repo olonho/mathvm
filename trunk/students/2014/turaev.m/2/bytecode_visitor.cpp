@@ -22,7 +22,7 @@ BytecodeMainVisitor::BytecodeMainVisitor(Code *code, AstFunction *topFunction) :
     _typeTokenInstruction[VT_INT][tDIV] = BC_IDIV;
 
     _typeTokenInstruction[VT_INT][tAOR] = BC_IAOR;
-    _typeTokenInstruction[VT_INT][tAND] = BC_IAAND;
+    _typeTokenInstruction[VT_INT][tAAND] = BC_IAAND;
     _typeTokenInstruction[VT_INT][tAXOR] = BC_IAXOR;
 
     _typeTokenInstruction[VT_INT][tEQ] = BC_IFICMPE;
@@ -37,21 +37,21 @@ void BytecodeMainVisitor::visitPrintNode(PrintNode *node) {
     for (uint32_t i = 0; i < node->operands(); ++i) {
         node->operandAt(i)->visit(this);
         switch (_typesStack.top()) {
-        case VT_DOUBLE: {
-            emit(BC_DPRINT);
-            break;
-        }
-        case VT_INT: {
-            emit(BC_DPRINT);
-            break;
-        }
-        case VT_STRING: {
-            emit(BC_DPRINT);
-            break;
-        }
-        default: {
-            assert(0);
-        }
+            case VT_DOUBLE: {
+                emit(BC_DPRINT);
+                break;
+            }
+            case VT_INT: {
+                emit(BC_IPRINT);
+                break;
+            }
+            case VT_STRING: {
+                emit(BC_SPRINT);
+                break;
+            }
+            default: {
+                assert(0);
+            }
         }
         _typesStack.pop();
     }
@@ -77,27 +77,27 @@ void BytecodeMainVisitor::visitFunctionNode(FunctionNode *node) {
     uint16_t adjustment = node->parametersNumber() - 1;
     for (uint16_t i = 0; i < node->parametersNumber(); ++i) {
         switch (node->parameterType(adjustment - i)) {
-        case (VT_INVALID): { //for () -> Type functions
-            continue;
-        }
-        case (VT_INT): {
-            emit(BC_STOREIVAR);
-            emitUInt16(adjustment - i);
-            break;
-        }
-        case (VT_DOUBLE): {
-            emit(BC_STOREDVAR);
-            emitUInt16(adjustment - i);
-            break;
-        }
-        case (VT_STRING): {
-            emit(BC_STORESVAR);
-            emitUInt16(adjustment - i);
-            break;
-        }
-        default: {
-            assert(0);
-        }
+            case (VT_INVALID): { //for () -> Type functions
+                continue;
+            }
+            case (VT_INT): {
+                emit(BC_STOREIVAR);
+                emitUInt16(adjustment - i);
+                break;
+            }
+            case (VT_DOUBLE): {
+                emit(BC_STOREDVAR);
+                emitUInt16(adjustment - i);
+                break;
+            }
+            case (VT_STRING): {
+                emit(BC_STORESVAR);
+                emitUInt16(adjustment - i);
+                break;
+            }
+            default: {
+                assert(0);
+            }
         }
     }
 
@@ -169,7 +169,7 @@ void BytecodeMainVisitor::visitForNode(ForNode *node) {
     // assert(dynamic_cast<LoadNode *>(rightNode) != 0 || dynamic_cast<IntLiteralNode *>(rightNode) != 0);
 
     StoreNode store(0, astVar, leftNode, tASSIGN);
-    IntLiteralNode oneLiteral(0, (uint64_t)1);
+    IntLiteralNode oneLiteral(0, (uint64_t) 1);
     StoreNode increment(0, astVar, &oneLiteral, tINCRSET);
     LoadNode loadVar(0, astVar);
     BinaryOpNode greaterEqCondition(0, tGE, &loadVar, leftNode);
@@ -190,25 +190,25 @@ void BytecodeMainVisitor::visitStoreNode(StoreNode *node) {
     node->value()->visit(this);
 
     switch (node->op()) {
-    case (tASSIGN): {
-        storeToVariable(node->var());
-        break;
-    }
-    case (tINCRSET): {
-        loadVariable(node->var());
-        binary_math(tADD);
-        storeToVariable(node->var());
-        break;
-    }
-    case (tDECRSET): {
-        loadVariable(node->var());
-        binary_math(tSUB);
-        storeToVariable(node->var());
-        break;
-    }
-    default: {
-        assert(0);
-    }
+        case (tASSIGN): {
+            storeToVariable(node->var());
+            break;
+        }
+        case (tINCRSET): {
+            loadVariable(node->var());
+            binary_math(tADD);
+            storeToVariable(node->var());
+            break;
+        }
+        case (tDECRSET): {
+            loadVariable(node->var());
+            binary_math(tSUB);
+            storeToVariable(node->var());
+            break;
+        }
+        default: {
+            assert(0);
+        }
     }
 }
 
@@ -243,37 +243,40 @@ void BytecodeMainVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 void BytecodeMainVisitor::visitBinaryOpNode(BinaryOpNode *node) {
     TokenKind operation = node->kind();
     switch (operation) {
-    case (tOR):
-    case (tAND): {
-        binary_logic(node);
-        break;
-    }
-    case (tADD):
-    case (tSUB):
-    case (tMUL):
-    case (tDIV):
-    case (tMOD): {
-        node->right()->visit(this);
-        node->left()->visit(this);
-        binary_math(node->kind());
-        break;
-    }
-    case (tEQ):
-    case (tNEQ):
-    case (tGT):
-    case (tGE):
-    case (tLT):
-    case (tLE): {
-        binary_comparison(node);
-        break;
-    }
-    default: {
-        assert(0);
-    }
+        case (tOR):
+        case (tAND): {
+            binary_logic(node);
+            break;
+        }
+        case (tADD):
+        case (tSUB):
+        case (tMUL):
+        case (tDIV):
+        case (tMOD):
+        case (tAOR):
+        case (tAXOR):
+        case (tAAND): {
+            node->right()->visit(this);
+            node->left()->visit(this);
+            binary_math(node->kind());
+            break;
+        }
+        case (tEQ):
+        case (tNEQ):
+        case (tGT):
+        case (tGE):
+        case (tLT):
+        case (tLE): {
+            binary_comparison(node);
+            break;
+        }
+        default: {
+            assert(0);
+        }
     }
 }
 
-Status *BytecodeTranslatorImpl::translate(const string &program, Code **code)  {
+Status *BytecodeTranslatorImpl::translate(const string &program, Code **code) {
     Parser parser;
     Status *status = parser.parseProgram(program);
     if (status && status->isError()) {
@@ -281,7 +284,7 @@ Status *BytecodeTranslatorImpl::translate(const string &program, Code **code)  {
     }
 
     BytecodeMainVisitor visitor(*code = new InterpreterCodeImpl(), parser.top());
-    parser.top()->node()->body()->visit(&visitor);
+    parser.top()->node()->visit(&visitor);
 
     return Status::Ok();
 }

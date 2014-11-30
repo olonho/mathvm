@@ -16,6 +16,7 @@ public:
         for (uint16_t i = 0; i < parametersNumber(); ++i) {
             _local_variables[parameterName(i)] = _variable_id++;
         }
+        setLocalsNumber(parametersNumber());
     }
 
     uint16_t getVariableId(const string &name) {
@@ -24,6 +25,7 @@ public:
 
     void addLocalVariable(const string &name) {
         _local_variables[name] =  _variable_id++;
+        setLocalsNumber(localsNumber() + 1);
     }
 
     virtual ~RichFunction() {
