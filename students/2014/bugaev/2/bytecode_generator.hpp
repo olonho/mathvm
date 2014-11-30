@@ -1,40 +1,15 @@
 #ifndef BYTECODE_GENERATOR_HPP
 #define BYTECODE_GENERATOR_HPP
 
+#include "exceptions.hpp"
 #include "visitors.h"
 #include "ast.h"
 
-#include <exception>
 #include <vector>
 
 
 namespace mathvm
 {
-
-class BytecodeGeneratorException: public std::exception
-{
-public:
-    BytecodeGeneratorException(char const *msg, uint32_t position):
-        m_msg(msg),
-        m_position(position)
-    {
-    }
-
-    char const *what() const throw()
-    {
-        return m_msg;
-    }
-
-    uint32_t position() const
-    {
-        return m_position;
-    }
-
-private:
-    char const * const m_msg;
-    uint32_t const m_position;
-};
-
 
 class BytecodeGenerator: public AstVisitor
 {
@@ -109,9 +84,9 @@ private:
         m_types.pop_back();
     }
 
-    uint16_t currentContext() const
+    uint16_t currentContext()
     {
-        return 1;
+        return m_fids[m_funcs.back()->name()] + 1;
     }
 
     uint16_t nextContext() const
@@ -162,6 +137,8 @@ private:
 private:
     std::vector<VarType> m_types;
     std::vector< std::pair<FunctionNode *, Scope *> > m_scopes;
+    std::vector<FunctionNode *> m_funcs;
+    std::map<std::string, uint16_t> m_fids;
 
     std::vector<int> m_returnCounts;
     std::vector<VarType> m_returnTypes;

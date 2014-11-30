@@ -10,10 +10,7 @@ namespace mathvm
 class InterpreterCodeImpl: public Code
 {
 public:
-    Status *execute(vector<Var *> &vars)
-    {
-        return Status::Error("Executor is not implemented");
-    }
+    Status *execute(vector<Var *> &);
 };
 
 }
