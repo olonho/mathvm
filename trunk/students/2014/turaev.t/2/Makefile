@@ -5,7 +5,7 @@ OPT=1
 
 include $(VM_ROOT)/common.mk
 
-USER_CFLAGS += -std=c++11 -Wno-unused
+USER_CFLAGS += -std=c++11 -Wno-unused -march=native -mtune=native
 
 USER_OBJ = \
    $(JIT_OBJ) \
