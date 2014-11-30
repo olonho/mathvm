@@ -12,18 +12,17 @@ Status* BytecodeTranslatorImpl::translate(
   const string& program, 
   Code** result
 ) {
-  InterpreterCodeImpl* code = NULL;
+  InterpreterCodeImpl* code = 0;
   Status* status = translateBytecode(program, &code);
 
   if (status->isError()) {
-    assert(code == NULL);
-    *result = NULL;
+    assert(code == 0);
+    *result = 0;
     return status;
   }
 
-  debug("\n", "BYTECODE:");
-  code->disassemble();
-  assert(code != NULL);
+  //code->disassemble();
+  assert(code != 0);
   *result = code;
 
   return status;
@@ -34,7 +33,7 @@ Status* BytecodeTranslatorImpl::translateBytecode(
   const string& program,
   InterpreterCodeImpl** result
 ) {
-  InterpreterCodeImpl* code = NULL;
+  InterpreterCodeImpl* code = 0;
   Parser parser;
 
   Status* status = parser.parseProgram(program);
@@ -47,7 +46,7 @@ Status* BytecodeTranslatorImpl::translateBytecode(
   }
 
   if (status->isError()) {
-    *result = NULL;
+    *result = 0;
     delete code;
   } else {
     *result = code;
