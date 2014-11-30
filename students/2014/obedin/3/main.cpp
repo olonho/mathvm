@@ -3,13 +3,13 @@
 #include <sys/stat.h>
 #include <iostream>
 #include <stdexcept>
+#include <SDL/SDL.h>
 
 #include "mathvm.h"
 #include "my_translator.hpp"
 
 using namespace mathvm;
 using namespace std;
-
 
 int main(int argc, char** argv) {
     const char* script = NULL;

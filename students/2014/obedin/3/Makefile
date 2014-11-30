@@ -13,7 +13,11 @@ USER_OBJ = \
    $(OBJ)/my_translator$(OBJ_SUFF) \
    $(OBJ)/my_interpreter$(OBJ_SUFF)
 
-USER_CFLAGS = -Wno-unused -march=native
+OPT=1
+
+WITH_SDL=1
+
+USER_CFLAGS = -Wno-unused -march=native -mtune=native
 
 include $(VM_ROOT)/common.mk
 
