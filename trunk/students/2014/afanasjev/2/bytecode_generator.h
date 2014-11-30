@@ -48,6 +48,7 @@ public:
     void undeclareVar(AstVar* var);
 
 private:
+    int valsLeftOnStack(AstNode* node);
     
     void fail(string const & msg, uint32_t position);
     VarType getType(AstNode* node);

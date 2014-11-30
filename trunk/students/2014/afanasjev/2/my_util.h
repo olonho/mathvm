@@ -1,10 +1,17 @@
 #pragma once
 #include "string"
 #include "mathvm.h"
+#include "ast.h"
+#include <dlfcn.h>
 
 namespace mathvm {
 inline void* locateNativeFunction(std::string const & name) {
-    return 0;
+    void* fptr = dlsym(RTLD_DEFAULT, name.c_str());
+
+    if(dlerror() != NULL) {
+        return 0;
+    }
+    return fptr;
 }
 
 inline VarType getWidestType(VarType first, VarType second) {
@@ -27,11 +34,21 @@ inline bool canCast(VarType from, VarType to) {
     }
 
     if((from == VT_INT || from == VT_DOUBLE) &&
-       (to == VT_INT || to == VT_INT)) {
+       (to == VT_INT || to == VT_DOUBLE)) {
         return true;
     } 
 
     return false;
+}
+
+inline bool isFunctionNative(FunctionNode* node) {
+    return node->body()->nodes() > 0 && 
+        node->body()->nodeAt(0)->isNativeCallNode();
+}
+
+inline bool isFunctionNative(AstFunction* function) {
+    FunctionNode* node = function->node(); 
+    return isFunctionNative(node);
 }
 
 }
