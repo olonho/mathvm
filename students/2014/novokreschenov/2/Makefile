@@ -10,7 +10,12 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/bytecodetranslator$(OBJ_SUFF)
+   $(OBJ)/bytecodetranslator$(OBJ_SUFF) \
+   $(OBJ)/bytecodegenerator$(OBJ_SUFF) \
+   $(OBJ)/contextmanager$(OBJ_SUFF) \
+   $(OBJ)/functioncontext$(OBJ_SUFF) \
+   $(OBJ)/interpretercode$(OBJ_SUFF) \
+   $(OBJ)/typeinferencer$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
