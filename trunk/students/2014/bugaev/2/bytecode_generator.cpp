@@ -56,9 +56,18 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode *node)
         break;
     case tEQ:
         resultType = castIntDouble(node);
-        bc()->addInsn((resultType == VT_INT) ? BC_ICMP : BC_DCMP);
-        bc()->addInsn(BC_ILOAD0);
-        bc()->addInsn(BC_ICMP);
+        {
+            bc()->addInsn((resultType == VT_INT) ? BC_ICMP : BC_DCMP);
+            bc()->addInsn(BC_ILOAD0);
+            Label l1(bc());
+            bc()->addBranch(BC_IFICMPE, l1);
+            bc()->addInsn(BC_ILOAD0);
+            Label l2(bc());
+            bc()->addBranch(BC_JA, l2);
+            bc()->bind(l1);
+            bc()->addInsn(BC_ILOAD1);
+            bc()->bind(l2);
+        }
         break;
     case tNEQ:
         resultType = castIntDouble(node);
@@ -117,8 +126,16 @@ void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode *node)
         if (tosType() != VT_INT)
             throw BytecodeGeneratorException("Invalid logical not",
                                              node->position());
-        bc()->addInsn(BC_ILOAD0);
-        bc()->addInsn(BC_ICMP);
+        {
+            bc()->addInsn(BC_ILOAD0);
+            Label l1(bc());
+            bc()->addBranch(BC_IFICMPE, l1);
+            bc()->addInsn(BC_ILOAD0);
+            Label l2(bc());
+            bc()->bind(l1);
+            bc()->addInsn(BC_ILOAD1);
+            bc()->bind(l2);
+        }
         break;
     default:
         throw BytecodeGeneratorException("Illegal unary operator",
@@ -380,7 +397,7 @@ void BytecodeGenerator::visitCallNode(CallNode *node)
 
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
-        storeVariable(node, tosType(), nextContext(), i + 1);
+        storeVariable(node, tf->parameterType(i), nextContext(), i + 1);
     }
     bc()->addInsn(BC_CALL);
     bc()->addInt16(tf->id());
@@ -440,7 +457,8 @@ void BytecodeGenerator::registerFunction(AstFunction *func)
                                          func->node()->position());
     }
     BytecodeFunction *bfunc = new BytecodeFunction(func);
-    m_code->addFunction(bfunc);
+    uint16_t const fid = m_code->addFunction(bfunc);
+    m_fids[func->name()] = fid;
 }
 
 
@@ -452,6 +470,7 @@ void BytecodeGenerator::translateFunction(AstFunction *top)
 
     m_scopes.push_back(std::make_pair(top->node(),
                                       top->node()->body()->scope()));
+    m_funcs.push_back(top->node());
 
     m_bcs.push_back(func->bytecode());
     m_returnLabels.push_back(Label(bc()));
@@ -464,6 +483,8 @@ void BytecodeGenerator::translateFunction(AstFunction *top)
     m_returnLabels.pop_back();
     m_returnTypes.pop_back();
     m_returnCounts.pop_back();
+
+    m_funcs.pop_back();
 }
 
 
@@ -474,7 +495,7 @@ void BytecodeGenerator::findVariable(
     assert(!m_scopes.empty());
     int i = static_cast<int>(m_scopes.size()) - 1;
 
-    ctx = 1;
+    ctx = 0;
     id = 0;
 
     bool found = false;
@@ -483,10 +504,12 @@ void BytecodeGenerator::findVariable(
         Scope *scp = m_scopes[i].second;
 
         if (fn) {
+            ctx = m_fids[fn->name()] + 1;
+
             for (uint32_t j = 0; j < fn->parametersNumber(); ++j) {
                 if (fn->parameterName(j) == name) {
                     id = 1 + j;
-                    type = fn->parameterType(i);
+                    type = fn->parameterType(j);
                     return;
                 }
             }
@@ -504,8 +527,6 @@ void BytecodeGenerator::findVariable(
             }
             ++j;
         }
-
-        ctx += !found && fn != 0;
     }
 
     if (!found) {
@@ -524,6 +545,7 @@ void BytecodeGenerator::findVariable(
 
         id += scp->variablesCount();
         if (fn) {
+            ctx = m_fids[fn->name()] + 1;
             id += fn->parametersNumber();
             break;
         }

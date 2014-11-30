@@ -56,7 +56,17 @@ int main(int argc, char** argv) {
     } else {
         if (impl != "printer") {
           assert(code != 0);
-          code->disassemble();
+
+          //code->disassemble();
+
+          vector<Var*> vars;
+          Status* execStatus = code->execute(vars);
+          if (execStatus->isError()) {
+              printf("Cannot execute expression: error: %s\n",
+                     execStatus->getErrorCstr());
+          }
+
+          delete execStatus;
           delete code;
         }
     }
