@@ -1,16 +1,22 @@
 #include "mathvm.h"
 
+#include "code_interpreter.h"
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 
 #include <iostream>
+#include <memory>
 
 using namespace mathvm;
 using namespace std;
 
+typedef std::shared_ptr<Status> StatusPtr;
+typedef std::shared_ptr<Translator> TranslatorPtr;
+
 int main(int argc, char** argv) {
-    string impl = "printer";
+    string impl = "translator";
     const char* script = NULL;
     for (int32_t i = 1; i < argc; i++) {
       if (string(argv[i]) == "-j") {
@@ -19,18 +25,13 @@ int main(int argc, char** argv) {
         script = argv[i];
       }
     }
-    Translator* translator = Translator::create(impl);
-
+    TranslatorPtr translator(Translator::create(impl));
     if (translator == 0) {
         cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
         return 1;
     }
 
-    const char* expr = "double x; double y;"
-                        "x += 8.0; y = 2.0;"
-                        "print('Hello, x=',x,' y=',y,'\n');"
-        ;
-    bool isDefaultExpr = true;
+    const char* expr = nullptr;
 
     if (script != NULL) {
         expr = loadFile(script);
@@ -38,11 +39,16 @@ int main(int argc, char** argv) {
             printf("Cannot read file: %s\n", script);
             return 1;
         }
-        isDefaultExpr = false;
     }
-    Code* code = nullptr;
 
-    Status* translateStatus = translator->translate(expr, &code);
+    if (!expr) {
+      cout << "No text to process" << endl;
+      return 1;
+    }
+
+    Code* code = nullptr;
+    Status* status = translator->translate(expr, &code);
+    StatusPtr translateStatus(status);
     if (translateStatus->isError()) {
         uint32_t position = translateStatus->getPosition();
         uint32_t line = 0, offset = 0;
@@ -51,13 +57,22 @@ int main(int argc, char** argv) {
                "error '%s'\n",
                line, offset,
                translateStatus->getError().c_str());
-    } else {
-    }
-    delete translateStatus;
-    delete translator;
+        return 1;
 
-    if (!isDefaultExpr) {
-      delete [] expr;
+    } else {
+      if (code) {
+        CodeInterpreter interpreter(code);
+        code->disassemble();
+        try {
+          interpreter.execute();
+        } catch(ExecutionException e) {
+          cout << e.what() << endl;
+          return 1;
+        }
+      } else {
+        cout << "No code to interpret" << endl;
+        return 1;
+      }
     }
 
     return 0;

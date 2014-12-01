@@ -4,6 +4,8 @@ TEST_ROOT = $(VM_ROOT)/tests
 
 USER_CFLAGS = -Wno-unused -Wno-c++0x-compat -std=c++11
 
+OPT=1
+
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
 else
@@ -17,7 +19,7 @@ USER_OBJ = \
 
 include $(VM_ROOT)/common.mk
 
-INCLUDE += -I$(ROOT)/include
+INCLUDE += -I$(ROOT)/include -I$(ROOT)/include/exceptions  -I$(ROOT)/../2/include
 
 MATHVM = $(BIN)/mvm
 
