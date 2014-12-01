@@ -21,9 +21,26 @@
 
 namespace mathvm {
 
+BytecodeInterpreter::BytecodeInterpreter(Code* code)
+  : instructionPointer_(0), 
+    stackPointer_(0), 
+    stackFramePointer_(constants::MAX_STACK_SIZE) 
+{
+  stack_ = new char[constants::MAX_STACK_SIZE];
+  code_ = dynamic_cast<InterpreterCodeImpl*>(code);
+  assert(code_ != NULL);
+  function_ = code_->functionById(0);
+  allocFrame(0, function_->localsNumber());
+}
+
+BytecodeInterpreter::~BytecodeInterpreter() {
+  delete [] stack_;
+}
+
 void BytecodeInterpreter::execute() {
-  while (ins_ < bc()->length()) {
-    Instruction bci = bc()->getInsn(ins_++);
+  while (instructionPointer_ < bc()->length()) {
+    Instruction bci = bc()->getInsn(instructionPointer_++);
+    //debug(instructionPointer_ - 1, " :: ", bytecodeName(bci, 0));
 
     switch (bci) {
       case BC_INVALID: 
@@ -71,13 +88,13 @@ void BytecodeInterpreter::execute() {
       case BC_DNEG: push(-pop<double>()); break;
       case BC_INEG: push(-pop<int64_t>()); break;
 
-      case BC_JA: ins_ += readFromBc<int16_t>(); break;
-      case BC_IFICMPNE: CMP_OP(!=, ins_, int16_t); break;
-      case BC_IFICMPE:  CMP_OP(==, ins_, int16_t); break;
-      case BC_IFICMPG:  CMP_OP(>,  ins_, int16_t); break;
-      case BC_IFICMPGE: CMP_OP(>=, ins_, int16_t); break;
-      case BC_IFICMPL:  CMP_OP(<,  ins_, int16_t); break;
-      case BC_IFICMPLE: CMP_OP(<=, ins_, int16_t); break;
+      case BC_JA: instructionPointer_ += readFromBc<int16_t>(); break;
+      case BC_IFICMPNE: CMP_OP(!=, instructionPointer_, int16_t); break;
+      case BC_IFICMPE:  CMP_OP(==, instructionPointer_, int16_t); break;
+      case BC_IFICMPG:  CMP_OP(>,  instructionPointer_, int16_t); break;
+      case BC_IFICMPGE: CMP_OP(>=, instructionPointer_, int16_t); break;
+      case BC_IFICMPL:  CMP_OP(<,  instructionPointer_, int16_t); break;
+      case BC_IFICMPLE: CMP_OP(<=, instructionPointer_, int16_t); break;
 
       case BC_LOADIVAR: 
         loadVar<int64_t>(readFromBcAndShift<uint16_t>(), 0); 
@@ -114,6 +131,44 @@ void BytecodeInterpreter::execute() {
       default: throw InterpreterException("Not implemented instruction");
     }
   } // while
+} // execute
+
+
+StackFrame* BytecodeInterpreter::stackFrame() { 
+  return reinterpret_cast<StackFrame*>(stack_ + stackFramePointer_); 
+}
+
+void BytecodeInterpreter::allocFrame(uint16_t functionId, uint32_t localsNumber) {
+  mem_t returnFrame = stackFramePointer_;
+  mem_t parentFrame = stackFramePointer_;
+  
+  if (functionId != 0 && functionId == function_->id()) {
+    parentFrame = stackFrame()->parentFrame();
+  }
+
+  stackFramePointer_ -= (sizeof(StackFrame) + constants::VAL_SIZE * function_->localsNumber());
+  *stackFrame() = StackFrame(function_->id(), 
+                             instructionPointer_, 
+                             parentFrame,
+                             returnFrame);
+}
+
+void BytecodeInterpreter::callFunction(uint16_t id) {
+  BytecodeFunction* called = code_->functionById(id);
+  allocFrame(called->id(), called->localsNumber());
+  function_ = called;
+  instructionPointer_ = 0;
+} 
+
+void BytecodeInterpreter::returnFunction() {
+  uint64_t returnValue = pop<uint64_t>();
+  
+  StackFrame* frame = stackFrame();
+  instructionPointer_ = frame->instruction();
+  stackFramePointer_  = frame->returnFrame();
+
+  function_ = code_->functionById(frame->function());
+  push(returnValue);
 }
 
 } // namespace mathvm

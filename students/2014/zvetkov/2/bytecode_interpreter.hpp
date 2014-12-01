@@ -9,84 +9,80 @@
 #include <cassert>
 #include <cstddef>
 
+#include <algorithm>
+
 namespace mathvm {
 
+typedef int32_t mem_t;
+
 namespace constants {
-  const int64_t MAX_STACK_SIZE = 128000000;
+  const mem_t MAX_STACK_SIZE = 512*1024*1024;
+  const mem_t VAL_SIZE = std::max(sizeof(int64_t), sizeof(double));
 }
 
-class BytecodeInterpreter {
-  static const int64_t VAL_SIZE = 8;
-
-  struct StackFrame {
-    uint16_t id;
-    uint32_t ins;
-    int64_t sp;
-    int64_t sf;
-  };
-
-  InterpreterCodeImpl* code_;
-  BytecodeFunction* function_;
-  char* stack_;
-  uint32_t ins_;
-  int64_t sp_; // current stack pointer
-  int64_t sf_; // current stack frame
+class StackFrame {
+  uint16_t function_;
+  uint32_t instruction_;
+  mem_t parentFrame_;
+  mem_t returnFrame_;
 
 public:
-  BytecodeInterpreter(Code* code): ins_(0), sp_(0), sf_(0) {
-    stack_ = new char[constants::MAX_STACK_SIZE];
-    code_ = dynamic_cast<InterpreterCodeImpl*>(code);
-    assert(code_ != NULL);
-    function_ = code_->functionById(0);
-    callFunction(0);
+  StackFrame(uint16_t function, uint32_t instruction, mem_t parentFrame, mem_t returnFrame)
+    : function_(function),
+      instruction_(instruction),
+      parentFrame_(parentFrame),
+      returnFrame_(returnFrame) {}
+
+  StackFrame(const StackFrame& other) 
+    : function_(other.function_),
+      instruction_(other.instruction_),
+      parentFrame_(other.parentFrame_),
+      returnFrame_(other.returnFrame_) {}
+
+  StackFrame& operator=(const StackFrame& other) {
+    function_ = other.function_;
+    instruction_ = other.instruction_;
+    parentFrame_ = other.parentFrame_;
+    returnFrame_ = other.returnFrame_;
+    return *this;
   }
 
-  ~BytecodeInterpreter() {
-    delete [] stack_;
-  }
+  uint16_t function() const { return function_; }
+  uint32_t instruction() const { return instruction_; }
+  mem_t parentFrame() const { return parentFrame_; }
+  mem_t returnFrame() const { return returnFrame_; }
+};
 
+class BytecodeInterpreter {
+  char* stack_;
+  InterpreterCodeImpl* code_;
+  BytecodeFunction* function_;
+  uint32_t instructionPointer_;
+  mem_t stackPointer_;
+  mem_t stackFramePointer_;
+
+public:
+  BytecodeInterpreter(Code* code);
+  ~BytecodeInterpreter();
   void execute();
 
 private:
-  void callFunction(uint16_t id) {
-    StackFrame* frame = (StackFrame*) (stack_ + sp_);
-    frame->id = function_->id();
-    frame->ins = ins_;
-    frame->sp = sp_;
-    frame->sf = sf_;
-
-    ins_ = 0;
-    sf_ = sp_;
-
-    function_ = code_->functionById(id);
-    sp_ += sizeof(StackFrame) + VAL_SIZE * function_->localsNumber();
-  } 
-
-  void returnFunction() {
-    uint64_t returnValue = pop<uint64_t>();
-    
-    StackFrame* frame = (StackFrame*) (stack_ + sf_);
-    uint16_t id = frame->id;
-    ins_ = frame->ins;
-    sp_ = frame->sp;
-    sf_ = frame->sf;
-
-    function_ = code_->functionById(id);
-    push(returnValue);
-  }
+  StackFrame* stackFrame();
+  void allocFrame(uint16_t functionId, uint32_t localsNumber);
+  void callFunction(uint16_t id);
+  void returnFunction();
 
   template<typename T>
   T* findVar(uint16_t id, uint16_t context) {
-    int64_t sfSave = sf_;
+    mem_t saveStackFrame = stackFramePointer_;
 
     while (context > 0) {
-      StackFrame* frame = (StackFrame*) (stack_ + sf_);
-      sf_ = frame->sf;
+      stackFramePointer_ = stackFrame()->parentFrame();
       --context;
     }
 
-    T* t = (T*) (stack_ + sf_ + sizeof(StackFrame) + VAL_SIZE * id);
-    sf_ = sfSave;
+    T* t = (T*) (stack_ + stackFramePointer_ + sizeof(StackFrame) + constants::VAL_SIZE * id);
+    stackFramePointer_ = saveStackFrame;
     return t;
   }
 
@@ -100,44 +96,33 @@ private:
     *findVar<T>(id, context) = val;
   }
 
-  Bytecode* bc() {
-    return function_->bytecode();
-  }
 
   void remove() {
-    sp_ -= VAL_SIZE;
+    stackPointer_ -= constants::VAL_SIZE;
+  }
+
+  template<typename T>
+  T* operand() {
+    return reinterpret_cast<T*> (stack_ + stackPointer_);
   }
 
   template<typename T>
   T pop() {
-    sp_ -= VAL_SIZE;
-    return *((T*) (stack_ + sp_));
+    stackPointer_ -= constants::VAL_SIZE;
+    return *operand<T>();
   }
 
   template<typename T>
   void push(T val) {
-    *((T*) (stack_ + sp_)) = val; 
-    sp_ += VAL_SIZE;
+    *operand<T>() = val; 
+    stackPointer_ += constants::VAL_SIZE;
   }
 
   template<typename T>
   void load() {
     T val = readFromBc<T>();
-    ins_ += sizeof(T);
+    instructionPointer_ += sizeof(T);
     push<T>(val);
-  }
-
-  template<typename T>
-  T readFromBc() {
-    T val = bc()->getTyped<T>(ins_);
-    return val;
-  }
-
-  template<typename T>
-  T readFromBcAndShift() {
-    T val = bc()->getTyped<T>(ins_);
-    ins_ += sizeof(T);
-    return val;
   }
 
   void swap() {
@@ -145,6 +130,24 @@ private:
     int64_t lower = pop<int64_t>();
     push(upper);
     push(lower);
+  }
+
+
+  Bytecode* bc() {
+    return function_->bytecode();
+  }
+
+  template<typename T>
+  T readFromBc() {
+    T val = bc()->getTyped<T>(instructionPointer_);
+    return val;
+  }
+
+  template<typename T>
+  T readFromBcAndShift() {
+    T val = bc()->getTyped<T>(instructionPointer_);
+    instructionPointer_ += sizeof(T);
+    return val;
   }
 };
 
