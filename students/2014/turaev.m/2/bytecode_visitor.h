@@ -221,8 +221,8 @@ private:
         assert(operation == tEQ || operation == tNEQ ||  operation == tGT
                || operation == tGE || operation == tLT || operation == tLE);
 
-        node->left()->visit(this);
         node->right()->visit(this);
+        node->left()->visit(this);
 
         VarType first = _typesStack.top();
         _typesStack.pop();
@@ -407,12 +407,6 @@ private:
         case (VT_DOUBLE): {
             switch (operation) {
             case (tSUB): {
-                emit(BC_DLOAD0);
-                _typesStack.push(VT_DOUBLE);
-                binary_math(tSUB);
-                break;
-            }
-            case (tNOT): {
                 emit(BC_DNEG);
                 break;
             }
@@ -426,13 +420,12 @@ private:
         case (VT_INT): {
             switch (operation) {
             case (tSUB): {
-                emit(BC_ILOAD0);
-                _typesStack.push(VT_INT);
-                binary_math(tSUB);
+                emit(BC_INEG);
                 break;
             }
             case (tNOT): {
-                emit(BC_INEG);
+                emit(BC_ILOAD1);
+                emit(BC_IAXOR);
                 break;
             }
             default: {
