@@ -120,13 +120,13 @@ Status * BytecodeTranslatorImpl::translate(const string & program,
 	{
 		ByteCodeVisitor result(parser.top(), &kc);
 		*code = result.getCode();
-		Code::FunctionIterator it(*code);
-		//        while(it.hasNext()){
-		//            BytecodeFunction *bcF = (BytecodeFunction*)it.next();
-		//            cout << endl<<"nameF = " <<bcF->name() << " idx = " << bcF->id()<<endl;
-		//            bcF->bytecode()->dump(cout);
-		//            cout << endl;
-		//        }
+//		Code::FunctionIterator it(*code);
+//                while(it.hasNext()){
+//                    BytecodeFunction *bcF = (BytecodeFunction*)it.next();
+//                    cout << endl<<"nameF = " <<bcF->name() << " idx = " << bcF->id()<<endl;
+//                    bcF->bytecode()->dump(cout);
+//                    cout << endl;
+//                }
 	}
 	catch (Exception ex)
 	{

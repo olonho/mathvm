@@ -10,7 +10,7 @@ using namespace mathvm;
 class InterpretCode : public Code
 {
 public:
-    InterpretCode(): position(0), contextIdx(0), varNameIdx(0),
+    InterpretCode(): position(0),
         var0(VT_INT, "none"),
         var1(VT_INT, "none")
     {}
@@ -19,7 +19,8 @@ public:
         Code::FunctionIterator it(this);
         currenFunction = (BytecodeFunction *)it.next();
         contextStack.push(currenFunction->id());
-        currentContext = createContext(0);
+        currentContext = createOrGetContext(1);
+        addContextToMap(1, currentContext);
 
         //byteCode()->dump(cout);
         try
@@ -58,9 +59,8 @@ private:
     stack <Var> variables;
     stack <uint32_t> contextStack;
     Context * currentContext;
-    int16_t contextIdx;
-    int16_t varNameIdx;
-    map <int16_t, Context *> contextMap;
+    //create new context on every new call
+    map <int16_t, vector<Context *> > contextMap;
     Var var0, var1;
 
 private:
@@ -81,23 +81,40 @@ private:
     void handleReturnNode();
 
 private:
-    Context * createContext(int16_t idx)
+    Context * createOrGetContext(int16_t idx)
     {
-        if (contextMap.find(idx) != contextMap.end())
-            return contextMap.at(idx);
-
         Context::VariableMap vars;
         Context::FunctionMapM funcs;
         Context * context = new Context(idx, vars, funcs, NULL);
-        contextMap.insert(make_pair(idx, context));
+
+        //create empty context if no one elems in Map
+        if (contextMap.find(idx) == contextMap.end()){
+            vector <Context *> contexts;
+            contextMap.insert(make_pair(idx, contexts));
+        }
+            //return contextMap.at(idx).front();
+
         return context;
     }
+
+    void addContextToMap(int16_t key, Context *newContext){
+        contextMap.at(key).push_back(newContext);
+    }
+
     Context * getContext(int16_t idx)
+    {
+        if (contextMap.find(idx) != contextMap.end())
+            return contextMap.at(idx).back();
+        else
+            throw Exception("try to load unexistence context");
+    }
+
+    vector<Context *> getContextMap(int16_t idx)
     {
         if (contextMap.find(idx) != contextMap.end())
             return contextMap.at(idx);
         else
-            throw Exception("try to load unexistence context");
+            throw Exception("try to load unexistence context Map");
     }
 
     Var getVariable(Context * context, int16_t idx)
@@ -129,7 +146,6 @@ private:
         }
     }
 
-    //TODO handle string
     template <typename T>
     T getValue(Var & var)
     {

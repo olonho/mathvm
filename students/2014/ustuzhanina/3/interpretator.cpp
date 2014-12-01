@@ -184,15 +184,15 @@ void InterpretCode::loadVar(Instruction instruction)
 {
 	int16_t idxContext = byteCode()->getInt16(position - 4);
 	int16_t idxVar = byteCode()->getInt16(position - 2);
-	Var var = getVariable(getContext(idxContext), idxVar);
-	variables.push(var);
+    Var var = getVariable(getContext(idxContext), idxVar);
+    variables.push(var);
 }
 
 void InterpretCode::saveVar(Instruction instruction)
 {
 	int16_t idxContext = byteCode()->getInt16(position - 4);
 	int16_t idxVar = byteCode()->getInt16(position - 2);
-	Context * context = createContext(idxContext);
+    Context * context = getContext(idxContext);
 	Context::VariableMap mMap = context->variableMap;
 	Var var = variables.top();
 	variables.pop();
@@ -338,14 +338,19 @@ void InterpretCode::handleCallNode(Instruction instruction)
 	contextStack.push(position);
 	position = 0;
 	currenFunction = (BytecodeFunction *) functionById(funcIdx);
+    Context *nContext = createOrGetContext(funcIdx + 1);
+    contextMap.at(funcIdx + 1).push_back(nContext);
 }
 
 void InterpretCode::handleReturnNode()
 {
+    Context *context = contextMap.at(currenFunction->id() + 1).back();
+    contextMap.at(currenFunction->id() + 1).pop_back();
+    delete context;
 	//return to position
 	position = contextStack.top();
 	contextStack.pop();
 	//return to function
 	currenFunction = (BytecodeFunction *) functionById(contextStack.top());
-	contextStack.pop();
+	contextStack.pop();    
 }
