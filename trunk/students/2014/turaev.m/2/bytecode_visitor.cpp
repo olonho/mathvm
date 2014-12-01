@@ -173,7 +173,7 @@ void BytecodeMainVisitor::visitForNode(ForNode *node) {
     StoreNode increment(0, astVar, &oneLiteral, tINCRSET);
     LoadNode loadVar(0, astVar);
     BinaryOpNode greaterEqCondition(0, tGE, &loadVar, leftNode);
-    BinaryOpNode lessEqCondition(0, tGE, &loadVar, rightNode);
+    BinaryOpNode lessEqCondition(0, tLE, &loadVar, rightNode);
     BinaryOpNode condition(0, tAND, &greaterEqCondition, &lessEqCondition);
 
     store.visit(this);
