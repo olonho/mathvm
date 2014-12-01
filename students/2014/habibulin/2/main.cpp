@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
             "print(a());";
     bool isDefaultExpr = true;
 
-    script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/1/mytests/vars.mvm";
+//    script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/1/mytests/vars.mvm";
     if (script != NULL) {
         expr = loadFile(script);
         if (expr == 0) {
