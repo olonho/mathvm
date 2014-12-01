@@ -36,6 +36,9 @@ private:
     void storeVariable(AstNode const *node,
                        VarType type, uint16_t ctx, uint16_t id,
                        char const *errMsg = 0);
+    void addStoreBytecode(AstNode const *node,
+                          VarType type, uint16_t ctx, uint16_t id,
+                          char const *errMsg = 0);
     void makeLazyLogicalOp(BinaryOpNode *node);
     VarType makeIBinaryOp(AstNode const *node, Instruction insn);
     VarType makeIDBinaryOp(AstNode const *node,
@@ -43,6 +46,14 @@ private:
     VarType makeCmpOp(AstNode const *node, int64_t mask, bool swap);
     VarType castIntDouble(AstNode const *node);
     void castTypes(AstNode const *node, VarType from, VarType to);
+
+    void pushScope(FunctionNode *fn, Scope *scope);
+
+    void popScope()
+    {
+        m_scopes.pop_back();
+        m_vars.pop_back();
+    }
 
     void registerFunctions(Scope::FunctionIterator fi)
     {
@@ -74,19 +85,19 @@ private:
 
     void pushType(VarType type)
     {
-        // std::cerr << "push " << typeToName(type) << "\n";
+        //std::cerr << "push " << typeToName(type) << "\n";
         m_types.push_back(type);
     }
 
     void popType()
     {
-        // std::cerr << "pop " << typeToName(m_types.back()) << "\n";
+        //std::cerr << "pop " << typeToName(m_types.back()) << "\n";
         m_types.pop_back();
     }
 
     uint16_t currentContext()
     {
-        return m_fids[m_funcs.back()->name()] + 1;
+        return m_fids[m_funcs.back()->name()];
     }
 
     uint16_t nextContext() const
@@ -137,6 +148,7 @@ private:
 private:
     std::vector<VarType> m_types;
     std::vector< std::pair<FunctionNode *, Scope *> > m_scopes;
+    std::vector< std::vector<AstVar *> > m_vars;
     std::vector<FunctionNode *> m_funcs;
     std::map<std::string, uint16_t> m_fids;
 

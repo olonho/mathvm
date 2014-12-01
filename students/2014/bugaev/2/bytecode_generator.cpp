@@ -1,6 +1,8 @@
 #include "interpreter_code.hpp"
 #include "bytecode_generator.hpp"
 
+#include <algorithm>
+#include <limits>
 #include <dlfcn.h>
 
 
@@ -327,8 +329,7 @@ void BytecodeGenerator::visitIfNode(IfNode *node)
 void BytecodeGenerator::visitBlockNode(BlockNode *node)
 {
     if (node->scope() != scope())
-        m_scopes.push_back(std::make_pair(static_cast<FunctionNode *>(0),
-                                          node->scope()));
+        pushScope(0, node->scope());
 
     registerFunctions(Scope::FunctionIterator(node->scope()));
     translateFunctions(Scope::FunctionIterator(node->scope()));
@@ -342,12 +343,18 @@ void BytecodeGenerator::visitBlockNode(BlockNode *node)
         popType();
     }
 
-    m_scopes.pop_back();
+    popScope();
 }
 
 
 void BytecodeGenerator::visitFunctionNode(FunctionNode *node)
 {
+    for (int64_t i = static_cast<int64_t>(node->parametersNumber()) - 1;
+            i >= 0; --i) {
+        addStoreBytecode(node, node->parameterType(i),
+                         currentContext(), i + 1);
+    }
+
     bool native = node->body()->nodes() > 0 && node->body()->nodeAt(0)
             && node->body()->nodeAt(0)->isNativeCallNode();
     if (native)
@@ -361,6 +368,9 @@ void BytecodeGenerator::visitFunctionNode(FunctionNode *node)
     }
 
     bc()->bind(returnLabel());
+
+    loadVariable(node, node->returnType(), currentContext(), 0);
+    popType();
 
     bool const stop = node->name() == AstFunction::top_name;
     bc()->addInsn(stop ? BC_STOP : BC_RETURN);
@@ -399,12 +409,16 @@ void BytecodeGenerator::visitCallNode(CallNode *node)
 
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
-        storeVariable(node, tf->parameterType(i), nextContext(), i + 1);
+        VarType const type =
+                m_code->functionByName(node->name())->parameterType(i);
+        castTypes(node, tosType(), type);
+        popType();
     }
+
     bc()->addInsn(BC_CALL);
     bc()->addInt16(tf->id());
 
-    loadVariable(node, tf->returnType(), nextContext(), 0);
+    pushType(m_code->functionByName(node->name())->returnType());
 }
 
 
@@ -470,8 +484,7 @@ void BytecodeGenerator::translateFunction(AstFunction *top)
             m_code->functionByName(top->name()));
     assert(func);
 
-    m_scopes.push_back(std::make_pair(top->node(),
-                                      top->node()->body()->scope()));
+    pushScope(top->node(), top->node()->body()->scope());
     m_funcs.push_back(top->node());
 
     m_bcs.push_back(func->bytecode());
@@ -490,11 +503,19 @@ void BytecodeGenerator::translateFunction(AstFunction *top)
 }
 
 
+bool cmpAstVar(AstVar *a, AstVar *b)
+{
+    return a->name() < b->name();
+}
+
+
 void BytecodeGenerator::findVariable(
         AstNode const *node, std::string const &name,
         uint16_t &ctx, uint16_t &id, VarType &type)
 {
     assert(!m_scopes.empty());
+    assert(m_scopes.size() == m_vars.size());
+
     int i = static_cast<int>(m_scopes.size()) - 1;
 
     ctx = 0;
@@ -503,10 +524,10 @@ void BytecodeGenerator::findVariable(
     bool found = false;
     for (; !found && i >= 0; --i) {
         FunctionNode *fn = m_scopes[i].first;
-        Scope *scp = m_scopes[i].second;
+        std::vector<AstVar *> &vars = m_vars[i];
 
         if (fn) {
-            ctx = m_fids[fn->name()] + 1;
+            ctx = m_fids[fn->name()];
 
             for (uint32_t j = 0; j < fn->parametersNumber(); ++j) {
                 if (fn->parameterName(j) == name) {
@@ -517,17 +538,13 @@ void BytecodeGenerator::findVariable(
             }
         }
 
-        uint16_t j = 0;
-        Scope::VarIterator vi(scp);
-        while (vi.hasNext()) {
-            AstVar *av = vi.next();
-            if (av->name() == name) {
-                id = 1 + j + (fn ? fn->parametersNumber() : 0);
-                type = av->type();
-                found = true;
-                break;
-            }
-            ++j;
+        AstVar tmp(name, VT_INVALID, 0);
+        std::vector<AstVar *>::iterator const it(
+                std::lower_bound(vars.begin(), vars.end(), &tmp, cmpAstVar));
+        if (it != vars.end() && (*it)->name() == name) {
+            id = 1 + (it - vars.begin()) + (fn ? fn->parametersNumber() : 0);
+            type = (*it)->type();
+            found = true;
         }
     }
 
@@ -547,7 +564,7 @@ void BytecodeGenerator::findVariable(
 
         id += scp->variablesCount();
         if (fn) {
-            ctx = m_fids[fn->name()] + 1;
+            ctx = m_fids[fn->name()];
             id += fn->parametersNumber();
             break;
         }
@@ -590,10 +607,19 @@ void BytecodeGenerator::storeVariable(
         VarType type, uint16_t ctx, uint16_t id,
         char const *errMsg)
 {
+    castTypes(node, tosType(), type);
+    addStoreBytecode(node, type, ctx, id, errMsg);
+    popType();
+}
+
+
+void BytecodeGenerator::addStoreBytecode(
+        AstNode const *node,
+        VarType type, uint16_t ctx, uint16_t id,
+        char const *errMsg)
+{
     if (errMsg == 0)
         errMsg = "Couldn't store variable";
-
-    castTypes(node, tosType(), type);
 
     switch (type) {
     case VT_INT:
@@ -611,8 +637,6 @@ void BytecodeGenerator::storeVariable(
 
     bc()->addInt16(ctx);
     bc()->addInt16(id);
-
-    popType();
 }
 
 
@@ -717,6 +741,24 @@ void BytecodeGenerator::castTypes(AstNode const *node,
         throw BytecodeGeneratorException("Illegal type cast",
                                          node->position());
     }
+}
+
+
+void BytecodeGenerator::pushScope(FunctionNode *fn, Scope *scope)
+{
+    m_scopes.push_back(std::make_pair(fn, scope));
+
+    m_vars.push_back(std::vector<AstVar *>());
+    Scope::VarIterator vi(scope);
+    while (vi.hasNext()) {
+        m_vars.back().push_back(vi.next());
+    }
+
+    if (m_vars.back().size() > std::numeric_limits<uint16_t>::max()) {
+        throw BytecodeGeneratorException("Too many variables", 0);
+    }
+
+    std::sort(m_vars.back().begin(), m_vars.back().end(), cmpAstVar);
 }
 
 }

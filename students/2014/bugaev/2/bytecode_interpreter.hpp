@@ -64,9 +64,19 @@ private:
 
     class VariableStorage
     {
+        typedef std::vector<Value> VarDict;
+
     public:
-        VariableStorage()
+        VariableStorage(InterpreterCodeImpl *code):
+            m_tmp(MIN_SIZE)
         {
+            size_t funcCount = 0;
+            Code::FunctionIterator fi(code);
+            while (fi.hasNext()) {
+                ++funcCount;
+                fi.next();
+            }
+            m_storage.resize(funcCount + 1);
         }
 
         template<class T>
@@ -78,31 +88,26 @@ private:
         void store(Value const &value, uint16_t ctx, uint16_t id)
         {
             //cerr << "store " << ctx << " " << id << "\n";
-            (*findDict(ctx))[id] = value;
+            VarDict *dict = findDict(ctx);
+            if (id >= dict->size())
+                dict->resize(id + 1);
+            (*dict)[id] = value;
         }
 
         Value const load(uint16_t ctx, uint16_t id)
         {
             //cerr << "load " << ctx << " " << id << "\n";
-            std::map<uint16_t, Value> *dict = findDict(ctx);
-            std::map<uint16_t, Value>::iterator const it(dict->find(id));
-            if (it == dict->end()) {
-                //for (int i = 0; i < (int) m_storage.size(); ++i) {
-                //    cerr << "func " << i << "\n";
-                //    for (int j = 0; j < (int) m_storage[i].size(); ++j) {
-                //        cerr << "\tlvl " << j << "\n";
-                //        for (std::map<uint16_t, Value>::iterator it = m_storage[i][j].begin(); it != m_storage[i][j].end(); ++it) {
-                //            cerr << "\t\tvar " << it->first << " = " << it->second.intValue() << "\n";
-                //        }
-                //    }
-                //}
+            VarDict *dict = findDict(ctx);
+            if (id >= dict->size() || (*dict)[id].type() == VT_INVALID)
                 throw BytecodeException("Undefined variable");
-            }
-            return it->second;
+            return (*dict)[id];
         }
 
-        std::map<uint16_t, Value> *findDict(uint16_t ctx)
+        VarDict *findDict(uint16_t ctx)
         {
+            if (ctx >= m_storage.size())
+                throw BytecodeException("Illegal context");
+
             if (ctx == 0)
                 return &m_tmp;
             else
@@ -113,22 +118,23 @@ private:
         void push(uint16_t fid)
         {
             //cerr << "push " << fid << "\n";
-            m_storage[fid + 1].push_back(m_tmp);
+            assert(fid < m_storage.size());
+            m_storage[fid].push_back(m_tmp);
             m_fids.push_back(fid);
         }
 
         void pop()
         {
-            //cerr << "pop\n";
-            m_tmp = m_storage[m_fids.back() + 1].back();
-            m_storage[m_fids.back() + 1].pop_back();
+            //cerr << "pop " << m_fids.back() << "\n";
+            m_storage[m_fids.back()].pop_back();
             m_fids.pop_back();
         }
 
     private:
-        std::map<uint16_t, Value> m_tmp;
-        std::map< uint16_t,
-                  std::vector< std::map<uint16_t, Value> > > m_storage;
+        static size_t const MIN_SIZE = 4;
+
+        VarDict m_tmp;
+        std::vector< std::vector< VarDict > > m_storage;
         std::vector<uint16_t> m_fids;
     };
 
