@@ -55,7 +55,8 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode *node)
         resultType = makeIBinaryOp(node, BC_IAXOR);
         break;
     case tEQ:
-        resultType = castIntDouble(node);
+        castIntDouble(node);
+        resultType = VT_INT;
         {
             bc()->addInsn((resultType == VT_INT) ? BC_ICMP : BC_DCMP);
             bc()->addInsn(BC_ILOAD0);
@@ -70,7 +71,8 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode *node)
         }
         break;
     case tNEQ:
-        resultType = castIntDouble(node);
+        castIntDouble(node);
+        resultType = VT_INT;
         bc()->addInsn((resultType == VT_INT) ? BC_ICMP : BC_DCMP);
         break;
     case tGT:
@@ -678,7 +680,7 @@ VarType BytecodeGenerator::makeCmpOp(
     bc()->addInsn(BC_ILOAD);
     bc()->addInt64(mask);
     bc()->addInsn(BC_IAAND);
-    return result;
+    return VT_INT;
 }
 
 
