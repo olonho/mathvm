@@ -25,9 +25,9 @@ int ByteCodeVisitor::getFuncIdx(Context * context, string varName) const
 
 void ByteCodeVisitor::initContext(BlockNode * node)
 {
-	Context * newContext = new Context(currentContext++, current);
-	current = newContext;
-	VariableMap varMap;
+//	Context * newContext = new Context(currentContext++, current);
+//	current = newContext;
+    VariableMap varMap = current->variableMap;
 	int16_t varIndx = 0;
 	Scope::VarIterator it(node->scope());
 
@@ -42,9 +42,9 @@ void ByteCodeVisitor::initContext(BlockNode * node)
 	}
 
 	allVariables.push_back(varMap);
-	newContext->variableMap = varMap;
+    current->variableMap = varMap;
 	Scope::FunctionIterator itf(node->scope());
-	FunctionMap funcMap;
+    FunctionMap funcMap = current->functionMap;
 
 	while(itf.hasNext())
 	{
@@ -55,7 +55,7 @@ void ByteCodeVisitor::initContext(BlockNode * node)
 	}
 
 	allFunctions.push_back(funcMap);
-	newContext->functionMap = funcMap;
+    current->functionMap = funcMap;
 	Scope::FunctionIterator itff(node->scope());
 
 	while(itff.hasNext())
@@ -358,7 +358,7 @@ void ByteCodeVisitor::visitWhileNode(WhileNode * node)
 	node->loopBlock()->visit(this);
 	byteCode()->addBranch(BC_JA, inM);
 	byteCode()->bind(endM);
-	current = current->parent;
+    //current = current->parent;
 }
 
 //incremented var save on VARO
@@ -395,7 +395,7 @@ void ByteCodeVisitor::visitForNode(ForNode * node)
 	byteCode()->addInsn(BC_STOREIVAR0);
 	byteCode()->addBranch(BC_JA, inM);
 	byteCode()->bind(endM);
-	current = current->parent;
+    //current = current->parent;
 }
 
 //TODO new scope - maybe add to block node
@@ -419,11 +419,11 @@ void ByteCodeVisitor::visitIfNode(IfNode * node)
 	{
 		initContext(node->elseBlock());
 		node->elseBlock()->visit(this);
-		current = current->parent;
+        //current = current->parent;
 	}
 
 	byteCode()->bind(endM);
-	current = current->parent;
+    //current = current->parent;
 }
 
 
