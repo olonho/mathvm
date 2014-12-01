@@ -9,7 +9,8 @@ namespace mathvm
 {
 
 BytecodeInterpreter::BytecodeInterpreter(InterpreterCodeImpl *code):
-    m_code(code)
+    m_code(code),
+    m_locals(code)
 {
     m_locals.push(0);
     pushFunc(AstFunction::top_name);
