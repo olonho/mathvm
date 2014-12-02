@@ -56,9 +56,11 @@ private:
     } data_;
 };
 
+typedef uint32_t insn_index_t;
+
 struct CodePointer {
     index_t function_id;
-    index_t bytecode_location;
+    insn_index_t bytecode_location;
     StackValue * previous_call_of_same_function_start_;
 };
 
@@ -164,7 +166,7 @@ private:
     StackValue * current_stack_frame_start_;
 
     vector<StackValue*> frame_start_of_last_function_call_;
-    index_t current_location_; 
+    insn_index_t  current_location_; 
     BytecodeFunction * current_function_ = nullptr;
     
     Code * code_ = nullptr;
