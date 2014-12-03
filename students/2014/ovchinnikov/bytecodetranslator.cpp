@@ -3,14 +3,6 @@
 
 using namespace mathvm;
 
-Translator *Translator::create(const string & impl) {
-    if (impl == "translator" || impl == "") {
-        return new BytecodeTranslator();
-    } else {
-        return NULL;
-    }
-}
-
 Status *BytecodeTranslator::translate(const string & program, Code **out) {
     Parser p;
     {
