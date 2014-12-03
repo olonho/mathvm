@@ -2,7 +2,7 @@
 #include "parser.h"
 #include "visitors.h"
 #include "ast.h"
-#include "ast_printer.hpp"
+#include "astprinter.hpp"
 
 using namespace mathvm;
 
