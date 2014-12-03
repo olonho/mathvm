@@ -39,13 +39,11 @@ public:
     virtual Status *execute(vector<Var *> &) {
         setSizes();
 
-        BytecodeFunction *mainFunction = dynamic_cast<BytecodeFunction *>(this->functionById(0));
-        vars[0].push(vector<argument>(mainFunction->localsNumber()));
-        executeFunction(mainFunction);
+        executeFunction();
         return Status::Ok();
     }
 
-    void executeFunction(BytecodeFunction *function);
+    void executeFunction();
 };
 
 template <> inline void InterpreterCodeImpl::push<double>(double val) {
@@ -79,10 +77,15 @@ template <> inline uint16_t InterpreterCodeImpl::top<uint16_t>() {
 }
 
 
-void inline InterpreterCodeImpl::executeFunction(BytecodeFunction *function) {
+void inline InterpreterCodeImpl::executeFunction() {
+    BytecodeFunction *function = dynamic_cast<BytecodeFunction *>(this->functionById(0));
     uint32_t ip = 0;
     Bytecode *bytecode = function->bytecode();
     uint16_t functionId = function->id();
+    vars[0].push(vector<argument>(function->localsNumber()));
+    stack<uint32_t> ipStack;
+    stack<uint16_t> functionIdStack;
+
     while (ip != bytecode->length()) {
         // cout << "IP: " << ip << endl;
         Instruction current = bytecode->getInsn(ip);
@@ -358,7 +361,6 @@ void inline InterpreterCodeImpl::executeFunction(BytecodeFunction *function) {
                 int16_t offset = bytecode->getInt16(ip + 1);
                 ip += offset + 1;
                 continue;
-                break;
             }
             case BC_IFICMPNE: {
                 uint16_t offset = bytecode->getUInt16(ip + 1);
@@ -436,11 +438,14 @@ void inline InterpreterCodeImpl::executeFunction(BytecodeFunction *function) {
                 break;
             }
             case BC_CALL: {
-                uint16_t calledFunctionId = bytecode->getUInt16(ip + 1);
-                BytecodeFunction *calledFunction = dynamic_cast<BytecodeFunction *>(this->functionById(calledFunctionId));
-                vars[calledFunctionId].push(vector<argument>(calledFunction->localsNumber()));
-                executeFunction(calledFunction);
-                break;
+                ipStack.push(ip);
+                functionIdStack.push(functionId);
+                functionId = bytecode->getUInt16(ip + 1);
+                function = dynamic_cast<BytecodeFunction *>(this->functionById(functionId));
+                bytecode = function->bytecode();
+                vars[functionId].push(vector<argument>(function->localsNumber()));
+                ip = 0;
+                continue;
             }
             case BC_CALLNATIVE: {
                 assert(0);
@@ -448,8 +453,13 @@ void inline InterpreterCodeImpl::executeFunction(BytecodeFunction *function) {
             }
             case BC_RETURN: {
                 vars[functionId].pop();
-                return;
-                break;
+                ip = ipStack.top() + 3; // TODO: ?
+                ipStack.pop();
+                functionId = functionIdStack.top();
+                functionIdStack.pop();
+                function = dynamic_cast<BytecodeFunction *>(this->functionById(functionId));
+                bytecode = function->bytecode();
+                continue;
             }
             default: {
                 cout << "UNKNOWN: "  << current << " AT: " << ip << endl;
