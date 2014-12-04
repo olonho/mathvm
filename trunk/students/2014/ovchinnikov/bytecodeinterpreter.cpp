@@ -3,19 +3,10 @@
 #include <iostream>
 #include <functional>
 #include <cmath>
+
 using std::cout;
 using std::showpoint;
 using std::endl;
-
-//std::plus<double> dadd;
-//std::plus<int64_t> iadd;
-//std::minus<double> dsub;
-//std::minus<int64_t> isub;
-//std::multiplies<double> dmult;
-//std::multiplies<int64_t> imult;
-//std::divides<double> ddiv;
-//std::divides<int64_t> idiv;
-//std::modulus<int64_t> imod;
 
 template <typename T>
 int64_t compare(T left, T right) {
@@ -29,15 +20,15 @@ int64_t compare(T left, T right) {
 }
 
 Status *BytecodeInterpreter::execute(vector<Var *> &) try {
-    /*
-        Code::FunctionIterator it(this);
-        while (it.hasNext()) {
-            auto f = (BytecodeFunction *)it.next();
-            std::cout << f->id() << ": " << f->name() << std::endl;
-            f->bytecode()->dump(std::cout);
-            std::cout << std::endl;
-        }
-    */
+
+//    Code::FunctionIterator it(this);
+//    while (it.hasNext()) {
+//        auto f = (BytecodeFunction *)it.next();
+//        std::cout << f->id() << ": " << f->name() << std::endl;
+//        f->bytecode()->dump(std::cout);
+//        std::cout << std::endl;
+//    }
+
     processCall(0);
     while (pointer < bc->length()) {
         Instruction instruction = (Instruction)bc->get(pointer++);
@@ -80,14 +71,12 @@ Status *BytecodeInterpreter::execute(vector<Var *> &) try {
             case BC_IPRINT:
             case BC_SPRINT: processPrint(instruction); break;
             case BC_I2D: {
-                    Value v = operandStack.back();
+                    Value & v = operandStack.back();
                     v._d =  v._i;
-                    operandStack.push_back(v);
                 }; break;
             case BC_D2I : {
-                    Value v = operandStack.back();
+                    Value & v = operandStack.back();
                     v._i =  v._d;
-                    operandStack.push_back(v);
                 }; break;
             case BC_SWAP: {
                     Value upper = operandStack.back();
@@ -145,9 +134,7 @@ Status *BytecodeInterpreter::execute(vector<Var *> &) try {
                     pointer += sizeof(uint16_t);
                     processCall(functionId);
                 }; break;
-            case BC_RETURN: {
-
-                }
+            case BC_RETURN: processReturn(); break;
             default: break;
         }
     }
@@ -158,37 +145,41 @@ Status *BytecodeInterpreter::execute(vector<Var *> &) try {
 
 void BytecodeInterpreter::processCall(uint16_t functionId) {
     auto fun = (BytecodeFunction *)functionById(functionId);
+    frame = new StackFrame {
+        frame,
+        (uint32_t)variableStack.size(),
+        (uint32_t)operandStack.size() - fun->parametersNumber(),
+        pointer,
+        fun
+    };
 
-    frame = new StackFrame {frame, functionId, (uint32_t)variableStack.size(), pointer};
-
-    auto params = fun->parametersNumber();
-    for (auto i = 0; i < params; ++i) {
-        variableStack.push_back(*(operandStack.end() - params + i));
-    }
-    for (auto i = 0; i < params; ++i) {
-        operandStack.pop_back();
-    }
-
-    auto locals = fun->localsNumber();
-    for (auto i = 0; i < locals; ++i) {
-        variableStack.push_back(Value());
-    }
+    auto it = std::prev(operandStack.end(), fun->parametersNumber());
+    std::move(it, operandStack.end(), std::back_inserter(variableStack));
+    operandStack.erase(it, operandStack.end());
+    variableStack.resize(variableStack.size() + fun->localsNumber());
 
     bc = fun->bytecode();
     pointer = 0;
+    cache[functionId].clear();
 }
 
-void BytecodeInterpreter::processReturn() {
-    while (variableStack.size() != frame->offset) {
-        variableStack.pop_back();
+inline void BytecodeInterpreter::processReturn() {
+    variableStack.resize(frame->v_offset);
+    VarType returnType = frame->function->returnType();
+    if (returnType == VT_VOID) {
+        operandStack.resize(frame->o_offset);
+    } else {
+        Value returnValue = operandStack.back();
+        operandStack.resize(frame->o_offset);
+        operandStack.push_back(returnValue);
     }
-    frame = frame->parent;
-    auto fun = (BytecodeFunction *)functionById(frame->functionId);
-    bc = fun->bytecode();
     pointer = frame->pointer;
+    frame = frame->parent;
+
+    bc = frame->function->bytecode();
 }
 
-void BytecodeInterpreter::processBinaryOperation(Instruction instruction) {
+inline void BytecodeInterpreter::processBinaryOperation(Instruction instruction) {
     Value right = operandStack.back();
     operandStack.pop_back();
     Value left = operandStack.back();
@@ -212,7 +203,7 @@ void BytecodeInterpreter::processBinaryOperation(Instruction instruction) {
     operandStack.push_back(result);
 }
 
-void BytecodeInterpreter::processUnaryOperaion(Instruction instruction) {
+inline void BytecodeInterpreter::processUnaryOperaion(Instruction instruction) {
     Value operand = operandStack.back();
     operandStack.pop_back();
     Value result;
@@ -224,7 +215,7 @@ void BytecodeInterpreter::processUnaryOperaion(Instruction instruction) {
     operandStack.push_back(result);
 }
 
-void BytecodeInterpreter::processPrint(Instruction instruction) {
+inline void BytecodeInterpreter::processPrint(Instruction instruction) {
     Value operand = operandStack.back();
     operandStack.pop_back();
     switch (instruction) {
@@ -235,7 +226,7 @@ void BytecodeInterpreter::processPrint(Instruction instruction) {
     }
 }
 
-void BytecodeInterpreter::processConditionalJump(Instruction instruction) {
+inline void BytecodeInterpreter::processConditionalJump(Instruction instruction) {
     Value upper = operandStack.back();
     operandStack.pop_back();
     Value lower = operandStack.back();
@@ -253,9 +244,15 @@ void BytecodeInterpreter::processConditionalJump(Instruction instruction) {
 }
 
 uint32_t BytecodeInterpreter::findVarIndex(uint16_t ctxID, uint16_t varID) {
+    map<uint16_t, uint32_t> ctxCache = cache[ctxID];
+    auto cached = ctxCache.find(varID);
+    if (cached != ctxCache.end()) {
+        return cached->second;
+    }
     StackFrame *current = frame;
-    while (current->functionId != ctxID) {
+    while (current->function->id() != ctxID) {
         current = current->parent;
     }
-    return current->offset + varID;
+    uint32_t result = ctxCache[varID] = current->v_offset + varID;
+    return result;
 }
