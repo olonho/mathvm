@@ -1,3 +1,4 @@
+CXX = g++
 ROOT   = .
 VM_ROOT = ../../..
 

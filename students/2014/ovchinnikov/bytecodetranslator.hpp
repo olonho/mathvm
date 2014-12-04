@@ -1,6 +1,7 @@
 #ifndef BYTECODETRANSLATOR_HPP
 #define BYTECODETRANSLATOR_HPP
 
+#include <cmath>
 #include "ast.h"
 #include "mathvm.h"
 #include "visitors.h"
@@ -43,6 +44,7 @@ public:
 
 private:
     void coerceToBoolean() {
+        bc->add(BC_ILOAD0);
         processComparison(tNEQ, tos, tos);
     }
 
@@ -56,7 +58,9 @@ private:
 
     void processLoadStoreVar(const AstVar *astVar, bool load) {
         auto var = currentBlockScope->resolveVar(astVar->name());
-        interpreter->setLocalsSize(var.first, var.second + 1);
+        auto fun = interpreter->functionById(var.first);
+        fun->setLocalsNumber(max<uint16_t>(fun->localsNumber(), var.second + 1));
+//        interpreter->setLocalsSize(var.first, var.second + 1);
         Instruction code = load
                            ? TYPE_AND_ACTION_TO_BC(astVar->type(), LOADCTX, VAR)
                            : TYPE_AND_ACTION_TO_BC(astVar->type(), STORECTX, VAR);;

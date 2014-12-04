@@ -30,25 +30,25 @@ int main(int argc, char *argv[]) {
         expr = buffer.str();
     }
 
-    unique_ptr<Translator> translator(Translator::create(impl));
+    shared_ptr<Translator> translator(Translator::create(impl));
     if (!translator) {
         return 1;
     }
 
     Code *codeP = 0;
-    unique_ptr<Status> translateStatus(translator->translate(expr, &codeP));
-    unique_ptr<Code> code(codeP);
+    shared_ptr<Status> translateStatus(translator->translate(expr, &codeP));
+    shared_ptr<Code> code(codeP);
     if (translateStatus->isError()) {
-        assert(code == 0);
+        assert(!code);
         uint32_t position = translateStatus->getPosition();
         uint32_t line = 0, offset = 0;
         positionToLineOffset(expr, position, line, offset);
         cout << "Cannot translate expression: expression at " << line << "," << offset << "; "
              << "error '" << translateStatus->getError() << "'" << endl;
     } else {
-        assert(code != 0);
+        assert(code);
         vector<Var *> vars;
-        unique_ptr<Status> execStatus(code->execute(vars));
+        shared_ptr<Status> execStatus(code->execute(vars));
         if (execStatus->isError()) {
             cout << "Cannot execute expression: error: " << execStatus->getError() << endl;
         }
