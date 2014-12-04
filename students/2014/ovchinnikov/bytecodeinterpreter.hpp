@@ -28,9 +28,10 @@ class BytecodeInterpreter : public Code {
 public:
     struct StackFrame {
         StackFrame *parent;
-        uint16_t functionId;
-        uint32_t offset;
+        uint32_t v_offset;
+        uint32_t o_offset;
         uint32_t pointer;
+        BytecodeFunction *function;
     };
 
     BytecodeInterpreter() {}
@@ -53,7 +54,7 @@ private:
     StackFrame *frame;
     Bytecode *bc;
     uint32_t pointer;
-
+    map<uint16_t,map<uint16_t,uint32_t>> cache;
 };
 
 #endif // BYTECODEINTERPRETER_HPP
