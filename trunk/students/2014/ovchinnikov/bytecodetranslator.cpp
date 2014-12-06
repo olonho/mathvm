@@ -3,26 +3,17 @@
 
 using namespace mathvm;
 
-Status *BytecodeTranslator::translate(const string & program, Code **out) {
+Status *BytecodeTranslator::translate(const string & program, Code **out) try {
     Parser p;
-    {
-        Status *s = p.parseProgram(program);
-        if (s->isError()) {
-            return s;
-        }
-    }
-
+    Status *s = p.parseProgram(program);
+    if (s->isError()) { return s; }
     interpreter->addFunction(new BytecodeFunction(p.top()));
-
-    try {
-        p.top()->node()->visit(this);
-    } catch (const char *msg) {
-        *out = 0;
-        return Status::Error(msg);
-    }
-
+    p.top()->node()->visit(this);
     *out = interpreter;
     return Status::Ok();
+} catch (const char *msg) {
+    *out = 0;
+    return Status::Error(msg);
 }
 
 void BytecodeTranslator::visitFunctionNode(FunctionNode *node) {
@@ -253,4 +244,3 @@ void BytecodeTranslator::visitPrintNode(PrintNode *node) {
         bc->add(code);
     }
 }
-
