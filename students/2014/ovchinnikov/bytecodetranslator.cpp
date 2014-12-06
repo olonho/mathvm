@@ -12,9 +12,7 @@ Status *BytecodeTranslator::translate(const string & program, Code **out) {
         }
     }
 
-    auto main = new BytecodeFunction(p.top());
-    interpreter->addFunction(main);
-    bc = main->bytecode();
+    interpreter->addFunction(new BytecodeFunction(p.top()));
 
     try {
         p.top()->node()->visit(this);
@@ -28,11 +26,17 @@ Status *BytecodeTranslator::translate(const string & program, Code **out) {
 }
 
 void BytecodeTranslator::visitFunctionNode(FunctionNode *node) {
-    uint16_t id = interpreter->functionByName(node->name())->id();
-    BlockScope functionScope(id, currentBlockScope, &node->signature());
-    currentBlockScope = &functionScope;
+    auto fun = (BytecodeFunction *)interpreter->functionByName(node->name());
+    assert(fun);
+    BlockScope functionScope(fun, scope, &node->signature());
+    scope = &functionScope;
+    bc = scope->function()->bytecode();
+
     node->body()->visit(this);
-    currentBlockScope = currentBlockScope->parent();
+
+    fun->setLocalsNumber(functionScope.childLocals());
+    scope = functionScope.parent();
+    bc = scope ? scope->function()->bytecode() : 0;
 }
 
 void BytecodeTranslator::visitBlockNode(BlockNode *node) {
@@ -41,18 +45,17 @@ void BytecodeTranslator::visitBlockNode(BlockNode *node) {
     Scope::VarIterator varIterator(node->scope());
     while (varIterator.hasNext()) {
         auto nextVar = varIterator.next();
-        currentBlockScope->defineVar(nextVar->type(), nextVar->name());
+        scope->defineVar(nextVar->type(), nextVar->name());
     }
 
-    Scope::FunctionIterator functionIterator(node->scope());
-    while (functionIterator.hasNext()) {
-        Bytecode *bytecode = bc;
-        auto nextFunction = functionIterator.next();
-        auto translatedFunction = new BytecodeFunction(nextFunction);
-        interpreter->addFunction(translatedFunction);
-        bc = translatedFunction->bytecode();
-        nextFunction->node()->visit(this);
-        bc = bytecode;
+    Scope::FunctionIterator f1(node->scope());
+    while (f1.hasNext()) {
+        interpreter->addFunction(new BytecodeFunction(f1.next()));
+    }
+
+    Scope::FunctionIterator f2(node->scope());
+    while (f2.hasNext()) {
+        f2.next()->node()->visit(this);
     }
 
     node->visitChildren(this);
@@ -89,7 +92,7 @@ void BytecodeTranslator::visitForNode(ForNode *node) {
     if (!range || range->kind() != tRANGE) { throw "Unsupported range"; }
 
     enterScope();
-    currentBlockScope->defineVar(node->var());
+    scope->defineVar(node->var());
     range->left()->visit(this);
     processStoreVar(node->var());
 
@@ -126,9 +129,13 @@ void BytecodeTranslator::visitStoreNode(StoreNode *node) {
     if (node->op() == tINCRSET || node->op() == tDECRSET) {
         processLoadVar(astVar);
         node->value()->visit(this);
-        Instruction code = node->op() == tINCRSET
-                           ? TYPE_AND_ACTION_TO_BC_NUMERIC(astVar->type(), , ADD)
-                           : TYPE_AND_ACTION_TO_BC_NUMERIC(astVar->type(), , SUB);
+        Instruction code = BC_INVALID;
+        if (node->op() == tINCRSET) {
+            code = TYPE_AND_ACTION_TO_BC_NUMERIC(astVar->type(), , ADD);
+        } else {
+            code = TYPE_AND_ACTION_TO_BC_NUMERIC(astVar->type(), , SUB);
+            bc->add(BC_SWAP);
+        }
         if (code == BC_INVALID) { throw "Unsupported increase/decrease operation"; }
         bc->add(code);
     } else {
@@ -183,9 +190,19 @@ void BytecodeTranslator::visitBinaryOpNode(BinaryOpNode *node) {
 }
 
 void BytecodeTranslator::visitCallNode(CallNode *node) {
-    node->visitChildren(this);
     auto f = interpreter->functionByName(node->name());
     assert(f && f->id() > 0);
+    for (auto i = 0; i < node->parametersNumber(); ++i) {
+        node->parameterAt(i)->visit(this);
+        VarType required = f->parameterType(i);
+        if (tos == VT_DOUBLE && required == VT_INT) {
+            bc->add(BC_D2I);
+        } else if (tos == VT_INT && required == VT_DOUBLE) {
+            bc->add(BC_I2D);
+        } else if (tos != required) {
+            throw "Cannot pass parameter to function";
+        }
+    }
     bc->add(BC_CALL);
     bc->addUInt16(f->id());
     tos = f->returnType();
@@ -197,6 +214,16 @@ void BytecodeTranslator::visitNativeCallNode(NativeCallNode *node) {
 
 void BytecodeTranslator::visitReturnNode(ReturnNode *node) {
     node->visitChildren(this);
+    auto f = interpreter->functionById(scope->function()->id());
+    assert(f && f->id() > 0);
+    VarType required = f->returnType();
+    if (tos == VT_DOUBLE && required == VT_INT) {
+        bc->add(BC_D2I);
+    } else if (tos == VT_INT && required == VT_DOUBLE) {
+        bc->add(BC_I2D);
+    } else if (tos != required && required != VT_VOID) {
+        throw "Cannot return value from function";
+    }
     bc->add(BC_RETURN);
 }
 

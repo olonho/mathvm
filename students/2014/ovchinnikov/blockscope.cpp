@@ -22,7 +22,7 @@ pair<uint16_t, uint16_t> BlockScope::resolveVar(const string & name) const {
     while (current != 0) {
         auto it = current->_nameToId.find(name);
         if (it != current->_nameToId.end()) {
-            return make_pair(current->functionId(), current->offset() + it->second);
+            return make_pair(current->function()->id(), current->offset() + it->second);
         } else {
             current = current->parent();
         }

@@ -33,7 +33,7 @@ class BytecodeTranslator : public Translator, AstBaseVisitor {
 
 public:
 
-    BytecodeTranslator(): tos(VT_INVALID), interpreter(new BytecodeInterpreter()), bc(0), currentBlockScope(0) {}
+    BytecodeTranslator() : tos(VT_INVALID), interpreter(new BytecodeInterpreter()), bc(0), scope(0) {}
     virtual ~BytecodeTranslator() {}
     virtual Status *translate(const string & program, Code **out);
 
@@ -57,34 +57,37 @@ private:
     }
 
     void processLoadStoreVar(const AstVar *astVar, bool load) {
-        auto var = currentBlockScope->resolveVar(astVar->name());
+        auto var = scope->resolveVar(astVar->name());
         auto fun = interpreter->functionById(var.first);
-        fun->setLocalsNumber(max<uint16_t>(fun->localsNumber(), var.second + 1));
-//        interpreter->setLocalsSize(var.first, var.second + 1);
+        bool local = var.first == scope->function()->id();
         Instruction code = load
-                           ? TYPE_AND_ACTION_TO_BC(astVar->type(), LOADCTX, VAR)
-                           : TYPE_AND_ACTION_TO_BC(astVar->type(), STORECTX, VAR);;
+                           ? local
+                           ? TYPE_AND_ACTION_TO_BC(astVar->type(), LOAD, VAR)
+                           : TYPE_AND_ACTION_TO_BC(astVar->type(), LOADCTX, VAR)
+                           : local
+                           ? TYPE_AND_ACTION_TO_BC(astVar->type(), STORE, VAR)
+                           : TYPE_AND_ACTION_TO_BC(astVar->type(), STORECTX, VAR);
         if (code == BC_INVALID) { throw "Unsupported reference type"; }
         bc->add(code);
-        bc->addUInt16(var.first);
+        if (!local) { bc->addUInt16(var.first); }
         bc->addUInt16(var.second);
         tos = load ? astVar->type() : VT_VOID;
     }
 
     void enterScope() {
-        BlockScope *entering = new BlockScope(currentBlockScope);
-        currentBlockScope = entering;
+        BlockScope *entering = new BlockScope(scope);
+        scope = entering;
     }
 
     void leaveScope() {
-        BlockScope *leaving = currentBlockScope;
-        currentBlockScope = currentBlockScope->parent();
+        BlockScope *leaving = scope;
+        scope = scope->parent();
+        scope->setChildLocals(leaving->size() + leaving->childLocals());
         delete leaving;
     }
 
     void processArithmeticOperator(TokenKind token, VarType leftType, VarType rightType) {
         VarType type = lub(leftType, rightType);
-
         if (leftType != type) {
             assert(type == VT_DOUBLE);
             assert(leftType == VT_INT);
@@ -99,9 +102,9 @@ private:
         }
         switch (token) {
             case tADD:  bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , ADD)); break;
-            case tSUB:  bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , SUB)); break;
+            case tSUB:  bc->add(BC_SWAP); bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , SUB)); break;
             case tMUL:  bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , MUL)); break;
-            case tDIV:  bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , DIV)); break;
+            case tDIV:  bc->add(BC_SWAP); bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , DIV)); break;
             default: throw "Unsupported arithmetic operator";
         }
         tos = type;
@@ -192,7 +195,7 @@ private:
     BytecodeInterpreter *const interpreter;
 
     Bytecode *bc;
-    BlockScope *currentBlockScope;
+    BlockScope *scope;
 };
 
 #endif // BYTECODETRANSLATOR_HPP

@@ -10,51 +10,55 @@ using std::map;
 #include "mathvm.h"
 
 using namespace mathvm;
-typedef union _v {
-    double _d;
-    int64_t _i;
-    uint16_t _ui;
-    _v() {}
-    _v(double d) : _d(d) {}
-    _v(int64_t i) : _i(i) {}
-    _v(uint16_t ui): _ui(ui) {}
-//    operator double () const {return _d;}
-//    operator int64_t () const {return _i;}
-//    operator uint64_t () const {return _ui;}
-} Value;
+
 
 class BytecodeInterpreter : public Code {
 
-public:
+    typedef union _v {
+        double d;
+        int64_t i;
+        uint16_t ui16;
+        _v() {}
+        _v(double d) : d(d) {}
+        _v(int64_t i) : i(i) {}
+        _v(uint16_t ui): ui16(ui) {}
+    } Value;
+
     struct StackFrame {
-        StackFrame *parent;
+        StackFrame *previous;
         uint32_t v_offset;
         uint32_t o_offset;
-        uint32_t pointer;
+        uint32_t return_pointer;
         BytecodeFunction *function;
     };
 
+public:
     BytecodeInterpreter() {}
     ~BytecodeInterpreter() {}
-
     virtual Status *execute(vector<Var *> &);
-    //    void processInstruction(Instruction instruction);
-    void processBinaryOperation(Instruction instruction);
-    void processUnaryOperaion(Instruction instruction);
-    void processPrint(Instruction instruction);
-    void processCall(uint16_t functionId);
-    void processReturn();
-    void processConditionalJump(Instruction instruction);
-    uint32_t findVarIndex (uint16_t ctxID, uint16_t varID);
 
 private:
+    void processCall(uint16_t functionId);
+    void processReturn();
 
-    vector<Value> variableStack;
+    Value pop_return() {
+        Value result = operandStack.back();
+        operandStack.pop_back();
+        return result;
+    }
+
+    template<class T> T bc_read() {
+        T v = bc->getTyped<T>(pointer);
+        pointer += sizeof(T);
+        return v;
+    }
+
     vector<Value> operandStack;
+    vector<Value> variableStack;
+    map<uint16_t, vector<uint32_t>> ctxOffset;
     StackFrame *frame;
     Bytecode *bc;
     uint32_t pointer;
-    map<uint16_t,map<uint16_t,uint32_t>> cache;
 };
 
 #endif // BYTECODEINTERPRETER_HPP
