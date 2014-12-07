@@ -8,6 +8,8 @@
 #include "translator.h"
 #include "../typechecker.h"
 #include "ssa_utils.h"
+#include "../ir/util.h"
+#include "../ir/transformations/identity.h"
 
 namespace mathvm {
 
@@ -33,7 +35,7 @@ namespace mathvm {
         _ir.functions.push_back(functionRecord);
         embraceArgs(fun);
         IR::Block * savedBlock =_currentBlock;
-        _currentBlock = & (functionRecord->entry);
+        _currentBlock = &(*(functionRecord->entry));
         AstFunction* savedFunction = _currentFunction;
         _currentFunction = fun;
         fun->node()->visit(this);
@@ -102,7 +104,7 @@ namespace mathvm {
         const IR::Atom * const right = _popAtom();
 
         IR::Assignment* a = new IR::Assignment(makeTempVar(), selectBinOp(node->kind(), left, right));
-        _pushAtom(& (a->var) );
+        _pushAtom ( &(*(a->var)) ) ;
 
         emit(a);
 
@@ -114,7 +116,7 @@ namespace mathvm {
         IR::Expression const* operand = _popAtom();
         IR::Assignment const* a = new IR::Assignment(makeTempVar(), selectUnOp(node->kind(), operand));
         emit(a);
-        _pushAtom(&(a->var));
+        _pushAtom(&(*(a->var)));
     }
 
     void IrBuilder::visitStringLiteralNode(StringLiteralNode *node) {
@@ -147,7 +149,7 @@ namespace mathvm {
         debug("store");
         node->value()->visit(this);
         const IR::Expression *rhs = _popAtom();
-        const IR::Variable varToStore(varMeta(node->var()).id);
+        auto varToStore = varMeta(node->var()).id;
         switch(node->op()) {
             case tASSIGN:
                 break;
@@ -172,12 +174,12 @@ namespace mathvm {
         _currentBlock  = init = newBlock();
 
 //        const IR::Variable var(makeAstVar(node->var()));
-        const IR::Variable var(varMeta(node->var()).id);
+        auto var = varMeta(node->var()).id;
         astFrom->visit(this);
         emit(new IR::Assignment(var, _popAtom()));
 
         _currentBlock = checker = newBlock();
-        IR::Variable toValue(makeTempVar()), compResult(makeTempVar());
+        auto toValue = makeTempVar(), compResult = makeTempVar();
         astTo->visit(this);
         emit(new IR::Assignment(toValue, _popAtom()));
         emit(new IR::Assignment(compResult, new IR::BinOp(new IR::Variable(var), new IR::Variable(toValue), IR::BinOp::BO_EQ)));
@@ -218,7 +220,7 @@ namespace mathvm {
 
         IR::Block* afterWhile = newBlock();
         bodyLastBlock->link(checker);
-        checker->link(new IR::JumpCond(bodyFirstBlock, afterWhile, &(condAssign->var) ));
+        checker->link(new IR::JumpCond(bodyFirstBlock, afterWhile, &(*(condAssign->var)) ));
 
 
     }
@@ -233,7 +235,7 @@ namespace mathvm {
         IR::Block *yesblock = newBlock();
         IR::Block *noblock = newBlock();
 
-        blockBeforeIf->link(new IR::JumpCond(yesblock, noblock, &(a->var)));
+        blockBeforeIf->link(new IR::JumpCond(yesblock, noblock,&(*(a->var))));
 
         _currentBlock = yesblock;
         node->thenBlock()->visit(this);
@@ -281,8 +283,7 @@ namespace mathvm {
             node->parameterAt(i)->visit(this);
             params.push_back(_popAtom());
         }
-        IR::Variable temp(makeTempVar());
-        emit(new IR::Assignment(temp, new IR::Call(funId, params)));
+        emit(new IR::Assignment(makeTempVar(), new IR::Call(funId, params)));
     }
 
     void IrBuilder::visitNativeCallNode(NativeCallNode *node) {
@@ -305,30 +306,45 @@ namespace mathvm {
         visitAstFunction(_parser.top());
 
 
+        for (auto f : _ir.functions)
+            for (auto elemWithFrontier : dominanceFrontier(&(*(f->entry))))
+                for (auto assignedVar : IR::modifiedVars(elemWithFrontier.first))
+                    if (!varMetaById(assignedVar).isTemp)
+                        for (auto blockWithPhi: elemWithFrontier.second)
+                        {
+                            IR::Assignment const* a = new IR::Assignment(assignedVar, new IR::Phi());
+                            (const_cast<IR::Block*> (blockWithPhi))->contents.push_front(a);
+                        }
+
+
         IR::IrPrinter printer(_out);
-        
-        for (auto it = _ir.functions.begin(); it != _ir.functions.end(); ++it)
-        {
-            _out<<"Function " << (*it)->id << " vars: " << std::endl;
-            for (auto kvp :_allvarMeta)
-                _out << kvp.first << " -> " << ((kvp.second->isTemp)?"temp" : kvp.second->var->name().c_str())
-                        << std::endl;
-            _out << std::endl;
-            (**it).visit(&printer);
-        }
+        IR::IdentityTransformation id;
+
+        _ir.functions[0]->visit(&id)->visit(&printer);
+        _out << std::endl << "before:" << std::endl;
+        _ir.functions[0]->visit(&printer);
+//        for (auto it = _ir.functions.begin(); it != _ir.functions.end(); ++it) {
+//            _out << "Function " << (*it)->id << " vars: " << std::endl;
+//            for (auto kvp :_allvarMeta)
+//                _out << kvp.first << " -> " << ((kvp.second->isTemp) ? "temp" : kvp.second->var->name().c_str())
+//                        << std::endl;
+//            _out << std::endl;
+//            (**it).visit(&printer);
+//        }
+
+    }
 
 
-        _out << "Dominance frontiers" << std::endl;
 
-        for (auto f : _ir.functions) {
-            auto front = dominanceFrontier(&(f->entry));
-            for (auto kvp : front) {
-                _out << kvp.first->name << " -> ";
-                for (auto elem : kvp.second)
-                    _out << " " << elem->name;
-                _out << std::endl;
-            }
-        }
+//        for (auto f : _ir.functions) {
+//            auto front = dominanceFrontier(&(f->entry));
+//            for (auto kvp : front) {
+//                _out << kvp.first->name << " -> ";
+//                for (auto elem : kvp.second)
+//                    _out << " " << elem->name;
+//                _out << std::endl;
+//            }
+//        }
 
 //
 //        }
@@ -357,7 +373,7 @@ namespace mathvm {
 //
 //        }
 
-    }
+
 
 //    IR::Block *IrBuilder::newBlock() {
 //        std::string name = nextBlockName();

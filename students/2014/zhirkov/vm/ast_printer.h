@@ -38,16 +38,5 @@ namespace mathvm {
     };
 
 
-    class AstPrinter : public Translator {
-    public:
-        virtual Status *translate(const std::string &program, Code **code) {
-            Parser parser;
-            Status *status = parser.parseProgram(program);
-            if (status != NULL) return status;
-            AstPrinterVisitor printer;
-            printer.enterBlock(parser.top()->node()->body());
-            return new Status();
 
-        }
-    };
 }
