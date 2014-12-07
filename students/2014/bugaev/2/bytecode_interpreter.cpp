@@ -54,9 +54,12 @@ void BytecodeInterpreter::interpret()
             pushValue(bc()->getInt64(bci() + 1));
             break;
         case BC_SLOAD:
-            pushValue(bc()->getUInt16(bci() + 1));
+            pushValue(m_code->constantById(bc()->getUInt16(bci() + 1)).c_str());
             break;
 
+        case BC_CALLNATIVE:
+            pushValue(callNativeFunction(bc()->getUInt16(bci() + 1)));
+            break;
         case BC_CALL:
             m_locals.push(bc()->getUInt16(bci() + 1));
             pushFunc(bc()->getUInt16(bci() + 1));
@@ -90,13 +93,13 @@ void BytecodeInterpreter::interpret()
         case BC_LOADIVAR3:
             LOAD_VAR_N(intValue, 3)
         case BC_LOADSVAR0:
-            LOAD_VAR_N(constId, 0)
+            LOAD_VAR_N(stringValue, 0)
         case BC_LOADSVAR1:
-            LOAD_VAR_N(constId, 1)
+            LOAD_VAR_N(stringValue, 1)
         case BC_LOADSVAR2:
-            LOAD_VAR_N(constId, 2)
+            LOAD_VAR_N(stringValue, 2)
         case BC_LOADSVAR3:
-            LOAD_VAR_N(constId, 3)
+            LOAD_VAR_N(stringValue, 3)
 #undef LOAD_VAR_N
 
 #define STORE_VAR_N(type, n) \
@@ -119,13 +122,13 @@ void BytecodeInterpreter::interpret()
         case BC_STOREIVAR3:
             STORE_VAR_N(intValue, 3)
         case BC_STORESVAR0:
-            STORE_VAR_N(constId, 0)
+            STORE_VAR_N(stringValue, 0)
         case BC_STORESVAR1:
-            STORE_VAR_N(constId, 1)
+            STORE_VAR_N(stringValue, 1)
         case BC_STORESVAR2:
-            STORE_VAR_N(constId, 2)
+            STORE_VAR_N(stringValue, 2)
         case BC_STORESVAR3:
-            STORE_VAR_N(constId, 3)
+            STORE_VAR_N(stringValue, 3)
 #undef STORE_VAR_N
 
 #define LOAD_VAR(type) \
@@ -136,7 +139,7 @@ void BytecodeInterpreter::interpret()
         case BC_LOADIVAR:
             LOAD_VAR(intValue)
         case BC_LOADSVAR:
-            LOAD_VAR(constId)
+            LOAD_VAR(stringValue)
 #undef LOAD_CTX_VAR
 
 #define STORE_VAR(type) \
@@ -147,7 +150,7 @@ void BytecodeInterpreter::interpret()
         case BC_STOREIVAR:
             STORE_VAR(intValue)
         case BC_STORESVAR:
-            STORE_VAR(constId)
+            STORE_VAR(stringValue)
 #undef STORE_VAR
 
 #define LOAD_CTX_VAR(type) \
@@ -159,7 +162,7 @@ void BytecodeInterpreter::interpret()
         case BC_LOADCTXIVAR:
             LOAD_CTX_VAR(intValue)
         case BC_LOADCTXSVAR:
-            LOAD_CTX_VAR(constId)
+            LOAD_CTX_VAR(stringValue)
 #undef LOAD_CTX_VAR
 
 #define STORE_CTX_VAR(type) \
@@ -172,7 +175,7 @@ void BytecodeInterpreter::interpret()
         case BC_STORECTXIVAR:
             STORE_CTX_VAR(intValue)
         case BC_STORECTXSVAR:
-            STORE_CTX_VAR(constId)
+            STORE_CTX_VAR(stringValue)
 #undef STORE_CTX_VAR
 
 #define CMP_JMP(op) \
@@ -256,6 +259,10 @@ void BytecodeInterpreter::interpret()
             pushValue(-popValue().intValue());
             break;
 
+        case BC_S2I:
+            first = popValue();
+            pushValue<int64_t>(first.stringValue() != 0);
+            break;
         case BC_I2D:
             pushValue<double>(popValue().intValue());
             break;
@@ -286,9 +293,7 @@ void BytecodeInterpreter::interpret()
             writeValue(std::cerr, first, first.type());
             break;
 
-        case BC_CALLNATIVE:
         case BC_BREAK:
-        case BC_S2I:
         case BC_SLOAD0:
         default:
             throw BytecodeException("Unsupported bytecode");
@@ -329,11 +334,38 @@ void BytecodeInterpreter::writeValue(
         out << value.doubleValue();
         break;
     case VT_STRING:
-        out << m_code->constantById(value.constId());
+        out << value.stringValue();
         break;
     default:
         throw BytecodeException("Type is not printable");
     }
+}
+
+
+BytecodeInterpreter::Value const BytecodeInterpreter::callNativeFunction(uint16_t fid)
+{
+    std::string const *name = 0;
+    Signature const *signature = 0;
+    void const *code = m_code->nativeById(fid, &signature, &name);
+    assert(signature->size() >= 1);
+
+    std::vector<int64_t> args(signature->size() - 1);
+    for (size_t i = 1; i < signature->size(); ++i) {
+        Value const value(m_locals.load(i));
+        switch (value.type()) {
+        case VT_INT:
+        case VT_DOUBLE:
+        case VT_STRING:
+            args[i - 1] = value.data();
+            break;
+        default:
+            throw BytecodeException("Unsupported native type");
+        }
+    }
+
+    typedef int64_t (*NativeWrapper)(int64_t *);
+    NativeWrapper wrapper = reinterpret_cast<NativeWrapper>(code);
+    return Value(wrapper(&args[0]), (*signature)[0].first);
 }
 
 }

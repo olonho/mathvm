@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <dlfcn.h>
 
 
 namespace mathvm
@@ -127,15 +126,21 @@ void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode *node)
         bc()->addInsn((tosType() == VT_INT) ? BC_INEG : BC_DNEG);
         break;
     case tNOT:
-        if (tosType() != VT_INT)
+        if (tosType() == VT_STRING) {
+            bc()->addInsn(BC_S2I);
+            popType();
+            pushType(VT_INT);
+        }
+        if (tosType() != VT_INT) {
             throw BytecodeGeneratorException("Invalid logical not",
                                              node->position());
-        {
+        } else {
             bc()->addInsn(BC_ILOAD0);
             Label l1(bc());
             bc()->addBranch(BC_IFICMPE, l1);
             bc()->addInsn(BC_ILOAD0);
             Label l2(bc());
+            bc()->addBranch(BC_JA, l2);
             bc()->bind(l1);
             bc()->addInsn(BC_ILOAD1);
             bc()->bind(l2);
@@ -253,14 +258,11 @@ void BytecodeGenerator::visitForNode(ForNode *node)
         throw BytecodeGeneratorException("Invalid for", node->position());
     }
 
-    node->inExpr()->asBinaryOpNode()->right()->visit(this);
     node->inExpr()->asBinaryOpNode()->left()->visit(this);
     storeVariable(node, type, ctx, id);
-    storeVariable(node, type, ctx, 0);
 
     Label l2(bc()->currentLabel());
-
-    loadVariable(node, type, ctx, 0);
+    node->inExpr()->asBinaryOpNode()->right()->visit(this);
     loadVariable(node, type, ctx, id);
 
     Label l1(bc());
@@ -328,7 +330,8 @@ void BytecodeGenerator::visitIfNode(IfNode *node)
 
 void BytecodeGenerator::visitBlockNode(BlockNode *node)
 {
-    if (node->scope() != scope())
+    bool const scp = node->scope() != scope();
+    if (scp)
         pushScope(0, node->scope());
 
     registerFunctions(Scope::FunctionIterator(node->scope()));
@@ -343,7 +346,8 @@ void BytecodeGenerator::visitBlockNode(BlockNode *node)
         popType();
     }
 
-    popScope();
+    if (scp)
+        popScope();
 }
 
 
@@ -424,20 +428,17 @@ void BytecodeGenerator::visitCallNode(CallNode *node)
 
 void BytecodeGenerator::visitNativeCallNode(NativeCallNode *node)
 {
-    void *code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
-    if (!code) {
-        throw BytecodeGeneratorException("Native function is not found",
-                                         node->position());
-    }
+    uint16_t const id = m_code->buildNativeFunction(node);
 
-    uint16_t const id = m_code->makeNativeFunction(node->nativeName(),
-                                                   node->nativeSignature(),
-                                                   code);
     bc()->addInsn(BC_CALLNATIVE);
     bc()->addInt16(id);
 
     ++returnCount();
-    pushType(returnType());
+
+    if (returnType() != VT_VOID) {
+        pushType(returnType());
+        storeVariable(node, returnType(), currentContext(), 0);
+    }
 
     bc()->addBranch(BC_JA, returnLabel());
 }
@@ -500,6 +501,7 @@ void BytecodeGenerator::translateFunction(AstFunction *top)
     m_returnCounts.pop_back();
 
     m_funcs.pop_back();
+    popScope();
 }
 
 

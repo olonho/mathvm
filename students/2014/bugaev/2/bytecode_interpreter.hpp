@@ -24,8 +24,8 @@ private:
         Value(): m_type(VT_INVALID), m_int(0) {}
         Value(int64_t value): m_type(VT_INT), m_int(value) {}
         Value(double value): m_type(VT_DOUBLE), m_double(value) {}
-        Value(size_t value): m_type(VT_STRING), m_constId(value) {}
-        Value(uint16_t value): m_type(VT_STRING), m_constId(value) {}
+        Value(char const *value): m_type(VT_STRING), m_string(value) {}
+        Value(int64_t data, VarType type): m_type(type), m_int(data) {}
 
         VarType type() const
         {
@@ -46,11 +46,16 @@ private:
             return m_double;
         }
 
-        uint16_t constId() const
+        char const *stringValue() const
         {
             if (m_type != VT_STRING)
                 throw BytecodeException("Type mismatch");
-            return m_constId;
+            return m_string;
+        }
+
+        int64_t data() const
+        {
+            return m_int;
         }
 
     private:
@@ -58,7 +63,7 @@ private:
         union {
             int64_t m_int;
             double m_double;
-            size_t m_constId;
+            char const *m_string;
         };
     };
 
@@ -68,7 +73,8 @@ private:
 
     public:
         VariableStorage(InterpreterCodeImpl *code):
-            m_tmp(MIN_SIZE)
+            m_tmp(MIN_SIZE),
+            m_fids(MIN_SIZE)
         {
             size_t funcCount = 0;
             Code::FunctionIterator fi(code);
@@ -87,16 +93,19 @@ private:
 
         void store(Value const &value, uint16_t ctx, uint16_t id)
         {
-            //cerr << "store " << ctx << " " << id << "\n";
             VarDict *dict = findDict(ctx);
             if (id >= dict->size())
                 dict->resize(id + 1);
             (*dict)[id] = value;
         }
 
+        Value const load(uint16_t id)
+        {
+            return load(m_fids.back(), id);
+        }
+
         Value const load(uint16_t ctx, uint16_t id)
         {
-            //cerr << "load " << ctx << " " << id << "\n";
             VarDict *dict = findDict(ctx);
             if (id >= dict->size() || (*dict)[id].type() == VT_INVALID)
                 throw BytecodeException("Undefined variable");
@@ -117,7 +126,6 @@ private:
 
         void push(uint16_t fid)
         {
-            //cerr << "push " << fid << "\n";
             assert(fid < m_storage.size());
             m_storage[fid].push_back(m_tmp);
             m_fids.push_back(fid);
@@ -125,7 +133,6 @@ private:
 
         void pop()
         {
-            //cerr << "pop " << m_fids.back() << "\n";
             m_storage[m_fids.back()].pop_back();
             m_fids.pop_back();
         }
@@ -140,6 +147,7 @@ private:
 
     void moveBci(bool ignoring = true);
     void writeValue(std::ostream &out, Value const &value, VarType type);
+    Value const callNativeFunction(uint16_t fid);
 
     Bytecode *bc()
     {
@@ -150,7 +158,6 @@ private:
     {
         BytecodeFunction *bf = dynamic_cast<BytecodeFunction *>(
                 m_code->functionById(id));
-        //cerr << "push func " << id << " " << bf << "\n";
         assert(bf);
         m_funcs.push_back(bf);
     }
