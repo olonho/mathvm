@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <stack>
+#include <exception>
 #include <ast.h>
 #include <visitors.h>
 #include <mathvm.h>

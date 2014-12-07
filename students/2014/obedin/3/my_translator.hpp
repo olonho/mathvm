@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stack>
 #include <vector>
+#include <exception>
 #include <ast.h>
 #include <visitors.h>
 #include <mathvm.h>
