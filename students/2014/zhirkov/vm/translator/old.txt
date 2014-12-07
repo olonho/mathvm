@@ -1,0 +1,433 @@
+////header
+#pragma once
+
+#include <sstream>
+#include <stack>
+#include <map>
+#include "../../../../../vm/parser.h"
+#include "../ir/ir.h"
+#include "../common.h"
+#include "../ir/ir_printer.h"
+
+namespace mathvm {
+
+
+    class IrBuilder : public AstVisitor {
+        std::map<AstVar const *, std::vector<uint64_t>> _sourceVariables;
+        std::map<AstFunction *, uint16_t> _functionIds;
+        std::vector<IR::FunctionRecord *> _functions;
+        std::stack<IR::FunctionRecord *> _lastFunction;
+        //std::stack<IR::Block *> _lastBlock;
+        IR::Block* _lastBlock;
+        uint32_t _blockCounter;
+        uint64_t _varCounter;
+
+        std::stack<IR::Atom *> _lastAtom;
+
+        IR::Atom* _popAtom() {
+            IR::Atom* atom = _lastAtom.top();
+            _lastAtom.pop();
+            return atom;
+        }
+        IR::Variable* newVar(IR::Variable::VarType type) {
+            return new IR::Variable(type, _varCounter++);
+        }
+
+        Scope *_lastScope;
+        Parser const &_parser;
+
+        std::ostream &_out;
+
+        void embraceVars(Scope *scope);
+
+        void embraceArgs(Scope *scope);
+
+        IR::Block *newBlock();
+
+        IR::Block *addBlock();
+
+        std::string nextBlockName() {
+            std::ostringstream str;
+            str << "fun" << _lastFunction.top()->id << " " << _blockCounter++;
+            return str.str();
+        }
+        //void embraceFunctionDeclarations(AstFunction *function);
+        void visitAstFunction(AstFunction *function);
+
+    public:
+        IrBuilder(Parser const &parser, ostream &debug)
+                : _blockCounter(0), _varCounter(0), _lastScope(parser.top()->scope()), _parser(parser), _out(debug) {
+        }
+
+        void start();
+
+        FOR_NODES(VISITOR_FUNCTION)
+
+        void addStatement(IR::Statement *a) {
+            _lastBlock->contents.push_back(a);
+        }
+
+        IR::Variable*  addAssignment(IR::Variable::VarType type, IR::Expression const *const expr) {
+
+            IR::Variable* var  = new IR::Variable(type, _varCounter++);
+            addStatement(new IR::Assignment(var, expr));
+            return var;
+        }
+
+    };
+}
+
+
+
+////cpp
+
+#include <iostream>
+#include <sstream>
+#include <set>
+#include <queue>
+#include <map>
+#include "../../../../../include/ast.h"
+#include "../ir/ir.h"
+#include "translator.h"
+#include "../typechecker.h"
+#include "ssa_utils.h"
+
+namespace mathvm {
+
+
+    void debug(char const *tr) {
+//        std::cerr << "Visiting " << tr << " node" << std::endl;
+    }
+
+    void dump_functions(std::map<AstFunction *, uint16_t> const &ids) {
+        std::cerr << "::functions::" << std::endl;
+        for (std::map<AstFunction *, uint16_t>::const_iterator it = ids.cbegin(); it != ids.cend(); it++) {
+            std::cerr << it->first->name() << " -> " << it->second << std::endl;
+        }
+    }
+
+
+    void IrBuilder::visitAstFunction(AstFunction *fun) {
+        debug("ast_function");
+        const uint16_t id = _functions.size();
+
+        _lastScope = fun->scope();
+        IR::FunctionRecord *record = new IR::FunctionRecord(id);
+        _functions.push_back(record);
+        _lastFunction.push(record);
+        _functionIds[fun] = id;
+
+        embraceArgs(fun->scope());
+
+        fun->node()->visit(this);
+
+        _lastFunction.pop();
+        _lastScope = _lastScope->parent();
+    }
+
+
+    static IR::BinOp *selectBinOp(TokenKind kind, IR::Expression *left, IR::Expression *right) {
+        switch (kind) {
+            case tOR:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_LOR);
+            case tAND:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_LAND);
+            case tAOR:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_OR);
+            case tAAND:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_AND);;
+            case tAXOR:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_XOR);
+            case tEQ:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_EQ);
+            case tNEQ:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_NEQ);
+            case tGT:
+                return new IR::BinOp(right, left, IR::BinOp::Type::BO_LT);
+            case tGE:
+                return new IR::BinOp(right, left, IR::BinOp::Type::BO_LE);
+            case tLT:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_LT);
+            case tLE:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_LE);
+            case tADD:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_ADD);
+            case tSUB:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_SUB);
+            case tMUL:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_MUL);
+            case tDIV:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_DIV);
+            case tMOD:
+                return new IR::BinOp(left, right, IR::BinOp::Type::BO_MOD);
+            default:
+                std::cerr << "Invalid translator state: unsupported binary operation token" << std::endl;
+                return NULL;
+        }
+    }
+
+    static IR::UnOp *selectUnOp(TokenKind kind, IR::Expression *operand) {
+        switch (kind) {
+            case tNOT:
+                return new IR::UnOp(operand, IR::UnOp::Type::UO_NOT);
+            case tSUB:
+                return new IR::UnOp(operand, IR::UnOp::Type::UO_NEG);
+            default:
+                std::cerr << "Invalid translator state: unsupported binary operation token" << std::endl;
+                return NULL;
+        }
+    }
+
+    void IrBuilder::visitBinaryOpNode(BinaryOpNode *node) {
+        debug("binop");
+        node->left()->visit(this);
+        IR::Atom *left = _popAtom();
+        node->right()->visit(this);
+        IR::Atom *right = _popAtom();
+
+        IR::Variable *tempVar = addAssignment(vtToIrType(getType(node)), selectBinOp(node->kind(), left, right));
+        _lastAtom.push(tempVar);
+    }
+
+    void IrBuilder::visitUnaryOpNode(UnaryOpNode *node) {
+        debug("unop");
+        node->operand()->visit(this);
+        IR::Expression *operand = _popAtom();
+        IR::Variable *tempVar = addAssignment(vtToIrType(getType(node)), selectUnOp(node->kind(), operand));
+        _lastAtom.push(tempVar);
+    }
+
+    void IrBuilder::visitStringLiteralNode(StringLiteralNode *node) {
+        debug("string");
+        auto newid = _lastFunction.top()->stringPool.size();
+        _lastFunction.top()->stringPool.push_back(node->literal());
+//        _lastAtom.push(new IR::Ptr(reinterpret_cast<uint64_t>(_lastFunction.top()->stringPool.back().c_str()), true));
+        _lastAtom.push(new IR::Ptr(newid, true));
+    }
+
+    void IrBuilder::visitDoubleLiteralNode(DoubleLiteralNode *node) {
+        debug("double");
+        _lastAtom.push(new IR::Double(node->literal()));
+    }
+
+    void IrBuilder::visitIntLiteralNode(IntLiteralNode *node) {
+        debug("int");
+        _lastAtom.push(new IR::Int(node->literal()));
+    }
+
+    void IrBuilder::visitLoadNode(LoadNode *node) {
+        debug("load");
+        uint64_t id = _sourceVariables.at(node->var()).back();
+        IR::Variable *v = new IR::Variable(vtToIrType(node->var()->type()), id);
+        _lastAtom.push(v);
+    }
+
+    void IrBuilder::visitStoreNode(StoreNode *node) {
+        debug("store");
+        node->value()->visit(this);
+        IR::Expression *rhs = _popAtom();
+
+        uint64_t lhsId = _varCounter++;
+
+        _sourceVariables[node->var()].push_back(lhsId);
+        IR::Variable const *const var = new IR::Variable(vtToIrType(node->var()->type()), lhsId);
+
+        switch (node->op()) {
+            case tINCRSET:
+                rhs = new IR::BinOp(new IR::Variable(var->type, var->id), rhs, IR::BinOp::BO_ADD);
+                break;
+            case tDECRSET:
+                rhs = new IR::BinOp(new IR::Variable(var->type, var->id), rhs, IR::BinOp::BO_SUB);
+                break;
+        }
+
+        addStatement(new IR::Assignment(var, rhs));
+    }
+
+    void IrBuilder::visitForNode(ForNode *node) {
+    }
+
+    void IrBuilder::visitWhileNode(WhileNode *node) {
+    }
+
+    void IrBuilder::visitIfNode(IfNode *node) {
+        //buuuuuug
+        node->ifExpr()->visit(this);
+        IR::Variable *condVar = addAssignment(vtToIrType(getType(node->ifExpr())), _popAtom());
+        IR::Block *blockBeforeIf = _lastBlock;
+
+        IR::Block *yesblock = newBlock();
+        IR::Block *noblock = newBlock();
+
+        blockBeforeIf->link(new IR::JumpCond(yesblock, noblock, condVar));
+
+        _lastBlock = yesblock;
+        node->thenBlock()->visit(this);
+        IR::Block *lastYesBlock = _lastBlock;
+        _lastBlock = noblock;
+        if (node->elseBlock()) node->elseBlock()->visit(this);
+
+        IR::Block *lastNoBlock = _lastBlock;
+
+        IR::Block *afterIf = newBlock();
+        lastYesBlock->link(afterIf);
+        lastNoBlock->link(afterIf);
+
+        _lastBlock = afterIf;
+    }
+
+    void IrBuilder::visitBlockNode(BlockNode *node) {
+        embraceVars(node->scope());
+        _lastScope = node->scope();
+        addBlock();
+
+        Scope::FunctionIterator fit(node->scope(), false);
+        IR::Block *block = _lastBlock;
+        while (fit.hasNext())
+            visitAstFunction(fit.next());
+        _lastBlock = block;
+        node->visitChildren(this);
+        _lastScope = _lastScope->parent();
+    }
+
+    void IrBuilder::embraceArgs(Scope *scope) {
+        Scope::VarIterator iter(scope);
+        while (iter.hasNext()) {
+            uint64_t id = _varCounter++;
+            AstVar *v = iter.next();
+            _sourceVariables[v] = std::vector<uint64_t>();
+            _sourceVariables[v].push_back(id);
+            _lastFunction.top()->parametersIds.push_back(id);
+        }
+
+    }
+
+    void IrBuilder::embraceVars(Scope *scope) {
+        Scope::VarIterator iter(scope);
+        while (iter.hasNext()) {
+            AstVar *v = iter.next();
+            _sourceVariables[v] = std::vector<uint64_t>();
+            _sourceVariables[v].push_back(_varCounter++);
+        }
+    }
+
+    void IrBuilder::visitFunctionNode(FunctionNode *node) {
+        debug("function");
+        node->body()->visit(this);
+    }
+
+
+    void IrBuilder::visitReturnNode(ReturnNode *node) {
+        debug("return");
+        node->returnExpr()->visit(this);
+        addStatement(new IR::Return(_lastAtom.top()));
+        _lastAtom.pop();
+    }
+
+    void IrBuilder::visitCallNode(CallNode *node) {
+        debug("call");
+        std::vector<IR::Atom *> args;
+        for (uint32_t i = 0; i < node->parametersNumber(); i++) {
+            node->parameterAt(i)->visit(this);
+            args.push_back(_lastAtom.top());
+            _lastAtom.pop();
+        }
+
+        AstFunction *f = _lastScope->lookupFunction(node->name(), true);
+        IR::Variable *tempVar = addAssignment(vtToIrType(getType(node)), new IR::Call(_functionIds[f], args));
+        _lastAtom.push(tempVar);
+    }
+
+    void IrBuilder::visitNativeCallNode(NativeCallNode *node) {
+        debug("native call");
+    }
+
+    void IrBuilder::visitPrintNode(PrintNode *node) {
+        debug("print");
+        for (uint32_t i = 0; i < node->operands(); i++) {
+            node->operandAt(i)->visit(this);
+            addStatement(new IR::Print(_popAtom()));
+        }
+    }
+
+
+    void IrBuilder::start() {
+
+        visitAstFunction(_parser.top());
+
+        for (auto it = _sourceVariables.begin(); it != _sourceVariables.end(); ++it) {
+            _out << it->first->name() << "->";
+            for (std::vector<uint64_t>::iterator v = it->second.begin(); v != it->second.end(); v++)
+                _out << *v << " ";
+            _out << std::endl;
+        }
+
+        IR::IrPrinter printer(_out);
+        for (auto it = _functions.begin(); it != _functions.end(); ++it)
+            (**it).visit(&printer);
+
+
+        _out << "Dominance frontiers" << std::endl;
+
+        for (auto f : _functions) {
+            auto front = dominanceFrontier(f->entry);
+            for (auto kvp : front) {
+                _out << kvp.first->name << " -> ";
+                for (auto elem : kvp.second)
+                    _out << " " << elem->name;
+                _out << std::endl;
+            }
+
+
+        }
+//        _out<< "blocks in reverse order " << std::endl;
+//        for (auto it = _functions.begin(); it != _functions.end(); ++it)
+//            for(auto b : blocksPostOrder((**it).entry))
+//                _out<< "-- " << b->name << std::endl;
+
+
+//        _out<< "Dominators" << std::endl;
+//        for (auto it = _functions.begin(); it != _functions.end(); ++it){
+//            auto doms = dominators((**it).entry);
+//            for (auto kvp : doms) {
+//                _out << kvp.first->name << "->" ;
+//                for (auto e : kvp.second)
+//                    _out << e->name  << " ";
+//                _out << std::endl;
+//            }
+//        }
+//
+//        _out<< "Immediate dominators!" << std::endl;
+//        for (auto it = _functions.begin(); it != _functions.end(); ++it){
+//            auto doms = immediateDominators((**it).entry);
+//            for (auto kvp : doms)
+//                _out << kvp.first->name << "->" << kvp.second->name  << " " << std::endl;
+//
+//        }
+
+    }
+
+    IR::Block *IrBuilder::newBlock() {
+        std::string name = nextBlockName();
+        return new IR::Block(name);
+    }
+
+    IR::Block *IrBuilder::addBlock() {
+
+        IR::FunctionRecord *f = _lastFunction.top();
+        IR::Block *next = newBlock();
+
+
+        if (f->entry == NULL) {
+            f->entry = next;
+        }
+        else {
+            _lastBlock->link(next);
+            _lastBlock = next;
+        }
+
+        _lastBlock = next;
+        return next;
+    }
+
+}
