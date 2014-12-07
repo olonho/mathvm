@@ -1,6 +1,8 @@
 #ifndef MACROS_HPP
 #define MACROS_HPP
 
+#include <exception>
+
 #define MSG_NAN_ON_TOS          "Not a number on TOS"
 #define MSG_NOT_INT_ON_TOS      "Not an integer on TOS"
 #define MSG_NAN_ON_TOS_OR_PREV  "One or two elements on TOS are not numbers"
