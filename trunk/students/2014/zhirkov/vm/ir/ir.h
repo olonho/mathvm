@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <memory>
+#include <deque>
 #include <elf.h>
 #include "../util.h"
 
@@ -10,9 +11,9 @@ namespace mathvm {
 
 #define IR_COMMON_FUNCTIONS(ir) \
 virtual IrElement* visit(IrVisitor *const v) const { v->visit(this); }\
-virtual bool is##ir() { return true; } ;\
-virtual ir* as##ir() { return this; } ;\
-virtual IrType getType() { return IT_##ir; }
+virtual bool is##ir() const { return true; } ;\
+virtual ir const* as##ir() const { return this; } ;\
+virtual IrType getType() const { return IT_##ir; }
 
 #define FOR_IR(DO) \
         DO(BinOp)\
@@ -49,7 +50,7 @@ virtual IrType getType() { return IT_##ir; }
 
             virtual IrElement *visit(IrVisitor *const visitor) const = 0;
 
-#define HELPER(ir) virtual bool is##ir() { return false; } ; virtual ir* as##ir() { return NULL; } ;
+#define HELPER(ir) virtual bool is##ir() const { return false; } ; virtual ir const* as##ir() const { return NULL; } ;
 
             FOR_IR(HELPER)
 #undef HELPER
@@ -121,10 +122,12 @@ virtual IrType getType() { return IT_##ir; }
         };
 
         struct Assignment : Statement {
-            const Variable var;
+            const std::shared_ptr<const Variable> var;
             const std::shared_ptr<const Expression> value;
 
-            Assignment(Variable const &var, Expression const *const expr) : var(var), value(expr) {
+//            Assignment(Variable const &var, Expression const *const expr) : var(var), value(expr) {
+//            }
+            Assignment(uint64_t id, Expression const *const expr) : var(new Variable(id)), value(expr) {
             }
 
             IR_COMMON_FUNCTIONS(Assignment)
@@ -142,7 +145,7 @@ virtual IrType getType() { return IT_##ir; }
         };
 
         struct Phi : Expression {
-            std::vector<Variable *> vars;
+            std::vector<Variable const*> vars;
 
             IR_COMMON_FUNCTIONS(Phi)
         };
@@ -241,6 +244,8 @@ DO(NOT, "!")
 
             Ptr(uint64_t value, bool isPooledString) : value(value), isPooledString(isPooledString) {
             }
+//            Ptr(Ptr const& ptr) : value(ptr.value), isPooledString(ptr.isPooledString) {
+//            }
 
             IR_COMMON_FUNCTIONS(Ptr)
         };
@@ -255,6 +260,10 @@ DO(NOT, "!")
             Jump *getTransition() const {
                 return _transition;
             }
+            void setTransition(Jump* jmp) {
+                _transition = jmp;
+            }
+
 
             std::vector<const Block *> predecessors;
 
@@ -273,7 +282,7 @@ DO(NOT, "!")
                 next->predecessors.push_back(this);
             }
 
-            std::vector<Statement const*> contents;
+            std::deque<Statement const*> contents;
 
 
             virtual ~Block() {
@@ -285,16 +294,18 @@ DO(NOT, "!")
         };
 
 
-        class FunctionRecord : IrElement {
+        class FunctionRecord : public IrElement {
 
         public:
             typedef std::vector<std::string> StringPool;
             FunctionRecord(uint16_t id, VarType returnType)
-                    : id(id), entry(Block(mathvm::toString(id))), returnType(returnType) {
+                    : id(id), entry(new Block(mathvm::toString(id))), returnType(returnType) {
             }
-
+            FunctionRecord(uint16_t id, VarType returnType, Block* startBlock)
+                    : id(id), entry(startBlock), returnType(returnType) {
+            }
             const uint16_t id;
-            Block entry;
+            std::shared_ptr<Block> entry;
             std::vector<uint64_t> parametersIds;
             //should we add variables here?
             StringPool pool;

@@ -13,6 +13,12 @@ namespace mathvm {
             }
             return "INVALID_TYPE";
         }
-        
+
+        std::set<uint64_t> modifiedVars(const Block* const block ) {
+            std::set<uint64_t> result;
+            for( auto st : block->contents) if (st->isAssignment())
+                    result.insert(st->asAssignment()->var->id);
+            return result;
+        }
     }
 }

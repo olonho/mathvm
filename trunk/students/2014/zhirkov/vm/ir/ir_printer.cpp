@@ -47,7 +47,7 @@ namespace mathvm {
 
         IrElement *IrPrinter::visit(Phi const *const expr) {
             _out << "phi(";
-            for (std::vector<Variable *>::const_iterator it = expr->vars.cbegin(); it != expr->vars.cend(); it++) {
+            for (std::vector<Variable const *>::const_iterator it = expr->vars.cbegin(); it != expr->vars.cend(); it++) {
                 (*it)->visit(this);
                 _out << " ";
             }
@@ -115,7 +115,7 @@ namespace mathvm {
         }
 
         IrElement *IrPrinter::visit(Assignment const *const expr) {
-            expr->var.visit(this);
+            expr->var->visit(this);
             _out << " = ";
             expr->value->visit(this);
             return NULL;
@@ -138,7 +138,7 @@ namespace mathvm {
 //                 ++it)
 //                _out << "   " << (*it).name << ":" << typeName((*it).type) << std::endl;
 //
-            expr->entry.visit(this);
+            expr->entry->visit(this);
             _out << std::endl;
             currentFunction = NULL;
             return NULL;

@@ -40,7 +40,6 @@ namespace mathvm {
         uint64_t  _varCounter;
         uint64_t _blockCounter;
         AstFunction* _currentFunction;
-        //std::vector<IR::FunctionRecord *> _functions;
         IR::IrRepr _ir;
         std::map<AstVar const*, AstVarMetadata*> _astvarMeta;
         std::map<uint64_t, AstVarMetadata*> _allvarMeta;
