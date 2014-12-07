@@ -7,6 +7,6 @@ Translator* Translator::create(const string& impl) {
   if (impl == "translator") {
     return new AstToBytecodeTranslator();
   } else {
-    return nullptr;
+    return NULL;
   }
 }

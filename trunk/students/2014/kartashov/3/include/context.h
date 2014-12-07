@@ -8,15 +8,19 @@
 
 class Context;
 
-typedef std::shared_ptr<Context> ContextPtr;
+typedef Context* ContextPtr;
 
 class Context {
   public:
-    Context(ContextPtr parentContext = ContextPtr()):
-      mId(parentContext ? parentContext->id() + 1 : 0) {}
+    Context(int16_t id = 0): mId(id) {}
 
     void store(int16_t id, DataHolder holder) {mVariables[id] = holder;}
+
     DataHolder load(int16_t id) {return mVariables[id];}
+
+    Context newContext() {
+      return Context(mId + 1);
+    }
 
     int16_t id() {return mId;}
 
