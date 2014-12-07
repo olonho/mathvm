@@ -18,17 +18,23 @@ class CodeInterpreter {
     typedef std::pair<DataHolder, DataHolder> HolderPair;
     typedef std::vector<int32_t> ProgramCounterStack;
     typedef std::vector<TranslatedFunction*> FunctionStack;
-    typedef std::map<int16_t, ContextPtr> ContextMap;
+    typedef std::vector<Context> ContextStack;
 
-    CodeInterpreter(Code* code): mCode(code), mCurrentContext(new Context) {
+    const size_t preallocatedMemorySize = 1024 * 1024;
+
+    CodeInterpreter(Code* code): mCode(code) {
+      mContextStack.reserve(preallocatedMemorySize);
+      mFunctionStack.reserve(preallocatedMemorySize);
+      mProgramCounterStack.reserve(preallocatedMemorySize);
       auto topFunction = mCode->functionByName(topFunctionName);
       mFunctionStack.push_back(topFunction);
-      mProgramCounterStack.push_back(0);
+      mContextStack.push_back(Context());
+      newCounter();
     }
 
     void execute() {
+      // mCode->disassemble();
       while(!mFunctionStack.empty()) {
-//        printf("%ld\n", mFunctionStack.size());
         executeInstruction();
       }
     }
@@ -109,178 +115,241 @@ class CodeInterpreter {
         DO(STORECTXSVAR, "Pop TOS and store to string variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \*/
         case BC_DCMP: dcmp(); break;
         case BC_ICMP: icmp(); break;
-        case BC_JA: break;
-        case BC_IFICMPNE: break;
-        case BC_IFICMPE: break;
-        case BC_IFICMPG: break;
-        case BC_IFICMPGE: break;
-        case BC_IFICMPL: break;
-        case BC_IFICMPLE: break;
+        case BC_JA: ja(); break;
+        case BC_IFICMPNE:  ificmpne(); break;
+        case BC_IFICMPE: ificmpe(); break;
+        case BC_IFICMPG: ificmpg(); break;
+        case BC_IFICMPGE: ificmpge(); break;
+        case BC_IFICMPL: ificmpl(); break;
+        case BC_IFICMPLE: ificmple(); break;
         case BC_DUMP: dump(); break;
         case BC_STOP: throw ExecutionException("Execution stopped");
-        case BC_CALL: break;
+        case BC_CALL: call(); break;
         case BC_CALLNATIVE: throw ExecutionException("Natives are not supported"); break;
         case BC_RETURN: bc_return(); break;
         case BC_BREAK: next(); break;
-        default: printf("BOMBOM\n"); break;
+        default: break;
+      }
+    }
+
+    void call() {
+      int16_t id = int16();
+      mFunctionStack.push_back(mCode->functionById(id));
+      newCounter();
+      newContext();
+    }
+
+    void ja() {
+      int16_t relativeOffset = currentBytecode()->getInt16(programCounter());
+      addRelativeOffset(relativeOffset);
+    }
+
+    void ificmpne() {
+      auto args = topPair();
+      if (args.first.intValue != args.second.intValue) {
+        ja();
+      } else {
+        int16();
+      }
+    }
+
+    void ificmpe() {
+      auto args = topPair();
+      if (args.first.intValue == args.second.intValue) {
+        ja();
+      } else {
+        int16();
+      }
+    }
+
+    void ificmpg() {
+      auto args = topPair();
+      push(args.second);
+      if (args.first.intValue > args.second.intValue) {
+        ja();
+      } else {
+        int16();
+      }
+    }
+
+    void ificmpge() {
+      auto args = topPair();
+      push(args.second);
+      if (args.first.intValue >= args.second.intValue) {
+        ja();
+      } else {
+        int16();
+      }
+    }
+
+    void ificmpl() {
+      auto args = topPair();
+      push(args.second);
+      if (args.first.intValue < args.second.intValue) {
+        ja();
+      } else {
+        int16();
+      }
+    }
+
+    void ificmple() {
+      auto args = topPair();
+      push(args.second);
+      if (args.first.intValue <= args.second.intValue) {
+        ja();
+      } else {
+        int16();
       }
     }
 
     void loaddvar() {
-      int16_t id = currentBytecode()->getInt16(programCounter());
-      auto result = currentContext()->load(id).doubleValue;
-      next2();
-      push(result);
+      int16_t id = int16();
+      auto result = currentContext().load(id).doubleValue;
+      dpush(result);
     }
 
     void loadivar() {
-      int16_t id = currentBytecode()->getInt16(programCounter());
-      auto result = currentContext()->load(id).intValue;
-      next2();
-      push(result);
+      int16_t id = int16();
+      auto result = currentContext().load(id).intValue;
+      ipush(result);
     }
 
     void loadsvar() {
-      int16_t id = currentBytecode()->getInt16(programCounter());
-      auto result = currentContext()->load(id).stringId;
-      next2();
-      push(result);
+      int16_t id = int16();
+      auto result = currentContext().load(id).stringId;
+      spush(result);
     }
 
     void storeivar() {
       auto args = tos();
-      int16_t id = currentBytecode()->getInt16(programCounter());
-      currentContext()->store(id, args);
-      next2();
+      int16_t id = int16();
+      currentContext().store(id, args);
     }
 
     void storedvar() {
       auto args = tos();
-      int16_t id = currentBytecode()->getInt16(programCounter());
-      currentContext()->store(id, args);
-      next2();
+      int16_t id = int16();
+      currentContext().store(id, args);
     }
 
     void storesvar() {
       auto args = tos();
-      int16_t id = currentBytecode()->getInt16(programCounter());
-      currentContext()->store(id, args);
-      next2();
+      int16_t id = int16();
+      currentContext().store(id, args);
     }
 
     void dload() {
-      push(currentBytecode()->getDouble(programCounter()));
+      dpush(currentBytecode()->getDouble(programCounter()));
       next8();
     }
 
     void iload() {
-      push(currentBytecode()->getInt64(programCounter()));
+      ipush(currentBytecode()->getInt64(programCounter()));
       next8();
     }
 
     void sload() {
-      int16_t id = currentBytecode()->getInt16(programCounter());
-      push(id);
-      next2();
+      int16_t id = int16();
+      spush(id);
     }
 
     void dload0() {
-      push((double) 0.0);
+      dpush((double) 0.0);
     }
 
     void iload0() {
-      push((int64_t) 0);
+      ipush((int64_t) 0);
     }
 
     void sload0() {
       int16_t id = mCode->makeStringConstant("");
-      push(id);
+      spush(id);
     }
 
     void iload1() {
-      push((int64_t) 1);
+      ipush((int64_t) 1);
     }
 
     void dload1() {
-      push((double) 1.0);
+      dpush((double) 1.0);
     }
 
     void iloadm1() {
-      push((int64_t) -1);
+      ipush((int64_t) -1);
     }
 
     void dloadm1() {
-      push((double) -1.0);
+      dpush((double) -1.0);
     }
 
     void iadd() {
       auto args = topPair();
-      push(args.first.intValue + args.second.intValue);
+      ipush(args.first.intValue + args.second.intValue);
     }
 
     void dadd() {
       auto args = topPair();
-      push(args.first.doubleValue + args.second.doubleValue);
+      dpush(args.first.doubleValue + args.second.doubleValue);
     }
 
     void isub() {
       auto args = topPair();
-      push(args.first.intValue - args.second.intValue);
+      ipush(args.first.intValue - args.second.intValue);
     }
 
     void dsub() {
       auto args = topPair();
-      push(args.first.doubleValue - args.second.doubleValue);
+      dpush(args.first.doubleValue - args.second.doubleValue);
     }
 
     void imul() {
       auto args = topPair();
-      push(args.first.intValue * args.second.intValue);
+      ipush(args.first.intValue * args.second.intValue);
     }
 
     void dmul() {
       auto args = topPair();
-      push(args.first.doubleValue * args.second.doubleValue);
+      dpush(args.first.doubleValue * args.second.doubleValue);
     }
 
     void idiv() {
       auto args = topPair();
-      push(args.first.intValue / args.second.intValue);
+      ipush(args.first.intValue / args.second.intValue);
     }
 
     void ddiv() {
       auto args = topPair();
-      push(args.first.doubleValue / args.second.doubleValue);
+      dpush(args.first.doubleValue / args.second.doubleValue);
     }
 
     void imod() {
       auto args = topPair();
-      push(args.first.intValue % args.second.intValue);
+      ipush(args.first.intValue % args.second.intValue);
     }
 
     void ineg() {
       auto args = tos();
-      push((int64_t) !args.intValue);
+      ipush((int64_t) !args.intValue);
     }
 
     void dneg() {
       auto args = tos();
-      push((int64_t) !args.doubleValue);
+      dpush((int64_t) !args.doubleValue);
     }
 
     void iaor() {
       auto args = topPair();
-      push(args.first.intValue | args.second.intValue);
+      ipush(args.first.intValue | args.second.intValue);
     }
 
     void iaand() {
       auto args = topPair();
-      push(args.first.intValue & args.second.intValue);
+      ipush(args.first.intValue & args.second.intValue);
     }
 
     void iaxor() {
       auto args = topPair();
-      push(args.first.intValue ^ args.second.intValue);
+      ipush(args.first.intValue ^ args.second.intValue);
     }
 
     void iprint() {
@@ -290,7 +359,7 @@ class CodeInterpreter {
 
     void dprint() {
       auto args = tos();
-      printf("%f", args.doubleValue);
+      printf("%g", args.doubleValue);
     }
 
     void sprint() {
@@ -299,18 +368,19 @@ class CodeInterpreter {
     }
 
     void i2d() {
-      auto args = topRef();
-      args.doubleValue = (double) args.intValue;
+      auto args = tos();
+      dpush((double) args.intValue);
     }
 
     void d2i() {
-      auto args = topRef();
-      args.intValue = (int64_t) args.doubleValue;
+      auto args = tos();
+      ipush((double) args.doubleValue);
     }
 
     void bc_return() {
       mFunctionStack.pop_back();
       mProgramCounterStack.pop_back();
+      popContext();
     }
 
     void swap() {
@@ -320,22 +390,22 @@ class CodeInterpreter {
     void icmp() {
       auto args = topPair();
       if (args.first.intValue == args.second.intValue) {
-        push((int64_t) 0);
+        ipush((int64_t) 0);
       } else if (args.first.intValue < args.second.intValue) {
-        push((int64_t) -1);
+        ipush((int64_t) -1);
       } else {
-        push((int64_t) 1);
+        ipush((int64_t) 1);
       }
     }
 
     void dcmp() {
       auto args = topPair();
       if (args.first.doubleValue == args.second.doubleValue) {
-        push((int64_t) 0);
+        ipush((int64_t) 0);
       } else if (args.first.doubleValue < args.second.doubleValue) {
-        push((int64_t) -1);
+        ipush((int64_t) -1);
       } else {
-        push((int64_t) 1);
+        ipush((int64_t) 1);
       }
     }
 
@@ -348,29 +418,33 @@ class CodeInterpreter {
 
     int32_t programCounter() {return mProgramCounterStack.back();}
 
-    void push(int16_t value) {
+    void push(DataHolder holder) {
+      mDataStack.push_back(holder);
+    }
+
+    void spush(int16_t value) {
       DataHolder holder;
       holder.stringId = value;
       mDataStack.push_back(holder);
     }
 
-    void push(int64_t value) {
+    void ipush(int64_t value) {
       DataHolder holder;
       holder.intValue = value;
       mDataStack.push_back(holder);
     }
 
-    void push(double value) {
+    void dpush(double value) {
       DataHolder holder;
       holder.doubleValue = value;
       mDataStack.push_back(holder);
     }
 
-    void pop() {mDataStack.pop_back();}
+    void pop() {
+      mDataStack.pop_back();
+    }
 
     DataHolder top() {return mDataStack.back();}
-
-    DataHolder& topRef() {return mDataStack.back();}
 
     HolderPair topPair() {
       HolderPair result;
@@ -389,15 +463,40 @@ class CodeInterpreter {
       return static_cast<BytecodeFunction*>(mFunctionStack.back())->bytecode();
     }
 
-    ContextPtr currentContext() {
-      return mCurrentContext;
+    void newContext() {
+      mContextStack.push_back(currentContext().newContext());
     }
 
-    void next(size_t i = 1) {mProgramCounterStack.back() += i;}
+    void popContext() {
+      mContextStack.pop_back();
+    }
+
+    Context& currentContext() {
+      return mContextStack.back();
+    }
+
+    void addRelativeOffset(int16_t relativeOffset) {
+      mProgramCounterStack.back() += relativeOffset;
+    }
+
+    int16_t int16() {
+      int16_t result = currentBytecode()->getInt16(programCounter());
+      next2();
+      return result;
+    }
+
+    void next(size_t i = 1) {mProgramCounterStack.back() += i;
+    }
+
     void next2() {next(2);}
+
     void next3() {next(3);}
+
     void next4() {next(4);}
+
     void next8() {next(8);}
+
+    void newCounter() {mProgramCounterStack.push_back(0);}
 
     const std::string topFunctionName = "<top>";
 
@@ -406,8 +505,7 @@ class CodeInterpreter {
     FunctionStack mFunctionStack;
     Code* mCode;
     DataStack mDataStack;
-    ContextMap mContextMap;
-    ContextPtr mCurrentContext;
+    ContextStack mContextStack;
 };
 
 #endif
