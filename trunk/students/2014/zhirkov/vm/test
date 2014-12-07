@@ -1,0 +1,8 @@
+int x;
+int y;
+double z;
+x = 1.0;
+y = x + 4;
+z = x + 10;
+
+
