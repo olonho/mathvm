@@ -30,10 +30,10 @@ int main(int argc, char **argv) {
     TypeChecker typeChecker;
     typeChecker.visitFunctionNode(parser.top()->node());
 
-    IrBuilder translator(parser, std::cout);
+    SimpleIrBuilder translator(parser, std::cout);
     translator.start();
 
-    std::cout<<"Source code:" << std::endl << std::endl;
+//    std::cout<<"Source code:" << std::endl << std::endl;
 //    AstPrinterVisitor printer;
 //    printer.visitFunctionNode(parser.top()->node());
 

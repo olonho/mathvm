@@ -8,11 +8,12 @@
 #include "../common.h"
 #include "../ir/ir_printer.h"
 #include "../ast_metadata.h"
+#include "ssa_utils.h"
 
 namespace mathvm {
 
 
-    class IrBuilder : public AstVisitor {
+    class SimpleIrBuilder : public AstVisitor {
         struct AstVarMetadata {
             AstVarMetadata(AstVar const *const var, uint64_t const id) : isTemp(false), var(var), id(id) {
 
@@ -29,9 +30,9 @@ namespace mathvm {
 
 
         struct AstFunctionMetadata {
-            AstFunctionMetadata(const AstFunction* f, const uint64_t id) : fun(f), id(id) {}
+            AstFunctionMetadata(const AstFunction* f, const uint16_t id) : fun(f), id(id) {}
             const AstFunction* const fun;
-            const uint64_t id;
+            const uint16_t id;
 
             std::vector<AstVarMetadata*> args;
             std::vector<AstVarMetadata*> locals;
@@ -40,7 +41,7 @@ namespace mathvm {
         uint64_t  _varCounter;
         uint64_t _blockCounter;
         AstFunction* _currentFunction;
-        IR::IrRepr _ir;
+        IR::SimpleIr _ir;
         std::map<AstVar const*, AstVarMetadata*> _astvarMeta;
         std::map<uint64_t, AstVarMetadata*> _allvarMeta;
         std::map<AstFunction*, AstFunctionMetadata*> _funMeta;
@@ -66,17 +67,22 @@ namespace mathvm {
             AstVarMetadata* md = new AstVarMetadata(var, id);
             _astvarMeta[var] = md;
             _allvarMeta[id] = md;
+            IR::SimpleIr::VarMeta add(md->id, md->id, vtToIrType(var->type()));
+            _ir.varMeta.push_back(add);
             return id;
         }
+
         uint64_t makeTempVar() {
             uint64_t id = _varCounter++;
             AstVarMetadata* md = new AstVarMetadata(id);
             _allvarMeta[id] = md;
+            IR::SimpleIr::VarMeta add(md->id, 0, IR::VT_Undefined);
+            _ir.varMeta.push_back(add);
             return id;
         }
 
     public:
-        IrBuilder(Parser const &parser, ostream &debug)
+        SimpleIrBuilder(Parser const &parser, ostream &debug)
                 : _currentBlock(NULL), _varCounter(0), _blockCounter(0), _lastScope(parser.top()->scope()), _parser(parser), _out(debug),
                   _currentFunction(NULL) {
         }
@@ -97,31 +103,15 @@ private:
             str << _currentFunction->name() << '[' << _blockCounter++ << ']';
             return str.str();
         }
+
         IR::Block *newBlock() {
             std::string name = nextBlockName();
             return new IR::Block(name);
         }
+
         void emit(IR::Statement const* const statement) {
             _currentBlock->contents.push_back(statement);
         }
-
-//        IR::Block *addBlock() {
-//
-//            IR::FunctionRecord *f = _lastFunction.top();
-//            IR::Block *next = newBlock();
-//
-//
-//            if (f->entry == NULL) {
-//                f->entry = next;
-//            }
-//            else {
-//                _lastBlock->link(next);
-//                _lastBlock = next;
-//            }
-//
-//            _lastBlock = next;
-//            return next;
-//        }
 
     };
 }

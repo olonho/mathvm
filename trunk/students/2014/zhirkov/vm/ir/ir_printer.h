@@ -17,8 +17,10 @@ namespace mathvm {
                     return "double";
                 case VT_Ptr:
                     return "ptr";
+                case VT_Undefined:
+                    return "???";
             }
-            return "???";
+            return "check varTypeStr, no case";
         }
 
         class IrPrinter : public IrVisitor {
@@ -34,7 +36,7 @@ namespace mathvm {
 
             IrPrinter(std::ostream &out) : _out(out) , currentFunction(NULL) {
             }
-
+            void print(SimpleIr const& ir);
         };
 
 
