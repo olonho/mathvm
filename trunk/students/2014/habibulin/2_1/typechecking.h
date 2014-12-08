@@ -178,4 +178,45 @@ private:
     }
 };
 
+class InfoDeletter: public AstVisitor {
+public:
+    void run(AstFunction* root) {
+        if(root) {
+            root->node()->visit(this);
+        }
+    }
+
+    virtual void visitFunctionNode(FunctionNode* node) { generalDel(node); }
+    virtual void visitBlockNode(BlockNode* node) {
+        Scope::FunctionIterator funIt(node->scope());
+        while(funIt.hasNext()) {
+            AstFunction* fun = funIt.next();
+            fun->node()->visit(this);
+        }
+        generalDel(node);
+    }
+    virtual void visitReturnNode(ReturnNode* node) { generalDel(node); }
+    virtual void visitNativeCallNode(NativeCallNode* node) { generalDel(node); }
+    virtual void visitCallNode(CallNode* node) { generalDel(node); }
+    virtual void visitPrintNode(PrintNode* node) { generalDel(node); }
+    virtual void visitBinaryOpNode(BinaryOpNode* node) { generalDel(node); }
+    virtual void visitUnaryOpNode(UnaryOpNode* node) { generalDel(node); }
+    virtual void visitStringLiteralNode(StringLiteralNode* node) { generalDel(node); }
+    virtual void visitIntLiteralNode(IntLiteralNode* node) { generalDel(node); }
+    virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) { generalDel(node); }
+    virtual void visitLoadNode(LoadNode* node) { generalDel(node); }
+    virtual void visitStoreNode(StoreNode* node) { generalDel(node); }
+    virtual void visitForNode(ForNode* node) { generalDel(node); }
+    virtual void visitWhileNode(WhileNode* node) { generalDel(node); }
+    virtual void visitIfNode(IfNode* node) { generalDel(node); }
+private:
+    void generalDel(AstNode* node) {
+        node->visitChildren(this);
+        if(node->info() != 0) {
+            delete ((TypeInfo *)node->info());
+        }
+    }
+};
+
+
 #endif // TYPECHECKING_H

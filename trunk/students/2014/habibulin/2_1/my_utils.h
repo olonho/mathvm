@@ -46,6 +46,7 @@ public:
         _cause = cause;
         _pos = pos;
     }
+    void setOk() { _is_error = false; }
 
     bool isError() const { return _is_error; }
     string const& errCause() const { return _cause; }
