@@ -7,6 +7,7 @@ using namespace mathvm;
 
 //public:
 bool TypeChecker::check(AstFunction* astFun) {
+    _status.setOk();
     try {
         _funs.push(astFun);
         visitBlockBody(astFun->node()->body());

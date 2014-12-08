@@ -7,22 +7,23 @@
 namespace mathvm {
 
 Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
-    DEBUG_MSG("translation started");
     Parser parser;
     Status* status = parser.parseProgram(program);
     if (status->isError()) {
         return status;
     }
     delete status;
-    DEBUG_MSG("parsing finished");
+
     TypeChecker typeChecker;
+    InfoDeletter infoDeletter;
     typeChecker.check(parser.top());
-    DEBUG_MSG("typechecking finished");
     if(typeChecker.status().isError()) {
         string cause = typeChecker.status().errCause();
         size_t pos = typeChecker.status().errPos();
+        infoDeletter.run(parser.top());
         return Status::Error(cause.c_str(), pos);
     }
+    infoDeletter.run(parser.top());
 //    InterpreterCodeImpl* iCode = new InterpreterCodeImpl();
 //    BytecodeGenerator bcGenerator(iCode);
 //    DEBUG_MSG("translation starts");

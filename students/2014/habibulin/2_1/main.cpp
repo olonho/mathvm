@@ -29,9 +29,11 @@ int main(int argc, char** argv) {
 
     const char* expr =
             "function int a() {"
-            "   return 11;"
+            "   int a;"
+            "   a = 10;"
+            "   return 1;"
             "}"
-            "print(a());";
+            "print(3);";
     bool isDefaultExpr = true;
 
     if (script != NULL) {

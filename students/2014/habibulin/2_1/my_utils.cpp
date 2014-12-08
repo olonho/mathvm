@@ -5,7 +5,7 @@
 using std::cout;
 
 void DEBUG_MSG(string const& msg) {
-//    cout << "#DEBUG: " << msg << '\n';
+    cout << "#DEBUG: " << msg << '\n';
 }
 
 void DEBUG_MSG(Scope* scope) {
