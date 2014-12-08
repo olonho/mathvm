@@ -18,7 +18,8 @@ namespace mathvm {
 
     void setXmmVariable(X86Compiler &c, XmmVar &v, double d) {
         X86GpVar temp = c.newGpVar();
-        c.mov(temp, *(reinterpret_cast<uint64_t *>(&d)));
+        uint64_t *dd = (uint64_t *) (&d);
+        c.mov(temp, *dd);
         c.movq(v, temp.m());
         c.unuse(temp);
     }
