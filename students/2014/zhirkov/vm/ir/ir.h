@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 #include <deque>
-#include <elf.h>
+#include <set>
 #include "../util.h"
 
 namespace mathvm {
@@ -74,6 +74,7 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         enum VarType {
+            VT_Undefined,
             VT_Bot,
             VT_Int,
             VT_Double,
@@ -108,6 +109,7 @@ virtual IrType getType() const { return IT_##ir; }
 
 
         };
+
         struct JumpCond : Jump {
             JumpCond(Block *const yes, Block *const no, Atom const *const condition)
                     : yes(yes), no(no), condition(condition) {
@@ -125,8 +127,8 @@ virtual IrType getType() const { return IT_##ir; }
             const std::shared_ptr<const Variable> var;
             const std::shared_ptr<const Expression> value;
 
-//            Assignment(Variable const &var, Expression const *const expr) : var(var), value(expr) {
-//            }
+            Assignment(Variable const * const var, Expression const *const expr) : var(var), value(expr) {
+            }
             Assignment(uint64_t id, Expression const *const expr) : var(new Variable(id)), value(expr) {
             }
 
@@ -144,14 +146,23 @@ virtual IrType getType() const { return IT_##ir; }
 
         };
 
-        struct Phi : Expression {
-            std::vector<Variable const*> vars;
+        struct Phi : Statement {
+            std::shared_ptr<const Variable> var;
+
+            Phi(uint64_t id) : var(new Variable(id)) {
+            }
+
+            Phi(Variable const *id) : var(id) {
+            }
+
+            std::set<std::shared_ptr<Variable const> > vars;
 
             IR_COMMON_FUNCTIONS(Phi)
+
         };
 
         struct Call : Expression {
-            Call(uint16_t id, std::vector<Atom const*> const &params) : funId(id), params(params) {
+            Call(uint16_t id, std::vector<Atom const *> const &params) : funId(id), params(params) {
 
             }
 
@@ -260,7 +271,8 @@ DO(NOT, "!")
             Jump *getTransition() const {
                 return _transition;
             }
-            void setTransition(Jump* jmp) {
+
+            void setTransition(Jump *jmp) {
                 _transition = jmp;
             }
 
@@ -282,7 +294,7 @@ DO(NOT, "!")
                 next->predecessors.push_back(this);
             }
 
-            std::deque<Statement const*> contents;
+            std::deque<Statement const *> contents;
 
 
             virtual ~Block() {
@@ -297,18 +309,18 @@ DO(NOT, "!")
         class FunctionRecord : public IrElement {
 
         public:
-            typedef std::vector<std::string> StringPool;
             FunctionRecord(uint16_t id, VarType returnType)
                     : id(id), entry(new Block(mathvm::toString(id))), returnType(returnType) {
             }
-            FunctionRecord(uint16_t id, VarType returnType, Block* startBlock)
+
+            FunctionRecord(uint16_t id, VarType returnType, Block *startBlock)
                     : id(id), entry(startBlock), returnType(returnType) {
             }
+
             const uint16_t id;
             std::shared_ptr<Block> entry;
             std::vector<uint64_t> parametersIds;
             //should we add variables here?
-            StringPool pool;
 
 
 
@@ -328,8 +340,28 @@ DO(NOT, "!")
             IR_COMMON_FUNCTIONS(Print)
         };
 
-        struct IrRepr {
-        std::vector<FunctionRecord*> functions;
+        struct SimpleIr {
+            struct VarMeta {
+                const uint64_t id;
+                const bool isSourceVar;
+                const uint64_t originId;
+                VarType type;
+
+                VarMeta(uint64_t id, uint64_t from, VarType type)
+                        : isSourceVar(true),originId(from), id(id), type(type) {
+                }
+
+                VarMeta(uint64_t id) : isSourceVar(false), originId(0), id(id), type(VT_Undefined) {
+                }
+            };
+
+            typedef std::vector<std::string> StringPool;
+
+            StringPool pool;
+            std::vector<FunctionRecord *> functions;
+            std::vector<VarMeta> varMeta;
+
         };
+        typedef SimpleIr SimpleSsaIr;
     }
 }

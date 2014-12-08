@@ -1,5 +1,6 @@
 #include "identity.h"
-
+#include "../ir.h"
+#include <memory>
 
 namespace mathvm {
     namespace IR {
@@ -31,10 +32,13 @@ namespace mathvm {
         }
 
         IrElement *IdentityTransformation::visit(Phi const *const expr) {
-            auto res = new Phi();
+            Variable* var = static_cast<Variable*> (expr->var->visit(this));
+            if (!var) return NULL;
+            auto res = new Phi(var);
             for (auto v : expr->vars) {
                 Variable const *var = static_cast<Variable const *> (v->visit(this));
-                if (var != NULL) res->vars.push_back(var);
+                std::shared_ptr<Variable const> sp(var);
+                if (var != NULL) res->vars.insert(sp);
             }
             return res;
         }
@@ -52,6 +56,7 @@ namespace mathvm {
         }
 
         IrElement *IdentityTransformation::visit(Block const *const expr) {
+            _currentSourceBlock = expr;
             Block *result = new Block(expr->name);
             result->predecessors = expr->predecessors;
             for (auto st : expr->contents) {
@@ -98,7 +103,6 @@ namespace mathvm {
             FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType);
             transformed->entry = std::shared_ptr<Block>(newEntry);
             transformed->parametersIds = expr->parametersIds;
-            transformed->pool = expr->pool;
             return transformed;
         }
 

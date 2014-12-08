@@ -1,6 +1,7 @@
 #include <iostream>
 #include "ir_printer.h"
 #include "../util.h"
+#include <vector>
 
 namespace mathvm {
     namespace IR {
@@ -46,9 +47,10 @@ namespace mathvm {
         }
 
         IrElement *IrPrinter::visit(Phi const *const expr) {
-            _out << "phi(";
-            for (std::vector<Variable const *>::const_iterator it = expr->vars.cbegin(); it != expr->vars.cend(); it++) {
-                (*it)->visit(this);
+            expr->var->visit(this);
+            _out << " = phi(";
+            for (auto const v : expr->vars){
+                v->visit(this);
                 _out << " ";
             }
             _out << ")";
@@ -67,8 +69,9 @@ namespace mathvm {
 
         IrElement *IrPrinter::visit(Ptr const *const expr) {
             _out << "<ptr:" << expr->value;
-            if (expr->isPooledString && currentFunction != NULL)
-                _out << "@\"" << escape(currentFunction->pool[expr->value]) << '\"';
+            if (expr->isPooledString) _out << '@' ;
+//            if (expr->isPooledString && currentFunction != NULL)
+//                _out << "@\"" << escape(currentFunction->pool[expr->value]) << '\"';
             _out << ">";
             return NULL;
         }
@@ -128,10 +131,10 @@ namespace mathvm {
                  it != expr->parametersIds.cend(); ++it)
                 _out << " " << *it;
 
-            _out << std::endl << "Strings pool:" << std::endl;
+//            _out << std::endl << "Strings pool:" << std::endl;
 
-            for (size_t i = 0; i < expr->pool.size(); ++i)
-                _out << i << " : " << escape(expr->pool[i]) << std::endl;
+//            for (size_t i = 0; i < expr->pool.size(); ++i)
+//                _out << i << " : " << escape(expr->pool[i]) << std::endl;
 
 //            for (std::vector<Variable>::iterator it = expr->variables.begin();
 //                 it != expr->variables.end();
@@ -154,7 +157,26 @@ namespace mathvm {
             expr->atom->visit(this);
             return NULL;
         }
+        static void printVarMeta(SimpleIr::VarMeta const& meta, std::ostream& out) {
+            out << meta.id << " : " << varTypeStr(meta.type) <<" -> ";
+            if (meta.isSourceVar) out << "source id " << meta.originId;
+            else out << "temp";
+            out << std::endl;
+        }
+        void IrPrinter::print(SimpleIr const& ir) {
+            _out<< "String pool:" << std::endl;
+            int i = 0;
+            for (auto s : ir.pool)
+                _out<< i++ << " : " << s << std::endl;
+            _out << "Variables metadata" << std::endl;
+            for (auto const meta :  ir.varMeta)
+                printVarMeta(meta, _out);
 
+            _out<< "Functions" << std::endl;
+            for (auto f : ir.functions)
+                f->visit(this);
+
+        }
     }
 
 }
