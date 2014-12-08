@@ -21,9 +21,6 @@ namespace mathvm {
         return Status::Ok();
     }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wincompatible-pointer-types"
-
     void SimpleInterpreter::run(ostream &out) {
         stack.resize(50);
         bytecodes.clear();
@@ -243,6 +240,4 @@ namespace mathvm {
             currentIndex += instructionLength;
         }
     }
-
-#pragma clang diagnostic pop
 }
