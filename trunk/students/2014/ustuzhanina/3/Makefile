@@ -2,7 +2,7 @@ ROOT   = .
 VM_ROOT = ../../../..
 OPT = 1
 
-USER_CFLAGS = -Wno-unused
+USER_CFLAGS = -Wno-unused -Wno-c++11-extensions
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
 else

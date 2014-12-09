@@ -53,10 +53,10 @@ void InterpretCode::handleByteCode()
 		case BC_IADD:
 		case BC_ISUB:
 		case BC_IMUL:
-		case BC_IDIV:		
-        case BC_IMOD:
+		case BC_IDIV:
+		case BC_IMOD:
 			mathOperation<int64_t>(instruction);
-            break;
+			break;
 
 		case BC_SWAP:
 			swapValues();
@@ -184,26 +184,22 @@ void InterpretCode::loadVar(Instruction instruction)
 {
 	int16_t idxContext = byteCode()->getInt16(position - 4);
 	int16_t idxVar = byteCode()->getInt16(position - 2);
-    Var var = getVariable(getContext(idxContext), idxVar);
-    variables.push(var);
+	Var var = getVariable(getContext(idxContext), idxVar);
+	variables.push(var);
 }
 
 void InterpretCode::saveVar(Instruction instruction)
 {
 	int16_t idxContext = byteCode()->getInt16(position - 4);
 	int16_t idxVar = byteCode()->getInt16(position - 2);
-    Context * context = getContext(idxContext);
-	Context::VariableMap mMap = context->variableMap;
+	Context * context = getContext(idxContext);
 	Var var = variables.top();
 	variables.pop();
-	Context::Variable mVar = std::make_pair(idxVar, var);
 
-	if (mMap.find(Utils::convertToString(idxVar)) != mMap.end())
-		mMap.at(Utils::convertToString(idxVar)).second = var;
+	if (context->varMap_idx.find(idxVar) != context->varMap_idx.end())
+		context->varMap_idx.at(idxVar) = var;
 	else
-		mMap.insert(std::make_pair(Utils::convertToString(idxVar), mVar));
-
-	context->variableMap = mMap;
+		context->varMap_idx.insert(std::make_pair(idxVar, var));
 }
 
 void InterpretCode::handleTopValue(Instruction instruction)
@@ -259,7 +255,7 @@ void InterpretCode::swapValues()
 }
 Var InterpretCode::createVar(Instruction instr, const string & name)
 {
-	Var var(Utils::getType(instr), name);
+	Var var(getType(instr), name);
 
 	switch (var.type())
 	{
@@ -338,19 +334,19 @@ void InterpretCode::handleCallNode(Instruction instruction)
 	contextStack.push(position);
 	position = 0;
 	currenFunction = (BytecodeFunction *) functionById(funcIdx);
-    Context *nContext = createOrGetContext(funcIdx + 1);
-    contextMap.at(funcIdx + 1).push_back(nContext);
+	Context * nContext = createOrGetContext(funcIdx + 1);
+	contextMap.at(funcIdx + 1).push_back(nContext);
 }
 
 void InterpretCode::handleReturnNode()
 {
-    Context *context = contextMap.at(currenFunction->id() + 1).back();
-    contextMap.at(currenFunction->id() + 1).pop_back();
-    delete context;
+	Context * context = contextMap.at(currenFunction->id() + 1).back();
+	contextMap.at(currenFunction->id() + 1).pop_back();
+	delete context;
 	//return to position
 	position = contextStack.top();
 	contextStack.pop();
 	//return to function
 	currenFunction = (BytecodeFunction *) functionById(contextStack.top());
-	contextStack.pop();    
+	contextStack.pop();
 }

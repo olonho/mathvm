@@ -16,8 +16,7 @@ using std::map;
 using std::make_pair;
 
 
-//TODO
-//destructor remove all context
+
 class ByteCodeVisitor: public AstVisitor
 {
 	typedef pair<int16_t, Var> Variable;
@@ -119,14 +118,14 @@ Status * BytecodeTranslatorImpl::translate(const string & program,
 	try
 	{
 		ByteCodeVisitor result(parser.top(), &kc);
-		*code = result.getCode();
-//		Code::FunctionIterator it(*code);
-//                while(it.hasNext()){
-//                    BytecodeFunction *bcF = (BytecodeFunction*)it.next();
-//                    cout << endl<<"nameF = " <<bcF->name() << " idx = " << bcF->id()<<endl;
-//                    bcF->bytecode()->dump(cout);
-//                    cout << endl;
-//                }
+		//		*code = result.getCode();
+		//		Code::FunctionIterator it(*code);
+		//                while(it.hasNext()){
+		//                    BytecodeFunction *bcF = (BytecodeFunction*)it.next();
+		//                    cout << endl<<"nameF = " <<bcF->name() << " idx = " << bcF->id()<<endl;
+		//                    bcF->bytecode()->dump(cout);
+		//                    cout << endl;
+		//                }
 	}
 	catch (Exception ex)
 	{

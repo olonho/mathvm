@@ -25,9 +25,9 @@ int ByteCodeVisitor::getFuncIdx(Context * context, string varName) const
 
 void ByteCodeVisitor::initContext(BlockNode * node)
 {
-//	Context * newContext = new Context(currentContext++, current);
-//	current = newContext;
-    VariableMap varMap = current->variableMap;
+	//	Context * newContext = new Context(currentContext++, current);
+	//	current = newContext;
+	VariableMap varMap = current->variableMap;
 	int16_t varIndx = 0;
 	Scope::VarIterator it(node->scope());
 
@@ -42,9 +42,9 @@ void ByteCodeVisitor::initContext(BlockNode * node)
 	}
 
 	allVariables.push_back(varMap);
-    current->variableMap = varMap;
+	current->variableMap = varMap;
 	Scope::FunctionIterator itf(node->scope());
-    FunctionMap funcMap = current->functionMap;
+	FunctionMap funcMap = current->functionMap;
 
 	while(itf.hasNext())
 	{
@@ -55,7 +55,7 @@ void ByteCodeVisitor::initContext(BlockNode * node)
 	}
 
 	allFunctions.push_back(funcMap);
-    current->functionMap = funcMap;
+	current->functionMap = funcMap;
 	Scope::FunctionIterator itff(node->scope());
 
 	while(itff.hasNext())
@@ -297,13 +297,17 @@ void ByteCodeVisitor::visitFunctionNode(FunctionNode * node)
 		{
 			int16_t idx;
 			AstFunction * fn = itf.next();
-			BytecodeFunction * bcFn = new BytecodeFunction(fn);
+			BytecodeFunction * bcFn = (BytecodeFunction *) code->functionByName(fn->name());
 
-			if (fn->node()->isNativeCallNode())
-				code->makeNativeFunction(fn->name(), fn->node()->signature(), 0 );
-			else
+			if (bcFn == NULL)
 			{
-				idx = code->addFunction(bcFn);
+				if (fn->node()->isNativeCallNode())
+					code->makeNativeFunction(fn->name(), fn->node()->signature(), 0 );
+				else
+				{
+					bcFn = new BytecodeFunction(fn);
+					idx = code->addFunction(bcFn);
+				}
 			}
 
 			funcMap.insert(make_pair(fn->name(), idx));
@@ -322,6 +326,7 @@ void ByteCodeVisitor::visitFunctionNode(FunctionNode * node)
 		node->body()->visit(this);
 	}
 
+	delete newContext;
 	current = current->parent;
 	currenFunction = (BytecodeFunction *) code->functionByName(current->name);
 	resultType = node->returnType();
@@ -329,7 +334,7 @@ void ByteCodeVisitor::visitFunctionNode(FunctionNode * node)
 
 void ByteCodeVisitor::visitCallNode(CallNode * node)
 {
-    BytecodeFunction * bcF = (BytecodeFunction *) code->functionByName(node->name());
+	BytecodeFunction * bcF = (BytecodeFunction *) code->functionByName(node->name());
 	vector<SignatureElement> fSignature = bcF->signature();
 
 	for(uint32_t i = 0; i < node->parametersNumber(); i++)
@@ -343,7 +348,7 @@ void ByteCodeVisitor::visitCallNode(CallNode * node)
 	}
 
 	call(bcF->id(), false);
-	resultType = fSignature.at(0).first;	
+	resultType = fSignature.at(0).first;
 }
 
 
@@ -358,7 +363,7 @@ void ByteCodeVisitor::visitWhileNode(WhileNode * node)
 	node->loopBlock()->visit(this);
 	byteCode()->addBranch(BC_JA, inM);
 	byteCode()->bind(endM);
-    //current = current->parent;
+	//current = current->parent;
 }
 
 //incremented var save on VARO
@@ -395,7 +400,7 @@ void ByteCodeVisitor::visitForNode(ForNode * node)
 	byteCode()->addInsn(BC_STOREIVAR0);
 	byteCode()->addBranch(BC_JA, inM);
 	byteCode()->bind(endM);
-    //current = current->parent;
+	//current = current->parent;
 }
 
 //TODO new scope - maybe add to block node
@@ -419,11 +424,11 @@ void ByteCodeVisitor::visitIfNode(IfNode * node)
 	{
 		initContext(node->elseBlock());
 		node->elseBlock()->visit(this);
-        //current = current->parent;
+		//current = current->parent;
 	}
 
 	byteCode()->bind(endM);
-    //current = current->parent;
+	//current = current->parent;
 }
 
 
