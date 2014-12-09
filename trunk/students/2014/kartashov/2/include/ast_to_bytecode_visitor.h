@@ -11,6 +11,7 @@
 
 #include "result_bytecode.h"
 #include "variable_context.h"
+#include "translation_exception.h"
 
 using namespace mathvm;
 
@@ -24,7 +25,7 @@ class AstToBytecodeVisitor: public AstVisitor {
       mVariableContextStack.push_back(VariableContext());
     }
 
-    ~AstToBytecodeVisitor() {mCode = nullptr;}
+    ~AstToBytecodeVisitor() {delete mCode;}
 
     void visitTop(AstFunction* top) {
       visitAstFunction(top);
@@ -35,7 +36,7 @@ class AstToBytecodeVisitor: public AstVisitor {
     void visitAstFunction(AstFunction* astFunction) {
       mFunctionStack.push(new BytecodeFunction(astFunction));
       // Add ast function before visiting for recursion
-      code()->addFunction(mFunctionStack.top());
+      mCode->addFunction(mFunctionStack.top());
       newContext();
       astFunction->node()->visit(this);
       mFunctionStack.pop();
@@ -49,10 +50,16 @@ class AstToBytecodeVisitor: public AstVisitor {
     }
 
     void visitCallNode(CallNode* node) {
-      node->visitChildren(this);
+      auto function = mCode->functionByName(mangledFunctionName(node->name()));
+      auto functionId = function->id();
+      for (size_t i = 0; i != node->parametersNumber(); ++i) {
+        node->parameterAt(i)->visit(this);
+        bool typecastSuccess = typecastStackValueTo(function->parameterType(i));
+        if (!typecastSuccess) {
+          typeMismatch(node->parameterAt(i));
+        }
+      }
       insn(BC_CALL);
-      auto functionId =
-        code()->functionByName(mangledFunctionName(node->name()))->id();
       int16(functionId);
     }
 
@@ -60,10 +67,18 @@ class AstToBytecodeVisitor: public AstVisitor {
       // Context is already initialised
       getVariablesFromStackReverseOrder(node);
       node->body()->visit(this);
-      if (!isTopFunction(node)) {
-        typecastStackValueTo(node->returnType());
+      if (!isTopFunction(node) && node->returnType() != VT_VOID) {
+        bool typecastSuccess = typecastStackValueTo(node->returnType());
+        if (!typecastSuccess) {
+          typeMismatch(node);
+        }
       }
       outContext();
+    }
+
+    void typeMismatch(AstNode* node) {
+      throw TranslationException(Status::Error("Type mismatch", 
+            node->position()));
     }
 
     void getVariablesFromStackReverseOrder(FunctionNode* node) {
@@ -81,6 +96,11 @@ class AstToBytecodeVisitor: public AstVisitor {
 
     void visitReturnNode(ReturnNode* node) {
       if (node->returnExpr()) {
+        if (currentFunction()->returnType() == VT_VOID) {
+          throw TranslationException(
+              Status::Error(("Function " + currentFunction()->name() +
+              " returns something instead of declared void").c_str(), node->position()));
+        }
         node->returnExpr()->visit(this);
       }
       insn(BC_RETURN);
@@ -127,7 +147,10 @@ class AstToBytecodeVisitor: public AstVisitor {
         if (node->op() != tASSIGN) {
           loadVariable(node->var()->type(), variableId);
 
-          typecastStackValuesToCommonType();
+          bool typecastSuccess = typecastStackValuesToCommonType();
+          if (!typecastSuccess) {
+            typeMismatch(node);
+          }
           // Perform operation on loaded value if not assign
           if (node->op() == tINCRSET) {
             add();
@@ -137,7 +160,10 @@ class AstToBytecodeVisitor: public AstVisitor {
         }
 
         // Perform casts or fail if types are different
-        typecastStackValueTo(node->var()->type());
+        bool typecastSuccess = typecastStackValueTo(node->var()->type());
+        if (!typecastSuccess) {
+          typeMismatch(node);
+        }
 
         // Store the result into var
         storeVariable(node->var()->type(), variableId);
@@ -150,50 +176,41 @@ class AstToBytecodeVisitor: public AstVisitor {
       if (ttos() == VT_INT) {
         switch (node->kind()) {
           case tADD: nop(); break;
-          case tSUB: insn(BC_ILOADM1);
-                     insn(BC_IMUL);
-                     break;
-          case tNOT: insn(BC_INEG); break;
+          case tSUB: insn(BC_INEG); break;
+          case tNOT: notop(); break;
           default: break;
         }
-        intTypeToStack();
       } else if (ttos() == VT_DOUBLE) {
         switch (node->kind()) {
           case tADD: nop(); break;
-          case tSUB: insn(BC_DLOADM1);
-                     insn(BC_DMUL);
-                     break;
-          case tNOT: insn(BC_DNEG); break;
+          case tSUB: insn(BC_DNEG); break;
+          case tNOT: typeMismatch(node); break;
           default: break;
         }
-        if (node->kind() == tNOT) {
-          intTypeToStack();
-        } else {
-          doubleTypeToStack();
-        }
       } else {
-        invalid();
+        typeMismatch(node);
       }
     }
 
     void visitBinaryOpNode(BinaryOpNode* node) {
       node->right()->visit(this);
       node->left()->visit(this);
-      typecastStackValuesToCommonType();
+      bool typecastSuccess = typecastStackValuesToCommonType();
+      if (!typecastSuccess) {
+        typeMismatch(node);
+      }
       switch (node->kind()) {
         case tOR: lor(); break;
         case tAND: land(); break;
-        case tAOR: insn(BC_IAOR); break;
-        case tAAND: insn(BC_IAAND); break;
-        case tAXOR: insn(BC_IAXOR); break;
+        case tAOR: iaor(); break;
+        case tAAND: iaand(); break;
+        case tAXOR: iaxor(); break;
         case tEQ: eq(); break;
         case tNEQ: neq(); break;
-        // Operations lower are reversed due to
-        // first traversal of right argument
-        case tGT: lt(); break;
-        case tLT: gt(); break;
-        case tLE: ge(); break;
-        case tGE: le(); break;
+        case tGT: gt(); break;
+        case tLT: lt(); break;
+        case tLE: le(); break;
+        case tGE: ge(); break;
         case tADD: add(); break;
         case tSUB: sub(); break;
         case tMUL: mul(); break;
@@ -201,7 +218,11 @@ class AstToBytecodeVisitor: public AstVisitor {
         case tMOD: mod(); break;
         // Basically do nothing, upper is value to be assigned
         // lower - bound value
-        case tRANGE: break;
+        case tRANGE:
+                   if (!isRangeAllowed()) {
+                     throw TranslationException(Status::Error("Ranges are allowed only in for loops", node->position()));
+                   }
+                   break;
         default: break;
       }
     }
@@ -237,12 +258,24 @@ class AstToBytecodeVisitor: public AstVisitor {
     }
 
     void visitForNode(ForNode* node) {
-      // TODO: check correctness
+      if (!node->inExpr()->isBinaryOpNode() || 
+          node->inExpr()->asBinaryOpNode()->kind() != tRANGE) {
+        throw TranslationException(
+            Status::Error("Malformed 'in' expression",
+              node->inExpr()->position()));
+      }
+      allowRange();
       node->inExpr()->visit(this);
+      disallowRange();
 
       // Store loop counter and its type
       auto counterVariableId = findVariableInContexts(node->var()->name());
-      auto counterVariableType = ttos();
+      auto counterVariableType = node->var()->type();
+      if (counterVariableType != VT_INT) {
+        throw TranslationException(Status::Error(
+              ("For counter variable is " + std::string(typeToName(counterVariableType)) +
+              " instead of int").c_str(), node->position()));
+      }
       storeVariable(ttos(), counterVariableId);
       popTypeFromStack();
 
@@ -312,10 +345,16 @@ class AstToBytecodeVisitor: public AstVisitor {
       currentBytecode()->bind(afterWhileLabel);
     }
 
-    Code* code() {return mCode;}
+    Code* code() {
+      Code* result = mCode;
+      mCode = nullptr;
+      return result;
+    }
 
   private:
-    Bytecode* currentBytecode() {return mFunctionStack.top()->bytecode();}
+    Bytecode* currentBytecode() {return currentFunction()->bytecode();}
+
+    BytecodeFunction* currentFunction() {return mFunctionStack.top();}
 
     void insn(Instruction instruction) {currentBytecode()->addInsn(instruction);}
 
@@ -353,12 +392,12 @@ class AstToBytecodeVisitor: public AstVisitor {
         eq();
       }
       lor();
-      neg();
+      notop();
     }
 
     void eq() {
       neq();
-      neg();
+      notop();
     }
 
     void neq() {
@@ -369,10 +408,13 @@ class AstToBytecodeVisitor: public AstVisitor {
       }
     }
 
-    void neg() {
-      insn(BC_INEG);
-      popTypeFromStack();
-      intTypeToStack();
+    void notop() {
+      izero();
+      icmp();
+      iload1();
+      iaand();
+      iload1();
+      iaxor();
     }
 
     void gt() {
@@ -381,7 +423,7 @@ class AstToBytecodeVisitor: public AstVisitor {
       } else {
         dcmp();
       }
-      iloadm1();
+      iload1();
       eq();
     }
 
@@ -397,22 +439,22 @@ class AstToBytecodeVisitor: public AstVisitor {
 
     void lt() {
       if (ttos() == VT_INT) {
-        insn(BC_ICMP);
+        icmp();
       } else {
-        insn(BC_DCMP);
+        dcmp();
       }
-      iload1();
+      iloadm1();
       eq();
     }
 
     void ge() {
       lt();
-      neg();
+      notop();
     }
 
     void le() {
       gt();
-      neg();
+      notop();
     }
 
     void add() {
@@ -506,6 +548,10 @@ class AstToBytecodeVisitor: public AstVisitor {
 
     void iaand() {
       insn(BC_IAAND);
+    }
+
+    void iaxor() {
+      insn(BC_IAXOR);
     }
 
     void two2int() {
@@ -668,21 +714,23 @@ class AstToBytecodeVisitor: public AstVisitor {
       return currentContext().newVariable(name);
     }
 
-    void typecastStackValueTo(VarType desiredType) {
+    // True - successful cast
+    bool typecastStackValueTo(VarType desiredType) {
       if (desiredType == ttos()) {
-        return;
+        return true;
       }
       // Cannot typecast to/from strings
       if (ttos() == VT_STRING || desiredType == VT_STRING) {
-        pop();
-        invalid();
+        return false;
+      }
       // If type of top of stack is VT_INT than we are casting int to double
-      } else if (ttos() == VT_INT) {
+      if (ttos() == VT_INT) {
         int2double();
       // Otherwise, it's double to int
       } else {
         double2int();
       }
+      return true;
     }
 
     void int2double() {
@@ -697,15 +745,14 @@ class AstToBytecodeVisitor: public AstVisitor {
       intTypeToStack();
     }
 
-    void typecastStackValuesToCommonType() {
+    // True - successful cast, false - not so much
+    bool typecastStackValuesToCommonType() {
       auto last = mVariableTypeStack.back();
       auto prevLast = mVariableTypeStack[mVariableTypeStack.size() - 2];
-      // If any of values are invalid, then we're done here
-      if (last == VT_INVALID || prevLast == VT_INVALID) {
-        pop();
-        pop();
-        invalid();
-        invalid();
+      // If any of values are invalid or strings, then we're done here
+      if (last == VT_INVALID || prevLast == VT_INVALID || 
+          last == VT_STRING || prevLast == VT_STRING) {
+        return false;
       }
 
       // We cannot typecast strings, so typecast int to double
@@ -718,6 +765,7 @@ class AstToBytecodeVisitor: public AstVisitor {
           swap();
         }
       }
+      return true;
     }
 
     void addVariables(BlockNode* node) {
@@ -761,6 +809,17 @@ class AstToBytecodeVisitor: public AstVisitor {
       return node->name() == "<top>";
     }
 
+    void allowRange() {
+      mRangeAllowed = true;
+    }
+
+    void disallowRange() {
+      mRangeAllowed = false;
+    }
+
+    bool isRangeAllowed() {return mRangeAllowed;}
+
+    bool mRangeAllowed = false;
     Code* mCode;
     FunctionStack mFunctionStack;
     VariableTypeStack mVariableTypeStack;

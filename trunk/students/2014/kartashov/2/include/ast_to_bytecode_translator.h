@@ -24,7 +24,11 @@ class AstToBytecodeTranslator: public Translator {
           } else {
             delete status;
           }
-          mVisitor->visitTop(parser.top());
+          try {
+            mVisitor->visitTop(parser.top());
+          } catch (TranslationException e) {
+            return e.errorStatus();
+          }
           *code = mVisitor->code();
           return Status::Ok();
     }
