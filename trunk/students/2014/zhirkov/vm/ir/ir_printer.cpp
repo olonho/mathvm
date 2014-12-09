@@ -148,7 +148,13 @@ namespace mathvm {
         }
 
         IrElement *IrPrinter::visit(Call const *const expr) {
-            _out << "call " << expr->funId;
+            _out << "call " << expr->funId << "(";
+            for (auto p : expr->params)
+            {
+                _out << " " ;
+                p->visit(this);
+            }
+            _out << " )";
             return NULL;
         }
 

@@ -162,11 +162,15 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         struct Call : Expression {
-            Call(uint16_t id, std::vector<Atom const *> const &params) : funId(id), params(params) {
-
+            Call(uint16_t id, std::vector<Atom const*> const &args) : funId(id) {
+                for( auto p : args)
+                {
+                    auto sp = std::shared_ptr<Atom const> (p);
+                    params.push_back(sp);
+                }
             }
 
-            const std::vector<Atom const *> params;
+            std::vector<std::shared_ptr<Atom const>> params;
             const uint16_t funId;
 
             IR_COMMON_FUNCTIONS(Call)
