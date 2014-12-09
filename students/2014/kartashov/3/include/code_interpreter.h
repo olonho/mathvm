@@ -44,7 +44,7 @@ class CodeInterpreter {
       next();
 
       switch (instruction) {
-//        case BC_INVALID: throw ExecutionException("Invalid instruction"); break;
+        case BC_INVALID: throw ExecutionException("Invalid instruction"); break;
         case BC_DLOAD: dload(); break;
         case BC_ILOAD: iload(); break;
         case BC_SLOAD: sload(); break;
@@ -135,6 +135,7 @@ class CodeInterpreter {
     void call() {
       int16_t id = int16();
       mFunctionStack.push_back(mCode->functionById(id));
+      // currentFunction()->disassemble(std::cout);
       newCounter();
       newContext();
     }
@@ -329,12 +330,12 @@ class CodeInterpreter {
 
     void ineg() {
       auto args = tos();
-      ipush((int64_t) !args.intValue);
+      ipush((int64_t)-args.intValue);
     }
 
     void dneg() {
       auto args = tos();
-      dpush((int64_t) !args.doubleValue);
+      dpush(-args.doubleValue);
     }
 
     void iaor() {
@@ -460,8 +461,10 @@ class CodeInterpreter {
     }
 
     Bytecode* currentBytecode() {
-      return static_cast<BytecodeFunction*>(mFunctionStack.back())->bytecode();
+      return static_cast<BytecodeFunction*>(currentFunction())->bytecode();
     }
+
+    TranslatedFunction* currentFunction() {return mFunctionStack.back();}
 
     void newContext() {
       mContextStack.push_back(currentContext().newContext());
