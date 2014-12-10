@@ -43,7 +43,23 @@ public:
 #undef VISITOR_FUNCTION
 
 private:
+
+    void convert(VarType from, VarType to) {
+        if (from == to) { return; }
+        else if (from == VT_DOUBLE && to == VT_INT) { bc->add(BC_D2I); }
+        else if (from == VT_INT && to == VT_DOUBLE) { bc->add(BC_I2D); }
+        else if (from == VT_STRING && to == VT_INT) { bc->add(BC_S2I); }
+        else if (to == VT_VOID) {}
+        else { assert(false); }
+    }
+
+    void convertTos(VarType to) {
+        convert(tos, to);
+        tos = to;
+    }
+
     void coerceToBoolean() {
+        convertTos(VT_INT);
         bc->add(BC_ILOAD0);
         processComparison(tNEQ, tos, tos);
     }
@@ -89,17 +105,11 @@ private:
     void processArithmeticOperator(TokenKind token, VarType leftType, VarType rightType) {
         VarType type = lub(leftType, rightType);
         if (leftType != type) {
-            assert(type == VT_DOUBLE);
-            assert(leftType == VT_INT);
             bc->add(BC_SWAP);
-            bc->add(BC_I2D);
+            convert(leftType, type);
             bc->add(BC_SWAP);
         }
-        if (rightType != type) {
-            assert(type == VT_DOUBLE);
-            assert(rightType == VT_INT);
-            bc->add(BC_I2D);
-        }
+        convert(rightType, type);
         switch (token) {
             case tADD:  bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , ADD)); break;
             case tSUB:  bc->add(BC_SWAP); bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , SUB)); break;
@@ -110,7 +120,7 @@ private:
         tos = type;
     }
 
-    void processLogicOperator(TokenKind token, VarType leftType, VarType rightType) {
+    void processBoolOperator(TokenKind token, VarType leftType, VarType rightType) {
         bc->add(BC_SWAP);
         coerceToBoolean();
         bc->add(BC_SWAP);
@@ -123,21 +133,18 @@ private:
         tos = VT_INT;
     }
 
-    void processArithmeticLogicOperator(TokenKind token, VarType leftType, VarType rightType) {
+    void processIntOperator(TokenKind token, VarType leftType, VarType rightType) {
         if (leftType != VT_INT) {
-            assert (leftType == VT_DOUBLE);
             bc->add(BC_SWAP);
-            bc->add(BC_D2I);
+            convert(leftType, VT_INT);
             bc->add(BC_SWAP);
         }
-        if (rightType != VT_INT) {
-            assert (rightType == VT_DOUBLE);
-            bc->add(BC_D2I);
-        }
+        convert(rightType, VT_INT);
         switch (token) {
             case tAAND: bc->add(BC_IAAND); break;
             case tAOR:  bc->add(BC_IAOR); break;
             case tAXOR: bc->add(BC_IAXOR); break;
+            case tMOD:  bc->add(BC_SWAP); bc->add(BC_IMOD); break;
             default: throw "Unsupported arithmetic logic operator";
         }
         tos = VT_INT;
@@ -145,20 +152,12 @@ private:
 
     void processComparison(TokenKind token, VarType leftType, VarType rightType) {
         VarType type = lub(leftType, rightType);
-
         if (leftType != type) {
-            assert(type == VT_DOUBLE);
-            assert(leftType == VT_INT);
             bc->add(BC_SWAP);
-            bc->add(BC_I2D);
+            convert(leftType, type);
             bc->add(BC_SWAP);
         }
-        if (rightType != type) {
-            assert(type == VT_DOUBLE);
-            assert(rightType == VT_INT);
-            bc->add(BC_I2D);
-        }
-
+        convert(rightType, type);
         bc->add(TYPE_AND_ACTION_TO_BC_NUMERIC(type, , CMP));
         switch (token) {
             case tEQ:   processComparison(BC_IFICMPE); break;
