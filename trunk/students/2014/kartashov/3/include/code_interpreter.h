@@ -22,7 +22,8 @@ class CodeInterpreter {
 
     const size_t preallocatedMemorySize = 1024 * 1024;
 
-    CodeInterpreter(Code* code): mCode(code) {
+    CodeInterpreter(Code* code): mCode(code),
+    mDefaultStringId(mCode->makeStringConstant("")) {
       mContextStack.reserve(preallocatedMemorySize);
       mFunctionStack.reserve(preallocatedMemorySize);
       mProgramCounterStack.reserve(preallocatedMemorySize);
@@ -33,7 +34,7 @@ class CodeInterpreter {
     }
 
     void execute() {
-      // mCode->disassemble();
+      // mCode->disassemble(std::cout);
       while(!mFunctionStack.empty()) {
         executeInstruction();
       }
@@ -42,6 +43,8 @@ class CodeInterpreter {
     void executeInstruction() {
       Instruction instruction = currentBytecode()->getInsn(programCounter());
       next();
+
+      // std::cout << bytecodeName(instruction) << std::endl;
 
       switch (instruction) {
         case BC_INVALID: throw ExecutionException("Invalid instruction"); break;
@@ -106,13 +109,12 @@ class CodeInterpreter {
         case BC_STOREDVAR: storedvar(); break;
         case BC_STOREIVAR: storeivar(); break;
         case BC_STORESVAR: storesvar(); break;
-        /*
-        DO(LOADCTXDVAR, "Load double from variable, whose 2-byte context and 2-byte id inlined to insn stream, push on TOS.", 5) \
-        DO(LOADCTXIVAR, "Load int from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5) \
-        DO(LOADCTXSVAR, "Load string from variable, whose 2-byte context and 2-byte id is inlined to insn stream, push on TOS.", 5) \
-        DO(STORECTXDVAR, "Pop TOS and store to double variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
-        DO(STORECTXIVAR, "Pop TOS and store to int variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
-        DO(STORECTXSVAR, "Pop TOS and store to string variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \*/
+        case BC_LOADCTXDVAR: loadctxdvar(); break;
+        case BC_LOADCTXIVAR: loadctxivar(); break;
+        case BC_LOADCTXSVAR: loadctxsvar(); break;
+        case BC_STORECTXDVAR: storectxdvar(); break;
+        case BC_STORECTXIVAR: storectxivar(); break;
+        case BC_STORECTXSVAR: storectxsvar(); break;
         case BC_DCMP: dcmp(); break;
         case BC_ICMP: icmp(); break;
         case BC_JA: ja(); break;
@@ -204,39 +206,93 @@ class CodeInterpreter {
     }
 
     void loaddvar() {
-      int16_t id = int16();
-      auto result = currentContext().load(id).doubleValue;
-      dpush(result);
+      loaddvar(currentContext());
     }
 
     void loadivar() {
-      int16_t id = int16();
-      auto result = currentContext().load(id).intValue;
-      ipush(result);
+      loadivar(currentContext());
     }
 
     void loadsvar() {
-      int16_t id = int16();
-      auto result = currentContext().load(id).stringId;
-      spush(result);
+      loadsvar(currentContext());
     }
 
     void storeivar() {
-      auto args = tos();
-      int16_t id = int16();
-      currentContext().store(id, args);
+      storeivar(currentContext());
     }
 
     void storedvar() {
-      auto args = tos();
-      int16_t id = int16();
-      currentContext().store(id, args);
+      storedvar(currentContext());
     }
 
     void storesvar() {
+      storesvar(currentContext());
+    }
+
+    void loadctxivar() {
+      int16_t id = int16();
+      loadivar(contextWithId(id));
+    }
+
+    void loadctxdvar() {
+      int16_t id = int16();
+      loaddvar(contextWithId(id));
+    }
+
+    void loadctxsvar() {
+      int16_t id = int16();
+      loadsvar(contextWithId(id));
+    }
+
+    void storectxivar() {
+      int16_t id = int16();
+      storeivar(contextWithId(id));
+    }
+
+    void storectxdvar() {
+      int16_t id = int16();
+      storedvar(contextWithId(id));
+    }
+
+    void storectxsvar() {
+      int16_t id = int16();
+      storesvar(contextWithId(id));
+    }
+
+    void loaddvar(Context& context) {
+      int16_t id = int16();
+      auto result = context.load(id, DataHolder(0.0)).doubleValue;
+      dpush(result);
+    }
+
+    void loadivar(Context& context) {
+      int16_t id = int16();
+      auto result = context.load(id, DataHolder((int64_t) 0)).intValue;
+      ipush(result);
+    }
+
+    void loadsvar(Context& context) {
+      int16_t id = int16();
+      auto result = context.load(id, DataHolder((int16_t) mDefaultStringId)).stringId;
+      spush(result);
+    }
+
+    void storeivar(Context& context) {
       auto args = tos();
       int16_t id = int16();
-      currentContext().store(id, args);
+      context.store(id, args);
+    }
+
+    void storedvar(Context& context) {
+      auto args = tos();
+      int16_t id = int16();
+      context.store(id, args);
+    }
+
+    void storesvar(Context& context) {
+      auto args = tos();
+      int16_t id = int16();
+      context.store(id, args);
     }
 
     void dload() {
@@ -424,21 +480,15 @@ class CodeInterpreter {
     }
 
     void spush(int16_t value) {
-      DataHolder holder;
-      holder.stringId = value;
-      mDataStack.push_back(holder);
+      mDataStack.push_back(DataHolder(value));
     }
 
     void ipush(int64_t value) {
-      DataHolder holder;
-      holder.intValue = value;
-      mDataStack.push_back(holder);
+      mDataStack.push_back(DataHolder(value));
     }
 
     void dpush(double value) {
-      DataHolder holder;
-      holder.doubleValue = value;
-      mDataStack.push_back(holder);
+      mDataStack.push_back(DataHolder(value));
     }
 
     void pop() {
@@ -501,6 +551,10 @@ class CodeInterpreter {
 
     void newCounter() {mProgramCounterStack.push_back(0);}
 
+    Context& contextWithId(int16_t id) {
+      return mContextStack[id];
+    }
+
     const std::string topFunctionName = "<top>";
 
   private:
@@ -509,6 +563,7 @@ class CodeInterpreter {
     Code* mCode;
     DataStack mDataStack;
     ContextStack mContextStack;
+    const int16_t mDefaultStringId;
 };
 
 #endif

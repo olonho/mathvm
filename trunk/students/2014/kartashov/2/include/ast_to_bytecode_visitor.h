@@ -21,22 +21,21 @@ class AstToBytecodeVisitor: public AstVisitor {
     typedef std::vector<VarType> VariableTypeStack;
     typedef std::vector<VariableContext> VariableContextStack;
 
-    AstToBytecodeVisitor(): mCode(new ResultBytecode) {
-      mVariableContextStack.push_back(VariableContext());
-    }
+    AstToBytecodeVisitor(): mCode(new ResultBytecode) {}
 
     ~AstToBytecodeVisitor() {delete mCode;}
 
     void visitTop(AstFunction* top) {
+      mCode->addFunction(new BytecodeFunction(top));
       visitAstFunction(top);
       std::string topFunctionName = "<top>";
       ((BytecodeFunction*) mCode->functionByName(topFunctionName))->bytecode()->addInsn(BC_RETURN);
     }
 
     void visitAstFunction(AstFunction* astFunction) {
-      mFunctionStack.push(new BytecodeFunction(astFunction));
-      // Add ast function before visiting for recursion
-      mCode->addFunction(mFunctionStack.top());
+      mFunctionStack.push(
+          static_cast<BytecodeFunction*>(
+            mCode->functionByName(astFunction->name())));
       newContext();
       astFunction->node()->visit(this);
       mFunctionStack.pop();
@@ -46,6 +45,7 @@ class AstToBytecodeVisitor: public AstVisitor {
       // The context is already initialised
       addVariables(node);
       addFunctions(node);
+      visitFunctions(node);
       node->visitChildren(this);
     }
 
@@ -61,6 +61,9 @@ class AstToBytecodeVisitor: public AstVisitor {
       }
       insn(BC_CALL);
       int16(functionId);
+      if (function->returnType() != VT_VOID) {
+        pushTypeToStack(function->returnType());
+      }
     }
 
     void visitFunctionNode(FunctionNode* node) {
@@ -102,6 +105,7 @@ class AstToBytecodeVisitor: public AstVisitor {
               " returns something instead of declared void").c_str(), node->position()));
         }
         node->returnExpr()->visit(this);
+        typecastStackValueTo(currentFunction()->returnType());
       }
       insn(BC_RETURN);
     }
@@ -222,6 +226,7 @@ class AstToBytecodeVisitor: public AstVisitor {
                    if (!isRangeAllowed()) {
                      throw TranslationException(Status::Error("Ranges are allowed only in for loops", node->position()));
                    }
+                   disallowRange();
                    break;
         default: break;
       }
@@ -266,7 +271,6 @@ class AstToBytecodeVisitor: public AstVisitor {
       }
       allowRange();
       node->inExpr()->visit(this);
-      disallowRange();
 
       // Store loop counter and its type
       auto counterVariableId = findVariableInContexts(node->var()->name());
@@ -691,10 +695,13 @@ class AstToBytecodeVisitor: public AstVisitor {
 
     VariableContext& currentContext() {return mVariableContextStack.back();}
 
-    uint16_t newContext() {
-      VariableContext context(currentContext().contextId() + 1);
-      mVariableContextStack.push_back(context);
-      return context.contextId();
+    void newContext() {
+      if (mVariableContextStack.empty()) {
+        mVariableContextStack.push_back(VariableContext());
+      } else {
+        mVariableContextStack.push_back(
+            VariableContext(currentContext().contextId() + 1));
+      }
     }
 
     void outContext() {
@@ -778,6 +785,16 @@ class AstToBytecodeVisitor: public AstVisitor {
     void addFunctions(BlockNode* node) {
       Scope::FunctionIterator iter(node->scope());
       while (iter.hasNext()) {
+        auto function = iter.next();
+        if (!isFunctionKnown(function->name())) {
+          mCode->addFunction(new BytecodeFunction(function));
+        }
+      }
+    }
+
+    void visitFunctions(BlockNode* node) {
+      Scope::FunctionIterator iter(node->scope());
+      while (iter.hasNext()) {
         visitAstFunction(iter.next());
       }
     }
@@ -818,6 +835,10 @@ class AstToBytecodeVisitor: public AstVisitor {
     }
 
     bool isRangeAllowed() {return mRangeAllowed;}
+
+    bool isFunctionKnown(const std::string& name) {
+      return mCode->functionByName(name) != nullptr;
+    }
 
     bool mRangeAllowed = false;
     Code* mCode;
