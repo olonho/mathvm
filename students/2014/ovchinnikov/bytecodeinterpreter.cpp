@@ -105,19 +105,6 @@ void BytecodeInterpreter::processCall(uint16_t functionId) {
     std::move(it, operandStack.end(), std::back_inserter(variableStack));
     operandStack.erase(it, operandStack.end());
 
-    #ifdef CALLPRINT
-    if (functionId != 0) {
-        std::cout << fun->name() << '(';
-        copy(
-            variableStack.begin() + frame.v_offset,
-            variableStack.end() - 1,
-            ostream_iterator<Value>(std::cout, ", ")
-        );
-        std::cout << variableStack.back();
-        std::cout << ')' << std::endl;
-    }
-    #endif
-
     // allocate space for locals
     variableStack.resize(variableStack.size() + frame.function->localsNumber());
 }
