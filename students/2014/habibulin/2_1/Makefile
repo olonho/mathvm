@@ -13,6 +13,7 @@ USER_OBJ = \
    $(OBJ)/translator_create$(OBJ_SUFF) \
    $(OBJ)/bytecode_translator$(OBJ_SUFF) \
    $(OBJ)/typechecking$(OBJ_SUFF) \
+   $(OBJ)/bytecode_generator$(OBJ_SUFF) \
    $(OBJ)/my_utils$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk

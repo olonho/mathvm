@@ -150,6 +150,10 @@ void TypeChecker::visitStoreNode(StoreNode* node) {
     {
         throw ExceptionWithPos(storeNodeInvalidOpTypesMsg(), node->position());
     }
+    TokenKind assignOp = node->op();
+    if(varType == VT_STRING && (assignOp == tINCRSET || assignOp == tDECRSET)) {
+        throw ExceptionWithPos(compoundAssignOpOnStrMsg(), node->position());
+    }
 }
 
 void TypeChecker::visitForNode(ForNode* node) {
