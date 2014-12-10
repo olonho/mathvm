@@ -16,7 +16,12 @@ class Context {
 
     void store(int16_t id, DataHolder holder) {mVariables[id] = holder;}
 
-    DataHolder load(int16_t id) {return mVariables[id];}
+    DataHolder load(int16_t id, DataHolder defaultValue) {
+      if (mVariables.find(id) == mVariables.end()) {
+        mVariables[id] = defaultValue;
+      }
+      return mVariables[id];
+    }
 
     Context newContext() {
       return Context(mId + 1);
