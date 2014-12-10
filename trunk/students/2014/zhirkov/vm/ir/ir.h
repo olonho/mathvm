@@ -4,6 +4,7 @@
 #include <memory>
 #include <deque>
 #include <set>
+#include <elf.h>
 #include "../util.h"
 
 namespace mathvm {
@@ -30,7 +31,9 @@ virtual IrType getType() const { return IT_##ir; }
         DO(Print)\
         DO(FunctionRecord)\
         DO(JumpAlways)\
-        DO(JumpCond)
+        DO(JumpCond)\
+        DO(WriteRef)\
+        DO(ReadRef)
 
 #define DECLARE_IR(ir) struct ir;
         FOR_IR(DECLARE_IR)
@@ -353,6 +356,7 @@ DO(NOT, "!")
             const uint16_t id;
             Block* entry;
             std::vector<uint64_t> parametersIds;
+            std::vector<uint64_t> refParamsIds;
             VarType returnType;
 
             IR_COMMON_FUNCTIONS(FunctionRecord)
@@ -373,6 +377,31 @@ DO(NOT, "!")
             virtual ~Print() {
                 delete atom;
             }
+        };
+
+        struct Ref : IrElement {
+
+        };
+
+        struct WriteRef : Statement {
+            WriteRef(Atom const *const atom, uint64_t const where) : atom(atom), refId(where) {
+            }
+
+            const Atom* const atom;
+            const uint64_t refId;
+            IR_COMMON_FUNCTIONS(WriteRef)
+            virtual ~WriteRef() {
+                delete atom;
+            }
+        };
+
+        struct ReadRef : Expression {
+            const uint64_t refId;
+            IR_COMMON_FUNCTIONS(ReadRef)
+
+            ReadRef(uint64_t const refId) : refId(refId) {
+            }
+
         };
 
         struct SimpleIr {
@@ -412,6 +441,7 @@ DO(NOT, "!")
         };
 
         typedef SimpleIr SimpleSsaIr;
+
 
     }
 }

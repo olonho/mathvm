@@ -7,7 +7,7 @@ namespace mathvm {
 
 
     void TypeChecker::visitAstFunction(AstFunction* fun) {
-
+        fun->node()->visit(this);
     }
 
     static bool isValid(VarType t) { return t != VT_INVALID; }
@@ -65,28 +65,11 @@ namespace mathvm {
         setType(node, node->var()->type());
     }
 
-    void TypeChecker::visitStoreNode(StoreNode *node) {
-        node->visitChildren(this);
-        setType(node, VT_VOID);
-    }
-    void TypeChecker::visitForNode(ForNode *node) {
-        node->visitChildren(this);
-        setType(node, VT_VOID);
-    }
-    void TypeChecker::visitWhileNode(WhileNode *node) {
-        node->visitChildren(this);
-        setType(node, VT_VOID);
-    }
-
-    void TypeChecker::visitIfNode(IfNode *node) {
-        node->visitChildren(this);
-        setType(node, VT_VOID);
-    }
     void TypeChecker::visitBlockNode(BlockNode *node) {
-        scope = node->scope();
+        ctx.scope = node->scope();
         node->visitChildren(this);
         setType(node, VT_VOID);
-        scope = scope->parent();
+        ctx.scope = ctx.scope->parent();
     }
 
     void TypeChecker::visitFunctionNode(FunctionNode *node) {
@@ -99,21 +82,11 @@ namespace mathvm {
     }
     void TypeChecker::visitCallNode(CallNode *node) {
         node->visitChildren(this);
-        auto fun = scope->lookupFunction(node->name(), true);
-        if (fun)
-        setType(node, fun->returnType());
+        auto fun = ctx.scope->lookupFunction(node->name(), true);
+        if (fun) setType(node, fun->returnType());
         else {
             std::cerr << "Typechecker: Can't find function " << node->name();
             setType(node, VT_INVALID);
         }
     }
-
-    void TypeChecker::visitNativeCallNode(NativeCallNode *node) {
-        std::cerr <<"Typechecker: native calls not implemented" << std::endl;
-    }
-    void TypeChecker::visitPrintNode(PrintNode *node) {
-        node->visitChildren(this);
-        setType(node, VT_INVALID);
-    }
-
 }

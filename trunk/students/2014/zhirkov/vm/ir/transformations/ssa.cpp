@@ -109,5 +109,15 @@ namespace mathvm {
             return IdentityTransformation::visit(expr);
         }
 
+        IrElement *SsaTransformation::visit(WriteRef const *const expr) {
+
+            auto e = expr->atom->visit(this);
+            if (!e) return NULL;
+            return new WriteRef((Atom const *const) e, expr->refId);
+        }
+
+        IrElement *SsaTransformation::visit(ReadRef const *const expr) {
+            return IdentityTransformation::visit(expr);
+        }
     }
 }

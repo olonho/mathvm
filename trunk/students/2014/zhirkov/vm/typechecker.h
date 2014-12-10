@@ -1,22 +1,32 @@
 #pragma once
+
 #include <stack>
+#include <map>
+#include "ir/ir.h"
 #include "../../../../vm/parser.h"
 #include "ast_printer.h"
 #include "ast_metadata.h"
 #include "common.h"
 #include "ast_utils.h"
+#include "ast_analyzer.h"
+#include <map>
 
 namespace mathvm {
 
-    inline VarType getType(AstNode* node) { return getData(node).type; }
-    inline void setType(AstNode* node, VarType type) { getData(node).type = type; }
-
-    class TypeChecker : AstVisitor {
-    Scope* scope;
+    class TypeChecker : AstAnalyzer<std::map<AstNode *, VarType>, AstAnalyzerContext> {
     public:
-        TypeChecker() : scope(NULL) {}
+        TypeChecker(AstFunction const *top) : AstAnalyzer(top) {
+        }
 
-        void visitAstFunction(AstFunction* fun);
+        void setType(AstNode *node, VarType type) {
+            (*_result)[node] = type;
+        }
+
+        VarType getType(AstNode *node) {
+            if (_result->find(node) == _result->end()) return VT_VOID;
+            return (*_result)[node];
+        }
+
         virtual void visitBinaryOpNode(BinaryOpNode *node);
 
         virtual void visitUnaryOpNode(UnaryOpNode *node);
@@ -29,14 +39,6 @@ namespace mathvm {
 
         virtual void visitLoadNode(LoadNode *node);
 
-        virtual void visitStoreNode(StoreNode *node);
-
-        virtual void visitForNode(ForNode *node);
-
-        virtual void visitWhileNode(WhileNode *node);
-
-        virtual void visitIfNode(IfNode *node);
-
         virtual void visitBlockNode(BlockNode *node);
 
         virtual void visitFunctionNode(FunctionNode *node);
@@ -45,11 +47,11 @@ namespace mathvm {
 
         virtual void visitCallNode(CallNode *node);
 
-        virtual void visitNativeCallNode(NativeCallNode *node);
 
-        virtual void visitPrintNode(PrintNode *node);
+        virtual void visitAstFunction(AstFunction*);
 
-        virtual ~TypeChecker() {}
+        virtual ~TypeChecker() {
+        }
     };
 
 

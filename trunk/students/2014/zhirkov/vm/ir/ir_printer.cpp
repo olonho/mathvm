@@ -183,6 +183,17 @@ namespace mathvm {
                 f->visit(this);
 
         }
+
+        IrElement *IrPrinter::visit(WriteRef const *const expr) {
+            _out << "writeref ";
+            expr->atom->visit(this);
+            return NULL;
+        }
+
+        IrElement *IrPrinter::visit(ReadRef const *const expr) {
+            _out << "readref " << expr->refId;
+            return NULL;
+        }
     }
 
 }

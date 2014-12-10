@@ -129,5 +129,14 @@ namespace mathvm {
             return NULL;
         }
 
+        IrElement *IdentityTransformation::visit(WriteRef const *const expr) {
+            auto trAtom = expr->atom->visit(this);
+            if (!trAtom) return NULL;
+            return new WriteRef((Atom const *const) trAtom, expr->refId);
+        }
+
+        IrElement *IdentityTransformation::visit(ReadRef const *const expr) {
+            return new ReadRef(expr->refId);
+        }
     }
 }
