@@ -196,20 +196,22 @@ void BytecodeTranslator::visitCallNode(CallNode *node) {
 
 
 void BytecodeTranslator::visitNativeCallNode(NativeCallNode *node) {
-    using namespace asmjit;
-    using namespace asmjit::x86;
     bc->add(BC_CALLNATIVE);
     void *addr = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
     if (!addr) {
         throw dlerror();
     }
+    Signature signature = node->nativeSignature();
     void *f;
     {
+        using namespace asmjit;
+        using namespace asmjit::x86;
+
         static JitRuntime runtime;
         static X86GpReg gp_registers[6] = { rdi, rsi, rdx, rcx, r8, r9 };
         static X86XmmReg sse_registers[8] = { xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7 };
 
-        Signature signature = node->nativeSignature();
+
         X86Assembler assembler(&runtime);
 
         int stack_size = max<int>(signature.size() - (6 + 8), 1) * sizeof(Value);
@@ -246,6 +248,7 @@ void BytecodeTranslator::visitNativeCallNode(NativeCallNode *node) {
         f = assembler.make();
     }
     bc->addUInt16(interpreter->makeNativeFunction(node->nativeName(), node->nativeSignature(), f));
+    tos = signature[0].first;
 }
 
 void BytecodeTranslator::visitReturnNode(ReturnNode *node) {
