@@ -718,7 +718,12 @@ class AstToBytecodeVisitor: public AstVisitor {
     }
 
     uint16_t newVariable(const std::string name) {
-      return currentContext().newVariable(name);
+      auto id = currentContext().newVariable(name);
+      if (currentContext().hasOverflowed()) {
+        throw TranslationException(
+            Status::Error("Too many variables in a context"));
+      }
+      return id;
     }
 
     // True - successful cast
