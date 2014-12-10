@@ -79,7 +79,7 @@ class CodeInterpreter {
         case BC_D2I: d2i(); break;
         case BC_SWAP: swap(); break;
         case BC_POP: pop(); break;
-/*        DO(LOADDVAR0, "Load double from variable 0, push on TOS.", 1)   \
+/*      DO(LOADDVAR0, "Load double from variable 0, push on TOS.", 1)   \
         DO(LOADDVAR1, "Load double from variable 1, push on TOS.", 1)   \
         DO(LOADDVAR2, "Load double from variable 2, push on TOS.", 1)   \
         DO(LOADDVAR3, "Load double from variable 3, push on TOS.", 1)   \
@@ -411,7 +411,7 @@ class CodeInterpreter {
 
     void iprint() {
       auto args = tos();
-      printf("%lld", args.intValue);
+      printf("%ld", args.intValue);
     }
 
     void dprint() {
@@ -469,7 +469,7 @@ class CodeInterpreter {
     void dump() {
       auto args = top();
       printf("%d\n", args.stringId);
-      printf("%lld\n", args.intValue);
+      printf("%ld\n", args.intValue);
       printf("%f\n", args.doubleValue);
     }
 

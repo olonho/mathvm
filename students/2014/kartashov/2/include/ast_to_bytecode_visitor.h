@@ -76,7 +76,7 @@ class AstToBytecodeVisitor: public AstVisitor {
           typeMismatch(node);
         }
       }
-      outContext();
+      popContext();
     }
 
     void typeMismatch(AstNode* node) {
@@ -704,7 +704,8 @@ class AstToBytecodeVisitor: public AstVisitor {
       }
     }
 
-    void outContext() {
+    void popContext() {
+      currentFunction()->setLocalsNumber(currentContext().localsNumber());
       mVariableContextStack.pop_back();
     }
 
