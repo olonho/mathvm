@@ -30,8 +30,8 @@ class VariableContext {
     }
 
     uint16_t newVariable(const std::string name) {
-      mHasOverflowed = mNewVariableId == UINT16_MAX;
-      return mVariableMap[name] = mNewVariableId++;
+      mHasOverflowed = mVariableMap.size() == UINT16_MAX;
+      return mVariableMap[name] = mVariableMap.size();
     }
 
     bool hasOverflowed() {
@@ -40,9 +40,10 @@ class VariableContext {
 
     uint16_t contextId() {return mId;}
 
+    uint16_t localsNumber() {return mVariableMap.size();}
+
   private:
     uint16_t mId;
-    uint16_t mNewVariableId = 0;
     bool mHasOverflowed = false;
     VariableContextPtr mParent;
     VariableMap mVariableMap;
