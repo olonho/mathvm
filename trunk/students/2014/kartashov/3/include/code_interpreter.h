@@ -411,7 +411,7 @@ class CodeInterpreter {
 
     void iprint() {
       auto args = tos();
-      printf("%ld", args.intValue);
+      printf("%lld", args.intValue);
     }
 
     void dprint() {
@@ -469,7 +469,7 @@ class CodeInterpreter {
     void dump() {
       auto args = top();
       printf("%d\n", args.stringId);
-      printf("%ld\n", args.intValue);
+      printf("%lld\n", args.intValue);
       printf("%f\n", args.doubleValue);
     }
 
