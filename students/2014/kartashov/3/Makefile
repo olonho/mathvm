@@ -19,11 +19,11 @@ USER_OBJ = \
 
 include $(VM_ROOT)/common.mk
 
-INCLUDE += -I$(ROOT)/include -I$(ROOT)/include/exceptions  -I$(ROOT)/../2/include
+INCLUDE += -I$(ROOT)/include -I$(ROOT)/../2/include
 
 MATHVM = $(BIN)/mvm
 
 all: $(MATHVM)
 
 $(MATHVM): $(OUT) $(USER_OBJ) $(MATHVM_OBJ)
-	$(CXX) -o $@ $(USER_OBJ) $(MATHVM_OBJ) $(LIBS)
+	$(CXX) -pg -o $@ $(USER_OBJ) $(MATHVM_OBJ) $(LIBS)

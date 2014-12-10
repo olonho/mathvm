@@ -7,7 +7,7 @@ class TranslationException: public std::exception {
   public:
     TranslationException(Status* status): mStatus(status) {}
 
-    const char* what() {return mStatus->getError().c_str();}
+    const char* what() const noexcept {return mStatus->getError().c_str();}
 
     Status* errorStatus() {return mStatus;}
 
