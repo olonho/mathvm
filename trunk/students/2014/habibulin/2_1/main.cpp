@@ -28,14 +28,16 @@ int main(int argc, char** argv) {
     }
 
     const char* expr =
-            "function int a() {"
-            "   int a;"
-            "   a = 10;"
-            "   return 1;"
+            "function void a(int i) {"
+            "   int j;"
             "}"
-            "print(3);";
+            "int i = 0;"
+            "for(i in 1..10) {"
+            "   print(i);"
+            "}";
     bool isDefaultExpr = true;
 
+//    script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/2_1/testing/additional/fail/vars.mvm";
     if (script != NULL) {
         expr = loadFile(script);
         if (expr == 0) {

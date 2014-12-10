@@ -166,6 +166,9 @@ private:
     string storeNodeInvalidOpTypesMsg() {
         return "assignment is applied to wrong type operands (both must be numeric or string)";
     }
+    string compoundAssignOpOnStrMsg() {
+        return "compound assignment operator is applied to 'string' operands";
+    }
 
     // visitForNode impl
     string iterVarWrongTypeMsg() {

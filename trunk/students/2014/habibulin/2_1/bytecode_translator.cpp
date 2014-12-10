@@ -2,9 +2,9 @@
 #include "parser.h"
 #include "my_utils.h"
 #include "typechecking.h"
-//#include "bytecode_generator.h"
+#include "bytecode_generator.h"
 
-namespace mathvm {
+using namespace mathvm;
 
 Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
     Parser parser;
@@ -23,26 +23,16 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
         infoDeletter.run(parser.top());
         return Status::Error(cause.c_str(), pos);
     }
+    InterpreterCodeImpl* iCode = new InterpreterCodeImpl();
+    BytecodeGenerator bcGenerator(iCode);
+    bcGenerator.gen(parser.top());
+    if(bcGenerator.status().isError()) {
+        string cause = bcGenerator.status().errCause();
+        size_t pos = bcGenerator.status().errPos();
+        infoDeletter.run(parser.top());
+        return Status::Error(cause.c_str(), pos);
+    }
     infoDeletter.run(parser.top());
-//    InterpreterCodeImpl* iCode = new InterpreterCodeImpl();
-//    BytecodeGenerator bcGenerator(iCode);
-//    DEBUG_MSG("translation starts");
-//    try {
-//        bcGenerator.visitProgram(parser.top());
-//    } catch (TranslatorException& e) {
-//        DEBUG_MSG("translation failed");
-//        delete iCode;
-//        return Status::Error(e.what(), e.source());
-//    } catch (ExceptionWithMsg& e) {
-//        DEBUG_MSG("translation failed");
-//        delete iCode;
-//        return Status::Error(e.what(), 0);
-//    }
-
-//    *code = iCode;
-//    DEBUG_MSG("translation finished");
 //    iCode->disassemble();
     return Status::Ok();
-}
-
 }
