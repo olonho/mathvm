@@ -16,6 +16,8 @@ namespace mathvm {
     class SimpleIrBuilder : public AstVisitor {
         struct AstVarMetadata {
             AstVarMetadata(AstVar const *const var, uint64_t const id) : isTemp(false), var(var), id(id) { }
+
+
             AstVarMetadata(uint64_t const id) : isTemp(true), var(NULL), id(id) {}
 
             const bool isTemp;
@@ -32,7 +34,7 @@ namespace mathvm {
             std::vector<AstVarMetadata*> locals;
         };
 
-        IR::SimpleIr _ir;
+        IR::SimpleIr* _ir;
 
         IR::Block* _currentBlock;
         AstFunction* _currentFunction;
@@ -57,14 +59,14 @@ namespace mathvm {
     public:
         SimpleIrBuilder(Parser const &parser, ostream &debug)
                 : _currentBlock(NULL), _varCounter(0), _blockCounter(0), _lastScope(parser.top()->scope()), _parser(parser), _out(debug),
-                  _currentFunction(NULL) {
+                  _currentFunction(NULL), _ir(new IR::SimpleIr()) {
         }
 
         AstVarMetadata& varMeta(AstVar const* var) { return *(_astvarMeta[var]); }
         AstVarMetadata& varMetaById(uint64_t var) { return *(_allvarMeta[var]); }
-        AstFunctionMetadata* funMeta(AstFunction *f) { return _funMeta[f]; }
+        AstFunctionMetadata& funMeta(AstFunction *f) { return *(_funMeta[f]); }
 
-        void start();
+        IR::SimpleSsaIr* start();
 
         FOR_NODES(VISITOR_FUNCTION)
 
@@ -96,5 +98,16 @@ private:
         uint64_t makeAstVar(AstVar const* var);
         uint64_t makeTempVar();
 
+    public:
+        virtual ~SimpleIrBuilder() {
+            for(auto v : _allvarMeta)
+                delete v.second;
+            for (auto f : _funMeta)
+                delete f.second;
+            while(! _lastAtoms.empty()){
+                delete _lastAtoms.top();
+                _lastAtoms.pop();
+            }
+        }
     };
 }

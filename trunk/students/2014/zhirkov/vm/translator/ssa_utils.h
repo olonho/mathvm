@@ -9,7 +9,6 @@ namespace mathvm {
 
     typedef std::map<IR::Block const *, std::set<IR::Block const *>> Dominators;
 
-    std::vector<const IR::Block *> allBlocks(const IR::Block *const startBlock);
 
     std::vector<const IR::Block*> blocksPostOrder(const IR::Block* const startBlock);
 

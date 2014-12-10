@@ -1,3 +1,4 @@
+#include <fstream>
 #include "../../../../include/mathvm.h"
 
 #include "ast_printer.h"
@@ -31,24 +32,19 @@ int main(int argc, char **argv) {
     typeChecker.visitFunctionNode(parser.top()->node());
 
     SimpleIrBuilder translator(parser, std::cout);
-    translator.start();
+    IR::SimpleSsaIr* ir = translator.start();
 
-//    std::cout<<"Source code:" << std::endl << std::endl;
-//    AstPrinterVisitor printer;
-//    printer.visitFunctionNode(parser.top()->node());
+    std::ofstream irRepr;
+    irRepr.open("irRepr.txt", ios_base::openmode::_S_out);
+    IR::IrPrinter printer(irRepr);
+    printer.print(*ir);
 
-    Code *code = NULL;
-//    Status* translateStatus = translator->translate( program, &code );
-//    if ( translateStatus->isError() )
-//    {
-//        uint32_t position = translateStatus-> getPosition();
-//        uint32_t line = 0, offset = 0;
-//        positionToLineOffset( program, posi tion, line, offset );
-//        std::cerr << "Can't translate expression: expression at " << line << "," << offset << std::endl << "error: '" <<
-//               translateStatus-> getError() << "'" << std::endl;
-//    }
-//    delete translateStatus;
+    delete ir;
+    AstMetadataEraser eraser;
+    eraser.visitFunctionNode(parser.top()->node());
 
+    irRepr.close();
+    delete status;
     delete[] program;
 
     return EXIT_SUCCESS;

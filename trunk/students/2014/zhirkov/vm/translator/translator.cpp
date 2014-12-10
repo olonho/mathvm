@@ -22,16 +22,16 @@ namespace mathvm {
         Scope::VarIterator iter(f->scope(), false);
         while (iter.hasNext()) {
             uint64_t id = makeAstVar(iter.next());
-            funMeta(f)->args.push_back(&varMetaById(id));
+            funMeta(f).args.push_back(&varMetaById(id));
         }
     }
 
     void SimpleIrBuilder::declareFunction(AstFunction *fun) {
-        uint64_t id = _ir.functions.size();
+        uint64_t id = _ir->functions.size();
         IR::VarType type = vtToIrType(fun->node()->returnType());
-        IR::FunctionRecord *functionRecord = new IR::FunctionRecord(id, type);
+        IR::FunctionRecord* functionRecord = new IR::FunctionRecord(id, type);
         _funMeta.insert(make_pair(fun, new AstFunctionMetadata(fun, id)));
-        _ir.functions.push_back(functionRecord);
+        _ir->addFunction(functionRecord);
 
         embraceArgs(fun);
     }
@@ -42,7 +42,7 @@ namespace mathvm {
         auto savedBlock = _currentBlock;
         auto savedFunction = _currentFunction;
 
-        _currentBlock = &(*(_ir.functions[funMeta(fun)->id]->entry));
+        _currentBlock = &(*(_ir->functions[funMeta(fun).id]->entry));
         _currentFunction = fun;
 
         fun->node()->visit(this);
@@ -112,7 +112,7 @@ namespace mathvm {
         const IR::Atom *const right = _popAtom();
 
         IR::Assignment *a = new IR::Assignment(makeTempVar(), selectBinOp(node->kind(), left, right));
-        _pushAtom(&(*(a->var)));
+        _pushAtom(new IR::Variable(a->var->id));
 
         emit(a);
 
@@ -124,12 +124,12 @@ namespace mathvm {
         IR::Expression const *operand = _popAtom();
         IR::Assignment const *a = new IR::Assignment(makeTempVar(), selectUnOp(node->kind(), operand));
         emit(a);
-        _pushAtom(&(*(a->var)));
+        _pushAtom(new IR::Variable(a->var->id));
     }
 
     void SimpleIrBuilder::visitStringLiteralNode(StringLiteralNode *node) {
         debug("string");
-        IR::SimpleIr::StringPool &pool = _ir.pool;
+        IR::SimpleIr::StringPool &pool = _ir->pool;
         uint16_t id = uint16_t(pool.size());
         pool.push_back(node->literal());
         _pushAtom(new IR::Ptr(id, true));
@@ -147,8 +147,7 @@ namespace mathvm {
 
     void SimpleIrBuilder::visitLoadNode(LoadNode *node) {
         debug("load");
-        auto v = new IR::Variable(varMeta((AstVar *) (node->var())).id);
-        _pushAtom(v);
+        _pushAtom(new IR::Variable(varMeta((AstVar *) (node->var())).id));
     }
 
     void SimpleIrBuilder::visitStoreNode(StoreNode *node) {
@@ -227,7 +226,7 @@ namespace mathvm {
 
         IR::Block *afterWhile = newBlock();
         bodyLastBlock->link(checker);
-        checker->link(new IR::JumpCond(bodyFirstBlock, afterWhile, &(*(condAssign->var))));
+        checker->link(new IR::JumpCond(bodyFirstBlock, afterWhile, new IR::Variable(condAssign->var->id)));
 
 
     }
@@ -242,7 +241,7 @@ namespace mathvm {
         IR::Block *yesblock = newBlock();
         IR::Block *noblock = newBlock();
 
-        blockBeforeIf->link(new IR::JumpCond(yesblock, noblock, &(*(a->var))));
+        blockBeforeIf->link(new IR::JumpCond(yesblock, noblock, new IR::Variable(a->var->id)));
 
         _currentBlock = yesblock;
         node->thenBlock()->visit(this);
@@ -292,8 +291,7 @@ namespace mathvm {
     void SimpleIrBuilder::visitCallNode(CallNode *node) {
         debug("call");
         AstFunction *f = _lastScope->lookupFunction(node->name(), true);
-        if (!f) std::cerr << " function does not exist!";
-        const uint16_t funId = funMeta(f)->id;
+        const uint16_t funId = funMeta(f).id;
         std::vector<IR::Atom const *> params;
         for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
             node->parameterAt(i)->visit(this);
@@ -317,19 +315,20 @@ namespace mathvm {
     }
 
 
-    void SimpleIrBuilder::start() {
+    IR::SimpleSsaIr* SimpleIrBuilder::start() {
         declareFunction(_parser.top());
         visitAstFunction(_parser.top());
 
         insertPhi();
 
 
-        IR::IrPrinter printer(_out);
-        IR::SsaTransformation ssaTransformation(_ir);
+        //IR::IrPrinter printer(_out);
+        IR::SsaTransformation ssaTransformation(*_ir);
         ssaTransformation.start();
-        IR::SimpleSsaIr ssa = ssaTransformation.getResult();
-
-        printer.print(ssa);
+        IR::SimpleSsaIr* ssa = ssaTransformation.getResult();
+        delete _ir;
+        _ir = ssa;
+        return ssa;
     }
 
     void SimpleIrBuilder::embraceVars(Scope *scope) {
@@ -339,7 +338,7 @@ namespace mathvm {
     }
 
     void SimpleIrBuilder::insertPhi() {
-        for (auto f : _ir.functions)
+        for (auto f : _ir->functions)
             for (auto elemWithFrontier : dominanceFrontier(&(*(f->entry))))
                 for (auto assignedVar : IR::modifiedVars(elemWithFrontier.first))
                     if (!varMetaById(assignedVar).isTemp)
@@ -355,7 +354,7 @@ namespace mathvm {
         _astvarMeta[var] = md;
         _allvarMeta[id] = md;
         IR::SimpleIr::VarMeta add(md->id, md->id, vtToIrType(var->type()));
-        _ir.varMeta.push_back(add);
+        _ir->varMeta.push_back(add);
         return id;
     }
 
@@ -364,7 +363,7 @@ namespace mathvm {
         AstVarMetadata* md = new AstVarMetadata(id);
         _allvarMeta[id] = md;
         IR::SimpleIr::VarMeta add(md->id, 0, IR::VT_Undefined);
-        _ir.varMeta.push_back(add);
+        _ir->varMeta.push_back(add);
         return id;
     }
 

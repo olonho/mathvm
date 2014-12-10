@@ -37,8 +37,7 @@ namespace mathvm {
             auto res = new Phi(var);
             for (auto v : expr->vars) {
                 Variable const *var = static_cast<Variable const *> (v->visit(this));
-                std::shared_ptr<Variable const> sp(var);
-                if (var != NULL) res->vars.insert(sp);
+                if (var != NULL) res->vars.insert(var);
             }
             return res;
         }
@@ -100,8 +99,8 @@ namespace mathvm {
             Block* newEntry = static_cast<Block*> ( expr->entry->visit(this) );
             if (newEntry == NULL) return NULL;
 
-            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType);
-            transformed->entry = std::shared_ptr<Block>(newEntry);
+            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, newEntry);
+            if (transformed == NULL) { delete newEntry; return NULL; }
             transformed->parametersIds = expr->parametersIds;
             return transformed;
         }
