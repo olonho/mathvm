@@ -1,5 +1,8 @@
 #include "bytecodetranslator.hpp"
 #include "parser.h"
+#include "stuff.hpp"
+#include <dlfcn.h>
+#include <asmjit/asmjit.h>
 
 using namespace mathvm;
 
@@ -82,8 +85,7 @@ void BytecodeTranslator::visitForNode(ForNode *node) {
     BinaryOpNode *range = node->inExpr()->asBinaryOpNode();
     if (!range || range->kind() != tRANGE) { throw "Unsupported range"; }
 
-    enterScope();
-    scope->defineVar(node->var());
+    // store range start
     range->left()->visit(this);
     processStoreVar(node->var());
 
@@ -108,7 +110,6 @@ void BytecodeTranslator::visitForNode(ForNode *node) {
 
     bc->addBranch(BC_JA, beginFor);
     endFor.bind(bc->current());
-    leaveScope();
 }
 
 void BytecodeTranslator::visitLoadNode(LoadNode *node) {
@@ -172,10 +173,11 @@ void BytecodeTranslator::visitBinaryOpNode(BinaryOpNode *node) {
         case tLT:
         case tLE:   processComparison(token, leftType, rightType); break;
         case tOR:
-        case tAND:  processLogicOperator(token, leftType, rightType); break;
+        case tAND:  processBoolOperator(token, leftType, rightType); break;
         case tAAND:
         case tAOR:
-        case tAXOR: processArithmeticLogicOperator(token, leftType, rightType); break;
+        case tAXOR:
+        case tMOD:  processIntOperator(token, leftType, rightType); break;
         default: throw "Unsupported binary operation";
     }
 }
@@ -185,36 +187,72 @@ void BytecodeTranslator::visitCallNode(CallNode *node) {
     assert(f && f->id() > 0);
     for (auto i = 0; i < node->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
-        VarType required = f->parameterType(i);
-        if (tos == VT_DOUBLE && required == VT_INT) {
-            bc->add(BC_D2I);
-        } else if (tos == VT_INT && required == VT_DOUBLE) {
-            bc->add(BC_I2D);
-        } else if (tos != required) {
-            throw "Cannot pass parameter to function";
-        }
+        convertTos(f->parameterType(i));
     }
     bc->add(BC_CALL);
     bc->addUInt16(f->id());
     tos = f->returnType();
 }
 
+
 void BytecodeTranslator::visitNativeCallNode(NativeCallNode *node) {
-    interpreter->makeNativeFunction(node->nativeName(), node->nativeSignature(), 0);
+    using namespace asmjit;
+    using namespace asmjit::x86;
+    bc->add(BC_CALLNATIVE);
+    void *addr = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+    if (!addr) {
+        throw dlerror();
+    }
+    void *f;
+    {
+        static JitRuntime runtime;
+        static X86GpReg gp_registers[6] = { rdi, rsi, rdx, rcx, r8, r9 };
+        static X86XmmReg sse_registers[8] = { xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7 };
+
+        Signature signature = node->nativeSignature();
+        X86Assembler assembler(&runtime);
+
+        int stack_size = max<int>(signature.size() - (6 + 8), 1) * sizeof(Value);
+
+        // move stack pointer to new end of stack
+        assembler.sub(rsp, imm(stack_size));
+
+        // rdi contains pointer to first element in array of parameters
+        assembler.mov(r11, rdi);
+
+        int current_gp_register = 0;
+        int current_sse_register = 0;
+        int current_stack_counter = 0;
+        for (size_t i = 1; i < signature.size(); i++) {
+            VarType argType = signature[i].first;
+            size_t arg_offset = (i - 1) * sizeof(Value);
+            X86Mem arg = ptr(r11, arg_offset);
+            if ((argType == VT_INT || argType == VT_STRING) && current_gp_register < 6) {
+                X86GpReg & current = gp_registers[current_gp_register++];
+                assembler.mov(current, arg);
+            } else if (argType == VT_DOUBLE && current_sse_register < 8) {
+                X86XmmReg & current = sse_registers[current_sse_register++];
+                assembler.movsd(current, arg);
+            } else {
+                assembler.mov(r10, arg);
+                assembler.mov(ptr(rsp, current_stack_counter++ * sizeof(Value)), r10);
+            }
+        }
+
+        assembler.mov(rax, imm(reinterpret_cast<uint64_t>(addr)));
+        assembler.call(rax);
+        assembler.add(rsp, imm(stack_size));
+        assembler.ret();
+        f = assembler.make();
+    }
+    bc->addUInt16(interpreter->makeNativeFunction(node->nativeName(), node->nativeSignature(), f));
 }
 
 void BytecodeTranslator::visitReturnNode(ReturnNode *node) {
     node->visitChildren(this);
     auto f = interpreter->functionById(scope->function()->id());
-    assert(f && f->id() > 0);
-    VarType required = f->returnType();
-    if (tos == VT_DOUBLE && required == VT_INT) {
-        bc->add(BC_D2I);
-    } else if (tos == VT_INT && required == VT_DOUBLE) {
-        bc->add(BC_I2D);
-    } else if (tos != required && required != VT_VOID) {
-        throw "Cannot return value from function";
-    }
+    assert(f);
+    convertTos(f->returnType());
     bc->add(BC_RETURN);
 }
 

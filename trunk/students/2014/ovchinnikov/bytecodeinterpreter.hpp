@@ -8,27 +8,11 @@ using std::vector;
 using std::map;
 
 #include "mathvm.h"
+#include "stuff.hpp"
 
 using namespace mathvm;
 
-typedef union _v {
-    double d;
-    int64_t i;
-    uint16_t ui16;
-    _v() {}
-    _v(double d) : d(d) {}
-    _v(int64_t i) : i(i) {}
-    _v(uint16_t ui): ui16(ui) {}
-} Value;
-
-inline ostream & operator <<(ostream & out, const Value & v) {
-    return out << v.i;
-}
-
 class BytecodeInterpreter : public Code {
-
-
-
 
     struct StackFrame {
         BytecodeFunction *function;
@@ -44,6 +28,7 @@ public:
 
 private:
     void processCall(uint16_t functionId);
+    void processNativeCall(uint16_t functionId);
     void processReturn();
 
     Value pop_return() {
