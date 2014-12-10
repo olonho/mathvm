@@ -1,6 +1,6 @@
 #include <fstream>
 #include "../../../../include/mathvm.h"
-
+#include "translator/closure_analyzer.h"
 #include "ast_printer.h"
 #include "translator/translator.h"
 #include "typechecker.h"
@@ -28,22 +28,25 @@ int main(int argc, char **argv) {
 
     Parser parser;
     Status *status = parser.parseProgram(program);
-    TypeChecker typeChecker;
-    typeChecker.visitFunctionNode(parser.top()->node());
 
-    SimpleIrBuilder translator(parser, std::cout);
-    IR::SimpleSsaIr* ir = translator.start();
+    ClosureAnalyzer ca;
+    ca.visitAstFunction(parser.top());
+    SsaIrBuilder translator(parser.top(), ca, std::cout);
+    translator.start();
+    IR::SimpleSsaIr* ir = translator.getResult();
 
-    std::ofstream irRepr;
-    irRepr.open("irRepr.txt", ios_base::openmode::_S_out);
-    IR::IrPrinter printer(irRepr);
+//    std::ofstream irRepr;
+//    irRepr.open("irRepr.txt", ios_base::openmode::_S_out);
+//    IR::IrPrinter printer(std::cout);
+//    printer.print(*ir);
+
+    IR::IrPrinter printer(std::cout);
     printer.print(*ir);
-
     delete ir;
     AstMetadataEraser eraser;
     eraser.visitFunctionNode(parser.top()->node());
 
-    irRepr.close();
+//    irRepr.close();
     delete status;
     delete[] program;
 

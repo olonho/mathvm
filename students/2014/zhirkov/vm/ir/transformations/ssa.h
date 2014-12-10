@@ -3,7 +3,6 @@
 #include <map>
 #include <set>
 #include "identity.h"
-#include "../../common.h"
 
 namespace mathvm {
     namespace IR {
@@ -21,17 +20,6 @@ namespace mathvm {
         private:
             std::vector<IR::SimpleIr::VarMeta>& meta;
         };
-
-
-//
-//        SimpleIr start(SimpleIr const& old) {
-//            SimpleIr result;
-//            result.varMeta = old.varMeta;
-//            result.pool = old.pool;
-//            for ( auto f : old.functions)
-//                result.functions.push_back(f->visit(this)->asFunctionRecord());
-//            return result;
-//        }
 
     }
 }

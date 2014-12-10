@@ -5,11 +5,10 @@
 #include <map>
 #include "../../../../../include/ast.h"
 #include "../ir/ir.h"
-#include "translator.h"
 #include "../ir/util.h"
 #include "../ir/transformations/identity.h"
 #include "../ir/transformations/ssa.h"
-#include "../ast_printer.h"
+#include "translator.h"
 
 namespace mathvm {
 
@@ -18,7 +17,7 @@ namespace mathvm {
 //        std::cerr << "Visiting " << tr << " node" << std::endl;
     }
 
-    void SimpleIrBuilder::embraceArgs(AstFunction *f) {
+    void SsaIrBuilder::embraceArgs(AstFunction const*f) {
         Scope::VarIterator iter(f->scope(), false);
         while (iter.hasNext()) {
             uint64_t id = makeAstVar(iter.next());
@@ -26,29 +25,29 @@ namespace mathvm {
         }
     }
 
-    void SimpleIrBuilder::declareFunction(AstFunction *fun) {
-        uint64_t id = _ir->functions.size();
+    void SsaIrBuilder::declareFunction(AstFunction const*fun) {
+        uint64_t id = _result->functions.size();
         IR::VarType type = vtToIrType(fun->node()->returnType());
         IR::FunctionRecord* functionRecord = new IR::FunctionRecord(id, type);
         _funMeta.insert(make_pair(fun, new AstFunctionMetadata(fun, id)));
-        _ir->addFunction(functionRecord);
+        _result->addFunction(functionRecord);
 
         embraceArgs(fun);
     }
 
-    void SimpleIrBuilder::visitAstFunction(AstFunction *fun) {
+    void SsaIrBuilder::visitAstFunction(AstFunction const *fun) {
         debug("ast_function");
 
-        auto savedBlock = _currentBlock;
-        auto savedFunction = _currentFunction;
+        auto savedBlock = ctx.block;
+        auto savedFunction = ctx.function;
 
-        _currentBlock = &(*(_ir->functions[funMeta(fun).id]->entry));
-        _currentFunction = fun;
+        ctx.block = &(*(_result->functions[funMeta(fun).id]->entry));
+        ctx.function= fun;
 
         fun->node()->visit(this);
 
-        _currentFunction = savedFunction;
-        _currentBlock = savedBlock;
+        ctx.function = savedFunction;
+        ctx.block = savedBlock;
     }
 
 
@@ -104,7 +103,7 @@ namespace mathvm {
         }
     }
 
-    void SimpleIrBuilder::visitBinaryOpNode(BinaryOpNode *node) {
+    void SsaIrBuilder::visitBinaryOpNode(BinaryOpNode *node) {
         debug("binop");
         node->left()->visit(this);
         const IR::Atom *const left = _popAtom();
@@ -118,7 +117,7 @@ namespace mathvm {
 
     }
 
-    void SimpleIrBuilder::visitUnaryOpNode(UnaryOpNode *node) {
+    void SsaIrBuilder::visitUnaryOpNode(UnaryOpNode *node) {
         debug("unop");
         node->operand()->visit(this);
         IR::Expression const *operand = _popAtom();
@@ -127,30 +126,30 @@ namespace mathvm {
         _pushAtom(new IR::Variable(a->var->id));
     }
 
-    void SimpleIrBuilder::visitStringLiteralNode(StringLiteralNode *node) {
+    void SsaIrBuilder::visitStringLiteralNode(StringLiteralNode *node) {
         debug("string");
-        IR::SimpleIr::StringPool &pool = _ir->pool;
+        IR::SimpleIr::StringPool &pool = _result->pool;
         uint16_t id = uint16_t(pool.size());
         pool.push_back(node->literal());
         _pushAtom(new IR::Ptr(id, true));
     }
 
-    void SimpleIrBuilder::visitDoubleLiteralNode(DoubleLiteralNode *node) {
+    void SsaIrBuilder::visitDoubleLiteralNode(DoubleLiteralNode *node) {
         debug("double");
         _pushAtom(new IR::Double(node->literal()));
     }
 
-    void SimpleIrBuilder::visitIntLiteralNode(IntLiteralNode *node) {
+    void SsaIrBuilder::visitIntLiteralNode(IntLiteralNode *node) {
         debug("int");
         _pushAtom(new IR::Int(node->literal()));
     }
 
-    void SimpleIrBuilder::visitLoadNode(LoadNode *node) {
+    void SsaIrBuilder::visitLoadNode(LoadNode *node) {
         debug("load");
         _pushAtom(new IR::Variable(varMeta((AstVar *) (node->var())).id));
     }
 
-    void SimpleIrBuilder::visitStoreNode(StoreNode *node) {
+    void SsaIrBuilder::visitStoreNode(StoreNode *node) {
         debug("store");
 
         node->value()->visit(this);
@@ -172,32 +171,32 @@ namespace mathvm {
         emit(new IR::Assignment(varToStore, rhs));
     }
 
-    void SimpleIrBuilder::visitForNode(ForNode *node) {
-        IR::Block *init, *checker, *bodyFirst, *bodyLast, *beforeFor = _currentBlock, *afterFor;
+    void SsaIrBuilder::visitForNode(ForNode *node) {
+        IR::Block *init, *checker, *bodyFirst, *bodyLast, *beforeFor = ctx.block, *afterFor;
         auto astFrom = node->inExpr()->asBinaryOpNode()->left(),
                 astTo = node->inExpr()->asBinaryOpNode()->right();
 
-        _currentBlock = init = newBlock();
+        ctx.block = init = newBlock();
 
 //        const IR::Variable var(makeAstVar(node->var()));
         auto var = varMeta(node->var()).id;
         astFrom->visit(this);
         emit(new IR::Assignment(var, _popAtom()));
 
-        _currentBlock = checker = newBlock();
+        ctx.block = checker = newBlock();
         auto toValue = makeTempVar(), compResult = makeTempVar();
         astTo->visit(this);
         emit(new IR::Assignment(toValue, _popAtom()));
         emit(new IR::Assignment(compResult, new IR::BinOp(new IR::Variable(var), new IR::Variable(toValue), IR::BinOp::BO_EQ)));
 
 
-        _currentBlock = bodyFirst = newBlock();
+        ctx.block = bodyFirst = newBlock();
         node->body()->visit(this);
         emit(new IR::Assignment(var, new IR::BinOp(new IR::Variable(var), new IR::Int(1), IR::BinOp::BO_ADD)));
 
-        bodyLast = _currentBlock;
+        bodyLast = ctx.block;
 
-        _currentBlock = afterFor = newBlock();
+        ctx.block = afterFor = newBlock();
 
         beforeFor->link(init);
         init->link(checker);
@@ -207,90 +206,89 @@ namespace mathvm {
 
     }
 
-    void SimpleIrBuilder::visitWhileNode(WhileNode *node) {
+    void SsaIrBuilder::visitWhileNode(WhileNode *node) {
         IR::Block *checker = newBlock(),
-                *beforeWhile = _currentBlock,
+                *beforeWhile = ctx.block,
                 *bodyFirstBlock = newBlock(),
                 *bodyLastBlock = NULL;
 
         beforeWhile->link(checker);
 
-        _currentBlock = checker;
+        ctx.block = checker;
         node->whileExpr()->visit(this);
         IR::Assignment const *condAssign = new IR::Assignment(makeTempVar(), _popAtom());
         emit(condAssign);
 
-        _currentBlock = bodyFirstBlock;
+        ctx.block = bodyFirstBlock;
         node->loopBlock()->visit(this);
-        bodyLastBlock = _currentBlock;
+        bodyLastBlock = ctx.block;
 
         IR::Block *afterWhile = newBlock();
         bodyLastBlock->link(checker);
         checker->link(new IR::JumpCond(bodyFirstBlock, afterWhile, new IR::Variable(condAssign->var->id)));
 
-
     }
 
-    void SimpleIrBuilder::visitIfNode(IfNode *node) {
+    void SsaIrBuilder::visitIfNode(IfNode *node) {
         node->ifExpr()->visit(this);
         IR::Assignment *a = new IR::Assignment(makeTempVar(), _popAtom());
         emit(a);
 
-        IR::Block *blockBeforeIf = _currentBlock;
+        IR::Block *blockBeforeIf = ctx.block;
 
         IR::Block *yesblock = newBlock();
         IR::Block *noblock = newBlock();
 
         blockBeforeIf->link(new IR::JumpCond(yesblock, noblock, new IR::Variable(a->var->id)));
 
-        _currentBlock = yesblock;
+        ctx.block = yesblock;
         node->thenBlock()->visit(this);
-        IR::Block *lastYesBlock = _currentBlock;
-        _currentBlock = noblock;
+        IR::Block *lastYesBlock = ctx.block;
+        ctx.block = noblock;
         if (node->elseBlock()) node->elseBlock()->visit(this);
-        IR::Block *lastNoBlock = _currentBlock;
+        IR::Block *lastNoBlock = ctx.block;
 
         IR::Block *afterIf = newBlock();
         lastYesBlock->link(afterIf);
         lastNoBlock->link(afterIf);
 
-        _currentBlock = afterIf;
+        ctx.block = afterIf;
     }
 
-    void SimpleIrBuilder::visitBlockNode(BlockNode *node) {
+    void SsaIrBuilder::visitBlockNode(BlockNode *node) {
         embraceVars(node->scope());
-        _lastScope = node->scope();
+        ctx.scope = node->scope();
 
         Scope::FunctionIterator fit(node->scope(), false);
         while (fit.hasNext())
-            declareFunction(_currentFunction = fit.next());
+            declareFunction(ctx.function = fit.next());
 
 
         node->visitChildren(this);
 
         fit = Scope::FunctionIterator(node->scope(), false);
         while (fit.hasNext())
-            visitAstFunction(_currentFunction = fit.next());
+            visitAstFunction(ctx.function = fit.next());
 
-        _lastScope = _lastScope->parent();
+        ctx.scope = ctx.scope->parent();
     }
 
-    void SimpleIrBuilder::visitFunctionNode(FunctionNode *node) {
+    void SsaIrBuilder::visitFunctionNode(FunctionNode *node) {
         debug("function");
         node->body()->visit(this);
     }
 
 
-    void SimpleIrBuilder::visitReturnNode(ReturnNode *node) {
+    void SsaIrBuilder::visitReturnNode(ReturnNode *node) {
         debug("return");
         if (!node->returnExpr()) return;
         node->returnExpr()->visit(this);
         emit(new IR::Return(_popAtom()));
     }
 
-    void SimpleIrBuilder::visitCallNode(CallNode *node) {
+    void SsaIrBuilder::visitCallNode(CallNode *node) {
         debug("call");
-        AstFunction *f = _lastScope->lookupFunction(node->name(), true);
+        AstFunction *f = ctx.scope->lookupFunction(node->name(), true);
         const uint16_t funId = funMeta(f).id;
         std::vector<IR::Atom const *> params;
         for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
@@ -302,11 +300,11 @@ namespace mathvm {
         _pushAtom(new IR::Variable(tempVarId));
     }
 
-    void SimpleIrBuilder::visitNativeCallNode(NativeCallNode *node) {
+    void SsaIrBuilder::visitNativeCallNode(NativeCallNode *node) {
         debug("native call");
     }
 
-    void SimpleIrBuilder::visitPrintNode(PrintNode *node) {
+    void SsaIrBuilder::visitPrintNode(PrintNode *node) {
         for (uint32_t i = 0; i < node->operands(); ++i) {
             node->operandAt(i)->visit(this);
             emit(new IR::Print(_popAtom()));
@@ -315,30 +313,29 @@ namespace mathvm {
     }
 
 
-    IR::SimpleSsaIr* SimpleIrBuilder::start() {
-        declareFunction(_parser.top());
-        visitAstFunction(_parser.top());
+    void SsaIrBuilder::start() {
+        declareFunction(top);
+        visitAstFunction(top);
 
         insertPhi();
 
 
         //IR::IrPrinter printer(_out);
-        IR::SsaTransformation ssaTransformation(*_ir);
+        IR::SsaTransformation ssaTransformation(*_result);
         ssaTransformation.start();
         IR::SimpleSsaIr* ssa = ssaTransformation.getResult();
-        delete _ir;
-        _ir = ssa;
-        return ssa;
+        delete _result;
+        _result = ssa;
     }
 
-    void SimpleIrBuilder::embraceVars(Scope *scope) {
+    void SsaIrBuilder::embraceVars(Scope *scope) {
         Scope::VarIterator iter(scope, false);
         while (iter.hasNext()) makeAstVar(iter.next());
 
     }
 
-    void SimpleIrBuilder::insertPhi() {
-        for (auto f : _ir->functions)
+    void SsaIrBuilder::insertPhi() {
+        for (auto f : _result->functions)
             for (auto elemWithFrontier : dominanceFrontier(&(*(f->entry))))
                 for (auto assignedVar : IR::modifiedVars(elemWithFrontier.first))
                     if (!varMetaById(assignedVar).isTemp)
@@ -348,24 +345,87 @@ namespace mathvm {
                         }
     }
 
-    uint64_t SimpleIrBuilder::makeAstVar(AstVar const* var) {
-        uint64_t id = _varCounter++;
+    uint64_t SsaIrBuilder::makeAstVar(AstVar const* var) {
+        uint64_t id = ctx.nVars++;
         AstVarMetadata* md = new AstVarMetadata(var, id);
         _astvarMeta[var] = md;
         _allvarMeta[id] = md;
         IR::SimpleIr::VarMeta add(md->id, md->id, vtToIrType(var->type()));
-        _ir->varMeta.push_back(add);
+        _result->varMeta.push_back(add);
         return id;
     }
 
-    uint64_t SimpleIrBuilder::makeTempVar() {
-        uint64_t id = _varCounter++;
+    uint64_t SsaIrBuilder::makeTempVar() {
+        uint64_t id = ctx.nVars++;
         AstVarMetadata* md = new AstVarMetadata(id);
         _allvarMeta[id] = md;
         IR::SimpleIr::VarMeta add(md->id, 0, IR::VT_Undefined);
-        _ir->varMeta.push_back(add);
+        _result->varMeta.push_back(add);
         return id;
     }
 
 
+//    void SsaIrBuilder::visitPrintNode(PrintNode *node) {
+//        AstAnalyzer::visitPrintNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitLoadNode(LoadNode *node) {
+//        AstAnalyzer::visitLoadNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitDoubleLiteralNode(DoubleLiteralNode *node) {
+//        AstAnalyzer::visitDoubleLiteralNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitStoreNode(StoreNode *node) {
+//        AstAnalyzer::visitStoreNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitCallNode(CallNode *node) {
+//        AstAnalyzer::visitCallNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitStringLiteralNode(StringLiteralNode *node) {
+//        AstAnalyzer::visitStringLiteralNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitWhileNode(WhileNode *node) {
+//        AstAnalyzer::visitWhileNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitIntLiteralNode(IntLiteralNode *node) {
+//        AstAnalyzer::visitIntLiteralNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitBlockNode(BlockNode *node) {
+//        AstAnalyzer::visitBlockNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitBinaryOpNode(BinaryOpNode *node) {
+//        AstAnalyzer::visitBinaryOpNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitUnaryOpNode(UnaryOpNode *node) {
+//        AstAnalyzer::visitUnaryOpNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitNativeCallNode(NativeCallNode *node) {
+//        AstAnalyzer::visitNativeCallNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitIfNode(IfNode *node) {
+//        AstAnalyzer::visitIfNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitReturnNode(ReturnNode *node) {
+//        AstAnalyzer::visitReturnNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitFunctionNode(FunctionNode *node) {
+//        AstAnalyzer::visitFunctionNode(node);
+//    }
+//
+//    void SsaIrBuilder::visitForNode(ForNode *node) {
+//        AstAnalyzer::visitForNode(node);
+//    }
 }
