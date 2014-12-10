@@ -9,7 +9,7 @@ namespace mathvm {
     namespace IR {
         struct SsaTransformation : public IdentityTransformation {
             std::map<uint64_t, uint64_t> _latestVersion;
-            SsaTransformation(SimpleIr& old) : IdentityTransformation(old), meta(_currentIr.varMeta) {
+            SsaTransformation(SimpleIr& old) : IdentityTransformation(old), meta(_currentIr->varMeta) {
             }
 
             bool shouldBeRenamed(uint64_t id) {

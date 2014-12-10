@@ -54,6 +54,7 @@ virtual IrType getType() const { return IT_##ir; }
 
             FOR_IR(HELPER)
 #undef HELPER
+        virtual ~IrElement(){}
         };
 
         struct IrVisitor {
@@ -69,8 +70,10 @@ virtual IrType getType() const { return IT_##ir; }
 
 
         struct Expression : IrElement {
+        virtual ~Expression() {}
         };
         struct Atom : Expression {
+            virtual ~Atom() {}
         };
 
         enum VarType {
@@ -91,6 +94,8 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         struct Statement : IrElement {
+            virtual ~Statement() {
+            }
         };
 
         struct Jump : IrElement {
@@ -100,7 +105,7 @@ virtual IrType getType() const { return IT_##ir; }
 
 
         struct JumpAlways : Jump {
-            std::shared_ptr<Block> const destination;
+            Block* const destination;
 
             JumpAlways(Block *dest) : destination(dest) {
             }
@@ -108,6 +113,8 @@ virtual IrType getType() const { return IT_##ir; }
             IR_COMMON_FUNCTIONS(JumpAlways)
 
 
+            virtual ~JumpAlways() {
+            }
         };
 
         struct JumpCond : Jump {
@@ -117,37 +124,49 @@ virtual IrType getType() const { return IT_##ir; }
 
             Block *const yes;
             Block *const no;
-            const std::shared_ptr<const Atom> condition;
+            const Atom* const condition;
 
+
+            virtual ~JumpCond() {
+                delete condition;
+            }
 
             IR_COMMON_FUNCTIONS(JumpCond)
         };
 
         struct Assignment : Statement {
-            const std::shared_ptr<const Variable> var;
-            const std::shared_ptr<const Expression> value;
+            const Variable* const var;
+            const  Expression* const value;
 
-            Assignment(Variable const * const var, Expression const *const expr) : var(var), value(expr) {
+            Assignment(Variable const *const var, Expression const *const expr) : var(var), value(expr) {
             }
+
             Assignment(uint64_t id, Expression const *const expr) : var(new Variable(id)), value(expr) {
             }
 
             IR_COMMON_FUNCTIONS(Assignment)
 
+            virtual ~Assignment() {
+                delete var;
+                delete value;
+            }
         };
 
         struct Return : Statement {
             Return(const Atom *const atom) : atom(atom) {
             }
 
-            const std::shared_ptr<Atom const> atom;
+            const Atom *const atom;
 
             IR_COMMON_FUNCTIONS(Return)
 
+            virtual ~Return() {
+                delete atom;
+            }
         };
 
         struct Phi : Statement {
-            std::shared_ptr<const Variable> var;
+            const Variable* const var;
 
             Phi(uint64_t id) : var(new Variable(id)) {
             }
@@ -155,31 +174,34 @@ virtual IrType getType() const { return IT_##ir; }
             Phi(Variable const *id) : var(id) {
             }
 
-            std::set<std::shared_ptr<Variable const> > vars;
+            std::set<Variable const*> vars;
 
             IR_COMMON_FUNCTIONS(Phi)
 
+
+            virtual ~Phi() {
+                for(auto v : vars) delete v;
+                delete var;
+            }
         };
 
         struct Call : Expression {
-            Call(uint16_t id, std::vector<Atom const*> const &args) : funId(id) {
-                for( auto p : args)
-                {
-                    auto sp = std::shared_ptr<Atom const> (p);
-                    params.push_back(sp);
-                }
-            }
+            Call(uint16_t id, std::vector<Atom const *> const &args) : funId(id), params(args) { }
 
-            std::vector<std::shared_ptr<Atom const>> params;
+            std::vector<Atom const*> params;
             const uint16_t funId;
 
             IR_COMMON_FUNCTIONS(Call)
+
+            virtual ~Call() {
+                for(auto p : params) delete p;
+            }
         };
 
         struct BinOp : Expression {
 
-            const std::shared_ptr<Expression const> left;
-            const std::shared_ptr<Expression const> right;
+            const Expression* const left;
+            const Expression* const right;
 #define FOR_IR_BINOP(DO) \
 DO(ADD, "+")\
 DO(SUB, "-")\
@@ -207,10 +229,15 @@ DO(XOR, "^")
             }
 
             IR_COMMON_FUNCTIONS(BinOp)
+
+            virtual ~BinOp() {
+                delete left;
+                delete right;
+            }
         };
 
         struct UnOp : Expression {
-            const std::shared_ptr<Expression const> operand;
+            const Expression* const operand;
 #define FOR_IR_UNOP(DO)\
 DO(CAST_I2D, "<i2d>")\
 DO(CAST_D2I,"<d2i>")\
@@ -233,6 +260,10 @@ DO(NOT, "!")
 
             IR_COMMON_FUNCTIONS(UnOp)
 
+
+            virtual ~UnOp() {
+                delete operand;
+            }
         };
 
         struct Int : Atom {
@@ -257,11 +288,7 @@ DO(NOT, "!")
             const uint64_t value;
             const bool isPooledString;
 
-            Ptr(uint64_t value, bool isPooledString) : value(value), isPooledString(isPooledString) {
-            }
-//            Ptr(Ptr const& ptr) : value(ptr.value), isPooledString(ptr.isPooledString) {
-//            }
-
+            Ptr(uint64_t value, bool isPooledString) : value(value), isPooledString(isPooledString) { }
             IR_COMMON_FUNCTIONS(Ptr)
         };
 
@@ -294,6 +321,7 @@ DO(NOT, "!")
             }
 
             void link(Block *next) {
+                if (_transition) delete _transition;
                 _transition = new JumpAlways(next);
                 next->predecessors.push_back(this);
             }
@@ -304,6 +332,7 @@ DO(NOT, "!")
             virtual ~Block() {
                 for (auto s : contents)
                     delete s;
+                delete _transition;
             }
 
             IR_COMMON_FUNCTIONS(Block)
@@ -322,26 +351,28 @@ DO(NOT, "!")
             }
 
             const uint16_t id;
-            std::shared_ptr<Block> entry;
+            Block* entry;
             std::vector<uint64_t> parametersIds;
-            //should we add variables here?
-
-
-
             VarType returnType;
 
             IR_COMMON_FUNCTIONS(FunctionRecord)
 
 
+            virtual ~FunctionRecord();
         };
+
 
         struct Print : Statement {
             Print(Atom const *const atom) : atom(atom) {
             }
 
-            const std::shared_ptr<const Atom> atom;
+            const Atom* const atom;
 
             IR_COMMON_FUNCTIONS(Print)
+
+            virtual ~Print() {
+                delete atom;
+            }
         };
 
         struct SimpleIr {
@@ -352,20 +383,35 @@ DO(NOT, "!")
                 VarType type;
 
                 VarMeta(uint64_t id, uint64_t from, VarType type)
-                        : isSourceVar(true),originId(from), id(id), type(type) {
+                        : isSourceVar(true), originId(from), id(id), type(type) {
                 }
 
-                VarMeta(uint64_t id) : isSourceVar(false), originId(0), id(id), type(VT_Undefined) {
+                VarMeta(VarMeta const& meta): id(meta.id),
+                                        isSourceVar(meta.isSourceVar),
+                                        originId(meta.originId),
+                                        type(meta.type){ }
+                 VarMeta(uint64_t id) : isSourceVar(false), originId(0), id(id), type(VT_Undefined) {
                 }
             };
 
             typedef std::vector<std::string> StringPool;
 
             StringPool pool;
-            std::vector<FunctionRecord *> functions;
+            std::vector<FunctionRecord*> functions;
+
+            void addFunction(FunctionRecord* rec) {
+                functions.push_back(rec);
+            }
+
             std::vector<VarMeta> varMeta;
 
+            virtual ~SimpleIr() {
+                for(auto f : functions)
+                    delete f;
+            }
         };
+
         typedef SimpleIr SimpleSsaIr;
+
     }
 }

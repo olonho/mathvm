@@ -9,14 +9,13 @@ namespace mathvm {
             else return IdentityTransformation::visit(var);
         }
 
-        static void lookupPreviousVariables(uint64_t originId, std::vector<IR::SimpleIr::VarMeta> const& varMeta,  std::set<std::shared_ptr<Variable const > > & phiList, Block const* currentBlock)  {
+        static void lookupPreviousVariables(uint64_t originId, std::vector<IR::SimpleIr::VarMeta> const& varMeta,  std::set<Variable const* > & phiList, Block const* currentBlock)  {
             for( auto it = currentBlock->contents.rbegin(); it != currentBlock->contents.rend(); ++it)
                 if ((*it)->isAssignment()) {
                     auto a = (*it)->asAssignment();
                     auto lhs = a->var->id;
                     if (varMeta[lhs].isSourceVar && varMeta[lhs].originId == originId) {
-                        std::shared_ptr<Variable const> sp(new Variable(lhs));
-                        phiList.insert(sp);
+                        phiList.insert(new Variable(lhs));
                         return;
                     }
                 }
@@ -27,7 +26,7 @@ namespace mathvm {
         IrElement *SsaTransformation::visit(Phi const *const expr) {
             auto oldVarId = expr->var->id;
 
-            if (_currentIr.varMeta[oldVarId].isSourceVar) {
+            if (_currentIr->varMeta[oldVarId].isSourceVar) {
                 uint64_t newId = meta.size();
 
                 Variable const *const newLhs = new Variable(newId);
