@@ -7,6 +7,7 @@ void InterpretCode::handleByteCode()
 	{
 		instruction = byteCode()->getInsn(position);
 		position += getInstructionLength(instruction);
+        //std::cout << "instr = " << (Instruction)instruction << std::endl;
 
 		switch (instruction)
 		{
@@ -182,16 +183,16 @@ void InterpretCode::cmpInstruction(Instruction instruction)
 }
 void InterpretCode::loadVar(Instruction instruction)
 {
-	int16_t idxContext = byteCode()->getInt16(position - 4);
-	int16_t idxVar = byteCode()->getInt16(position - 2);
+    uint16_t idxContext = byteCode()->getInt16(position - 4);
+    uint16_t idxVar = byteCode()->getInt16(position - 2);
 	Var var = getVariable(getContext(idxContext), idxVar);
 	variables.push(var);
 }
 
 void InterpretCode::saveVar(Instruction instruction)
 {
-	int16_t idxContext = byteCode()->getInt16(position - 4);
-	int16_t idxVar = byteCode()->getInt16(position - 2);
+    uint16_t idxContext = byteCode()->getInt16(position - 4);
+    uint16_t idxVar = byteCode()->getInt16(position - 2);
 	Context * context = getContext(idxContext);
 	Var var = variables.top();
 	variables.pop();
@@ -329,7 +330,7 @@ void InterpretCode::handleAdditionVars(Instruction instruction)
 
 void InterpretCode::handleCallNode(Instruction instruction)
 {
-	int16_t funcIdx = byteCode()->getInt16(position - 2);
+    uint16_t funcIdx = byteCode()->getInt16(position - 2);
 	contextStack.push(currenFunction->id());
 	contextStack.push(position);
 	position = 0;

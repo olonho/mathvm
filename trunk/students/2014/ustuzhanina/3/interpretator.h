@@ -74,7 +74,7 @@ class InterpretCode : public Code
 	stack <uint32_t> contextStack;
 	Context * currentContext;
 	//create new context on every new call
-	map <int16_t, vector<Context *> > contextMap;
+    map <uint16_t, vector<Context *> > contextMap;
 	Var var0, var1;
 
   private:
@@ -87,7 +87,7 @@ class InterpretCode : public Code
 	void swapValues();
 	void handleTopValue(Instruction instruction);
 	void handleAdditionVars(Instruction instruction);
-	void jump(int16_t position);
+    void jump(int16_t position);
 	void cmpInstruction(Instruction instruction);
 	void logicalOperation(Instruction instruction);
 	Var getValueFromStack();
@@ -95,7 +95,7 @@ class InterpretCode : public Code
 	void handleReturnNode();
 
   private:
-	Context * createOrGetContext(int16_t idx)
+    Context * createOrGetContext(uint16_t idx)
 	{
 		Context::VariableMap_idx vars;
 		Context::FunctionMapM funcs;
@@ -112,12 +112,12 @@ class InterpretCode : public Code
 		return context;
 	}
 
-	void addContextToMap(int16_t key, Context * newContext)
+    void addContextToMap(uint16_t key, Context * newContext)
 	{
 		contextMap.at(key).push_back(newContext);
 	}
 
-	Context * getContext(int16_t idx)
+    Context * getContext(uint16_t idx)
 	{
 		if (contextMap.find(idx) != contextMap.end())
 			return contextMap.at(idx).back();
@@ -125,7 +125,7 @@ class InterpretCode : public Code
 			throw Exception("try to load unexistence context");
 	}
 
-	vector<Context *> getContextMap(int16_t idx)
+    vector<Context *> getContextMap(uint16_t idx)
 	{
 		if (contextMap.find(idx) != contextMap.end())
 			return contextMap.at(idx);
@@ -133,7 +133,7 @@ class InterpretCode : public Code
 			throw Exception("try to load unexistence context Map");
 	}
 
-	Var getVariable(Context * context, int16_t idx)
+    Var getVariable(Context * context, uint16_t idx)
 	{
 		if (context->varMap_idx.find(idx) != context->varMap_idx.end())
 			return context->varMap_idx.at(idx);
@@ -224,7 +224,7 @@ class InterpretCode : public Code
 
 		case BC_DSUB:
 		case BC_ISUB:
-			setValue(result, value1 - value2);
+            setValue(result, value1 - value2);
 			break;
 
 		case BC_DMUL:
@@ -234,7 +234,7 @@ class InterpretCode : public Code
 
 		case BC_DDIV:
 		case BC_IDIV:
-			setValue(result, value1 / value2);
+            setValue(result, value2 / value1);
 			break;
 
 		case BC_IMOD:
