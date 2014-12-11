@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "my_utils.h"
+#include "bytecode_interpreter.h"
 
 using namespace mathvm;
 using namespace std;
@@ -29,15 +30,12 @@ int main(int argc, char** argv) {
 
     const char* expr =
             "function void a(int i) {"
-            "   int j;"
+            "   print(i, '\n');"
             "}"
-            "int i = 0;"
-            "for(i in 1..10) {"
-            "   print(i);"
-            "}";
+            "a(3);";
     bool isDefaultExpr = true;
 
-//    script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/2_1/testing/additional/fail/vars.mvm";
+//    script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/2_1/testing/additional/complex.mvm";
     if (script != NULL) {
         expr = loadFile(script);
         if (expr == 0) {
@@ -59,42 +57,26 @@ int main(int argc, char** argv) {
                line, offset,
                translateStatus->getError().c_str());
     } else {
-//        BcInterpreter interpreter;
-//        try {
-//            interpreter.interpret(code);
-//            delete code;
-//        } catch (exception const& e) {
-//            cout << "interpretation error:\n" << e.what() << endl;
-//            delete code;
-//        }
+        BytecodeInterpreter interpreter;
+        interpreter.interpret(code);
+        if(interpreter.status().isError()) {
+            string cause = interpreter.status().errCause();
+            size_t pos = interpreter.status().errPos();
 
-//        assert(code != 0);
-//        vector<Var*> vars;
-
-//        if (isDefaultExpr) {
-//            Var* xVar = new Var(VT_DOUBLE, "x");
-//            Var* yVar = new Var(VT_DOUBLE, "y");
-//            vars.push_back(xVar);
-//            vars.push_back(yVar);
-//            xVar->setDoubleValue(42.0);
-//        }
-//        Status* execStatus = code->execute(vars);
-//        if (execStatus->isError()) {
-//            printf("Cannot execute expression: error: %s\n",
-//                   execStatus->getError().c_str());
-//        } else {
-//            if (isDefaultExpr) {
-//              printf("x evaluated to %f\n", vars[0]->getDoubleValue());
-//              for (uint32_t i = 0; i < vars.size(); i++) {
-//                delete vars[i];
-//              }
-//            }
-//        }
-//        delete code;
-//        delete execStatus;
+            uint32_t line = 0, offset = 0;
+            positionToLineOffset(expr, pos, line, offset);
+            printf("Cannot translate expression at %d,%d, "
+                   "error: \n%s\n",
+                   line, offset,
+                   cause.c_str());
+        }
+        DEBUG_MSG("interpretation finished");
     }
     delete translateStatus;
     delete translator;
+    if(code) {
+        delete code;
+    }
 
     if (!isDefaultExpr) {
       delete [] expr;

@@ -1,6 +1,6 @@
 #include "mathvm.h"
-#include "parser.h"
 #include "my_utils.h"
+#include "parser.h"
 #include "typechecking.h"
 #include "bytecode_generator.h"
 
@@ -13,6 +13,7 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
         return status;
     }
     delete status;
+    DEBUG_MSG("parsing finished");
 
     TypeChecker typeChecker;
     InfoDeletter infoDeletter;
@@ -23,6 +24,8 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
         infoDeletter.run(parser.top());
         return Status::Error(cause.c_str(), pos);
     }
+    DEBUG_MSG("typechecking finished");
+
     InterpreterCodeImpl* iCode = new InterpreterCodeImpl();
     BytecodeGenerator bcGenerator(iCode);
     bcGenerator.gen(parser.top());
@@ -33,6 +36,9 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
         return Status::Error(cause.c_str(), pos);
     }
     infoDeletter.run(parser.top());
+    DEBUG_MSG("translation finished");
 //    iCode->disassemble();
+
+    *code = iCode;
     return Status::Ok();
 }

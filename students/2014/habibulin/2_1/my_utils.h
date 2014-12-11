@@ -54,6 +54,5 @@ public:
 };
 
 void DEBUG_MSG(string const& msg);
-void DEBUG_MSG(Scope* scope);
 
 #endif // MY_UTILS_H
