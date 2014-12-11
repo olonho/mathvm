@@ -14,7 +14,10 @@ USER_OBJ = \
    $(OBJ)/bytecode_translator$(OBJ_SUFF) \
    $(OBJ)/typechecking$(OBJ_SUFF) \
    $(OBJ)/bytecode_generator$(OBJ_SUFF) \
+   $(OBJ)/bytecode_interpreter$(OBJ_SUFF) \
    $(OBJ)/my_utils$(OBJ_SUFF)
+
+OPT=1
 
 include $(VM_ROOT)/common.mk
 

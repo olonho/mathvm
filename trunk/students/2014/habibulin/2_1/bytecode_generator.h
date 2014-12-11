@@ -10,108 +10,77 @@
 
 using std::vector;
 using std::stack;
+
 using namespace mathvm;
 
-//struct Context {
-//    uint16_t id;
-//    map<string, uint16_t> vars;
-//};
+enum VarCoordsType { CT_NONE, CT_LOCAL, CT_WITH_CTX };
 
-//enum VarCoordsType { CT_NONE, CT_LOCAL, CT_WITH_CTX };
+struct VarCoords {
+    VarCoordsType type;
+    uint16_t varId;
+    uint16_t ctxId;
+};
 
-//struct VarCoords {
-//    VarCoordsType type;
-//    uint16_t varId;
-//    uint16_t ctxId;
-//};
-
-//class GeneratorState {
-//private:
-//    InterpreterCodeImpl _code;
-
-//    stack<uint16_t> _functions;
-
-//    vector<Context> _contexts;
-//    uint16_t _currentVarId;
-
-//public:
-//    GeneratorState(InterpreterCodeImpl* code)
-//        : _code(code)
-//        , _currentVarId(0)
-//    {}
-
-//    BytecodeFunction* currentBcFunction() {
-//        return (BytecodeFunction*) _code->functionById(_functions.top());
-//    }
-//    Bytecode* currentBcToFill() {
-//        return currentBcFunction()->bytecode();
-//    }
-//    Context& currentContext() { return _contexts.back(); }
-
-//    uint16_t currentCtxAddVar(string const& name, size_t nodePos) {
-//        if(_currentVarId == UINT16_MAX) {
-//            throw ExceptionWithPos(tooMuchVarsMsg(), nodePos);
-//        }
-//        Context& current = _contexts.back();
-//        auto res = current.vars.insert(make_pair(name, _currentVarId));
-//        if(!res.second) {
-//            throw ExceptionWithPos(varDoubleDeclMsg(name), nodePos);
-//        }
-//        return _currentVarId ++;
-//    }
-
-//    VarCoords findVar(string const& name) {
-//        VarCoords coords;
-//        coords.type = CT_NONE;
-//        for(size_t i = _contexts.size(); i > 0; --i) {
-//            Context& current = _contexts[i - 1];
-//            auto res = current.vars.find(name);
-//            if(res != current.vars.end()) {
-//                coords.varId = res->second;
-//                if(i == _contexts.size()) {
-//                    coords.type = CT_LOCAL;
-//                } else {
-//                    coords.type = CT_WITH_CTX;
-//                    coords.ctxId = current.id;
-//                }
-//            }
-//        }
-//        return coords;
-//    }
-
-//    uint16_t createBcFun(AstFunction* astFun) {
-//        BytecodeFunction* bcFun = new BytecodeFunction(astFun);
-//        return _code->addFunction(bcFun);
-//    }
-
-//private:
-//    string tooMuchVarsMsg() {
-//        return "too much variables created, this VM doesn't support more than 65535 variables per context";
-//    }
-//    string varDoubleDeclMsg(string const& name) {
-//        return "variable " + name + " is already declared";
-//    }
-//};
-
-class BytecodeGenerator : public AstVisitor {
+class GeneratorState {
 private:
     InterpreterCodeImpl* _code;
 
-    struct Context {
-        uint16_t id;
-        map<string, uint16_t> vars;
-    };
+    typedef map<string, uint16_t> Context;
     vector<Context> _contexts;
-    uint16_t _currentVarId;
-
     stack<uint16_t> _functions;
 
+public:
+    GeneratorState(InterpreterCodeImpl* code)
+        : _code(code)
+    {}
+
+    uint16_t createBcFun(AstFunction* astFun) {
+        BytecodeFunction* bcFun = new BytecodeFunction(astFun);
+        return _code->addFunction(bcFun);
+    }
+    void pushFun(uint16_t id) {
+        _functions.push(id);
+        _contexts.push_back(Context());
+    }
+    BytecodeFunction* currentBcFun() {
+        return (BytecodeFunction*) _code->functionById(_functions.top());
+    }
+    void popFun() {
+        _functions.pop();
+        _contexts.pop_back();
+    }
+    BytecodeFunction* bcFunByName(string const& name) {
+        return (BytecodeFunction*) _code->functionByName(name);
+    }
+
+    uint16_t currentCtxAddVar(string const& name, size_t nodePos);
+    VarCoords findVar(string const& name);
+
+    Bytecode* currentBcToFill() {
+        return currentBcFun()->bytecode();
+    }
+
+    uint16_t makeStrConstant(string const& str) {
+        return _code->makeStringConstant(str);
+    }
+
+private:
+    string tooMuchVarsMsg() {
+        return "too much variables created, this VM doesn't support more than 65535 variables per context";
+    }
+    string varDoubleDeclMsg(string const& name) {
+        return "variable " + name + " is already declared";
+    }
+};
+
+class BytecodeGenerator : public AstVisitor {
+private:
+    GeneratorState _state;
     ExecStatus _status;
 
 public:
     BytecodeGenerator(InterpreterCodeImpl* code)
-        : _code(code)
-        , _currentVarId(0)
+        : _state(code)
     {}
 
     void gen(AstFunction* top);
@@ -135,36 +104,10 @@ public:
     virtual void visitIfNode(IfNode* node);
 
 private:
-    BytecodeFunction* currentBcFunction() {
-        return (BytecodeFunction*) _code->functionById(_functions.top());
-    }
-    Bytecode* currentBcToFill() {
-        return currentBcFunction()->bytecode();
-    }
-
-    // working with contexts
-    Context& currentContext() { return _contexts.back(); }
-    uint16_t currentCtxAddVar(string const& name, size_t nodePos);
-    string tooMuchVarsMsg() {
-        return "too much variables created, this VM doesn't support more than 65535 variables per context";
-    }
-    string varDoubleDeclMsg(string const& name) {
-        return "variable " + name + " is already declared";
-    }
-
-    enum VarCoordsType { CT_NONE, CT_LOCAL, CT_WITH_CTX };
-    struct VarCoords {
-        VarCoordsType type;
-        uint16_t varId;
-        uint16_t ctxId;
-    };
-    VarCoords findVar(string const& name);
-
     // visitBlockNode impl
     void visitVarDecls(BlockNode* node);
     void visitFunDefs(BlockNode* node);
-    uint16_t createBcFun(AstFunction* astFun);
-    void pushNewContextWithArgs(uint16_t id, FunctionNode* node);
+    void processFunArgs(FunctionNode* node);
 
     // visitPrintNode impl
     Instruction typedInsn(VarType type, Instruction intCase, Instruction doubleCase, Instruction strCase) {

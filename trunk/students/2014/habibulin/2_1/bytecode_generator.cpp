@@ -1,18 +1,50 @@
 #include "bytecode_generator.h"
 #include "typechecking.h"
 
+// == GeneratorState impl ==
+
+uint16_t GeneratorState::currentCtxAddVar(const string &name, size_t nodePos) {
+    Context& current = _contexts.back();
+    uint16_t newId = (uint16_t)current.size();
+    if(newId == UINT16_MAX) {
+        throw ExceptionWithPos(tooMuchVarsMsg(), nodePos);
+    }
+    auto res = current.insert(make_pair(name, newId));
+    if(!res.second) {
+        throw ExceptionWithPos(varDoubleDeclMsg(name), nodePos);
+    }
+    return newId;
+}
+
+VarCoords GeneratorState::findVar(const string &name)  {
+    VarCoords coords;
+    coords.type = CT_NONE;
+    for(size_t i = _contexts.size(); i > 0; --i) {
+        Context& current = _contexts[i - 1];
+        auto res = current.find(name);
+        if(res != current.end()) {
+            coords.varId = res->second;
+            if(i == _contexts.size()) {
+                coords.type = CT_LOCAL;
+            } else {
+                coords.type = CT_WITH_CTX;
+                coords.ctxId = i - 1;
+            }
+            break;
+        }
+    }
+    return coords;
+}
+
+
+// == BytecodeGenerator impl ==
+
 void BytecodeGenerator::gen(AstFunction *top) {
-    _status.setOk();
-    _currentVarId = 0;
     try {
-        uint16_t id = createBcFun(top);
-        _functions.push(id);
-        pushNewContextWithArgs(id, top->node());
+        uint16_t id = _state.createBcFun(top);
+        _state.pushFun(id);
         top->node()->visit(this);
-        _contexts.pop_back();
-        _functions.pop();
-        assert(_functions.empty());
-        assert(_contexts.empty());
+        _state.popFun();
     } catch (ExceptionWithPos& e) {
         _status.setError(e.what(), e.source());
     } catch (ExceptionWithMsg& e) {
@@ -37,10 +69,10 @@ void BytecodeGenerator::visitBlockNode(BlockNode* node) {
 }
 
 void BytecodeGenerator::visitReturnNode(ReturnNode* node) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     if(node->returnExpr() != 0) {
         node->returnExpr()->visit(this);
-        VarType expectedRetType = currentBcFunction()->returnType();
+        VarType expectedRetType = _state.currentBcFun()->returnType();
         VarType actualRetType = nodeType(node->returnExpr());
         if(actualRetType != expectedRetType) {
             Instruction castInsn = actualRetType == VT_INT ? BC_I2D : BC_D2I;
@@ -55,9 +87,9 @@ void BytecodeGenerator::visitNativeCallNode(NativeCallNode *node) {
 }
 
 void BytecodeGenerator::visitCallNode(CallNode* node) {
-    TranslatedFunction* funToCall = _code->functionByName(node->name());
+    BytecodeFunction* funToCall = _state.bcFunByName(node->name());
     assert(funToCall);
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     for(size_t i = node->parametersNumber(); i > 0; --i) {
         node->parameterAt(i - 1)->visit(this);
         VarType expectedArgType = funToCall->parameterType(i - 1);
@@ -72,7 +104,7 @@ void BytecodeGenerator::visitCallNode(CallNode* node) {
 }
 
 void BytecodeGenerator::visitPrintNode(PrintNode* node) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     for(size_t i = 0; i != node->operands(); ++i) {
         node->operandAt(i)->visit(this);
         VarType argType = nodeType(node->operandAt(i));
@@ -83,7 +115,7 @@ void BytecodeGenerator::visitPrintNode(PrintNode* node) {
 
 void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode* node) {
     node->operand()->visit(this);
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     TokenKind unOp = node->kind();
     VarType operandType = nodeType(node->operand());
     if(unOp == tSUB) {
@@ -104,7 +136,7 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode* node) {
     VarType rightOpType = nodeType(node->right());
     VarType leftOpType = nodeType(node->left());
     TokenKind binOp = node->kind();
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
 
     if(binOp == tADD) {
         genBaseArithmOpBc(bc, rightOpType, leftOpType, BC_IADD, BC_DADD);
@@ -148,29 +180,28 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode* node) {
 }
 
 void BytecodeGenerator::visitIntLiteralNode(IntLiteralNode* node) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     bc->addInsn(BC_ILOAD);
     bc->addInt64(node->literal());
 }
 
 void BytecodeGenerator::visitDoubleLiteralNode(DoubleLiteralNode* node) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     bc->addInsn(BC_DLOAD);
     bc->addDouble(node->literal());
 }
 
 void BytecodeGenerator::visitStringLiteralNode(StringLiteralNode* node) {
-    uint16_t stringId = _code->makeStringConstant(node->literal());
-    Bytecode* bc = currentBcToFill();
+    uint16_t stringId = _state.makeStrConstant(node->literal());
+    Bytecode* bc = _state.currentBcToFill();
     genBcInsnWithId(bc, BC_SLOAD, stringId);
 }
 
 void BytecodeGenerator::visitLoadNode(LoadNode* node) {
     string const& varName = node->var()->name();
     VarType const varType = node->var()->type();
-    Bytecode* bc = currentBcToFill();
 
-    VarCoords coords = findVar(varName);
+    VarCoords coords = _state.findVar(varName);
     genLoadBc(varType, coords);
 }
 
@@ -180,12 +211,12 @@ void BytecodeGenerator::visitStoreNode(StoreNode* node) {
     node->value()->visit(this);
     VarType valueType = nodeType(node->value());
 
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     if(valueType != varType) {
         Instruction castInsn = valueType == VT_INT ? BC_I2D : BC_D2I;
         bc->addInsn(castInsn);
     }
-    VarCoords coords = findVar(varName);
+    VarCoords coords = _state.findVar(varName);
     TokenKind assignOp = node->op();
     if(assignOp != tASSIGN) {
         genLoadBc(varType, coords);
@@ -203,9 +234,9 @@ void BytecodeGenerator::visitStoreNode(StoreNode* node) {
 void BytecodeGenerator::visitForNode(ForNode* node) {
     throwIfNotRangeOp(node);
     node->inExpr()->visit(this);
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     // init iter var
-    VarCoords iterVarCoords = findVar(node->var()->name());
+    VarCoords iterVarCoords = _state.findVar(node->var()->name());
     genStoreBc(VT_INT, iterVarCoords);
     // begin for: check iter_var <= upper val (it is always on stack)
     Label forStart(bc);
@@ -227,7 +258,7 @@ void BytecodeGenerator::visitForNode(ForNode* node) {
 }
 
 void BytecodeGenerator::visitWhileNode(WhileNode* node) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     Label whileStart(bc);
     bc->bind(whileStart);
     node->whileExpr()->visit(this);
@@ -243,7 +274,7 @@ void BytecodeGenerator::visitWhileNode(WhileNode* node) {
 }
 
 void BytecodeGenerator::visitIfNode(IfNode* node) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     node->ifExpr()->visit(this);
     bc->addInsn(BC_ILOAD0);
     bc->addInsn(BC_ICMP);
@@ -262,83 +293,42 @@ void BytecodeGenerator::visitIfNode(IfNode* node) {
 }
 
 // private:
-// working with contexts
-uint16_t BytecodeGenerator::currentCtxAddVar(string const& name, size_t nodePos) {
-    if(_currentVarId == UINT16_MAX) {
-        throw ExceptionWithPos(tooMuchVarsMsg(), nodePos);
-    }
-    Context& current = _contexts.back();
-    auto res = current.vars.insert(make_pair(name, _currentVarId));
-    if(!res.second) {
-        throw ExceptionWithPos(varDoubleDeclMsg(name), nodePos);
-    }
-    return _currentVarId ++;
-}
-BytecodeGenerator::VarCoords BytecodeGenerator::findVar(const string &name) {
-    VarCoords coords;
-    coords.type = CT_NONE;
-    for(size_t i = _contexts.size(); i > 0; --i) {
-        Context& current = _contexts[i - 1];
-        auto res = current.vars.find(name);
-        if(res != current.vars.end()) {
-            coords.varId = res->second;
-            if(i == _contexts.size()) {
-                coords.type = CT_LOCAL;
-            } else {
-                coords.type = CT_WITH_CTX;
-                coords.ctxId = current.id;
-            }
-        }
-    }
-    return coords;
-}
-
 // visitBlockNodeImpl
 void BytecodeGenerator::visitVarDecls(BlockNode* node) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     Scope::VarIterator varIt(node->scope());
     while(varIt.hasNext()) {
         AstVar* var = varIt.next();
-        uint16_t varId = currentCtxAddVar(var->name(), node->position());
+        uint16_t varId = _state.currentCtxAddVar(var->name(), node->position());
         Instruction bcLoad0 = typedInsn(var->type(), BC_ILOAD0, BC_DLOAD0, BC_SLOAD0);
         bc->addInsn(bcLoad0);
         Instruction bcStore = typedInsn(var->type(), BC_STOREIVAR, BC_STOREDVAR, BC_STORESVAR);
         genBcInsnWithId(bc, bcStore, varId);
     }
-    _currentVarId = 0;
 }
 
 void BytecodeGenerator::visitFunDefs(BlockNode* node) {
     deque<uint16_t> funIds;
     Scope::FunctionIterator it1(node->scope());
     while(it1.hasNext()) {
-        uint16_t id = createBcFun(it1.next());
+        uint16_t id = _state.createBcFun(it1.next());
         funIds.push_back(id);
     }
     Scope::FunctionIterator it2(node->scope());
     while(it2.hasNext()) {
-        AstFunction* astFun = it2.next();
-        _functions.push(funIds.front());
-        pushNewContextWithArgs(funIds.front(), astFun->node());
-        astFun->node()->visit(this);
-        _contexts.pop_back();
-        _functions.pop();
+        _state.pushFun(funIds.front());
         funIds.pop_front();
+        FunctionNode* funNode = it2.next()->node();
+        processFunArgs(funNode);
+        funNode->visit(this);
+        _state.popFun();
     }
 }
 
-uint16_t BytecodeGenerator::createBcFun(AstFunction* astFun) {
-    BytecodeFunction* bcFun = new BytecodeFunction(astFun);
-    return _code->addFunction(bcFun);
-}
-
-void BytecodeGenerator::pushNewContextWithArgs(uint16_t id, FunctionNode* node) {
-    Context newCtx;
-    newCtx.id = id;
-    _contexts.push_back(newCtx);
-    Bytecode* bc = currentBcToFill();
+void BytecodeGenerator::processFunArgs(FunctionNode* node) {
+    Bytecode* bc = _state.currentBcToFill();
     for(size_t i = 0; i != node->parametersNumber(); ++i) {
-        uint16_t id = currentCtxAddVar(node->parameterName(i), node->position());
+        uint16_t id = _state.currentCtxAddVar(node->parameterName(i), node->position());
         Instruction bcStore = typedInsn(node->parameterType(i), BC_STOREIVAR, BC_STOREDVAR, BC_STORESVAR);
         genBcInsnWithId(bc, bcStore, id);
     }
@@ -425,7 +415,7 @@ void BytecodeGenerator::genBcInsnWithId(Bytecode* bc, Instruction insn, uint16_t
 void BytecodeGenerator::genTransferBc(VarType type, VarCoords& coords,
                                       Instruction transIVar, Instruction transDVar, Instruction transSVar,
                                       Instruction transCtxIVar, Instruction transCtxDVar, Instruction transCtxSVar) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     assert(coords.type != CT_NONE);
     if(coords.type == CT_LOCAL) {
         Instruction bcTransvar = typedInsn(type, transIVar, transDVar, transSVar);
@@ -457,7 +447,7 @@ void BytecodeGenerator::throwIfNotRangeOp(ForNode *node) {
 }
 
 void BytecodeGenerator::genIntIncrBc(VarCoords& intVarCoords) {
-    Bytecode* bc = currentBcToFill();
+    Bytecode* bc = _state.currentBcToFill();
     genLoadBc(VT_INT, intVarCoords);
     bc->addInsn(BC_ILOAD1);
     bc->addInsn(BC_IADD);
