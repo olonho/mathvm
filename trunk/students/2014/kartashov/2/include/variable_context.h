@@ -31,7 +31,8 @@ class VariableContext {
 
     uint16_t newVariable(const std::string name) {
       mHasOverflowed = mVariableMap.size() == UINT16_MAX;
-      return mVariableMap[name] = mVariableMap.size();
+      auto newId = mVariableMap.size();
+      return mVariableMap[name] = newId;
     }
 
     bool hasOverflowed() {
