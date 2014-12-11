@@ -19,14 +19,14 @@ using std::make_pair;
 
 class ByteCodeVisitor: public AstVisitor
 {
-	typedef pair<int16_t, Var> Variable;
+    typedef pair<uint16_t, Var> Variable;
 	typedef map <string, Variable> VariableMap;
 
 
 	//with unique id to all program
 	typedef bool native;
-	typedef map <string, int16_t> FunctionMap;
-	typedef map <int16_t, native> Function;
+    typedef map <string, uint16_t> FunctionMap;
+    typedef map <uint16_t, native> Function;
 	void visitTop();
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(type* node);
@@ -49,13 +49,13 @@ class ByteCodeVisitor: public AstVisitor
 	BytecodeFunction * currenFunction;
 	vector <VariableMap> allVariables;
 	vector <FunctionMap> allFunctions;
-	static int16_t funcIdx;
+    static uint16_t funcIdx;
 	Function nativeFunctions;
 
 
 	VarType resultType;
 
-	pair<int16_t, int16_t> getVarIdx(Context * context, string varName) const;
+    pair<uint16_t, uint16_t> getVarIdx(Context * context, string varName) const;
 	int getFuncIdx(Context * context, string varName) const;
 
 	VarType getTypeToBinOperation(VarType left, VarType right);
@@ -63,21 +63,21 @@ class ByteCodeVisitor: public AstVisitor
 	AstFunction * top;
 	Code * code;
 	Context * current;
-	static int16_t currentContext;
+    static uint16_t currentContext;
 
   private:
 	void typeConverter(VarType typeOut, VarType curType);
 	void pushDoubleOnStack(double value);
 	void pushIntOnStack(int64_t value);
 	void pushStringOnStack(string value);
-	void storeValueFromStack(TokenKind kind, VarType typeOut, VarType curType, pair<int16_t, int16_t> var);
-	void loadValueToStack(VarType typeOut, pair<int16_t, int16_t> var);
+    void storeValueFromStack(TokenKind kind, VarType typeOut, VarType curType, pair<uint16_t, uint16_t> var);
+    void loadValueToStack(VarType typeOut, pair<uint16_t, uint16_t> var);
 	void printValueFromStack(VarType typeOut);
 	void arithOperation(TokenKind kind, VarType resultType);
 	void unaryOperations(VarType resultType, TokenKind kind);
 	void logicalOperations(TokenKind kind, VarType resultType);
 	void comparateOperation(TokenKind kind, VarType resultType);
-	void call(int16_t idx, bool native);
+    void call(uint16_t idx, bool native);
 	Bytecode * byteCode()
 	{
 		return currenFunction->bytecode();
@@ -118,14 +118,14 @@ Status * BytecodeTranslatorImpl::translate(const string & program,
 	try
 	{
 		ByteCodeVisitor result(parser.top(), &kc);
-		//		*code = result.getCode();
-		//		Code::FunctionIterator it(*code);
-		//                while(it.hasNext()){
-		//                    BytecodeFunction *bcF = (BytecodeFunction*)it.next();
-		//                    cout << endl<<"nameF = " <<bcF->name() << " idx = " << bcF->id()<<endl;
-		//                    bcF->bytecode()->dump(cout);
-		//                    cout << endl;
-		//                }
+//                *code = result.getCode();
+//                Code::FunctionIterator it(*code);
+//                        while(it.hasNext()){
+//                            BytecodeFunction *bcF = (BytecodeFunction*)it.next();
+//                            cout << endl<<"nameF = " <<bcF->name() << " idx = " << bcF->id()<<endl;
+//                            bcF->bytecode()->dump(cout);
+//                            cout << endl;
+//                        }
 	}
 	catch (Exception ex)
 	{
