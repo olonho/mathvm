@@ -5,10 +5,7 @@
 #include "execution_exception.h"
 
 #include <vector>
-#include <stack>
-#include <map>
 #include "data_holder.h"
-#include "context.h"
 #include "local_variable_storage.h"
 
 using namespace mathvm;
@@ -19,7 +16,6 @@ class CodeInterpreter {
     typedef std::pair<DataHolder, DataHolder> HolderPair;
     typedef std::vector<int32_t> CounterStack;
     typedef std::vector<TranslatedFunction*> FunctionStack;
-    typedef std::vector<Context> ContextStack;
 
     const size_t preallocatedMemorySize = 1024 * 1024;
 
@@ -28,7 +24,6 @@ class CodeInterpreter {
       preallocateMemory();
       auto topFunction = mCode->functionByName(topFunctionName);
       mFunctionStack.push_back(topFunction);
-      mContextStack.push_back(Context());
       newCounter();
       newContext(topFunction->localsNumber());
     }
@@ -39,11 +34,10 @@ class CodeInterpreter {
       while(!mFunctionStack.empty()) {
         executeInstruction();
       }
-     }
+    }
 
   private:
     void preallocateMemory() {
-      mContextStack.reserve(preallocatedMemorySize);
       mFunctionStack.reserve(preallocatedMemorySize);
       mProgramCounterStack.reserve(preallocatedMemorySize);
       mDataStack.reserve(preallocatedMemorySize);
@@ -214,96 +208,6 @@ class CodeInterpreter {
         int16();
       }
     }
-
-    // void loaddvar() {
-    //   loaddvar(currentContext());
-    // }
-    //
-    // void loadivar() {
-    //   loadivar(currentContext());
-    // }
-    //
-    // void loadsvar() {
-    //   loadsvar(currentContext());
-    // }
-    //
-    // void storeivar() {
-    //   storeivar(currentContext());
-    // }
-    //
-    // void storedvar() {
-    //   storedvar(currentContext());
-    // }
-    //
-    // void storesvar() {
-    //   storesvar(currentContext());
-    // }
-    //
-    // void loadctxivar() {
-    //   int16_t id = int16();
-    //   loadivar(contextWithId(id));
-    // }
-    //
-    // void loadctxdvar() {
-    //   int16_t id = int16();
-    //   loaddvar(contextWithId(id));
-    // }
-    //
-    // void loadctxsvar() {
-    //   int16_t id = int16();
-    //   loadsvar(contextWithId(id));
-    // }
-    //
-    // void storectxivar() {
-    //   int16_t id = int16();
-    //   storeivar(contextWithId(id));
-    // }
-    //
-    // void storectxdvar() {
-    //   int16_t id = int16();
-    //   storedvar(contextWithId(id));
-    // }
-    //
-    // void storectxsvar() {
-    //   int16_t id = int16();
-    //   storesvar(contextWithId(id));
-    // }
-    //
-    // void loaddvar(Context& context) {
-    //   int16_t id = int16();
-    //   auto result = context.load(id, DataHolder(0.0)).doubleValue;
-    //   dpush(result);
-    // }
-    //
-    // void loadivar(Context& context) {
-    //   int16_t id = int16();
-    //   auto result = context.load(id, DataHolder((int64_t) 0)).intValue;
-    //   ipush(result);
-    // }
-    //
-    // void loadsvar(Context& context) {
-    //   int16_t id = int16();
-    //   auto result = context.load(id, DataHolder((int16_t) mDefaultStringId)).stringId;
-    //   spush(result);
-    // }
-    //
-    // void storeivar(Context& context) {
-    //   auto args = tos();
-    //   int16_t id = int16();
-    //   context.store(id, args);
-    // }
-    //
-    // void storedvar(Context& context) {
-    //   auto args = tos();
-    //   int16_t id = int16();
-    //   context.store(id, args);
-    // }
-    //
-    // void storesvar(Context& context) {
-    //   auto args = tos();
-    //   int16_t id = int16();
-    //   context.store(id, args);
-    // }
 
     void loadivar() {
       int16_t id = int16();
@@ -601,16 +505,10 @@ class CodeInterpreter {
 
     void newContext(int32_t localsNumber) {
       mLocalStorage.newContext(localsNumber);
-      // mContextStack.push_back(currentContext().newContext());
     }
 
     void popContext() {
       mLocalStorage.popContext();
-      // mContextStack.pop_back();
-    }
-
-    Context& currentContext() {
-      return mContextStack.back();
     }
 
     void addRelativeOffset(int16_t relativeOffset) {
@@ -636,10 +534,6 @@ class CodeInterpreter {
 
     void newCounter() {mProgramCounterStack.push_back(0);}
 
-    Context& contextWithId(int16_t id) {
-      return mContextStack[id];
-    }
-
     const std::string topFunctionName = "<top>";
 
     CounterStack mProgramCounterStack;
@@ -649,7 +543,6 @@ class CodeInterpreter {
     Code* mCode;
     DataStack mDataStack;
     DataStack mLocalVariableStack;
-    ContextStack mContextStack;
     const int16_t mDefaultStringId;
     LocalVariableStorage mLocalStorage;
 };
