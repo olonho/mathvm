@@ -44,6 +44,7 @@ echo "-------------- failing test (all should be OK) -------------- "
 for test in for_range for_var function-return-void if-fun op_bin op_not op_streq op_sub range; do
     run_test ${FAIL}/${test} 100
 done
+	run_test ${FAIL}/vars 200
 
 echo "-------------- additional tests (all should be OK) -------------- "
 for test in casts complex fib_closure function-call 'function' function-cast vars; do
