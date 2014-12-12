@@ -31,7 +31,7 @@ public:
     virtual ~AstPrinter() {}
     void printTopFunction(AstFunction *top);
 	
-	virtual void visitBinaryOpNode(BinaryOpNode* node);
+    virtual void visitBinaryOpNode(BinaryOpNode* node);
     virtual void visitUnaryOpNode(UnaryOpNode* node);
     virtual void visitStringLiteralNode(StringLiteralNode* node);
     virtual void visitDoubleLiteralNode(DoubleLiteralNode* node);
@@ -58,7 +58,7 @@ public:
         if (status && status->isError()) return status;
         AstPrinter printer;
         printer.printTopFunction(parser.top());
-        return new Status();
+        return Status::Ok();
     }
 };
 
