@@ -7,6 +7,8 @@
 #include "TypedVariable.hpp"
 #include "Errors.hpp"
 
+#define MAX_VARS_COUNT 65005
+
 namespace mathvm {
     namespace detail {
         template<class T>
@@ -161,6 +163,9 @@ namespace mathvm {
             Variables &local_vars = currentRecursiveScope[callsCounter[contextID]];
             while (local_vars.size() <= id) {
                 local_vars.push_back(TypedVariable(VT_INT));
+            }
+            if (local_vars.size() > MAX_VARS_COUNT) {
+                throw InterpretationError("Too many variables");
             }
             local_vars[id] = popVariable();
         }
