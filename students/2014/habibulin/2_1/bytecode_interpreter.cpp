@@ -10,199 +10,188 @@ void BytecodeInterpreter::interpret(Code *code) {
 
         BytecodeFunction* fun = (BytecodeFunction *)_code->functionByName(MAIN_FUN_NAME);
         assert(fun);
-        _contexts.push_back(Context());
         assert(fun->bytecode());
-        interpFun(fun->bytecode());
-        assert(!_contexts.empty());
-        _contexts.pop_back();
-        assert(_contexts.empty());
+        _bcStream.pushBc(fun->bytecode());
+        while(_bcStream.hasNext()) {
+            execInsn(_bcStream.nextInsn());
+        }
     } catch (ExceptionWithMsg& e) {
         _status.setError(e.what(), 0);
     }
 }
 
-void BytecodeInterpreter::interpFun(Bytecode* bc) {
-    for(uint32_t i = 0; i != bc->length();) {
-        int32_t offset = execInsn(bc, i);
-        assert(offset >= 0 || i >= (uint32_t)abs(offset));
-        i += offset;
-    }
-}
-
-int32_t BytecodeInterpreter::execInsn(Bytecode* bc, uint32_t pos) {
-    Instruction insn = bc->getInsn(pos);
+void BytecodeInterpreter::execInsn(Instruction insn) {
     switch (insn) {
     case BC_DLOAD:
-        assert(pos + 8 < bc->length());
-        _programStack.push_back(StackVal(bc->getDouble(++pos)));
-        return 9;
+        _programStack.push_back(StackVal(_bcStream.nextDouble()));
+        return;
     case BC_ILOAD:
-        assert(pos + 8 < bc->length());
-        _programStack.push_back(StackVal(bc->getInt64(++pos)));
-        return 9;
+        _programStack.push_back(StackVal(_bcStream.nextInt64()));
+        return;
     case BC_SLOAD:
-        assert(pos + 2 < bc->length());
-        _programStack.push_back(StackVal((int64_t)bc->getInt16(++pos)));
-        return 3;
+        _programStack.push_back(StackVal((int64_t)_bcStream.nextUInt16()));
+        return;
     case BC_DLOAD0:
         _programStack.push_back(StackVal((double) 0.0));
         assert(_programStack.back().vDouble == 0);
-        return 1;
+        return;
     case BC_ILOAD0:
         _programStack.push_back(StackVal((int64_t) 0));
         assert(_programStack.back().vInt == 0);
-        return 1;
+        return;
     case BC_SLOAD0:
         _programStack.push_back(StackVal((int64_t) EMP_STR_ID));
         assert(_programStack.back().vInt == (int64_t)EMP_STR_ID);
-        return 1;
+        return;
     case BC_DLOAD1:
         _programStack.push_back(StackVal((double) 1.0));
         assert(_programStack.back().vDouble == 1.0);
-        return 1;
+        return;
     case BC_ILOAD1:
         _programStack.push_back(StackVal((int64_t) 1));
         assert(_programStack.back().vInt == 1);
-        return 1;
+        return;
     case BC_DLOADM1:
         _programStack.push_back(StackVal((double) -1.0));
         assert(_programStack.back().vDouble == -1.0);
-        return 1;
+        return;
     case BC_ILOADM1:
         _programStack.push_back(StackVal((int64_t) -1));
         assert(_programStack.back().vInt == -1);
-        return 1;
+        return;
     case BC_DADD: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vDouble + ops.second.vDouble));
-        return 1;
+        return;
     }
     case BC_IADD: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vInt + ops.second.vInt));
-        return 1;
+        return;
     }
     case BC_DSUB: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vDouble - ops.second.vDouble));
-        return 1;
+        return;
     }
     case BC_ISUB: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vInt - ops.second.vInt));
-        return 1;
+        return;
     }
     case BC_DMUL: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vDouble * ops.second.vDouble));
-        return 1;
+        return;
     }
     case BC_IMUL: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vInt * ops.second.vInt));
-        return 1;
+        return;
     }
     case BC_DDIV: {
         auto ops = popOperands();
         if(ops.second.vDouble == 0) { throw ExceptionWithMsg(divByZeroMsg("")); }
         _programStack.push_back(StackVal(ops.first.vDouble / ops.second.vDouble));
-        return 1;
+        return;
     }
     case BC_IDIV: {
         auto ops = popOperands();
         if(ops.second.vInt == 0) { throw ExceptionWithMsg(divByZeroMsg("")); }
         _programStack.push_back(StackVal(ops.first.vInt / ops.second.vInt));
-        return 1;
+        return;
     }
     case BC_IMOD: {
         auto ops = popOperands();
         if(ops.second.vInt == 0) { throw ExceptionWithMsg(divByZeroMsg("")); }
         _programStack.push_back(StackVal(ops.first.vInt % ops.second.vInt));
-        return 1;
+        return;
     }
     case BC_DNEG:
         assert(!_programStack.empty());
         _programStack.back().vDouble = (-1.0) * _programStack.back().vDouble;
-        return 1;
+        return;
     case BC_INEG:
         assert(!_programStack.empty());
         _programStack.back().vInt = (-1) * _programStack.back().vInt;
-        return 1;
+        return;
     case BC_IAOR: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vInt | ops.second.vInt));
-        return 1;
+        return;
     }
     case BC_IAAND: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vInt & ops.second.vInt));
-        return 1;
+        return;
     }
     case BC_IAXOR: {
         auto ops = popOperands();
         _programStack.push_back(StackVal(ops.first.vInt ^ ops.second.vInt));
-        return 1;
+        return;
     }
     case BC_IPRINT:
         assert(!_programStack.empty());
         cout << _programStack.back().vInt;
         _programStack.pop_back();
-        return 1;
+        return;
     case BC_DPRINT:
         assert(!_programStack.empty());
         cout << _programStack.back().vDouble;
         _programStack.pop_back();
-        return 1;
+        return;
     case BC_SPRINT:
         assert(!_programStack.empty());
         cout << _code->constantById((uint16_t)_programStack.back().vInt);
         _programStack.pop_back();
-        return 1;
+        return;
     case BC_I2D:
         assert(!_programStack.empty());
         _programStack.back().vDouble = (double) _programStack.back().vInt;
-        return 1;
+        return;
     case BC_D2I:
         assert(!_programStack.empty());
         _programStack.back().vInt = (int64_t) _programStack.back().vDouble;
-        return 1;
+        return;
     case BC_SWAP:
         assert(_programStack.size() > 1);
         std::swap(_programStack.back(), _programStack[_programStack.size() - 2]);
-        return 1;
+        return;
     case BC_POP:
         _programStack.pop_back();
-        return 1;
+        return;
     case BC_LOADDVAR:
     case BC_LOADIVAR:
     case BC_LOADSVAR:
-        return loadvar(bc, ++pos);
+        loadvar();
+        return;
     case BC_STOREDVAR:
         assert(!_programStack.empty());
-        storeValueLocal(bc, ++pos, StackVal(_programStack.back().vDouble));
+        storeValueLocal(StackVal(_programStack.back().vDouble));
         _programStack.pop_back();
-        return 3;
+        return;
     case BC_STOREIVAR:
     case BC_STORESVAR:
         assert(!_programStack.empty());
-        storeValueLocal(bc, ++pos, StackVal(_programStack.back().vInt));
+        storeValueLocal(StackVal(_programStack.back().vInt));
         _programStack.pop_back();
-        return 3;
+        return;
     case BC_LOADCTXDVAR:
     case BC_LOADCTXIVAR:
     case BC_LOADCTXSVAR:
-        return loadctxvar(bc, ++pos);
+        loadctxvar();
+        return;
     case BC_STORECTXDVAR:
         assert(!_programStack.empty());
-        storeValueGlobal(bc, ++pos, StackVal(_programStack.back().vDouble));
+        storeValueGlobal(StackVal(_programStack.back().vDouble));
         _programStack.pop_back();
-        return 5;
+        return;
     case BC_STORECTXIVAR:
     case BC_STORECTXSVAR:
         assert(!_programStack.empty());
-        storeValueGlobal(bc, ++pos, StackVal(_programStack.back().vInt));
+        storeValueGlobal(StackVal(_programStack.back().vInt));
         _programStack.pop_back();
-        return 5;
+        return;
     case BC_DCMP: {
         auto ops = getOperands();
         if (ops.first.vDouble == ops.second.vDouble) {
@@ -212,7 +201,7 @@ int32_t BytecodeInterpreter::execInsn(Bytecode* bc, uint32_t pos) {
         } else {
             _programStack.push_back(StackVal((int64_t)1));
         }
-        return 1;
+        return;
     }
     case BC_ICMP: {
         auto ops = getOperands();
@@ -223,81 +212,92 @@ int32_t BytecodeInterpreter::execInsn(Bytecode* bc, uint32_t pos) {
         } else {
             _programStack.push_back(StackVal((int64_t)1));
         }
-        return 1;
+        return;
     }
     case BC_JA: {
-        return ((int32_t) bc->getInt16(++pos)) + 1;
+        _bcStream.jump();
+        return;
     }
     case BC_IFICMPNE:{
         auto ops = getOperands();
         if(ops.first.vInt != ops.second.vInt) {
-            return ((int32_t) bc->getInt16(++pos)) + 1;
+            _bcStream.jump();
+        } else {
+            _bcStream.nextInt16();
         }
-        return 3;
+        return;
     }
     case BC_IFICMPE:{
         auto ops = getOperands();
         if(ops.first.vInt == ops.second.vInt) {
-            return ((int32_t) bc->getInt16(++pos)) + 1;
+            _bcStream.jump();
+        } else {
+            _bcStream.nextInt16();
         }
-        return 3;
+        return;
     }
     case BC_IFICMPG:{
         auto ops = getOperands();
         if(ops.first.vInt > ops.second.vInt) {
-            return ((int32_t) bc->getInt16(++pos)) + 1;
+            _bcStream.jump();
+        } else {
+            _bcStream.nextInt16();
         }
-        return 3;
+        return;
     }
     case BC_IFICMPGE:{
         auto ops = getOperands();
         if(ops.first.vInt >= ops.second.vInt) {
-            return ((int32_t) bc->getInt16(++pos)) + 1;
+            _bcStream.jump();
+        } else {
+            _bcStream.nextInt16();
         }
-        return 3;
+        return;
     }
     case BC_IFICMPL:{
         auto ops = getOperands();
         if(ops.first.vInt < ops.second.vInt) {
-            return ((int32_t) bc->getInt16(++pos)) + 1;
+            _bcStream.jump();
+        } else {
+            _bcStream.nextInt16();
         }
-        return 3;
+        return;
     }
     case BC_IFICMPLE:{
         auto ops = getOperands();
         if(ops.first.vInt <= ops.second.vInt) {
-            return ((int32_t) bc->getInt16(++pos)) + 1;
+            _bcStream.jump();
+        } else {
+            _bcStream.nextInt16();
         }
-        return 3;
+        return;
     }
     case BC_CALL: {
-        BytecodeFunction* fun = (BytecodeFunction *)_code->functionById(bc->getUInt16(++pos));
+        BytecodeFunction* fun = (BytecodeFunction *)_code->functionById(_bcStream.nextUInt16());
         assert(fun);
-        _contexts.push_back(Context());
         assert(fun->bytecode());
-        interpFun(fun->bytecode());
-        assert(!_contexts.empty());
-        _contexts.pop_back();
-        return 3;
+        _bcStream.pushBc(fun->bytecode());
+        return;
     }
     case BC_CALLNATIVE:
         assert(false);
-        return 0;
+        return;
     case BC_RETURN:
-        return bc->length() - pos;
+        _bcStream.popBc();
+        return;
     default:
         throw ExceptionWithMsg(invalidBcMsg(insn));
     }
 }
 
-pair<BytecodeInterpreter::StackVal, BytecodeInterpreter::StackVal> BytecodeInterpreter::getOperands() {
+pair<StackVal, StackVal> BytecodeInterpreter::getOperands() {
     assert(_programStack.size() > 1);
     StackVal upper = _programStack.back();
     StackVal lower = _programStack[_programStack.size() - 2];
     return make_pair(upper, lower);
 }
 
-pair<BytecodeInterpreter::StackVal, BytecodeInterpreter::StackVal> BytecodeInterpreter::popOperands() {
+pair<StackVal, StackVal> BytecodeInterpreter::popOperands() {
     assert(_programStack.size() > 1);
     StackVal upper = _programStack.back();
     StackVal lower = _programStack[_programStack.size() - 2];
@@ -306,46 +306,42 @@ pair<BytecodeInterpreter::StackVal, BytecodeInterpreter::StackVal> BytecodeInter
     return make_pair(upper, lower);
 }
 
-uint8_t BytecodeInterpreter::loadvar(Bytecode *bc, uint32_t pos) {
-    uint16_t varId = bc->getInt16(pos);
-    assert(!_contexts.empty());
-    assert(_contexts.back().size() > varId);
-    StackVal sv = _contexts.back()[varId];
+void BytecodeInterpreter::loadvar() {
+    uint16_t varId = _bcStream.nextUInt16();
+    assert(!_bcStream.contexts.empty());
+    assert(_bcStream.contexts.back().size() > varId);
+    StackVal sv = _bcStream.contexts.back()[varId];
     _programStack.push_back(sv);
-    return 3;
 }
 
-void BytecodeInterpreter::storeValueLocal(Bytecode* bc, uint32_t pos, BytecodeInterpreter::StackVal val) {
-    uint16_t varId = bc->getInt16(pos);
-    assert(!_contexts.empty());
-    if(varId >= _contexts.back().size()) {
-        _contexts.back().resize(varId + 1);
+void BytecodeInterpreter::storeValueLocal(StackVal val) {
+    uint16_t varId = _bcStream.nextUInt16();
+    assert(!_bcStream.contexts.empty());
+    if(varId >= _bcStream.contexts.back().size()) {
+        _bcStream.contexts.back().resize(varId + 1);
     }
-    assert(_contexts.back().size() > varId);
-    _contexts.back()[varId] = val;
+    assert(_bcStream.contexts.back().size() > varId);
+    _bcStream.contexts.back()[varId] = val;
 }
 
-uint8_t BytecodeInterpreter::loadctxvar(Bytecode *bc, uint32_t pos) {
-    assert(_contexts.size() > 1);
-    uint16_t ctxId = bc->getInt16(pos);
-    pos += 2;
-    uint16_t varId = bc->getInt16(pos);
-    assert(ctxId < _contexts.size());
-    assert(varId < _contexts[ctxId].size());
-    StackVal sv = _contexts[ctxId][varId];
+void BytecodeInterpreter::loadctxvar() {
+    assert(_bcStream.contexts.size() > 1);
+    uint16_t ctxId = _bcStream.nextUInt16();
+    uint16_t varId = _bcStream.nextUInt16();
+    assert(ctxId < _bcStream.contexts.size());
+    assert(varId < _bcStream.contexts[ctxId].size());
+    StackVal sv = _bcStream.contexts[ctxId][varId];
     _programStack.push_back(sv);
-    return 5;
 }
 
-void BytecodeInterpreter::storeValueGlobal(Bytecode *bc, uint32_t pos, StackVal val) {
-    assert(_contexts.size() > 1);
-    uint16_t ctxId = bc->getInt16(pos);
-    pos += 2;
-    uint16_t varId = bc->getInt16(pos);
-    assert(ctxId < _contexts.size());
-    if(varId >= _contexts[ctxId].size()) {
-        _contexts[ctxId].resize(varId + 1);
+void BytecodeInterpreter::storeValueGlobal(StackVal val) {
+    assert(_bcStream.contexts.size() > 1);
+    uint16_t ctxId = _bcStream.nextUInt16();
+    uint16_t varId = _bcStream.nextUInt16();
+    assert(ctxId < _bcStream.contexts.size());
+    if(varId >= _bcStream.contexts[ctxId].size()) {
+        _bcStream.contexts[ctxId].resize(varId + 1);
     }
-    assert(varId < _contexts[ctxId].size());
-    _contexts[ctxId][varId] = val;
+    assert(varId < _bcStream.contexts[ctxId].size());
+    _bcStream.contexts[ctxId][varId] = val;
 }

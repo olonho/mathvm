@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
             "a(3);";
     bool isDefaultExpr = true;
 
-//    script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/2_1/testing/additional/complex.mvm";
+//    script = "/home/mrx/Svn/MathVm/mathvm/students/2014/habibulin/2_1/testing/if.mvm";
     if (script != NULL) {
         expr = loadFile(script);
         if (expr == 0) {
