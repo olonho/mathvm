@@ -75,41 +75,41 @@ private:
 
     bool convertTOS(VarType toType) {
         switch (toType) {
-        case (VT_INT):  {
-            switch (_typesStack.top()) {
+            case (VT_INT):  {
+                switch (_typesStack.top()) {
+                    case (VT_DOUBLE): {
+                        emit(BC_D2I);
+                        _typesStack.pop();
+                        _typesStack.push(VT_INT);
+                        return true;
+                    }
+                    case (VT_STRING): {
+                        emit(BC_S2I);
+                        _typesStack.pop();
+                        _typesStack.push(VT_INT);
+                        return true;
+                    }
+                    default: {
+                        return false;
+                    }
+                }
+            }
             case (VT_DOUBLE): {
-                emit(BC_D2I);
-                _typesStack.pop();
-                _typesStack.push(VT_INT);
-                return true;
-            }
-            case (VT_STRING): {
-                emit(BC_S2I);
-                _typesStack.pop();
-                _typesStack.push(VT_INT);
-                return true;
-            }
-            default: {
-                return false;
-            }
-            }
-        }
-        case (VT_DOUBLE): {
-            switch (_typesStack.top()) {
-            case (VT_INT): {
-                emit(BC_I2D);
-                _typesStack.pop();
-                _typesStack.push(VT_DOUBLE);
-                return true;
+                switch (_typesStack.top()) {
+                    case (VT_INT): {
+                        emit(BC_I2D);
+                        _typesStack.pop();
+                        _typesStack.push(VT_DOUBLE);
+                        return true;
+                    }
+                    default: {
+                        return false;
+                    }
+                }
             }
             default: {
                 return false;
             }
-            }
-        }
-        default: {
-            return false;
-        }
         }
         return false;
     }
@@ -224,12 +224,20 @@ private:
         node->right()->visit(this);
         node->left()->visit(this);
 
+        unify_binary_arg_types();
+
         VarType first = _typesStack.top();
         _typesStack.pop();
         VarType second = _typesStack.top();
         _typesStack.pop();
-        assert(first == VT_INT && second == VT_INT);
+        assert(first == VT_DOUBLE && second == VT_DOUBLE
+               || first == VT_INT && second == VT_INT);
 
+        if (first == VT_DOUBLE && second == VT_DOUBLE) {
+            emit(BC_DCMP);
+            pushInt0(); //TODO: type erasure!
+            emit(BC_SWAP);
+        }
         Label beforeTrue(bytecode());
         Label afterTrue(bytecode());
         Label afterFalse(bytecode());
@@ -251,193 +259,146 @@ private:
         assert(_typesStack.top() == VT_INT);
 
         switch (operation) {
-        case (tAND): {
-            //A && B
-            //if (A == false) {
-            Label afterTrue(bytecode());
-            Label afterFalse(bytecode());
-            pushInt0();
-            bytecode()->addBranch(BC_IFICMPNE, afterTrue);
-            pushInt0();
-            bytecode()->addBranch(BC_JA, afterFalse);
-            //}
-            // else {
-            afterTrue.bind(bytecode()->current());
-            //return B;
-            node->right()->visit(this);
-            assert(_typesStack.top() == VT_INT);
-            afterFalse.bind(bytecode()->current());
-            // }
-            break;
+            case (tAND): {
+                //A && B
+                //if (A == false) {
+                Label afterTrue(bytecode());
+                Label afterFalse(bytecode());
+                pushInt0();
+                bytecode()->addBranch(BC_IFICMPNE, afterTrue);
+                pushInt0();
+                bytecode()->addBranch(BC_JA, afterFalse);
+                //}
+                // else {
+                afterTrue.bind(bytecode()->current());
+                //return B;
+                node->right()->visit(this);
+                assert(_typesStack.top() == VT_INT);
+                afterFalse.bind(bytecode()->current());
+                // }
+                break;
+            }
+            case (tOR): {
+                //A || B
+                //if (A == true) {
+                Label afterTrue(bytecode());
+                Label afterFalse(bytecode());
+                pushInt1();
+                bytecode()->addBranch(BC_IFICMPNE, afterTrue);
+                pushInt1();
+                bytecode()->addBranch(BC_JA, afterFalse);
+                //}
+                // else {
+                afterTrue.bind(bytecode()->current());
+                //return B;
+                node->right()->visit(this);
+                assert(_typesStack.top() == VT_INT);
+                afterFalse.bind(bytecode()->current());
+                // }
+                break;
+            }
+            default: {
+                assert(0);
+            }
         }
-        case (tOR): {
-            //A || B
-            //if (A == true) {
-            Label afterTrue(bytecode());
-            Label afterFalse(bytecode());
-            pushInt1();
-            bytecode()->addBranch(BC_IFICMPNE, afterTrue);
-            pushInt1();
-            bytecode()->addBranch(BC_JA, afterFalse);
-            //}
-            // else {
-            afterTrue.bind(bytecode()->current());
-            //return B;
-            node->right()->visit(this);
-            assert(_typesStack.top() == VT_INT);
-            afterFalse.bind(bytecode()->current());
-            // }
-            break;
-        }
-        default: {
-            assert(0);
-        }
+    }
+
+    void unify_binary_arg_types() {
+        VarType topType = _typesStack.top();
+        _typesStack.pop();
+
+        switch (topType) {
+            case (VT_DOUBLE): {
+                switch (_typesStack.top()) {
+                    case (VT_DOUBLE): {
+                        _typesStack.push(VT_DOUBLE);
+                        break;
+                    }
+                    case (VT_INT): {
+                        emit(BC_SWAP);
+                        convertTOS(VT_DOUBLE);
+                        emit(BC_SWAP);
+                        _typesStack.push(VT_DOUBLE);
+                        break;
+                    }
+                    default: {
+                        assert(0);
+                    }
+                }
+                break;
+            }
+            case (VT_INT): {
+                switch (_typesStack.top()) {
+                    case (VT_DOUBLE): {
+                        _typesStack.push(VT_INT);
+                        convertTOS(VT_DOUBLE);
+                        break;
+                    }
+                    case (VT_INT): {
+                        _typesStack.push(VT_INT);
+                        break;
+                    }
+                    default: {
+                        assert(0);
+                    }
+                }
+            }
+            default: {
+                break;
+            }
         }
     }
 
     void binary_math(TokenKind operation) {
+        unify_binary_arg_types();
         VarType first = _typesStack.top();
         _typesStack.pop();
         VarType second = _typesStack.top();
         _typesStack.pop();
 
-        switch (first) {
-        case (VT_DOUBLE): {
-            switch (second) {
-            case (VT_DOUBLE): {
-                switch (operation) {
-                case (tADD):
-                case (tSUB):
-                case (tMUL):
-                case (tDIV): {
-                    emit(_typeTokenInstruction[VT_DOUBLE][operation]);
-                    break;
-                }
-                default: {
-                    assert(0);
-                }
-                }
-                _typesStack.push(VT_DOUBLE);
-                break;
-            }
-            case (VT_INT): {
-                emit(BC_SWAP);
-                _typesStack.push(VT_INT);
-                convertTOS(VT_DOUBLE);
-                _typesStack.pop();
-                emit(BC_SWAP);
+        assert(first == second); //after unification
+        assert(first == VT_DOUBLE || first == VT_INT);
 
-                switch (operation) {
-                case (tADD):
-                case (tSUB):
-                case (tMUL):
-                case (tDIV): {
-                    emit(_typeTokenInstruction[VT_DOUBLE][operation]);
-                    break;
-                }
-                default: {
-                    assert(0);
-                }
-                }
-
-                _typesStack.push(VT_DOUBLE);
-                break;
-            }
-            default: {
-                assert(0);
-            }
-            }
-            break;
-        }
-        case (VT_INT): {
-            switch (second) {
-            case (VT_DOUBLE): {
-                _typesStack.push(VT_INT);
-                convertTOS(VT_DOUBLE);
-                _typesStack.pop();
-                switch (operation) {
-                case (tADD):
-                case (tSUB):
-                case (tMUL):
-                case (tDIV): {
-                    emit(_typeTokenInstruction[VT_DOUBLE][operation]);
-                    break;
-                }
-                default: {
-                    assert(0);
-                }
-                }
-                _typesStack.push(VT_DOUBLE);
-                break;
-            }
-            case (VT_INT): {
-                switch (operation) {
-                case (tADD):
-                case (tSUB):
-                case (tMUL):
-                case (tDIV):
-                case (tAAND):
-                case (tAOR):
-                case (tAXOR):
-                case (tMOD): {
-                    emit(_typeTokenInstruction[VT_INT][operation]);
-                    break;
-                }
-                default: {
-                    assert(0);
-                }
-                }
-                _typesStack.push(VT_INT);
-                break;
-            }
-            default: {
-                assert(0);
-            }
-            }
-            break;
-        }
-        default: {
-            assert(0);
-        }
-        }
+        emit(_typeTokenInstruction[first][operation]);
+        _typesStack.push(first);
     }
 
     void unary_math(TokenKind operation) {
         switch (_typesStack.top()) {
-        case (VT_DOUBLE): {
-            switch (operation) {
-            case (tSUB): {
-                emit(BC_DNEG);
+            case (VT_DOUBLE): {
+                switch (operation) {
+                    case (tSUB): {
+                        emit(BC_DNEG);
+                        break;
+                    }
+                    default: {
+                        assert(0);
+                    }
+                }
                 break;
             }
+
+            case (VT_INT): {
+                switch (operation) {
+                    case (tSUB): {
+                        emit(BC_INEG);
+                        break;
+                    }
+                    case (tNOT): {
+                        emit(BC_ILOAD1);
+                        emit(BC_IAXOR);
+                        break;
+                    }
+                    default: {
+                        assert(0);
+                    }
+                }
+                break;
+            }
+
             default: {
                 assert(0);
             }
-            }
-            break;
-        }
-
-        case (VT_INT): {
-            switch (operation) {
-            case (tSUB): {
-                emit(BC_INEG);
-                break;
-            }
-            case (tNOT): {
-                emit(BC_ILOAD1);
-                emit(BC_IAXOR);
-                break;
-            }
-            default: {
-                assert(0);
-            }
-            }
-            break;
-        }
-
-        default: {
-            assert(0);
-        }
         }
     }
 };
