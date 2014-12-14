@@ -20,6 +20,7 @@ BytecodeMainVisitor::BytecodeMainVisitor(Code *code, AstFunction *topFunction) :
     _typeTokenInstruction[VT_INT][tMUL] = BC_IMUL;
     _typeTokenInstruction[VT_DOUBLE][tDIV] = BC_DDIV;
     _typeTokenInstruction[VT_INT][tDIV] = BC_IDIV;
+    _typeTokenInstruction[VT_INT][tMOD] = BC_IMOD;
 
     _typeTokenInstruction[VT_INT][tAOR] = BC_IAOR;
     _typeTokenInstruction[VT_INT][tAAND] = BC_IAAND;
@@ -62,14 +63,21 @@ void BytecodeMainVisitor::visitNativeCallNode(NativeCallNode *node) {
 }
 
 void BytecodeMainVisitor::visitCallNode(CallNode *node) {
-    node->visitChildren(this);
+    TranslatedFunction  *function = _code->functionByName(node->name());
+    for (uint32_t i = 0; i < node->parametersNumber(); i++) {
+        node->parameterAt(i)->visit(this);
+        VarType expectedType = function->parameterType(i);
+        convertTOS(expectedType);
+    }
     emit(BC_CALL);
-    uint16_t functionId = _code->functionByName(node->name())->id();
-    emitUInt16(functionId);
+    emitUInt16(function->id());
+
+    _typesStack.push(function->returnType());
 }
 
 void BytecodeMainVisitor::visitReturnNode(ReturnNode *node) {
     node->visitChildren(this);
+    convertTOS(_currentFunction->returnType());
     emit(BC_RETURN);
 }
 

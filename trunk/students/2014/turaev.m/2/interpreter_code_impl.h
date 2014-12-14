@@ -354,7 +354,8 @@ void inline InterpreterCodeImpl::executeFunction() {
                 pop();
                 int64_t right = top<int64_t>();
                 pop();
-                push<int64_t>(left < right ? -1 : left == right ? 0 : 1);
+                // push<int64_t>(left < right ? -1 : left == right ? 0 : 1);
+                push<int64_t>(left - right);
                 break;
             }
             case BC_JA: {
