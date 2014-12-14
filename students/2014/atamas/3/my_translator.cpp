@@ -22,6 +22,15 @@ namespace mathvm{
         }
     }
 
+    Instruction BC_LOADCTXVAR(VarType type){
+        switch(type){
+        case VT_INT: return BC_LOADCTXIVAR;
+        case VT_DOUBLE: return BC_LOADCTXDVAR;
+        case VT_STRING: return BC_LOADCTXSVAR;
+        default: throw std::runtime_error("Can't load this type");
+        }
+    }
+
     Instruction BC_STOREVAR(VarType type){
         switch(type){
         case VT_INT: return BC_STOREIVAR;
@@ -102,15 +111,17 @@ namespace mathvm{
         BytecodeFunction *fn;
         TScope *parent;
         std::map<std::string, uint16_t> vars;
+        int locals_number;
 
         TScope(BytecodeFunction *fn, TScope *parent = NULL)
-            : fn(fn), parent(parent)
+            : fn(fn), parent(parent), locals_number(0)
             {}
 
         uint16_t id()
             { return fn->id(); }
 
         void addVar(const AstVar *var){
+            ++locals_number;
             vars.insert(std::make_pair(var->name(), vars.size()));
         }
 
@@ -139,12 +150,12 @@ namespace mathvm{
 
             try {
                 Scope *topScope = top->scope()->childScopeAt(0);
-                bytecodeFunction->setLocalsNumber(topScope->variablesCount());
                 initVars(topScope);
                 initFunctions(topScope);
                 //genBlock(top->node()->body());
                 for (size_t i = 0; i < top->node()->body()->nodes(); ++i)
                     top->node()->body()->nodeAt(i)->visit(this);
+                bytecodeFunction->setLocalsNumber(_curScope->locals_number);
                 bc()->addInsn(BC_STOP);
                 return Status::Ok();
             } catch (std::runtime_error &err) {
@@ -267,22 +278,18 @@ namespace mathvm{
         void visitStoreNode(StoreNode * node){
             node->value()->visit(this);
             castTos(node->var()->type());
-            TVar var = _curScope->findVar(node->var());
             switch(node->op()){
             case tINCRSET:
-                bc()->addInsn(BC_LOADVAR(_tosType));
-                bc()->addUInt16(var.id);
+                loadVar(node->var());
                 bc()->addInsn(BC_ADD(_tosType));
             break;
             case tDECRSET:
-                bc()->addInsn(BC_LOADVAR(_tosType));
-                bc()->addUInt16(var.id);
+                loadVar(node->var());
                 bc()->addInsn(BC_SUB(_tosType));
             break;
             default: break;
             }
-            bc()->addInsn(BC_STOREVAR(_tosType));
-            bc()->addUInt16(var.id);
+            storeVar(node->var());
         }
 
 
@@ -299,12 +306,12 @@ namespace mathvm{
                 _curScope->addVar(var);
                 storeVar(var);
             }
-            bcFn->setLocalsNumber(_curScope->variablesCount());
+
             if (isNative)
                 node->body()->nodeAt(0)->visit(this);
             else
                 node->body()->visit(this);
-
+            bcFn->setLocalsNumber(_curScope->locals_number);
             _curScope = _curScope->parent;
         }
 
@@ -411,7 +418,7 @@ namespace mathvm{
             VarType rhsType = _tosType;
             node->left()->visit(this);
 
-            binOpTypeCast(rhsType, _tosType);
+            binOpTypeCast(_tosType, rhsType);
             switch(node->kind()){
             case tADD:
                 bc()->addInsn(BC_ADD(_tosType));
@@ -548,8 +555,14 @@ namespace mathvm{
         void loadVar(const AstVar * node){
             TVar var = _curScope->findVar(node);
             _tosType = node->type();
-            bc()->addInsn(BC_LOADVAR(_tosType));
-            bc()->addUInt16(var.id);
+            if (var.contextId == _curScope->id()) {
+                bc()->addInsn(BC_LOADVAR(_tosType));
+                bc()->addUInt16(var.id);
+            } else{
+                bc()->addInsn(BC_LOADCTXVAR(_tosType));
+                bc()->addUInt16(var.contextId);
+                bc()->addUInt16(var.id);
+            }
         }
 
         void storeVar(const AstVar *astVar){
