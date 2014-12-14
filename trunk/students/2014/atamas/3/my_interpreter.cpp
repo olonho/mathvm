@@ -179,14 +179,23 @@ namespace mathvm{
                 std::swap(stack[stack.size()-1], stack[stack.size()-2]); break;
             }
             case BC_POP:{
-                stack.pop_back();
+                stack.pop_back(); break;
             }
             case BC_LOADDVAR: case BC_LOADIVAR: case BC_LOADSVAR:
             {
                 stack.push_back(currentScope->getVar()); break;
             }
+            case BC_LOADCTXDVAR: case BC_LOADCTXIVAR: case BC_LOADCTXSVAR:
+            {
+                stack.push_back(currentScope->getCtxVar()); break;
+            }
             case BC_STOREDVAR: case BC_STOREIVAR: case BC_STORESVAR:{
                 currentScope->setVar(stack[stack.size()-1]);
+                stack.pop_back();
+                break;
+            }
+            case BC_STORECTXDVAR: case BC_STORECTXIVAR: case BC_STORECTXSVAR:{
+                currentScope->setCtxVar(stack[stack.size()-1]);
                 stack.pop_back();
                 break;
             }

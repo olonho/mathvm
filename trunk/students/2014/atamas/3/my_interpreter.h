@@ -87,8 +87,22 @@ namespace mathvm{
             StackItem getVar(){
                 return _context[getUint()];
             }
+
+            StackItem getCtxVar(){
+                uint16_t ctx_id = getUint();
+                uint16_t var_id = getUint();
+                return getCtxVar(var_id, ctx_id);
+            }
+
+            void setCtxVar(StackItem val){
+                uint16_t ctx_id = getUint();
+                uint16_t var_id = getUint();
+                setCtxVar(var_id, ctx_id, val);
+            }
+
             void setVar(StackItem val){
-                _context[getUint()] = val;
+                uint16_t var_id = getUint();
+                _context[var_id] = val;
             }
 
             Bytecode * bytecode(){
@@ -97,6 +111,26 @@ namespace mathvm{
 
             void jump(int16_t offset){
                 instructionPointer+=offset;
+            }
+        private:
+            StackItem getCtxVar(uint16_t var_id, uint16_t context_id){
+                if(context_id == _fn->id()){
+                    return _context[var_id];
+                } else if(_parent == 0){
+                    throw "Not found";
+                } else{
+                    return _parent->getCtxVar(var_id, context_id);
+                }
+            }
+
+            void setCtxVar(uint16_t var_id, uint16_t context_id, StackItem val){
+                if(context_id == _fn->id()){
+                    _context[var_id] = val;
+                } else if(_parent == NULL){
+                    throw "Not found";
+                } else{
+                    _parent->setCtxVar(var_id, context_id, val);
+                }
             }
         };
     }
