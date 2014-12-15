@@ -189,9 +189,15 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         struct Call : Expression {
-            Call(uint16_t id, std::vector<Atom const *> const &args) : funId(id), params(args) { }
+            Call(uint16_t id, std::vector<Atom const *> const &args
+                    , std::vector<uint64_t> const& refArgs
+            )
+                    : funId(id), params(args)
+                    , refParams(refArgs)
+            { }
 
             std::vector<Atom const*> params;
+            std::vector<uint64_t> refParams;
             const uint16_t funId;
 
             IR_COMMON_FUNCTIONS(Call)
@@ -356,9 +362,12 @@ DO(NOT, "!")
             const uint16_t id;
             Block* entry;
             std::vector<uint64_t> parametersIds;
-            std::vector<uint64_t> refParamsIds;
-            VarType returnType;
+            std::vector<uint64_t> refParameterIds;
+            std::vector<uint64_t> memoryCells; //each id is the pointer id. Write to it == write to this memory cell.
+            // read from it == read from cell
+            // pass it == pass the cell's address
 
+            VarType returnType;
             IR_COMMON_FUNCTIONS(FunctionRecord)
 
 
@@ -379,10 +388,6 @@ DO(NOT, "!")
             }
         };
 
-        struct Ref : IrElement {
-
-        };
-
         struct WriteRef : Statement {
             WriteRef(Atom const *const atom, uint64_t const where) : atom(atom), refId(where) {
             }
@@ -395,7 +400,7 @@ DO(NOT, "!")
             }
         };
 
-        struct ReadRef : Expression {
+        struct ReadRef : Atom {
             const uint64_t refId;
             IR_COMMON_FUNCTIONS(ReadRef)
 
@@ -408,19 +413,29 @@ DO(NOT, "!")
             struct VarMeta {
                 const uint64_t id;
                 const bool isSourceVar;
+                const bool isReference;
                 const uint64_t originId;
+                const FunctionRecord* pointsTo;
+                const uint32_t offset;
+
                 VarType type;
 
                 VarMeta(uint64_t id, uint64_t from, VarType type)
-                        : isSourceVar(true), originId(from), id(id), type(type) {
+                        : isSourceVar(true), originId(from), id(id), type(type), isReference(false), pointsTo(NULL), offset(0) {
                 }
 
                 VarMeta(VarMeta const& meta): id(meta.id),
                                         isSourceVar(meta.isSourceVar),
                                         originId(meta.originId),
-                                        type(meta.type){ }
-                 VarMeta(uint64_t id) : isSourceVar(false), originId(0), id(id), type(VT_Undefined) {
+                                        type(meta.type),
+                                        isReference(meta.isReference),
+                                        pointsTo(meta.pointsTo),
+                                        offset(meta.offset){ }
+
+                VarMeta(uint64_t id) : isSourceVar(false), originId(0), id(id), type(VT_Undefined), isReference(false), pointsTo(NULL), offset(0){
                 }
+                VarMeta(uint64_t id, VarType type, FunctionRecord const* pointsTo, uint32_t offset)
+                        : isSourceVar(false), originId(0), id(id), type(type), isReference(true), pointsTo(pointsTo), offset(offset) {}
             };
 
             typedef std::vector<std::string> StringPool;

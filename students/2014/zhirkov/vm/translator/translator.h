@@ -7,14 +7,40 @@
 #include "../ir/ir.h"
 #include "../common.h"
 #include "../ir/ir_printer.h"
-#include "../ast_metadata.h"
 #include "ssa_utils.h"
 #include "closure_analyzer.h"
-#include "../typechecker.h"
+
 
 namespace mathvm {
+    struct AstVarMetadata;
 
+    struct AstFunctionMetadata {
+        AstFunctionMetadata(const AstFunction *f, const uint16_t id) : fun(f), id(id) {
+        }
 
+        const AstFunction *const fun;
+        const uint16_t id;
+
+        std::vector<const AstVarMetadata *> args;
+        std::vector<const AstVarMetadata *> capturedArgs;
+        std::vector<const AstVarMetadata *> capturedRefArgs;
+    };
+
+    struct AstVarMetadata {
+        AstVarMetadata(AstVar const *const var, uint64_t const id, bool const isRef = false)
+                : isTemp(false), var(var), id(id), isRef(isRef) {
+        }
+
+        AstVarMetadata(uint64_t const id, bool const isRef = false) : isTemp(true), var(NULL), id(id), isRef(isRef) {
+        }
+
+        const bool isTemp;
+        const AstVar *const var;
+        const uint64_t id;
+        const bool isRef;
+    };
+
+    
     struct TranslationContext : public AstAnalyzerContext {
 
         TranslationContext() :
@@ -25,42 +51,19 @@ namespace mathvm {
         }
 
         IR::Block *block;
-        AstFunction const* function;
+        AstFunction const *function;
 
         uint64_t nVars;
         uint64_t nBlocks;
 
+        std::map<AstVar const *, AstVarMetadata *> astVarMeta;
+        std::map<uint64_t, AstVarMetadata *> allVarMeta;
+        std::map<AstFunction const *, AstFunctionMetadata *> funMeta;
     };
 
-    class SsaIrBuilder : public AstAnalyzer<IR::SimpleSsaIr, TranslationContext> {
-        struct AstVarMetadata {
-            AstVarMetadata(AstVar const *const var, uint64_t const id) : isTemp(false), var(var), id(id) {
-            }
-
-            AstVarMetadata(uint64_t const id) : isTemp(true), var(NULL), id(id) {
-            }
-
-            const bool isTemp;
-            const AstVar *const var;
-            const uint64_t id;
-            std::vector<AstFunction *> capturedBy;
-
-        };
-
-        struct AstFunctionMetadata {
-            AstFunctionMetadata(const AstFunction *f, const uint16_t id) : fun(f), id(id) {
-            }
-
-            const AstFunction *const fun;
-            const uint16_t id;
-
-            std::vector<AstVarMetadata *> args;
-            std::vector<AstVarMetadata *> locals;
-        };
-
-         //preprocessing results
-        ClosureAnalyzer const &_closureAnalyzer;
-
+    class SimpleIrBuilder : public AstAnalyzer<IR::SimpleSsaIr, TranslationContext> {
+        ClosureInfo const *const _closureInfo;
+        std::stack<IR::Atom const *> _lastAtoms;
 
     public:
         virtual void visitPrintNode(PrintNode *node) override;
@@ -95,35 +98,35 @@ namespace mathvm {
 
         virtual void visitForNode(ForNode *node) override;
 
-        IR::Atom const *_popAtom() {
-            const IR::Atom *a = _lastAtoms.top();
-            _lastAtoms.pop();
-            return a;
+        IR::Atom const *_popAtom() { const IR::Atom *a = _lastAtoms.top(); _lastAtoms.pop(); return a; }
+
+        void _pushAtom(IR::Atom const *atom) { _lastAtoms.push(atom); }
+        void _pushVar(uint64_t v) { _lastAtoms.push(new IR::Variable(v)); }
+
+        void visitAstFunction(AstFunction const *function);
+
+        SimpleIrBuilder(AstFunction const *top, ClosureInfo const *closureInfo, std::ostream &debug)
+                : AstAnalyzer(top, debug),
+                  _closureInfo(closureInfo) {
         }
 
-        void _pushAtom(IR::Atom const *atom) {
-            _lastAtoms.push(atom);
+        ClosureInfo::Function const& closureFunMeta(AstFunction const* f) const {
+            return *(_closureInfo->functions.at(f));
+        }
+        ClosureInfo::Variable const& closureVarMeta(AstVar const* v) const {
+            return _closureInfo->vars.at(v);
+        }
+        AstVarMetadata & varMeta(AstVar const * const var)  {
+            return *(ctx.astVarMeta.at(var));
         }
 
-        void visitAstFunction(AstFunction const*function);
 
-    public:
-        SsaIrBuilder(AstFunction const *top, ClosureAnalyzer const &closureAnalyzer, ostream &debug)
-                : AstAnalyzer(top),
-                  _closureAnalyzer(closureAnalyzer),
-                  _out(debug) {
+        AstVarMetadata const& varMetaById(uint64_t var) const {
+            return *(ctx.allVarMeta.at(var));
         }
 
-        AstVarMetadata &varMeta(AstVar const *var) {
-            return *(_astvarMeta[var]);
-        }
-
-        AstVarMetadata &varMetaById(uint64_t var) {
-            return *(_allvarMeta[var]);
-        }
-
-        AstFunctionMetadata &funMeta(AstFunction const*f) {
-            return *(_funMeta[f]);
+        AstFunctionMetadata & funMeta(AstFunction const *f) {
+            return *(ctx.funMeta.at(f));
         }
 
         virtual void start();
@@ -131,15 +134,18 @@ namespace mathvm {
 
     private:
 
-        std::ostream &_out;
+        IR::Atom* readVar(uint64_t varId);
+        void embraceArgs(AstFunction const * const);
+        void argsForCaptured(AstFunction const *const);
+        void createMemoryCells(AstFunction const *const);
+        void prologue(AstFunction const* const f);
+        void epilogue(AstFunction const* const f);
 
-        void embraceArgs(AstFunction const *);
-
-        void embraceVars(Scope *);
+        void embraceVars(Scope * const);
 
         std::string nextBlockName() {
             std::ostringstream str;
-            str << ctx.function->name() << '[' << ctx.nBlocks ++ << ']';
+            str << ctx.function->name() << '[' << ctx.nBlocks++ << ']';
             return str.str();
         }
 
@@ -149,34 +155,28 @@ namespace mathvm {
         }
 
         void emit(IR::Statement const *const statement) {
-           ctx.block->contents.push_back(statement);
+            ctx.block->contents.push_back(statement);
         }
 
         uint64_t makeAstVar(AstVar const *var);
 
         uint64_t makeTempVar();
 
-        void declareFunction(AstFunction const* fun);
+        void declareFunction(AstFunction const *fun);
 
         void insertPhi();
-
-        std::map<AstVar const *, AstVarMetadata *> _astvarMeta;
-        std::map<uint64_t, AstVarMetadata *> _allvarMeta;
-        std::map<AstFunction const*, AstFunctionMetadata *> _funMeta;
-
-
-        std::stack<IR::Atom const *> _lastAtoms;
-
     public:
-        virtual ~SsaIrBuilder() {
-            for (auto v : _allvarMeta)
+        virtual ~SimpleIrBuilder() {
+            for (auto v : ctx.allVarMeta)
                 delete v.second;
-            for (auto f : _funMeta)
+            for (auto f : ctx.funMeta)
                 delete f.second;
             while (!_lastAtoms.empty()) {
                 delete _lastAtoms.top();
                 _lastAtoms.pop();
             }
         }
+
+
     };
 }

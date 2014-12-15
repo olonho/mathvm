@@ -87,7 +87,7 @@ namespace mathvm {
                 Atom const* tp = static_cast<Atom*>( p->visit(this) );
                 if (tp) params.push_back(tp);
             }
-            return new Call(expr->funId, params);
+            return new Call(expr->funId, params, expr->refParams);
         }
 
         IrElement *IdentityTransformation::visit(Print const *const expr) {
@@ -99,9 +99,12 @@ namespace mathvm {
             Block* newEntry = static_cast<Block*> ( expr->entry->visit(this) );
             if (newEntry == NULL) return NULL;
 
-            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, newEntry);
-            if (transformed == NULL) { delete newEntry; return NULL; }
+            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, NULL);
+            
             transformed->parametersIds = expr->parametersIds;
+            transformed->memoryCells = expr->memoryCells;
+            transformed->refParameterIds = expr->refParameterIds;
+
             return transformed;
         }
 
