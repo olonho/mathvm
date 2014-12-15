@@ -4,6 +4,7 @@
 #include "ast_printer.h"
 #include "translator/translator.h"
 #include "typechecker.h"
+#include "ir/transformations/ssa.h"
 
 using namespace mathvm;
 using namespace std;
@@ -29,24 +30,24 @@ int main(int argc, char **argv) {
     Parser parser;
     Status *status = parser.parseProgram(program);
 
-    ClosureAnalyzer ca;
-    ca.visitAstFunction(parser.top());
-    SsaIrBuilder translator(parser.top(), ca, std::cout);
+    ClosureAnalyzer ca(parser.top(), std::cerr);
+    ca.start();
+    ca.debug();
+    SimpleIrBuilder translator(parser.top(), ca.getResult(), std::cerr);
     translator.start();
     IR::SimpleSsaIr* ir = translator.getResult();
 
+    IR::SsaTransformation ssaTransformation(*ir);
+ssaTransformation.start();
 //    std::ofstream irRepr;
 //    irRepr.open("irRepr.txt", ios_base::openmode::_S_out);
-//    IR::IrPrinter printer(std::cout);
-//    printer.print(*ir);
+    IR::IrPrinter printer(std::cerr);
+    printer.print(*ssaTransformation.getResult());
 
-    IR::IrPrinter printer(std::cout);
-    printer.print(*ir);
-    delete ir;
-    AstMetadataEraser eraser;
-    eraser.visitFunctionNode(parser.top()->node());
+     delete ir;
 
 //    irRepr.close();
+    delete ca.getResult();
     delete status;
     delete[] program;
 

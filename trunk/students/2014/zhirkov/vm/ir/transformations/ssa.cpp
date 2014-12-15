@@ -77,6 +77,11 @@ namespace mathvm {
 
 
         IrElement *SsaTransformation::visit(Call const *const expr) {
+            std::vector<const Atom*> newparams;
+            for (auto p : expr->params)
+                newparams.push_back((Atom const *) p->visit(this));
+
+//            for (auto p : expr->refParams)
             return IdentityTransformation::visit(expr);
         }
 
@@ -85,7 +90,18 @@ namespace mathvm {
         }
 
         IrElement *SsaTransformation::visit(FunctionRecord const *const expr) {
-            return IdentityTransformation::visit(expr);
+            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, NULL);
+
+            for (auto p : expr->parametersIds)
+                transformed->parametersIds.push_back((shouldBeRenamed(p))? newName(p):p);
+            for (auto p : expr->memoryCells)
+                transformed->memoryCells.push_back((shouldBeRenamed(p))? newName(p):p);
+            for (auto p : expr->refParameterIds)
+                transformed->refParameterIds.push_back((shouldBeRenamed(p))? newName(p):p);
+            Block* newEntry = static_cast<Block*> ( expr->entry->visit(this) );
+            if (newEntry == NULL) { delete transformed; return NULL; }
+            transformed->entry = newEntry;
+            return transformed;
         }
 
         IrElement *SsaTransformation::visit(JumpAlways const *const expr) {
@@ -117,6 +133,8 @@ namespace mathvm {
         }
 
         IrElement *SsaTransformation::visit(ReadRef const *const expr) {
+            if (shouldBeRenamed(expr->refId))
+                return new ReadRef(_latestVersion[expr->refId]);
             return IdentityTransformation::visit(expr);
         }
     }

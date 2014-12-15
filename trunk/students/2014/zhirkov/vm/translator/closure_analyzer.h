@@ -5,24 +5,70 @@
 #include <stack>
 #include "../../../../../include/ast.h"
 #include "../../../../../include/visitors.h"
+#include "../ast_analyzer.h"
 
 
 namespace mathvm {
 
-    class ClosureAnalyzer : public AstBaseVisitor {
-        struct CapturedVariableMeta {
-            CapturedVariableMeta() : isRead(false), isWritten(false) {
+
+    struct ClosureInfo {
+        struct Variable {
+            Variable(AstFunction const *const owner) : owner(owner), isRead(false), isWritten(false) {
             }
 
-            std::set<AstFunction const*> capturedBy;
+            AstFunction const *const owner;
+            std::set<AstFunction const *> capturedBy;
             bool isRead;
             bool isWritten;
         };
 
-        std::map<const AstFunction *, std::set<AstVar const*>> capturedVars;
-        std::map<const AstVar *, CapturedVariableMeta> meta;
-        std::map<const Scope*, const AstFunction*> scopesToFunctions;
-        bool isFunctionScope(Scope* s) { return scopesToFunctions.find(s) != scopesToFunctions.end(); }
+        struct Function {
+
+            std::set<AstVar const *> capturedLocals;
+            std::set<const AstVar *> capturedOuterVars;
+
+            Function(AstFunction const *const parent) : parent(parent) {
+            }
+
+            const AstFunction *const parent;
+        };
+
+        std::map<const AstVar *, Variable> vars;
+        std::map<const Scope *, const AstFunction *> scopesToFunctions;
+        std::map<const AstFunction *, Function*> functions;
+
+        bool captured(AstVar const *const v) const {
+            return vars.find(v) != vars.end();
+        }
+
+        bool capturedWritten(AstVar const *const v) const {
+            return captured(v) && vars.at(v).isWritten;;
+        }
+
+        bool capturedRead(AstVar const *const v) const {
+            return captured(v) && vars.at(v).isRead;
+        }
+
+        bool captures(AstFunction const *const f) const {
+            return functions.find(f) != functions.end() && !functions.at(f)->capturedOuterVars.empty();
+        }
+
+//        void vivify(AstFunction const* const f) {
+//            if (functions.find(f) == functions.end()) functions[f] = Function() ;
+//        }
+    };
+
+    class ClosureAnalyzer : public AstAnalyzer<ClosureInfo, AstAnalyzerContext> {
+
+    public:
+        ClosureAnalyzer(AstFunction const *top, ostream &debugStream) : AstAnalyzer(top, debugStream) {
+        }
+
+    private:
+        bool isFunctionScope(Scope *s) const {
+            return _result->scopesToFunctions.find(s) != _result->scopesToFunctions.end();
+        }
+
     public:
 
         virtual void visitLoadNode(LoadNode *node);
@@ -31,74 +77,62 @@ namespace mathvm {
 
         virtual void visitStoreNode(StoreNode *node);
 
+        void capture(AstVar const *var) {
+            AstFunction const *owner = getOwnerFunction(var);
+            _result->functions.at(owner)->capturedLocals.insert(var);
 
-        bool isCaptured(AstVar const *var) {
-            return meta.find(var) != meta.end();
+            for (AstFunction const *current = _functionStack.top();
+                 current != NULL && current != owner;
+                 current = _result->functions[current]->parent) {
+                _result->functions.at(current)->capturedOuterVars.insert(var);
+                _result->vars.at(var).capturedBy.insert(current);
+            }
         }
 
-        void capture(AstVar const* var) {
-            AstFunction const* f = getFunction(var);
-            if (capturedVars.find(f) == capturedVars.end())
-                capturedVars[f] = std::set<AstVar const*>();
-            capturedVars[f].insert(var);
-            meta[var].capturedBy.insert(_functionStack.top());
-        }
-        void captureRead(AstVar const* var) {
-            meta[var].isRead = true;
+        void captureRead(AstVar const *var) {
+            _result->vars.at(var).isRead = true;
             capture(var);
-
-//            std::cerr<< var->name() << " is captured during read!" << std::endl;
-//            for (auto f : meta[var].capturedBy)
-//                std::cerr<< f->name() << " ";
-            std::cerr<< std::endl;
         }
 
         void captureWrite(AstVar const *var) {
             capture(var);
-            meta[var].isWritten = true;
-//            std::cerr<< var->name() << " is captured during write!" << std::endl;
-//            for (auto f : meta[var].capturedBy)
-//                std::cerr<< f->name() << " ";
-            std::cerr<< std::endl;
+            _result->vars.at(var).isWritten = true;
         }
 
-        bool inCurrentScope(AstVar* var) {
-            return var->owner() == _scope;
+        bool isFunctionLocal(AstVar const *var) const {
+            for (Scope *cur = var->owner(); cur != NULL; cur = cur->parent())
+                if (isFunctionScope(cur)) return _result->scopesToFunctions[cur] == _functionStack.top();
+            return false;
         }
 
-        bool isFunctionLocal(AstVar const* var) {
-            Scope* cur = _scope;
-            while( true ) {
-                if (cur == NULL) return false;
-                if (cur == var->owner()) return true;
-                if (cur != var->owner() && cur == _functionStack.top()->scope()) return false;
-                cur = cur->parent();
-            }
-        }
-
-        AstFunction const* getFunction(AstVar const* var) {
-            Scope* cur = var->owner();
-            while( true ) {
+        AstFunction const *getOwnerFunction(AstVar const *var) const {
+            Scope *cur = var->owner();
+            while (true) {
                 if (cur == NULL) return NULL;
-                if (isFunctionScope(cur)) return scopesToFunctions[cur];
+                if (isFunctionScope(cur)) return _result->scopesToFunctions.at(cur);
                 cur = cur->parent();
             }
 
         }
-        void visitAstFunction(AstFunction const*);
+
+        void visitAstFunction(AstFunction const *);
+
+        void debug();
 
     private:
-        std::stack<AstFunction const*> _functionStack;
+        const std::set<AstVar const *> NOVARS;
+
+        std::stack<AstFunction const *> _functionStack;
         Scope *_scope;
 
-        void embraceVars(Scope* scope) {
+        void embraceVars(Scope *scope) {
             Scope::VarIterator it(scope);
-            while(it.hasNext()){
+            while (it.hasNext()) {
                 auto v = it.next();
-                capturedVars[_functionStack.top()] = std::set<const AstVar*>();
-                meta[v] = CapturedVariableMeta();
+                _result->vars.insert(make_pair(v, ClosureInfo::Variable(_functionStack.top())));
             }
         }
+
     };
 
 }

@@ -16,13 +16,14 @@ namespace mathvm {
         T* _result;
         AstFunction const* const top;
         Ctx ctx;
+        std::ostream& _debug;
     public:
 
-        AstAnalyzer(AstFunction const* top) : top(top), _result(new T()) {
+        AstAnalyzer(AstFunction const* const top, std::ostream& debugStream) : top(top), _result(new T()), _debug(debugStream) {
         }
 
         virtual void start()  { visitAstFunction(top); };
-        T* getResult() {
+        T* getResult() const {
             return _result;
         }
         virtual void visitAstFunction(AstFunction const* fun) = 0;

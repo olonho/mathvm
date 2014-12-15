@@ -14,6 +14,9 @@ namespace mathvm {
             bool shouldBeRenamed(uint64_t id) {
                 return _latestVersion.find(id) != _latestVersion.end();
             }
+            uint64_t newName(uint64_t id) {
+                return _latestVersion[id];
+            }
 
             FOR_IR(VISITOR);
 

@@ -126,21 +126,19 @@ namespace mathvm {
 
         IrElement *IrPrinter::visit(FunctionRecord const *const expr) {
             currentFunction = expr;
-            _out << "Function id " << expr->id << std::endl << "parameters";
-            for (std::vector<uint64_t>::const_iterator it = expr->parametersIds.cbegin();
-                 it != expr->parametersIds.cend(); ++it)
-                _out << " " << *it;
+            _out << "Function id " << expr->id << " returns " << varTypeStr(expr->returnType) << "\n   parameters";
+            for (auto v : expr->parametersIds)
+                _out << " " << v;
 
-//            _out << std::endl << "Strings pool:" << std::endl;
+            _out << "\n  reference parameters: ";
+            for (auto v: expr->refParameterIds)
+                _out << v << " ";
 
-//            for (size_t i = 0; i < expr->pool.size(); ++i)
-//                _out << i << " : " << escape(expr->pool[i]) << std::endl;
+            _out << "\n  memory cells for: ";
+            for (auto v : expr->memoryCells) _out << v << " ";
+            _out << std::endl;
 
-//            for (std::vector<Variable>::iterator it = expr->variables.begin();
-//                 it != expr->variables.end();
-//                 ++it)
-//                _out << "   " << (*it).name << ":" << typeName((*it).type) << std::endl;
-//
+
             expr->entry->visit(this);
             _out << std::endl;
             currentFunction = NULL;
@@ -154,6 +152,9 @@ namespace mathvm {
                 _out << " " ;
                 p->visit(this);
             }
+            _out << " ) refs (";
+            for (auto p : expr->refParams)
+                _out << " " <<p;
             _out << " )";
             return NULL;
         }
@@ -187,6 +188,8 @@ namespace mathvm {
         IrElement *IrPrinter::visit(WriteRef const *const expr) {
             _out << "writeref ";
             expr->atom->visit(this);
+            _out << " to " << expr->refId;
+
             return NULL;
         }
 
