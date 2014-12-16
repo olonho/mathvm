@@ -1,4 +1,5 @@
 #include "info.hpp"
+#include "errors.hpp"
 
 namespace mathvm {
 
@@ -27,6 +28,8 @@ void setType(CustomDataHolder* dataHolder, VarType type) {
     case VT_STRING: 
       info = &vtString;
       break;
+    default:
+      throw InternalException("Unknown type %s", typeToName(type));
   }
 
   dataHolder->setInfo(info);

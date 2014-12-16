@@ -16,7 +16,7 @@ namespace mathvm {
 typedef int32_t mem_t;
 
 namespace constants {
-  const mem_t MAX_STACK_SIZE = 512*1024*1024;
+  const mem_t MAX_STACK_SIZE = 128*1024*1024;
   const mem_t VAL_SIZE = std::max(sizeof(int64_t), sizeof(double));
 }
 
@@ -68,7 +68,7 @@ public:
 
 private:
   StackFrame* stackFrame();
-  void allocFrame(uint16_t functionId, uint32_t localsNumber);
+  void allocFrame(uint16_t functionId, uint32_t localsNumber, int64_t context);
   void callFunction(uint16_t id);
   void returnFunction();
 

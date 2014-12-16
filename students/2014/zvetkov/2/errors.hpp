@@ -32,6 +32,17 @@ public:
   }
 };
 
+class InternalException : public std::exception {
+  char message_[constant::MAX_ERROR_MSG_LEN];
+
+public:
+  InternalException(const char* format, ...);
+
+  virtual const char* what() const throw() {
+    return message_;
+  }
+};
+
 class InterpreterException : public std::exception {
   char message_[constant::MAX_ERROR_MSG_LEN];
 
