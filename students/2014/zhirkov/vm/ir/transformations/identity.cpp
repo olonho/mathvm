@@ -99,12 +99,12 @@ namespace mathvm {
             Block* newEntry = static_cast<Block*> ( expr->entry->visit(this) );
             if (newEntry == NULL) return NULL;
 
-            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, NULL);
-            
+            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, newEntry);
+            if (transformed == NULL) { delete newEntry; return NULL; }
             transformed->parametersIds = expr->parametersIds;
             transformed->memoryCells = expr->memoryCells;
             transformed->refParameterIds = expr->refParameterIds;
-
+            transformed->returnType = expr->returnType;
             return transformed;
         }
 

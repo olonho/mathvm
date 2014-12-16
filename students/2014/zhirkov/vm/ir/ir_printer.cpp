@@ -126,7 +126,7 @@ namespace mathvm {
 
         IrElement *IrPrinter::visit(FunctionRecord const *const expr) {
             currentFunction = expr;
-            _out << "Function id " << expr->id << " returns " << varTypeStr(expr->returnType) << "\n   parameters";
+            _out << "Function id " << expr->id << " returns " << varTypeStr(expr->returnType) << "\n  parameters";
             for (auto v : expr->parametersIds)
                 _out << " " << v;
 
@@ -174,7 +174,7 @@ namespace mathvm {
             _out<< "String pool:" << std::endl;
             int i = 0;
             for (auto s : ir.pool)
-                _out<< i++ << " : " << s << std::endl;
+                _out<< i++ << " : " << mathvm::escape(s) << std::endl;
             _out << "Variables metadata" << std::endl;
             for (auto const meta :  ir.varMeta)
                 printVarMeta(meta, _out);
