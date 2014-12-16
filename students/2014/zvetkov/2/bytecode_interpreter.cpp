@@ -21,7 +21,7 @@
   int64_t upper = pop<int64_t>();   \
   int64_t lower = pop<int64_t>();   \
   if (upper op lower) {             \
-    ip += readFromBc<off_t>();      \
+    ip += getTyped<off_t>();        \
   } else {                          \
     ip += sizeof(off_t);            \
   }                                 \
@@ -91,7 +91,7 @@ void BytecodeInterpreter::execute() {
       case BC_DNEG: push(-pop<double>()); break;
       case BC_INEG: push(-pop<int64_t>()); break;
 
-      case BC_JA: instructionPointer_ += readFromBc<int16_t>(); break;
+      case BC_JA: instructionPointer_ += getTyped<int16_t>(); break;
       case BC_IFICMPNE: CMP_OP(!=, instructionPointer_, int16_t); break;
       case BC_IFICMPE:  CMP_OP(==, instructionPointer_, int16_t); break;
       case BC_IFICMPG:  CMP_OP(>,  instructionPointer_, int16_t); break;
@@ -99,33 +99,17 @@ void BytecodeInterpreter::execute() {
       case BC_IFICMPL:  CMP_OP(<,  instructionPointer_, int16_t); break;
       case BC_IFICMPLE: CMP_OP(<=, instructionPointer_, int16_t); break;
 
-      case BC_LOADIVAR: 
-        loadVar<int64_t>(readFromBcAndShift<uint16_t>(), 0); 
-        break;
-      case BC_LOADDVAR: 
-        loadVar<double>(readFromBcAndShift<uint16_t>(), 0); 
-        break;
-      case BC_LOADCTXIVAR: 
-        loadVar<int64_t>(readFromBcAndShift<uint16_t>(), readFromBcAndShift<uint16_t>()); 
-        break;
-      case BC_LOADCTXDVAR: 
-        loadVar<double>(readFromBcAndShift<uint16_t>(), readFromBcAndShift<uint16_t>()); 
-        break;
+      case BC_LOADIVAR: loadVar<int64_t, LOCAL>(); break;
+      case BC_LOADDVAR: loadVar<double, LOCAL>(); break;
+      case BC_LOADCTXIVAR: loadVar<int64_t, OUTER>(); break;
+      case BC_LOADCTXDVAR: loadVar<double, OUTER>(); break;
 
-      case BC_STOREIVAR: 
-        storeVar<int64_t>(readFromBcAndShift<uint16_t>(), 0, pop<int64_t>()); 
-        break;
-      case BC_STOREDVAR: 
-        storeVar<double>(readFromBcAndShift<uint16_t>(), 0, pop<double>()); 
-        break;
-      case BC_STORECTXIVAR: 
-        storeVar<int64_t>(readFromBcAndShift<uint16_t>(), readFromBcAndShift<uint16_t>(), pop<int64_t>()); 
-        break;
-      case BC_STORECTXDVAR: 
-        storeVar<double>(readFromBcAndShift<uint16_t>(), readFromBcAndShift<uint16_t>(), pop<double>()); 
-        break;
+      case BC_STOREIVAR: storeVar<int64_t, LOCAL>(); break;
+      case BC_STOREDVAR: storeVar<double, LOCAL>(); break;
+      case BC_STORECTXIVAR: storeVar<int64_t, OUTER>(); break;
+      case BC_STORECTXDVAR: storeVar<double, OUTER>(); break;
 
-      case BC_CALL: callFunction(readFromBcAndShift<uint16_t>()); break;
+      case BC_CALL: callFunction(getTypedAndMoveNext<uint16_t>()); break;
       case BC_RETURN: returnFunction(); break;
       case BC_SWAP: swap(); break;
       case BC_POP: remove(); break;
