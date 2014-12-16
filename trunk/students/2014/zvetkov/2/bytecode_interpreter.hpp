@@ -86,16 +86,31 @@ private:
     return t;
   }
 
-  template<typename T>
-  void loadVar(uint16_t id, uint16_t context) {
+  enum VarScope { LOCAL, OUTER };
+
+  template<typename T, VarScope scope>
+  void loadVar() {
+    uint16_t context = 0;
+    
+    if (scope == OUTER) { 
+      context = getTypedAndMoveNext<uint16_t>();
+    }
+
+    uint16_t id = getTypedAndMoveNext<uint16_t>(); 
     push(*findVar<T>(id, context));
   }
 
-  template<typename T>
-  void storeVar(uint16_t id, uint16_t context, T val) {
-    *findVar<T>(id, context) = val;
-  }
+  template<typename T, VarScope scope>
+  void storeVar() {
+    uint16_t context = 0;
+    
+    if (scope == OUTER) { 
+      context = getTypedAndMoveNext<uint16_t>();
+    }
 
+    uint16_t id = getTypedAndMoveNext<uint16_t>(); 
+    *findVar<T>(id, context) = pop<T>();
+  }
 
   void remove() {
     stackPointer_ -= constants::VAL_SIZE;
@@ -120,7 +135,7 @@ private:
 
   template<typename T>
   void load() {
-    T val = readFromBc<T>();
+    T val = getTyped<T>();
     instructionPointer_ += sizeof(T);
     push<T>(val);
   }
@@ -138,14 +153,14 @@ private:
   }
 
   template<typename T>
-  T readFromBc() {
+  T getTyped() {
     T val = bc()->getTyped<T>(instructionPointer_);
     return val;
   }
 
   template<typename T>
-  T readFromBcAndShift() {
-    T val = bc()->getTyped<T>(instructionPointer_);
+  T getTypedAndMoveNext() {
+    T val = getTyped<T>();
     instructionPointer_ += sizeof(T);
     return val;
   }
