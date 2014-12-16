@@ -9,13 +9,13 @@ namespace mathvm {
             else return IdentityTransformation::visit(var);
         }
 
-        static void lookupPreviousVariables(uint64_t originId, std::vector<IR::SimpleIr::VarMeta> const& varMeta,  std::set<Variable const* > & phiList, Block const* currentBlock)  {
+        static void lookupPreviousVariables(uint64_t originId, std::vector<IR::SimpleIr::VarMeta> const& varMeta,  std::set<uint64_t> & phiList, Block const* currentBlock)  {
             for( auto it = currentBlock->contents.rbegin(); it != currentBlock->contents.rend(); ++it)
                 if ((*it)->isAssignment()) {
                     auto a = (*it)->asAssignment();
                     auto lhs = a->var->id;
                     if (varMeta[lhs].isSourceVar && varMeta[lhs].originId == originId) {
-                        phiList.insert(new Variable(lhs));
+                        phiList.insert(lhs);
                         return;
                     }
                 }
@@ -35,7 +35,10 @@ namespace mathvm {
                 meta.push_back(newmeta);
                 _latestVersion[oldVarId] = newId;
                 Phi * result = new Phi(newLhs);
-                lookupPreviousVariables(oldVarId, meta, result->vars, _currentSourceBlock);
+                std::set<uint64_t> varids;
+                lookupPreviousVariables(oldVarId, meta, varids, _currentSourceBlock);
+                for (auto id : varids)
+                    result->vars.insert(new Variable(id));
                 return result;
             }
             return IdentityTransformation::visit(expr);

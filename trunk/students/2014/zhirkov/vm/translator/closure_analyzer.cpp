@@ -45,7 +45,7 @@ namespace mathvm {
             _debug << std::endl;
         }
 
-        _debug << "-----\n+ vars: " << std::endl;
+        _debug << "-----\n  vars: " << std::endl;
         for (auto m : _result->vars) if (! m.second.capturedBy.empty()){
             _debug << m.first->name() << " is ";
             if (m.second.isRead) _debug << " read ";

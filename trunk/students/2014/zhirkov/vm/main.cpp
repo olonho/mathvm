@@ -3,7 +3,6 @@
 #include "translator/closure_analyzer.h"
 #include "ast_printer.h"
 #include "translator/translator.h"
-#include "typechecker.h"
 #include "ir/transformations/ssa.h"
 
 using namespace mathvm;
@@ -27,24 +26,30 @@ int main(int argc, char **argv) {
 
     const char *program = programTextOrFailure(argc, argv);
 
+    std::ofstream irRepr;
+    irRepr.open("irRepr.txt", ios_base::openmode::_S_out);
+
+
     Parser parser;
     Status *status = parser.parseProgram(program);
 
-    ClosureAnalyzer ca(parser.top(), std::cerr);
+    ClosureAnalyzer ca(parser.top(), irRepr);
     ca.start();
     ca.debug();
-    SimpleIrBuilder translator(parser.top(), ca.getResult(), std::cerr);
-    translator.start();
-    IR::SimpleSsaIr* ir = translator.getResult();
 
-    IR::SsaTransformation ssaTransformation(*ir);
-ssaTransformation.start();
-//    std::ofstream irRepr;
-//    irRepr.open("irRepr.txt", ios_base::openmode::_S_out);
-    IR::IrPrinter printer(std::cerr);
+    IR::IrPrinter printer(irRepr);
+
+    SimpleIrBuilder translator(parser.top(), ca.getResult(), irRepr);
+    translator.start();
+
+    printer.print(*translator.getResult());
+    IR::SsaTransformation ssaTransformation(*translator.getResult(), irRepr);
+    ssaTransformation.start();
+
     printer.print(*ssaTransformation.getResult());
 
-     delete ir;
+    delete translator.getResult();
+    delete ssaTransformation.getResult();
 
 //    irRepr.close();
     delete ca.getResult();

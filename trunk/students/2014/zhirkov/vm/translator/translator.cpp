@@ -9,6 +9,7 @@
 #include "../ir/transformations/identity.h"
 #include "../ir/transformations/ssa.h"
 #include "translator.h"
+#include <unordered_set>
 
 namespace mathvm {
 
@@ -283,8 +284,8 @@ namespace mathvm {
 
 
     void SimpleIrBuilder::visitReturnNode(ReturnNode *node) {
-        epilogue(ctx.function);
         if (!node->returnExpr()) return;
+        epilogue(ctx.function);
         node->returnExpr()->visit(this);
         emit(new IR::Return(_popAtom()));
     }
@@ -345,15 +346,39 @@ namespace mathvm {
         }
     }
 
+//fixme: too many phis! test: fib_closure.mvm
     void SimpleIrBuilder::insertPhi() {
+        _debug << "inserting phi functions... \n";
+
+        std::map<IR::Block*, std::set<uint64_t>> result;
+
         for (auto f : _result->functions)
+        {
             for (auto elemWithFrontier : dominanceFrontier(&(*(f->entry))))
+            {
+                _debug << "   for block " << elemWithFrontier.first->name << " : \n";
                 for (auto assignedVar : IR::modifiedVars(elemWithFrontier.first))
                     if (!varMetaById(assignedVar).isTemp)
+                    {
+                        _debug << "   var " << assignedVar << " : ";
                         for (auto blockWithPhi: elemWithFrontier.second) {
-                            IR::Phi const *a = new IR::Phi(assignedVar);
-                            (const_cast<IR::Block *> (blockWithPhi))->contents.push_front(a);
+                            _debug << " " << blockWithPhi->name;
+//                            IR::Phi const *a = new IR::Phi(assignedVar);
+//                            (const_cast<IR::Block *> (blockWithPhi))->contents.push_front(a);
+                            auto b = (const_cast<IR::Block *> (blockWithPhi));
+                            if (result.find(b) == result.end())
+                                result.insert(std::make_pair(b, std::set<uint64_t>()));
+                            result.at(b).insert(assignedVar);
                         }
+                        _debug << std::endl;
+                    }
+            }
+        }
+
+        for (auto kvp : result) {
+            for (auto phiVar : kvp.second)
+                kvp.first->contents.push_front(new IR::Phi(phiVar));
+        }
     }
 
     uint64_t SimpleIrBuilder::makeAstVar(AstVar const *var) {

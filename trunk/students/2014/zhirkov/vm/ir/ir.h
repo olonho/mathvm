@@ -177,13 +177,12 @@ virtual IrType getType() const { return IT_##ir; }
             Phi(Variable const *id) : var(id) {
             }
 
-            std::set<Variable const*> vars;
+            std::set<const Variable*> vars;
 
             IR_COMMON_FUNCTIONS(Phi)
 
 
             virtual ~Phi() {
-                for(auto v : vars) delete v;
                 delete var;
             }
         };
