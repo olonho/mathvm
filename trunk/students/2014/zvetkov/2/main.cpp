@@ -60,7 +60,10 @@ int main(int argc, char** argv) {
   } catch (TranslationException& e) {
     cerr << errorMessage(program.c_str(), e.what(), e.position()) << endl;
     return EXIT_FAILURE;
-  } 
+  } catch (InternalException& e) {
+    cerr << e.what() << endl;
+    return EXIT_FAILURE;
+  }
 
   if (translateStatus->isError()) {
     cerr << errorMessage(program.c_str(), translateStatus) << endl;

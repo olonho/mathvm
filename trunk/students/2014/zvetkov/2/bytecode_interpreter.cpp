@@ -9,6 +9,14 @@
   push<type>(upper op lower); \
 }
 
+#define CMP(type) {                         \
+  type upper = pop<type>();                 \
+  type lower = pop<type>();                 \
+  if (upper == lower) push<int64_t>(0);     \
+  else if (upper < lower) push<int64_t>(-1);\
+  else push<int64_t>(1);                    \
+}
+
 #define CMP_OP(op, ip, off_t) {     \
   int64_t upper = pop<int64_t>();   \
   int64_t lower = pop<int64_t>();   \
@@ -24,13 +32,13 @@ namespace mathvm {
 BytecodeInterpreter::BytecodeInterpreter(Code* code)
   : instructionPointer_(0), 
     stackPointer_(0), 
-    stackFramePointer_(constants::MAX_STACK_SIZE) 
+    stackFramePointer_(constants::MAX_STACK_SIZE)
 {
   stack_ = new char[constants::MAX_STACK_SIZE];
   code_ = dynamic_cast<InterpreterCodeImpl*>(code);
   assert(code_ != NULL);
   function_ = code_->functionById(0);
-  allocFrame(0, function_->localsNumber());
+  allocFrame(0, function_->localsNumber(), -1);
 }
 
 BytecodeInterpreter::~BytecodeInterpreter() {
@@ -38,9 +46,8 @@ BytecodeInterpreter::~BytecodeInterpreter() {
 }
 
 void BytecodeInterpreter::execute() {
-  while (instructionPointer_ < bc()->length()) {
+  while (true) {
     Instruction bci = bc()->getInsn(instructionPointer_++);
-    //debug(instructionPointer_ - 1, " :: ", bytecodeName(bci, 0));
 
     switch (bci) {
       case BC_INVALID: 
@@ -75,12 +82,8 @@ void BytecodeInterpreter::execute() {
       case BC_IAAND: BIN_OP(int64_t, &); break;
       case BC_IAXOR: BIN_OP(int64_t, ^); break;
 
-      case BC_DCMP: 
-        swap();
-        BIN_OP(double, -); 
-        push((int64_t) pop<double>()); 
-        break;
-      case BC_ICMP: swap(); BIN_OP(int64_t, -); break;
+      case BC_DCMP: CMP(double); break;
+      case BC_ICMP: CMP(int64_t); break;
 
       case BC_I2D: push((double)  pop<int64_t>()); break;
       case BC_D2I: push((int64_t) pop<double>()); break;
@@ -138,15 +141,40 @@ StackFrame* BytecodeInterpreter::stackFrame() {
   return reinterpret_cast<StackFrame*>(stack_ + stackFramePointer_); 
 }
 
-void BytecodeInterpreter::allocFrame(uint16_t functionId, uint32_t localsNumber) {
-  mem_t returnFrame = stackFramePointer_;
-  mem_t parentFrame = stackFramePointer_;
-  
-  if (functionId != 0 && functionId == function_->id()) {
+/*
+ * functionContext is difference between
+ * current function deepness and called function deepness
+ * 
+ * For example: 
+ *   function void f() {
+ *     function void g() {
+ *       f();
+ *     }
+ *
+ *     g();
+ *   }
+ * For call g() from f context is -1;
+ * for call f() from g context is 1.
+ */
+void BytecodeInterpreter::allocFrame(uint16_t functionId, uint32_t localsNumber, int64_t context) {
+  mem_t parentFrame;
+  assert(context >= -1);
+
+  if (context == -1) {
+    parentFrame = stackFramePointer_;
+  } else {
+    mem_t sf = stackFramePointer_;
+
+    for (int64_t i = 0; i < context; ++i) {
+      stackFramePointer_ = stackFrame()->parentFrame();
+    }
+
     parentFrame = stackFrame()->parentFrame();
+    stackFramePointer_ = sf;
   }
 
-  stackFramePointer_ -= (sizeof(StackFrame) + constants::VAL_SIZE * function_->localsNumber());
+  mem_t returnFrame = stackFramePointer_;
+  stackFramePointer_ -= (sizeof(StackFrame) + constants::VAL_SIZE * localsNumber);
   *stackFrame() = StackFrame(function_->id(), 
                              instructionPointer_, 
                              parentFrame,
@@ -155,18 +183,16 @@ void BytecodeInterpreter::allocFrame(uint16_t functionId, uint32_t localsNumber)
 
 void BytecodeInterpreter::callFunction(uint16_t id) {
   BytecodeFunction* called = code_->functionById(id);
-  allocFrame(called->id(), called->localsNumber());
+  allocFrame(called->id(), called->localsNumber(), pop<int64_t>());
   function_ = called;
   instructionPointer_ = 0;
 } 
 
 void BytecodeInterpreter::returnFunction() {
   uint64_t returnValue = pop<uint64_t>();
-  
   StackFrame* frame = stackFrame();
   instructionPointer_ = frame->instruction();
   stackFramePointer_  = frame->returnFrame();
-
   function_ = code_->functionById(frame->function());
   push(returnValue);
 }
