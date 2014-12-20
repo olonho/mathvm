@@ -1,6 +1,9 @@
 #include "mathvm.h"
 #include "parser.h"
 #include "visitors.h"
+#include "CppCode.h"
+#include <unistd.h>
+#include <fstream>
 
 namespace util {
 
@@ -23,10 +26,18 @@ std::string escape(const std::string& s) {
 
 namespace mathvm {
 
-class AstPrinterVisitor : public AstVisitor {
+bool isNativeNode(FunctionNode* node) {
+    return node->body()->nodes() > 0
+        && node->body()->nodeAt(0)->isNativeCallNode();
+}
+
+
+
+class ToCpp11Visitor : public AstVisitor {
   ostream &     _output;
   const uint8_t _indentSpaces; // avoid tabs
   uint16_t      _indentLevel;
+  Scope*        _scope;
 
   void indent() {
     _output << string(_indentSpaces * _indentLevel, ' ');
@@ -45,9 +56,8 @@ class AstPrinterVisitor : public AstVisitor {
     while (iter.hasNext()) {
       AstVar* x = iter.next();
       indent();
-      _output << typeToName(x->type()) << " "
-              << x->name() << ";"
-              << endl;
+      _output << wrapInt(typeToName(x->type())) << " "
+              << x->name() << ";\n";
     }
   }
 
@@ -55,31 +65,69 @@ class AstPrinterVisitor : public AstVisitor {
     Scope::FunctionIterator iter(scope);
     while (iter.hasNext()) {
       indent();
+      FunctionNode* node = iter.next()->node();
+      if (isNativeNode(node))
+          continue;
+
+      if (node->name() != AstFunction::top_name) {
+          _output << "std::function<"
+                  << wrapInt(typeToName(node->returnType()))
+                  << "(";
+          for (uint32_t i = 0; i < node->parametersNumber(); i++) {
+              if (i != 0)
+                  _output << ", ";
+              _output << wrapInt(typeToName(node->parameterType(i)));
+          }
+          _output << ")> function_"
+                  << node->name() << ";\n";
+      }
+    }
+  }
+
+  void visitFunctions(Scope* scope) {
+    Scope::FunctionIterator iter(scope);
+    while (iter.hasNext()) {
+      indent();
       iter.next()->node()->visit(this);
     }
   }
 
+  bool needSemicolon(AstNode* node) {
+      return node->isCallNode() || node->isBinaryOpNode()
+          || node->isUnaryOpNode() || node->isStringLiteralNode()
+          || node->isDoubleLiteralNode() || node->isIntLiteralNode()
+          || node->isLoadNode();
+  }
+
+  std::string wrapInt(const std::string & s) const {
+    if (s == "int") return "int64_t";
+    return s;
+  }
+
  public:
-  AstPrinterVisitor(ostream & output = std::cout,
-                    const uint8_t indentSpaces = 2) :
+  ToCpp11Visitor(ostream & output = std::cout,
+                 const uint8_t indentSpaces = 2) :
       _output(output), _indentSpaces(indentSpaces), _indentLevel(0) {
   }
 
   void insideBlock(BlockNode* node) {
+    Scope* oldscope = _scope;
+    _scope = node->scope();
+
     variableDeclaration(node->scope());
     functionDeclaration(node->scope());
 
     for (uint32_t i = 0; i < node->nodes(); i++) {
       indent();
       AstNode* current = node->nodeAt(i);
+      visitFunctions(node->scope());
       current->visit(this);
-      if (current->isCallNode() || current->isBinaryOpNode() ||
-          current->isUnaryOpNode() || current->isStringLiteralNode() ||
-          current->isDoubleLiteralNode() || current->isIntLiteralNode() ||
-          current->isLoadNode())
+      if (needSemicolon(current))
         _output << ";";
       _output << endl;
     }
+
+    _scope = oldscope;
   }
 
   virtual void visitBinaryOpNode(BinaryOpNode* node) {
@@ -96,7 +144,7 @@ class AstPrinterVisitor : public AstVisitor {
   }
 
   virtual void visitStringLiteralNode(StringLiteralNode* node) {
-    _output << "'" << util::escape(node->literal()) << "'";
+    _output << '"' << util::escape(node->literal()) << '"';
   }
 
   virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
@@ -119,11 +167,15 @@ class AstPrinterVisitor : public AstVisitor {
   }
 
   virtual void visitForNode(ForNode* node) {
-    _output << "for ("
+    _output << "for (int64_t "
             << node->var()->name()
-            << " in ";
-    node->inExpr()->visit(this);
-    _output << ")";
+            << " = ";
+    node->inExpr()->asBinaryOpNode()->left()->visit(this);
+    _output << "; "
+            << node->var()->name()
+            << " <= ";
+    node->inExpr()->asBinaryOpNode()->right()->visit(this);
+    _output << "; ++i)";
     node->body()->visit(this);
   }
 
@@ -156,30 +208,44 @@ class AstPrinterVisitor : public AstVisitor {
   }
 
   virtual void visitNativeCallNode(NativeCallNode* node) {
-    _output << " native '"
-            << node->nativeName()
-            << "';" << endl;
+      assert(false);
   }
 
+  /**
+   *  int foo(int x) {...} -> std::function<int64_t(int64_t)> function_foo = [&](int x) -> int64_t {...};
+   */
   virtual void visitFunctionNode(FunctionNode* node) {
+    if (isNativeNode(node))
+      return;
+
     if (node->name() != AstFunction::top_name) {
-      _output << "function "
-              << typeToName(node->returnType()) << " "
-              << node->name()
-              << "(";
+        _output << "function_"
+                << node->name() << " = [&]"
+                << "(";
       for (uint32_t i = 0; i < node->parametersNumber(); i++) {
         if (i != 0)
           _output << ", ";
-        _output << typeToName(node->parameterType(i))
+        _output << wrapInt(typeToName(node->parameterType(i)))
                 << " " << node->parameterName(i);
       }
-      _output << ")";
-    }
-    if (node->body()->nodeAt(0)->isNativeCallNode())
-      visitNativeCallNode(node->body()->nodeAt(0)->asNativeCallNode());
-    else {
+      _output << ") -> " << wrapInt(typeToName(node->returnType()));
       node->body()->visit(this);
-      _output << endl;
+      _output << ";" << endl;
+    } else {
+      // main
+      _output <<
+          "#include <cstdint>\n"
+          "#include <cmath>\n"
+          "#include <cstdio>\n"
+          "#include <cstdlib>\n"
+          "#include <functional>\n"
+          "#include <iostream>\n\n\n"
+          "int main(void) {\n";
+      blockEnter();
+      insideBlock(node->body());
+      indent();
+      blockExit();
+      _output << "return 0;\n}\n";
     }
   }
 
@@ -193,8 +259,15 @@ class AstPrinterVisitor : public AstVisitor {
   }
 
   virtual void visitCallNode(CallNode* node) {
-    _output << node->name()
-            << "(";
+    AstFunction* f = _scope->lookupFunction(node->name());
+    assert(f);
+    if (isNativeNode(f->node())) {
+      _output << f->node()->body()->nodeAt(0)->asNativeCallNode()->nativeName();
+    } else {
+      _output << "function_" << node->name();
+    }
+    // params
+    _output << "(";
     for (uint32_t i = 0; i < node->parametersNumber(); i++) {
       if (i != 0)
         _output << ", ";
@@ -204,34 +277,40 @@ class AstPrinterVisitor : public AstVisitor {
   }
 
   virtual void visitPrintNode(PrintNode* node) {
-    _output << "print(";
+    _output << "std::cout << ";
     for (uint32_t i = 0; i < node->operands(); i++) {
       if (i != 0)
-        _output << ", ";
+        _output << " << ";
       node->operandAt(i)->visit(this);
     }
-    _output << ");";
+    _output << ";";
   }
 
 };
 
-class AstPrinter : public Translator {
+class Magic : public Translator {
  public:
   virtual Status* translate(const string& program, Code* *code)  {
     Parser parser;
     Status* status = parser.parseProgram(program);
     if (status->isError()) return status;
 
-    AstPrinterVisitor printer;
-    printer.insideBlock(parser.top()->node()->body());
+    CppCode* cppCode = new CppCode;
+    *code = cppCode;
+
+    cppCode->cppCodeFilename = std::string("/tmp/cpp11_result.cpp");
+    std::ofstream f(cppCode->cppCodeFilename.c_str());
+
+    ToCpp11Visitor visitor(f);
+    visitor.visitFunctionNode(parser.top()->node());
 
     return Status::Ok();
   }
 };
 
 Translator* Translator::create(const string& impl) {
-  if (impl == "printer") {
-    return new AstPrinter();
+  if (impl == "toCpp11") {
+    return new Magic();
   } else {
     return NULL;
   }
