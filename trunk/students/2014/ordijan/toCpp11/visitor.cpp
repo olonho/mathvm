@@ -56,7 +56,7 @@ class ToCpp11Visitor : public AstVisitor {
     while (iter.hasNext()) {
       AstVar* x = iter.next();
       indent();
-      _output << wrapInt(typeToName(x->type())) << " "
+      _output << typeToCppType(x->type()) << " "
               << x->name() << ";\n";
     }
   }
@@ -71,12 +71,12 @@ class ToCpp11Visitor : public AstVisitor {
 
       if (node->name() != AstFunction::top_name) {
           _output << "std::function<"
-                  << wrapInt(typeToName(node->returnType()))
+                  << typeToCppType(node->returnType())
                   << "(";
           for (uint32_t i = 0; i < node->parametersNumber(); i++) {
               if (i != 0)
                   _output << ", ";
-              _output << wrapInt(typeToName(node->parameterType(i)));
+              _output << typeToCppType(node->parameterType(i));
           }
           _output << ")> function_"
                   << node->name() << ";\n";
@@ -99,9 +99,14 @@ class ToCpp11Visitor : public AstVisitor {
           || node->isLoadNode();
   }
 
-  std::string wrapInt(const std::string & s) const {
-    if (s == "int") return "int64_t";
-    return s;
+  std::string typeToCppType(VarType type) const {
+    switch (type) {
+    case VT_INT:    return "int64_t";
+    case VT_DOUBLE: return "double";
+    case VT_STRING: return "const char*";
+    case VT_VOID:   return "void";
+    default: assert(false);
+    }
   }
 
  public:
@@ -167,15 +172,15 @@ class ToCpp11Visitor : public AstVisitor {
   }
 
   virtual void visitForNode(ForNode* node) {
-    _output << "for (int64_t "
-            << node->var()->name()
+    _output << node->var()->name()
             << " = ";
     node->inExpr()->asBinaryOpNode()->left()->visit(this);
-    _output << "; "
+    _output << "; "; indent();
+    _output << "for (; "
             << node->var()->name()
             << " <= ";
     node->inExpr()->asBinaryOpNode()->right()->visit(this);
-    _output << "; ++i)";
+    _output << "; ++" << node->var()->name() << ")";
     node->body()->visit(this);
   }
 
@@ -225,10 +230,10 @@ class ToCpp11Visitor : public AstVisitor {
       for (uint32_t i = 0; i < node->parametersNumber(); i++) {
         if (i != 0)
           _output << ", ";
-        _output << wrapInt(typeToName(node->parameterType(i)))
+        _output << typeToCppType(node->parameterType(i))
                 << " " << node->parameterName(i);
       }
-      _output << ") -> " << wrapInt(typeToName(node->returnType()));
+      _output << ") -> " << typeToCppType(node->returnType());
       node->body()->visit(this);
       _output << ";" << endl;
     } else {
