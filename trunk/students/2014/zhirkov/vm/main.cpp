@@ -4,6 +4,7 @@
 #include "ast_printer.h"
 #include "translator/translator.h"
 #include "ir/transformations/ssa.h"
+#include "ir/transformations/typecasts.h"
 
 using namespace mathvm;
 using namespace std;
@@ -20,6 +21,11 @@ const char *programTextOrFailure(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
     return text;
+}
+
+static void printIr(IR::SimpleIr& ir, std::ostream& str = std::cerr) {
+    IR::IrTypePrinter printer(ir.varMeta, str);
+    printer.print(ir);
 }
 
 int main(int argc, char **argv) {
@@ -42,14 +48,21 @@ int main(int argc, char **argv) {
     SimpleIrBuilder translator(parser.top(), ca.getResult(), irRepr);
     translator.start();
 
-    printer.print(*translator.getResult());
+    printIr(*translator.getResult(), irRepr);
+
     IR::SsaTransformation ssaTransformation(*translator.getResult(), irRepr);
     ssaTransformation.start();
 
-    printer.print(*ssaTransformation.getResult());
+    printIr(*ssaTransformation.result(), irRepr);
+
+    IR::EmitCasts typecheckerTransformation(*ssaTransformation.result(), irRepr);
+    typecheckerTransformation.start();
+
+    printIr(*typecheckerTransformation.result(), irRepr);
+
 
     delete translator.getResult();
-    delete ssaTransformation.getResult();
+    delete ssaTransformation.result();
 
 //    irRepr.close();
     delete ca.getResult();

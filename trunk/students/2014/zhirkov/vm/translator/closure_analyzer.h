@@ -61,7 +61,9 @@ namespace mathvm {
     class ClosureAnalyzer : public AstAnalyzer<ClosureInfo, AstAnalyzerContext> {
 
     public:
-        ClosureAnalyzer(AstFunction const *top, ostream &debugStream) : AstAnalyzer(top, debugStream) {
+        virtual void declareFunction(AstFunction const *fun);
+
+        ClosureAnalyzer(AstFunction const *top, ostream &debugStream) : AstAnalyzer(top, "closures", debugStream) {
         }
 
     private:

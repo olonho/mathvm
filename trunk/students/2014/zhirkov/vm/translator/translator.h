@@ -106,7 +106,7 @@ namespace mathvm {
         void visitAstFunction(AstFunction const *function);
 
         SimpleIrBuilder(AstFunction const *top, ClosureInfo const *closureInfo, std::ostream &debug)
-                : AstAnalyzer(top, debug),
+                : AstAnalyzer(top, "translator", debug),
                   _closureInfo(closureInfo) {
         }
 
@@ -162,7 +162,7 @@ namespace mathvm {
 
         uint64_t makeTempVar();
 
-        void declareFunction(AstFunction const *fun);
+        virtual void declareFunction(AstFunction const *fun);
 
         void insertPhi();
     public:

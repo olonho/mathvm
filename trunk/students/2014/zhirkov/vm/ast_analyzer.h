@@ -15,23 +15,32 @@ namespace mathvm {
     protected:
         T* _result;
         AstFunction const* const top;
+        char const *  const name;
         Ctx ctx;
         std::ostream& _debug;
     public:
 
-        AstAnalyzer(AstFunction const* const top, std::ostream& debugStream) : top(top), _result(new T()), _debug(debugStream) {
+        AstAnalyzer(AstFunction const* const top, char const* name, std::ostream& debugStream) : top(top), _result(new T()), name(name), _debug(debugStream) {
         }
-
-        virtual void start()  { visitAstFunction(top); };
+        virtual void declareFunction(AstFunction const *fun) = 0;
         T* getResult() const {
             return _result;
         }
         virtual void visitAstFunction(AstFunction const* fun) = 0;
 
 
+        virtual void start()  {
+            declareFunction(top);
+
+            _debug << "\n-------------------------------\n   "
+                    << name << " analyzer has started \n-------------------------------\n";
+            visitAstFunction(top);
+        }
+
+
 #define DEFAULT_VISITOR(type, _) virtual void visit##type(type* node) { node->visitChildren(this); }
         FOR_NODES(DEFAULT_VISITOR)
-
+#undef DEFAULT_VISITOR
     };
 
 

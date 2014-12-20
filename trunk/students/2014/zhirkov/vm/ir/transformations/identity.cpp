@@ -6,9 +6,9 @@ namespace mathvm {
     namespace IR {
 
         IrElement *IdentityTransformation::visit(BinOp const *const expr) {
-            Expression const *left = static_cast<Expression const *> (expr->left->visit(this));
+            Atom const *left = static_cast<Atom const *> (expr->left->visit(this));
             if (left == NULL) return NULL;
-            Expression const *right = static_cast<Expression const *> (expr->right->visit(this));
+            Atom const *right = static_cast<Atom const *> (expr->right->visit(this));
             if (right == NULL) {
                 delete left;
                 return NULL;
@@ -17,7 +17,7 @@ namespace mathvm {
         }
 
         IrElement *IdentityTransformation::visit(UnOp const *const expr) {
-            Expression const *operand = static_cast<Expression const *> (expr->operand->visit(this));
+            Atom const *operand = static_cast<Atom const *> (expr->operand->visit(this));
             if (operand == NULL) return NULL;
             return new UnOp(operand, expr->type);
         }
@@ -57,6 +57,7 @@ namespace mathvm {
         IrElement *IdentityTransformation::visit(Block const *const expr) {
             _currentSourceBlock = expr;
             Block *result = new Block(expr->name);
+            _currentResultBlock = result;
             result->predecessors = expr->predecessors;
             for (auto st : expr->contents) {
                 auto transformed = st->visit(this);
@@ -94,13 +95,13 @@ namespace mathvm {
             Atom const *inner = static_cast<Atom const *>(expr->atom->visit(this));
             return new Print(inner);
         }
-
         IrElement *IdentityTransformation::visit(FunctionRecord const *const expr) {
+            _currentSourceFunction = expr;
             Block* newEntry = static_cast<Block*> ( expr->entry->visit(this) );
             if (newEntry == NULL) return NULL;
 
             FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, newEntry);
-            if (transformed == NULL) { delete newEntry; return NULL; }
+            _currentResultFunction = transformed;
             transformed->parametersIds = expr->parametersIds;
             transformed->memoryCells = expr->memoryCells;
             transformed->refParameterIds = expr->refParameterIds;
