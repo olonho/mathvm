@@ -9,8 +9,8 @@ namespace mathvm {
 
         inline char const *const varTypeStr(VarType type) {
             switch (type) {
-                case VT_Bot:
-                    return "_|_";
+                case VT_Unit:
+                    return "unit";
                 case VT_Int:
                     return "int";
                 case VT_Double:
@@ -24,6 +24,7 @@ namespace mathvm {
         }
 
         class IrPrinter : public IrVisitor {
+        protected:
             std::ostream &_out;
             std::set<const Block *> visitedBlocks;
             FunctionRecord const* currentFunction;
@@ -37,6 +38,24 @@ namespace mathvm {
             IrPrinter(std::ostream &out) : _out(out) , currentFunction(NULL) {
             }
             void print(SimpleIr const& ir);
+
+        };
+
+        class IrTypePrinter : public IrPrinter {
+        private:
+            std::vector<SimpleIr::VarMeta> const& meta;
+        public:
+
+            IrTypePrinter(std::vector<SimpleIr::VarMeta> const& meta, std::ostream &out) : IrPrinter(out) , meta(meta) {
+            }
+
+            virtual IrElement *visit(Variable const *const expr) {
+                auto& m = meta[expr->id];
+                _out << (m.isSourceVar ?  ("[var ") :( "[tmp "));
+                _out << expr->id  << ":" << varTypeStr(m.type) << "]";
+                return NULL;
+            }
+
         };
 
 

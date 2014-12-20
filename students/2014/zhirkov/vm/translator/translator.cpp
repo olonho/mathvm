@@ -13,7 +13,7 @@
 
 namespace mathvm {
 
-    static IR::BinOp *selectBinOp(TokenKind kind, IR::Expression const *const left, IR::Expression const *const right) {
+    static IR::BinOp *selectBinOp(TokenKind kind, IR::Atom const *const left, IR::Atom const *const right) {
         switch (kind) {
             case tOR:
                 return new IR::BinOp(left, right, IR::BinOp::Type::BO_LOR);
@@ -53,7 +53,7 @@ namespace mathvm {
         }
     }
 
-    static IR::UnOp const *selectUnOp(TokenKind kind, IR::Expression const *operand) {
+    static IR::UnOp const *selectUnOp(TokenKind kind, IR::Atom const *operand) {
         switch (kind) {
             case tNOT:
                 return new IR::UnOp(operand, IR::UnOp::Type::UO_NOT);
@@ -72,12 +72,12 @@ namespace mathvm {
             if (!closureVarMeta(cptVar).isWritten) {
                 funMeta(f).capturedArgs.push_back(&varMeta(cptVar));
                 _result->functions[funMeta(f).id]->parametersIds.push_back(varMeta(cptVar).id);
-                _debug << "add captured variable " << cptVar->name()
+                _debug << "added captured variable " << cptVar->name()
                 << " to function " << f->name() << " as an additional argument\n";
             } else {
                 funMeta(f).capturedRefArgs.push_back(&varMeta(cptVar));
                 _result->functions[funMeta(f).id]->refParameterIds.push_back(varMeta(cptVar).id);
-                _debug << "add captured variable " << cptVar->name()
+                _debug << "added captured variable " << cptVar->name()
                         << " to function " << f->name() << " as an additional reference argument! \n";
             }
     }
@@ -157,23 +157,28 @@ namespace mathvm {
     void SimpleIrBuilder::visitStoreNode(StoreNode *node) {
 
         node->value()->visit(this);
-        const IR::Expression *rhs = _popAtom();
+        const IR::Atom *rhs = _popAtom();
 
         auto varToStore = varMeta(node->var()).id;
         switch (node->op()) {
-            case tASSIGN:
-                break;
             case tINCRSET:
-                rhs = new IR::BinOp(readVar(varToStore), rhs, IR::BinOp::BO_ADD);
+            {
+                auto e  = new IR::BinOp(readVar(varToStore), rhs, IR::BinOp::BO_ADD);
+                emit(new IR::Assignment(varToStore, e));
                 break;
-            case tDECRSET:
-                rhs = new IR::BinOp(readVar(varToStore), rhs, IR::BinOp::BO_SUB);
+            }
+            case tDECRSET: {
+                auto e = new IR::BinOp(readVar(varToStore), rhs, IR::BinOp::BO_SUB);
+                emit(new IR::Assignment(varToStore, e));
+                break;
+            }
+            case tASSIGN:
+                emit(new IR::Assignment(varToStore, rhs));
                 break;
             default:
                 std::cerr << "Store node contains bad token " << tokenStr(node->op()) << std::endl;
                 break;
-        }
-        emit(new IR::Assignment(varToStore, rhs));
+        };
     }
 
     void SimpleIrBuilder::visitForNode(ForNode *node) {
@@ -314,6 +319,13 @@ namespace mathvm {
             }
         auto tempVarId = makeTempVar();
         emit(new IR::Assignment(tempVarId, new IR::Call(funId, params, refParams)));
+
+        for (auto cptVar : closureFunMeta(f).capturedOuterVars)
+            if (closureVarMeta(cptVar).isWritten) {
+                auto id = varMeta(cptVar).id;
+                emit(new IR::Assignment(id, new IR::ReadRef(id)));
+            }
+
         _pushAtom(new IR::Variable(tempVarId));
     }
 
@@ -330,10 +342,7 @@ namespace mathvm {
 
 
     void SimpleIrBuilder::start() {
-        _debug << "Translator started" << std::endl;
-
-        declareFunction(top);
-        visitAstFunction(top);
+        AstAnalyzer::start();
 
         insertPhi();
     }
@@ -383,6 +392,7 @@ namespace mathvm {
 
     uint64_t SimpleIrBuilder::makeAstVar(AstVar const *var) {
         uint64_t id = ctx.nVars++;
+        _debug << "created variable " << id  << " for ast var " << var->name() << std::endl;
         AstVarMetadata *md = new AstVarMetadata(var, id, 0);
         ctx.astVarMeta[var] = md;
         ctx.allVarMeta[id] = md;
@@ -395,7 +405,7 @@ namespace mathvm {
         uint64_t id = ctx.nVars++;
         AstVarMetadata *md = new AstVarMetadata(id);
         ctx.allVarMeta[id] = md;
-        IR::SimpleIr::VarMeta add(md->id, 0, IR::VT_Undefined);
+        IR::SimpleIr::VarMeta add(md->id);
         _result->varMeta.push_back(add);
         return id;
     }

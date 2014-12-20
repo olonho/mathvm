@@ -50,7 +50,7 @@ virtual IrType getType() const { return IT_##ir; }
                 IT_INVALID
 #undef DECLARE_IR_TYPE
             };
-
+            virtual IrType getType() const = 0;
             virtual IrElement *visit(IrVisitor *const visitor) const = 0;
 
 #define HELPER(ir) virtual bool is##ir() const { return false; } ; virtual ir const* as##ir() const { return NULL; } ;
@@ -81,10 +81,11 @@ virtual IrType getType() const { return IT_##ir; }
 
         enum VarType {
             VT_Undefined,
-            VT_Bot,
+            VT_Unit,
             VT_Int,
             VT_Double,
-            VT_Ptr
+            VT_Ptr,
+            VT_Error
         };
 
         struct Variable : Atom {
@@ -208,8 +209,8 @@ virtual IrType getType() const { return IT_##ir; }
 
         struct BinOp : Expression {
 
-            const Expression* const left;
-            const Expression* const right;
+            const Atom* const left;
+            const Atom* const right;
 #define FOR_IR_BINOP(DO) \
 DO(ADD, "+")\
 DO(SUB, "-")\
@@ -233,7 +234,7 @@ DO(XOR, "^")
             };
             const Type type;
 
-            BinOp(Expression const *left, Expression const *right, Type type) : left(left), right(right), type(type) {
+            BinOp(Atom const *left, Atom const *right, Type type) : left(left), right(right), type(type) {
             }
 
             IR_COMMON_FUNCTIONS(BinOp)
@@ -245,12 +246,10 @@ DO(XOR, "^")
         };
 
         struct UnOp : Expression {
-            const Expression* const operand;
+            const Atom* const operand;
 #define FOR_IR_UNOP(DO)\
 DO(CAST_I2D, "<i2d>")\
 DO(CAST_D2I,"<d2i>")\
-DO(CAST_P2I,"<p2i>")\
-DO(CAST_I2P, "<i2p>")\
 DO(NEG, "-")\
 DO(NOT, "!")
 #define UNOP_NAME(o, _) UO_##o,
@@ -263,7 +262,7 @@ DO(NOT, "!")
 
             const Type type;
 
-            UnOp(const Expression *const operand, Type type) : operand(operand), type(type) {
+            UnOp(const Atom* const operand, Type type) : operand(operand), type(type) {
             }
 
             IR_COMMON_FUNCTIONS(UnOp)
@@ -409,6 +408,7 @@ DO(NOT, "!")
         };
 
         struct SimpleIr {
+
             struct VarMeta {
                 const uint64_t id;
                 const bool isSourceVar;

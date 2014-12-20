@@ -58,4 +58,7 @@ namespace mathvm {
         }
         _debug << "-----" << std::endl;
     }
+
+    void ClosureAnalyzer::declareFunction(AstFunction const *fun) {
+    }
 }

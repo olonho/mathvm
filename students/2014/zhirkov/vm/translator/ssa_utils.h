@@ -27,8 +27,12 @@ namespace mathvm {
                 return IR::VT_Int;
             case VT_STRING:
                 return IR::VT_Ptr;
+            case VT_VOID:
+                return IR::VT_Unit;
+            case VT_INVALID:
+                return IR::VT_Error;
             default:
-                return IR::VT_Bot;
+                return IR::VT_Error;
         }
     }
 }
