@@ -6,24 +6,41 @@
 
 namespace mathvm {
     namespace IR {
-        struct SsaTransformation : public IdentityTransformation {
-            std::map<uint64_t, uint64_t> _latestVersion;
-            SsaTransformation(SimpleIr& old, std::ostream& debug=std::cerr)
-                    : IdentityTransformation(old, "ssa transformation", debug),
+        struct SsaTransformation : public Transformation {
+            virtual ~SsaTransformation() {
+            }
+
+            SsaTransformation(SimpleIr* old, std::ostream& debug=std::cerr)
+                    : Transformation(old, "ssa transformation", debug),
                       meta(_currentIr->varMeta) {
             }
 
-            bool shouldBeRenamed(uint64_t id) {
+            bool shouldBeRenamed(VarId id) {
                 return _latestVersion.find(id) != _latestVersion.end();
             }
-            uint64_t newName(uint64_t id) {
+            VarId newName(VarId id) {
                 return _latestVersion[id];
             }
 
-            FOR_IR(VISITOR);
+            virtual IrElement *visit(const Variable *const expr);
+
+
+            virtual IrElement *visit(const Phi *const expr);
+
+            virtual IrElement *visit(const Assignment *const expr);
+
+            virtual IrElement *visit(const Call *const expr);
+
+            virtual IrElement *visit(const FunctionRecord *const expr);
+
+            virtual IrElement *visit(const WriteRef *const expr);
+
+            virtual IrElement *visit(const ReadRef *const expr);;
 
         private:
             std::vector<IR::SimpleIr::VarMeta>& meta;
+            std::map<VarId, VarId> _latestVersion;
+
         };
 
     }

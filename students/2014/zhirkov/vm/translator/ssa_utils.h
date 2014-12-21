@@ -19,7 +19,7 @@ namespace mathvm {
 
     std::map<const IR::Block *, std::set<const IR::Block *>> dominanceFrontier(const IR::Block *const startBlock);
 
-    static IR::VarType vtToIrType(VarType type) {
+    inline IR::VarType vtToIrType(VarType type) {
         switch (type) {
             case VT_DOUBLE:
                 return IR::VT_Double;

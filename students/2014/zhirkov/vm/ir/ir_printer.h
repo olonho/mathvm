@@ -19,6 +19,8 @@ namespace mathvm {
                     return "ptr";
                 case VT_Undefined:
                     return "???";
+                case VT_Error:
+                    return "errortype";
             }
             return "check varTypeStr, no case";
         }

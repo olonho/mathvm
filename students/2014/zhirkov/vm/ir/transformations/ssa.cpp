@@ -3,13 +3,13 @@
 namespace mathvm {
     namespace IR {
 
-        IrElement *SsaTransformation::visit(Variable const *var) {
+        IrElement *SsaTransformation::visit(Variable const *const var) {
             if (shouldBeRenamed(var->id))
                 return new Variable(_latestVersion[var->id]);
-            else return IdentityTransformation::visit(var);
+            else return Transformation::visit(var);
         }
 
-        static void lookupPreviousVariables(uint64_t originId, std::vector<IR::SimpleIr::VarMeta> const& varMeta,  std::set<uint64_t> & phiList, Block const* currentBlock)  {
+        static void lookupPreviousVariables(VarId originId, std::vector<IR::SimpleIr::VarMeta> const& varMeta,  std::set<VarId> & phiList, Block const* currentBlock)  {
             for( auto it = currentBlock->contents.rbegin(); it != currentBlock->contents.rend(); ++it)
                 if ((*it)->isAssignment()) {
                     auto a = (*it)->asAssignment();
@@ -27,7 +27,7 @@ namespace mathvm {
             auto oldVarId = expr->var->id;
 
             if (_currentIr->varMeta[oldVarId].isSourceVar) {
-                uint64_t newId = meta.size();
+                VarId newId = meta.size();
 
                 Variable const *const newLhs = new Variable(newId);
 
@@ -35,20 +35,20 @@ namespace mathvm {
                 meta.push_back(newmeta);
                 _latestVersion[oldVarId] = newId;
                 Phi * result = new Phi(newLhs);
-                std::set<uint64_t> varids;
+                std::set<VarId> varids;
                 lookupPreviousVariables(oldVarId, meta, varids, _currentSourceBlock);
                 for (auto id : varids)
                     result->vars.insert(new Variable(id));
                 return result;
             }
-            return IdentityTransformation::visit(expr);
+            return Transformation::visit(expr);
         }
 
         IrElement *SsaTransformation::visit(Assignment const *const expr) {
             auto oldVarId = expr->var->id;
 
             if (meta[oldVarId].isSourceVar) {
-                uint64_t newId = meta.size();
+                VarId newId = meta.size();
 
                 Variable const *const newLhs = new Variable(newId);
                 Expression const *const newrhs = static_cast<Expression const *> (expr->value->visit(this));
@@ -58,24 +58,7 @@ namespace mathvm {
                 _latestVersion[oldVarId] = newId;
                 return new Assignment(newLhs, newrhs);
             }
-            return IdentityTransformation::visit(expr);
-        }
-
-
-        IrElement *SsaTransformation::visit(Int const *const expr) {
-            return IdentityTransformation::visit(expr);
-        }
-
-        IrElement *SsaTransformation::visit(Double const *const expr) {
-            return IdentityTransformation::visit(expr);
-        }
-
-        IrElement *SsaTransformation::visit(Ptr const *const expr) {
-            return IdentityTransformation::visit(expr);
-        }
-
-        IrElement *SsaTransformation::visit(Block const *const expr) {
-            return IdentityTransformation::visit(expr);
+            return Transformation::visit(expr);
         }
 
 
@@ -85,11 +68,7 @@ namespace mathvm {
                 newparams.push_back((Atom const *) p->visit(this));
 
 //            for (auto p : expr->refParams)
-            return IdentityTransformation::visit(expr);
-        }
-
-        IrElement *SsaTransformation::visit(Print const *const expr) {
-            return IdentityTransformation::visit(expr);
+            return Transformation::visit(expr);
         }
 
         IrElement *SsaTransformation::visit(FunctionRecord const *const expr) {
@@ -107,27 +86,6 @@ namespace mathvm {
             return transformed;
         }
 
-        IrElement *SsaTransformation::visit(JumpAlways const *const expr) {
-            return IdentityTransformation::visit(expr);
-        }
-
-        IrElement *SsaTransformation::visit(JumpCond const *const expr) {
-            return IdentityTransformation::visit(expr);
-        }
-
-
-        IrElement *SsaTransformation::visit(BinOp const *const expr) {
-            return IdentityTransformation::visit(expr);
-        }
-
-        IrElement *SsaTransformation::visit(UnOp const *const expr) {
-            return IdentityTransformation::visit(expr);
-        }
-
-        IrElement *SsaTransformation::visit(Return const *const expr) {
-            return IdentityTransformation::visit(expr);
-        }
-
         IrElement *SsaTransformation::visit(WriteRef const *const expr) {
 
             auto e = expr->atom->visit(this);
@@ -138,7 +96,7 @@ namespace mathvm {
         IrElement *SsaTransformation::visit(ReadRef const *const expr) {
             if (shouldBeRenamed(expr->refId))
                 return new ReadRef(_latestVersion[expr->refId]);
-            return IdentityTransformation::visit(expr);
+            return Transformation::visit(expr);
         }
     }
 }
