@@ -2,9 +2,11 @@
 #include "../../../../include/mathvm.h"
 #include "translator/closure_analyzer.h"
 #include "ast_printer.h"
+#include "ir/ir.h"
 #include "translator/translator.h"
 #include "ir/transformations/ssa.h"
 #include "ir/transformations/typecasts.h"
+#include "ir/transformations/substitutions.h"
 
 using namespace mathvm;
 using namespace std;
@@ -41,31 +43,48 @@ int main(int argc, char **argv) {
 
     ClosureAnalyzer ca(parser.top(), irRepr);
     ca.start();
-    ca.debug();
 
     IR::IrPrinter printer(irRepr);
 
-    SimpleIrBuilder translator(parser.top(), ca.getResult(), irRepr);
+    SimpleIrBuilder translator(parser.top(), ca.result(), irRepr);
     translator.start();
 
-    printIr(*translator.getResult(), irRepr);
+    printIr(*translator.result(), irRepr);
 
-    IR::SsaTransformation ssaTransformation(*translator.getResult(), irRepr);
+    IR::SsaTransformation ssaTransformation(translator.result(), irRepr);
     ssaTransformation.start();
 
     printIr(*ssaTransformation.result(), irRepr);
 
-    IR::EmitCasts typecheckerTransformation(*ssaTransformation.result(), irRepr);
-    typecheckerTransformation.start();
+    IR::EmitCasts emitCasts(ssaTransformation.result(), irRepr);
+    emitCasts.start();
 
-    printIr(*typecheckerTransformation.result(), irRepr);
+    printIr(*emitCasts.result(), irRepr);
 
 
-    delete translator.getResult();
+    int maxSubst = 100;
+    std::vector<IR::Substitution *> substitutions;
+
+    while(maxSubst--) {
+        IR::SimpleIr const * last = ( substitutions.empty())?(emitCasts.result()): (substitutions.back()->result());
+        substitutions.push_back(new IR::Substitution(last, irRepr));
+        substitutions.back()->start();
+        printIr(*substitutions.back()->result(), irRepr);
+        if (substitutions.back()->isTrivial()) break;
+
+    }
+    irRepr << "\n\n     " << substitutions.size() << " substitutions were performed in total\n\n";
+
+    for (auto subst : substitutions) {
+        delete subst->result();
+        delete subst;
+    }
+
+    delete translator.result();
     delete ssaTransformation.result();
-
-//    irRepr.close();
-    delete ca.getResult();
+    delete emitCasts.result();
+    irRepr.close();
+    delete ca.result();
     delete status;
     delete[] program;
 

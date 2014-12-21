@@ -10,8 +10,10 @@
 namespace mathvm {
     namespace IR {
 
+        typedef uint64_t VarId;
+
 #define IR_COMMON_FUNCTIONS(ir) \
-virtual IrElement* visit(IrVisitor *const v) const { v->visit(this); }\
+virtual IrElement* visit(IrVisitor *const v) const { return v->visit(this); }\
 virtual bool is##ir() const { return true; } ;\
 virtual ir const* as##ir() const { return this; } ;\
 virtual IrType getType() const { return IT_##ir; }
@@ -40,6 +42,8 @@ virtual IrType getType() const { return IT_##ir; }
 #undef DECLARE_IR
 
         struct IrVisitor;
+        struct Expression;
+        struct Atom;
 
         class IrElement {
         public:
@@ -50,18 +54,41 @@ virtual IrType getType() const { return IT_##ir; }
                 IT_INVALID
 #undef DECLARE_IR_TYPE
             };
+
             virtual IrType getType() const = 0;
+
             virtual IrElement *visit(IrVisitor *const visitor) const = 0;
+
+            virtual bool isAtom() const {
+                return false;
+            }
+            virtual bool isLiteral() const {
+                return false;
+            }
+
+            virtual bool isExpression() const {
+                return false;
+            }
+
+            virtual Atom const* asAtom() const {
+                return NULL;
+            }
+
+            virtual Expression const*asExpression() const {
+                return NULL;
+            }
 
 #define HELPER(ir) virtual bool is##ir() const { return false; } ; virtual ir const* as##ir() const { return NULL; } ;
 
             FOR_IR(HELPER)
 #undef HELPER
-        virtual ~IrElement(){}
+
+            virtual ~IrElement() {
+            }
         };
 
         struct IrVisitor {
-#define VISITORABSTR(ir) virtual IrElement *visit(const ir *const expr)  = 0;
+#define VISITORABSTR(ir) virtual IrElement *visit(const ir *const expr) { return NULL; }
 
             FOR_IR(VISITORABSTR)
 
@@ -69,14 +96,35 @@ virtual IrType getType() const { return IT_##ir; }
 
 #define VISITOR(ir) virtual IrElement *visit(const ir * const expr) ;
 
+            virtual ~IrVisitor() {
+            }
         };
 
 
         struct Expression : IrElement {
-        virtual ~Expression() {}
+            virtual bool isExpression() const {
+                return true;
+            }
+
+            virtual Expression const* asExpression() const {
+                return this;
+            }
+
+            virtual ~Expression() {
+            }
         };
+
         struct Atom : Expression {
-            virtual ~Atom() {}
+            virtual bool isAtom() const {
+                return true;
+            }
+
+            virtual const Atom *asAtom() const {
+                return this;
+            }
+
+            virtual ~Atom() {
+            }
         };
 
         enum VarType {
@@ -89,10 +137,10 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         struct Variable : Atom {
-            Variable(uint64_t id) : id(id) {
+            Variable(VarId id) : id(id) {
             }
 
-            const uint64_t id;
+            const VarId id;
 
             IR_COMMON_FUNCTIONS(Variable)
         };
@@ -109,7 +157,7 @@ virtual IrType getType() const { return IT_##ir; }
 
 
         struct JumpAlways : Jump {
-            Block* const destination;
+            Block *const destination;
 
             JumpAlways(Block *dest) : destination(dest) {
             }
@@ -128,7 +176,7 @@ virtual IrType getType() const { return IT_##ir; }
 
             Block *const yes;
             Block *const no;
-            const Atom* const condition;
+            const Atom *const condition;
 
 
             virtual ~JumpCond() {
@@ -139,13 +187,13 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         struct Assignment : Statement {
-            const Variable* const var;
-            const  Expression* const value;
+            const Variable *const var;
+            const Expression *const value;
 
             Assignment(Variable const *const var, Expression const *const expr) : var(var), value(expr) {
             }
 
-            Assignment(uint64_t id, Expression const *const expr) : var(new Variable(id)), value(expr) {
+            Assignment(VarId id, Expression const *const expr) : var(new Variable(id)), value(expr) {
             }
 
             IR_COMMON_FUNCTIONS(Assignment)
@@ -170,15 +218,15 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         struct Phi : Statement {
-            const Variable* const var;
+            const Variable *const var;
 
-            Phi(uint64_t id) : var(new Variable(id)) {
+            Phi(VarId id) : var(new Variable(id)) {
             }
 
             Phi(Variable const *id) : var(id) {
             }
 
-            std::set<const Variable*> vars;
+            std::set<const Variable *> vars;
 
             IR_COMMON_FUNCTIONS(Phi)
 
@@ -189,28 +237,26 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         struct Call : Expression {
-            Call(uint16_t id, std::vector<Atom const *> const &args
-                    , std::vector<uint64_t> const& refArgs
+            Call(uint16_t id, std::vector<Atom const *> const &args, std::vector<VarId> const &refArgs
             )
-                    : funId(id), params(args)
-                    , refParams(refArgs)
-            { }
-
-            std::vector<Atom const*> params;
-            std::vector<uint64_t> refParams;
+                    : funId(id), params(args), refParams(refArgs) {
+            }
             const uint16_t funId;
+            std::vector<Atom const *> params;
+            std::vector<VarId> refParams;
+
 
             IR_COMMON_FUNCTIONS(Call)
 
             virtual ~Call() {
-                for(auto p : params) delete p;
+                for (auto p : params) delete p;
             }
         };
 
         struct BinOp : Expression {
 
-            const Atom* const left;
-            const Atom* const right;
+            const Atom *const left;
+            const Atom *const right;
 #define FOR_IR_BINOP(DO) \
 DO(ADD, "+")\
 DO(SUB, "-")\
@@ -246,7 +292,7 @@ DO(XOR, "^")
         };
 
         struct UnOp : Expression {
-            const Atom* const operand;
+            const Atom *const operand;
 #define FOR_IR_UNOP(DO)\
 DO(CAST_I2D, "<i2d>")\
 DO(CAST_D2I,"<d2i>")\
@@ -262,7 +308,7 @@ DO(NOT, "!")
 
             const Type type;
 
-            UnOp(const Atom* const operand, Type type) : operand(operand), type(type) {
+            UnOp(const Atom *const operand, Type type) : operand(operand), type(type) {
             }
 
             IR_COMMON_FUNCTIONS(UnOp)
@@ -275,7 +321,9 @@ DO(NOT, "!")
 
         struct Int : Atom {
             const int64_t value;
-
+            virtual bool isLiteral() const {
+                return true;
+            }
             Int(int64_t value) : value(value) {
             }
 
@@ -284,6 +332,9 @@ DO(NOT, "!")
 
         struct Double : Atom {
             const double value;
+            virtual bool isLiteral() const {
+                return true;
+            }
 
             Double(double value) : value(value) {
             }
@@ -292,10 +343,14 @@ DO(NOT, "!")
         };
 
         struct Ptr : Atom {
-            const uint64_t value;
+            const VarId value;
             const bool isPooledString;
+            virtual bool isLiteral() const {
+                return true;
+            }
+            Ptr(VarId value, bool isPooledString) : value(value), isPooledString(isPooledString) {
+            }
 
-            Ptr(uint64_t value, bool isPooledString) : value(value), isPooledString(isPooledString) { }
             IR_COMMON_FUNCTIONS(Ptr)
         };
 
@@ -317,7 +372,7 @@ DO(NOT, "!")
 
             std::vector<const Block *> predecessors;
 
-            Block(std::string const &name) : name(name), _transition(NULL) {
+            Block(std::string const &name) : _transition(NULL), name(name) {
             }
 
 
@@ -358,14 +413,15 @@ DO(NOT, "!")
             }
 
             const uint16_t id;
-            Block* entry;
-            std::vector<uint64_t> parametersIds;
-            std::vector<uint64_t> refParameterIds;
-            std::vector<uint64_t> memoryCells; //each id is the pointer id. Write to it == write to this memory cell.
+            Block *entry;
+            std::vector<VarId> parametersIds;
+            std::vector<VarId> refParameterIds;
+            std::vector<VarId> memoryCells; //each id is the pointer id. Write to it == write to this memory cell.
             // read from it == read from cell
             // pass it == pass the cell's address
 
             VarType returnType;
+
             IR_COMMON_FUNCTIONS(FunctionRecord)
 
 
@@ -377,7 +433,7 @@ DO(NOT, "!")
             Print(Atom const *const atom) : atom(atom) {
             }
 
-            const Atom* const atom;
+            const Atom *const atom;
 
             IR_COMMON_FUNCTIONS(Print)
 
@@ -387,22 +443,25 @@ DO(NOT, "!")
         };
 
         struct WriteRef : Statement {
-            WriteRef(Atom const *const atom, uint64_t const where) : atom(atom), refId(where) {
+            WriteRef(Atom const *const atom, VarId const where) : atom(atom), refId(where) {
             }
 
-            const Atom* const atom;
-            const uint64_t refId;
+            const Atom *const atom;
+            const VarId refId;
+
             IR_COMMON_FUNCTIONS(WriteRef)
+
             virtual ~WriteRef() {
                 delete atom;
             }
         };
 
         struct ReadRef : Atom {
-            const uint64_t refId;
+            const VarId refId;
+
             IR_COMMON_FUNCTIONS(ReadRef)
 
-            ReadRef(uint64_t const refId) : refId(refId) {
+            ReadRef(VarId const refId) : refId(refId) {
             }
 
         };
@@ -410,46 +469,69 @@ DO(NOT, "!")
         struct SimpleIr {
 
             struct VarMeta {
-                const uint64_t id;
+                const VarId id;
                 const bool isSourceVar;
                 const bool isReference;
-                const uint64_t originId;
-                const FunctionRecord* pointsTo;
+                const VarId originId;
+                const FunctionRecord *pointsTo;
                 const uint32_t offset;
 
                 VarType type;
 
-                VarMeta(uint64_t id, uint64_t from, VarType type)
-                        : isSourceVar(true), originId(from), id(id), type(type), isReference(false), pointsTo(NULL), offset(0) {
+                VarMeta(VarId id, VarId from, VarType type)
+                        : id(id),
+                          isSourceVar(true),
+                          isReference(false),
+                          originId(from),
+                          pointsTo(NULL),
+                          offset(0),
+                          type(type)
+                {
                 }
 
-                VarMeta(VarMeta const& meta): id(meta.id),
-                                        isSourceVar(meta.isSourceVar),
-                                        originId(meta.originId),
-                                        type(meta.type),
-                                        isReference(meta.isReference),
-                                        pointsTo(meta.pointsTo),
-                                        offset(meta.offset){ }
-
-                VarMeta(uint64_t id) : isSourceVar(false), originId(0), id(id), type(VT_Undefined), isReference(false), pointsTo(NULL), offset(0){
+                VarMeta(VarMeta const &meta) : id(meta.id),
+                                               isSourceVar(meta.isSourceVar),
+                                               isReference(meta.isReference),
+                                               originId(meta.originId),
+                                               pointsTo(meta.pointsTo),
+                                               offset(meta.offset),
+                                               type(meta.type){
                 }
-                VarMeta(uint64_t id, VarType type, FunctionRecord const* pointsTo, uint32_t offset)
-                        : isSourceVar(false), originId(0), id(id), type(type), isReference(true), pointsTo(pointsTo), offset(offset) {}
+
+                VarMeta(VarId id)
+                        : id(id),
+                          isSourceVar(false),
+                          isReference(false),
+                          originId(0),
+                          pointsTo(NULL),
+                          offset(0),
+                          type(VT_Undefined) {
+                }
+
+                VarMeta(VarId id, VarType type, FunctionRecord const *pointsTo, uint32_t offset)
+                        : id(id),
+                          isSourceVar(false),
+                          isReference(true),
+                          originId(0),
+                          pointsTo(pointsTo),
+                          offset(offset),
+                            type(type) {
+                }
             };
 
             typedef std::vector<std::string> StringPool;
 
             StringPool pool;
-            std::vector<FunctionRecord*> functions;
+            std::vector<FunctionRecord *> functions;
 
-            void addFunction(FunctionRecord* rec) {
+            void addFunction(FunctionRecord *rec) {
                 functions.push_back(rec);
             }
 
             std::vector<VarMeta> varMeta;
 
             virtual ~SimpleIr() {
-                for(auto f : functions)
+                for (auto f : functions)
                     delete f;
             }
         };

@@ -55,7 +55,7 @@ namespace mathvm {
         };
 
 
-        class EmitCasts : public IdentityTransformation {
+        class EmitCasts : public Transformation {
 
         public:
             virtual IrElement *visit(BinOp const *const expr);
@@ -78,17 +78,13 @@ namespace mathvm {
 
             virtual IrElement *visit(ReadRef const *const expr);
 
-            EmitCasts(SimpleIr const &old, std::ostream &debug = std::cerr)
-                    : IdentityTransformation(old, "typechecker", debug),
-                      _deriver(TypeDeriver(_currentIr->varMeta, old.functions, debug)),
-                      it(IdentityTransformation(old, "identity", debug)) {
+            EmitCasts(SimpleIr const *old, std::ostream &debug = std::cerr)
+                    : Transformation(old, "typechecker", debug),
+                      _deriver(_currentIr->varMeta, old->functions, debug){
             }
-
-            IdentityTransformation it;
 
         private:
             TypeDeriver _deriver;
-//            std::map<Expression const*, uint64_t> _converted;
 
             static UnOp::Type selectCast(VarType from, VarType to) {
                 if (from == VT_Error || to == VT_Error) return UnOp::UO_INVALID;
@@ -98,16 +94,16 @@ namespace mathvm {
             }
 
             uint64_t convertTo(VarType to, Expression const *expr) {
-//                if ( _converted.find(expr) != _converted.end()) return _converted[expr];
 
                 auto exprType = _deriver.visitExpression(expr);
                 auto resId = makeVar(exprType);
+
                 IrTypePrinter printer(_currentIr->varMeta,_debug);
                 _debug << "converting expression ";
                 expr->visit(&printer);
                 _debug << " of type " << varTypeStr(exprType) << " to type " << varTypeStr(to) << std::endl;
 
-                emit(new Assignment(resId, (Expression const *const) expr->visit(this)));
+                emit(new Assignment(resId, (Expression const *const) expr->visit(&copier)));
 
                 if (exprType == to) return resId;
                 auto castOp = selectCast(exprType, to);
@@ -118,9 +114,9 @@ namespace mathvm {
 
                 auto convertedId = makeVar(to);
                 emit(new Assignment(convertedId, new UnOp(new Variable(resId), castOp)));
-//                _converted[expr] = convertedId;
                 return convertedId;
             }
+
         };
     }
 }

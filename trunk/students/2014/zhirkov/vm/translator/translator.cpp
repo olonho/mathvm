@@ -412,7 +412,7 @@ namespace mathvm {
 
 
     IR::Atom *SimpleIrBuilder::readVar(uint64_t varId) {
-        auto v = varMetaById(varId).var; return new IR::Variable(varId);
+        return new IR::Variable(varId);
     }
 
     void SimpleIrBuilder::createMemoryCells(AstFunction const *const fun) {

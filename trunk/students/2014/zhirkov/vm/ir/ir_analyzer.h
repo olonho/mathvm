@@ -71,10 +71,6 @@ namespace mathvm {
                     _debug << _name << ": visitExpression called on IrElement, which is not an expression";
                         return defaultAnswer();
                 }
-                _debug << "derived type " << varTypeStr(result) << " for expression: ";
-                IrPrinter printer(_debug);
-                expr->visit(&printer);
-                _debug << std::endl;
                 return result;
             }
         };

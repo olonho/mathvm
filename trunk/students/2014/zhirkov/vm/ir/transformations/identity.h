@@ -8,20 +8,66 @@
 namespace mathvm {
     namespace IR {
 
-        struct IdentityTransformation : public IrVisitor {
 
-            FOR_IR(VISITOR)
+        struct Transformation : public IrVisitor {
 
-            IdentityTransformation(SimpleIr const &old, char const *const name, std::ostream &_debug = std::cerr)
-                    : _old(&old), _currentSourceBlock(NULL), _currentIr(new SimpleIr()), name(name), _debug(_debug) {
-                for (auto m : _old->varMeta)
-                    _currentIr->varMeta.push_back(m);
+            virtual ~Transformation() {
+            }
+
+            virtual IrElement *visit(const BinOp *const expr);
+
+            virtual IrElement *visit(const UnOp *const expr);
+
+            virtual IrElement *visit(const Variable *const expr);
+
+            virtual IrElement *visit(const Return *const expr);
+
+            virtual IrElement *visit(const Phi *const expr);
+
+            virtual IrElement *visit(const Int *const expr);
+
+            virtual IrElement *visit(const Double *const expr);
+
+            virtual IrElement *visit(const Ptr *const expr);
+
+            virtual IrElement *visit(const Block *const expr);
+
+            virtual IrElement *visit(const Assignment *const expr);
+
+            virtual IrElement *visit(const Call *const expr);
+
+            virtual IrElement *visit(const Print *const expr);
+
+            virtual IrElement *visit(const FunctionRecord *const expr);
+
+            virtual IrElement *visit(const JumpAlways *const expr);
+
+            virtual IrElement *visit(const JumpCond *const expr);
+
+            virtual IrElement *visit(const WriteRef *const expr);
+
+            virtual IrElement *visit(const ReadRef *const expr);
+
+            Transformation(SimpleIr const *old, char const *const name, std::ostream &_debug = std::cerr)
+                    :
+                      _currentSourceBlock(NULL),
+                      _currentSourceFunction(NULL),
+                      _currentResultFunction(NULL),
+                      _currentResultBlock(NULL),
+                      _old(old),
+                      _currentIr((SimpleIr *) (old ? (new SimpleIr()) : NULL)),
+                      _debug(_debug),
+                      name(name) {
+                if (_old)
+                    for (auto m : _old->varMeta)
+                        _currentIr->varMeta.push_back(m);
+
             }
 
         protected:
-            Block const*_currentSourceBlock;
-            FunctionRecord const* _currentSourceFunction;
-            FunctionRecord * _currentResultFunction;
+            Block const *_currentSourceBlock;
+            FunctionRecord const *_currentSourceFunction;
+            FunctionRecord *_currentResultFunction;
             Block *_currentResultBlock;
 
             SimpleIr const *const _old;
@@ -29,24 +75,28 @@ namespace mathvm {
             std::ostream &_debug;
             char const *const name;
 
-            virtual bool visited(IrElement *e) {
+            virtual bool visited(IrElement *e){
                 return _visited.find(e) != _visited.end();
             }
 
-            void emit(Statement const* statement) { _currentResultBlock->contents.push_back(statement); }
-            uint64_t makeVar(VarType type = VT_Undefined) {
+            void emit(Statement const *statement) {
+                _currentResultBlock->contents.push_back(statement);
+            }
+
+            VarId makeVar(VarType type = VT_Undefined) {
                 auto newid = _currentIr->varMeta.size();
                 SimpleIr::VarMeta newvarmeta(newid);
                 newvarmeta.type = type;
                 _currentIr->varMeta.push_back(newvarmeta);
                 return newid;
             }
+
         public:
             SimpleIr *result() const {
                 return _currentIr;
             }
 
-            void start() {
+            virtual void start() {
                 _debug << "\n-------------------------------\n   "
                         << name << " has started \n-------------------------------\n";
                 for (auto f : _old->functions) {
@@ -56,12 +106,11 @@ namespace mathvm {
                 }
             }
 
-
         private:
 
             std::map<IrElement const *, IrElement *> _visited;
 
         };
-
+extern Transformation copier;
     }
 }

@@ -53,9 +53,15 @@ namespace mathvm {
             return functions.find(f) != functions.end() && !functions.at(f)->capturedOuterVars.empty();
         }
 
+
 //        void vivify(AstFunction const* const f) {
 //            if (functions.find(f) == functions.end()) functions[f] = Function() ;
 //        }
+        virtual ~ClosureInfo() {
+            for (auto item : functions) {
+                delete item.second;
+            }
+        }
     };
 
     class ClosureAnalyzer : public AstAnalyzer<ClosureInfo, AstAnalyzerContext> {

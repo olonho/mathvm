@@ -20,10 +20,11 @@ namespace mathvm {
         std::ostream& _debug;
     public:
 
-        AstAnalyzer(AstFunction const* const top, char const* name, std::ostream& debugStream) : top(top), _result(new T()), name(name), _debug(debugStream) {
+        AstAnalyzer(AstFunction const* const top, char const* name, std::ostream& debugStream)
+                :  _result(new T()), top(top), name(name), _debug(debugStream) {
         }
         virtual void declareFunction(AstFunction const *fun) = 0;
-        T* getResult() const {
+        T* result() const {
             return _result;
         }
         virtual void visitAstFunction(AstFunction const* fun) = 0;
