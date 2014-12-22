@@ -19,6 +19,13 @@ namespace mathvm {
         }
 
         IrElement *Substitution::visit(Assignment const *const expr) {
+            if (used.status().find(expr->var->id) == used.status().end()) {
+                _debug << "dead assignment will be removed: ";
+                IrPrinter printer(_debug);
+                expr->visit(&printer);
+                _debug<<std::endl;
+                return NULL;
+            }
             Expression const *const res = (Expression const *const) expr->value->visit(this);
             if (expr->value->isAtom()) {
                 IrPrinter printer(_debug);
@@ -127,74 +134,9 @@ namespace mathvm {
             }
             return Transformation::visit(expr);
         }
-
-//gotta delete dead guys
-        bool Referenced::visit(const BinOp *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const UnOp *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Variable *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Return *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Phi *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Int *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Double *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Ptr *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Block *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Assignment *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Call *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const Print *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const FunctionRecord *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const JumpAlways *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const JumpCond *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const WriteRef *const expr) {
-            return IrAnalyzer::visit(expr);
-        }
-
-        bool Referenced::visit(const ReadRef *const expr) {
-            return IrAnalyzer::visit(expr);
+        void Substitution::start() {
+            used.analyze(_old);
+            Transformation::start();
         }
     }
 }
