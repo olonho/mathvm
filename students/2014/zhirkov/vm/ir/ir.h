@@ -233,6 +233,7 @@ virtual IrType getType() const { return IT_##ir; }
 
             virtual ~Phi() {
                 delete var;
+                for (auto v : vars) delete v;
             }
         };
 

@@ -1,4 +1,5 @@
 #pragma once
+#include <set>
 #include "ir.h"
 
 namespace mathvm {
@@ -9,13 +10,15 @@ namespace mathvm {
 
         IrAnalyzer(std::ostream& debug, char const* name) : _debug(debug), _name(name) {}
         protected :
-            Ctx context;
+            Ctx _status;
             virtual T defaultAnswer() = 0;
             std::ostream& _debug;
             const char* const _name;
+            std::set<Block const*> visited;
 
         public:
-            T    visit(IrElement const * element) {
+            Ctx const& status() { return _status; }
+            T    visitElement(IrElement const * element) {
 #define MAC(type) if (element->is##type()) return visit(element->as##type());
                 FOR_IR(MAC)
                 return defaultAnswer();

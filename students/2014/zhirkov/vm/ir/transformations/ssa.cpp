@@ -67,8 +67,7 @@ namespace mathvm {
             for (auto p : expr->params)
                 newparams.push_back((Atom const *) p->visit(this));
 
-//            for (auto p : expr->refParams)
-            return Transformation::visit(expr);
+            return new Call(expr->funId, newparams, expr->refParams);
         }
 
         IrElement *SsaTransformation::visit(FunctionRecord const *const expr) {
