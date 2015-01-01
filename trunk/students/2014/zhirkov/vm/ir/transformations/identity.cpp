@@ -56,9 +56,9 @@ namespace mathvm {
 
         IrElement *Transformation::visit(Block const *const expr) {
             _currentSourceBlock = expr;
-            Block *result = new Block(expr->name);
+            Block *result = new Block(expr->name + "'");
             _currentResultBlock = result;
-            result->predecessors = expr->predecessors;
+//            result->predecessors = expr->predecessors;
             for (auto st : expr->contents) {
                 auto transformed = st->visit(this);
                 if (transformed != NULL) result->contents.push_back(static_cast<IR::Statement *>(transformed));
@@ -111,25 +111,35 @@ namespace mathvm {
         }
 
         IrElement *Transformation::visit(JumpAlways const *const expr) {
+            auto in = _currentResultBlock;
             if (visited(&(*(expr->destination))))
-                return new JumpAlways(static_cast<Block*>(_visited[&(*(expr->destination))]));
+                return new JumpAlways(const_cast<Block*>(static_cast<Block const*>(_visited[&(*(expr->destination))])));
             else {
-                Block *b = static_cast<Block *>(expr->destination->visit(this));
+                Block *b = const_cast<Block*>(static_cast<Block const*>(expr->destination->visit(this)));
                 if (b == NULL)  return NULL;
-                else return new JumpAlways(b);
+                else {
+                    b->addPredecessor(in);
+                    return new JumpAlways(b);
+                }
             }
         }
 
         IrElement *Transformation::visit(JumpCond const *const expr) {
+            auto in = _currentResultBlock;
             auto condvar = static_cast<Atom*> (expr->condition->visit(this));
             if (!condvar) return NULL;
             Block* tyes = NULL, *tno = NULL;
-            if (visited(&(*(expr->yes)))) tyes = static_cast<Block*>(_visited[&(*(expr->yes))]);
-            else  tyes = static_cast<Block*>( expr->yes->visit(this) );
-            if (visited(&(*(expr->no)))) tno = static_cast<Block*>(_visited[&(*(expr->no))]);
-            else  tno = static_cast<Block*>( expr->no->visit(this) );
+            if (visited(&(*(expr->yes)))) tyes = (Block*)(_visited[&(*(expr->yes))]);
+            else  tyes = (Block*)( expr->yes->visit(this) );
+            if (visited(&(*(expr->no)))) tno = (Block*)(_visited[&(*(expr->no))]);
+            else  tno = (Block*)( expr->no->visit(this) );
 
-            if (tyes && tno) return new JumpCond(tyes, tno, condvar );
+
+            if (tyes && tno) {
+                tno->addPredecessor(in);
+                tyes -> addPredecessor(in);
+                return new JumpCond(tyes, tno, condvar );
+            }
             delete tyes; delete tno;
             return NULL;
         }
@@ -147,5 +157,9 @@ namespace mathvm {
 
         Transformation copier(NULL, "identity", std::cerr);
 
+        void Transformation::visit(SimpleIr::StringPool const &pool) {
+            for(auto s : pool)
+                _currentIr->pool.push_back(s);
+        }
     }
 }

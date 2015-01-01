@@ -118,6 +118,8 @@ namespace mathvm {
 
             virtual IrElement *visit(Assignment const *const expr);
 
+            virtual IrElement *visit(Phi const *const expr);
+
             Substitution(SimpleIr const *old, std::ostream &_debug = std::cerr)
                     : Transformation(old, "substitutions", _debug), used(_debug), _changed(false) {
             }

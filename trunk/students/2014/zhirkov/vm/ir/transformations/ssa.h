@@ -6,11 +6,11 @@
 
 namespace mathvm {
     namespace IR {
-        struct SsaTransformation : public Transformation {
-            virtual ~SsaTransformation() {
+        struct Ssa : public Transformation {
+            virtual ~Ssa() {
             }
 
-            SsaTransformation(SimpleIr* old, std::ostream& debug=std::cerr)
+            Ssa(SimpleIr* old, std::ostream& debug=std::cerr)
                     : Transformation(old, "ssa transformation", debug),
                       meta(_currentIr->varMeta) {
             }

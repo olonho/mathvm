@@ -62,6 +62,7 @@ virtual IrType getType() const { return IT_##ir; }
             virtual bool isAtom() const {
                 return false;
             }
+
             virtual bool isLiteral() const {
                 return false;
             }
@@ -70,11 +71,11 @@ virtual IrType getType() const { return IT_##ir; }
                 return false;
             }
 
-            virtual Atom const* asAtom() const {
+            virtual Atom const *asAtom() const {
                 return NULL;
             }
 
-            virtual Expression const*asExpression() const {
+            virtual Expression const *asExpression() const {
                 return NULL;
             }
 
@@ -106,7 +107,7 @@ virtual IrType getType() const { return IT_##ir; }
                 return true;
             }
 
-            virtual Expression const* asExpression() const {
+            virtual Expression const *asExpression() const {
                 return this;
             }
 
@@ -242,6 +243,7 @@ virtual IrType getType() const { return IT_##ir; }
             )
                     : funId(id), params(args), refParams(refArgs) {
             }
+
             const uint16_t funId;
             std::vector<Atom const *> params;
             std::vector<VarId> refParams;
@@ -322,9 +324,11 @@ DO(NOT, "!")
 
         struct Int : Atom {
             const int64_t value;
+
             virtual bool isLiteral() const {
                 return true;
             }
+
             Int(int64_t value) : value(value) {
             }
 
@@ -333,6 +337,7 @@ DO(NOT, "!")
 
         struct Double : Atom {
             const double value;
+
             virtual bool isLiteral() const {
                 return true;
             }
@@ -346,9 +351,11 @@ DO(NOT, "!")
         struct Ptr : Atom {
             const VarId value;
             const bool isPooledString;
+
             virtual bool isLiteral() const {
                 return true;
             }
+
             Ptr(VarId value, bool isPooledString) : value(value), isPooledString(isPooledString) {
             }
 
@@ -368,10 +375,17 @@ DO(NOT, "!")
 
             void setTransition(Jump *jmp) {
                 _transition = jmp;
+                if (!jmp) return;
+                if (jmp->isJumpAlways())
+                    jmp->asJumpAlways()->destination->addPredecessor(this);
+                else {
+                    jmp->asJumpCond()->yes->addPredecessor(this);
+                    jmp->asJumpCond()->no->addPredecessor(this);
+                }
             }
 
 
-            std::vector<const Block *> predecessors;
+            std::set<const Block *> predecessors;
 
             Block(std::string const &name) : _transition(NULL), name(name) {
             }
@@ -379,14 +393,14 @@ DO(NOT, "!")
 
             void link(JumpCond *cond) {
                 _transition = cond;
-                cond->yes->predecessors.push_back(this);
-                cond->no->predecessors.push_back(this);
+                cond->yes->addPredecessor(this);
+                cond->no->addPredecessor(this);
             }
 
             void link(Block *next) {
                 if (_transition) delete _transition;
                 _transition = new JumpAlways(next);
-                next->predecessors.push_back(this);
+                next->addPredecessor(this);
             }
 
             std::deque<Statement const *> contents;
@@ -396,6 +410,10 @@ DO(NOT, "!")
                 for (auto s : contents)
                     delete s;
                 delete _transition;
+            }
+
+            void addPredecessor(Block const *block) {
+                predecessors.insert(block);
             }
 
             IR_COMMON_FUNCTIONS(Block)
@@ -486,8 +504,7 @@ DO(NOT, "!")
                           originId(from),
                           pointsTo(NULL),
                           offset(0),
-                          type(type)
-                {
+                          type(type) {
                 }
 
                 VarMeta(VarMeta const &meta) : id(meta.id),
@@ -496,7 +513,7 @@ DO(NOT, "!")
                                                originId(meta.originId),
                                                pointsTo(meta.pointsTo),
                                                offset(meta.offset),
-                                               type(meta.type){
+                                               type(meta.type) {
                 }
 
                 VarMeta(VarId id)
@@ -516,7 +533,7 @@ DO(NOT, "!")
                           originId(0),
                           pointsTo(pointsTo),
                           offset(offset),
-                            type(type) {
+                          type(type) {
                 }
             };
 

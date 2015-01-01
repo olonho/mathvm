@@ -18,12 +18,25 @@ namespace mathvm {
             else return copier.visit(expr);
         }
 
+        IrElement *Substitution::visit(Phi const *const expr) {
+            if (used.status().find(expr->var->id) == used.status().end() && _old->varMeta[expr->var->id].type != VT_Unit) {
+                _debug << "dead phi function will be removed: ";
+                IrPrinter printer(_debug);
+                expr->visit(&printer);
+                _debug << std::endl;
+                return NULL;
+            }
+            if (expr->vars.size() == 1)
+                return new Assignment(expr->var->id, new Variable((*(expr->vars.begin()))->id));
+            return copier.visit(expr);
+        }
+
         IrElement *Substitution::visit(Assignment const *const expr) {
-            if (used.status().find(expr->var->id) == used.status().end()) {
+            if (used.status().find(expr->var->id) == used.status().end() && _old->varMeta[expr->var->id].type != VT_Unit) {
                 _debug << "dead assignment will be removed: ";
                 IrPrinter printer(_debug);
                 expr->visit(&printer);
-                _debug<<std::endl;
+                _debug << std::endl;
                 return NULL;
             }
             Expression const *const res = (Expression const *const) expr->value->visit(this);
@@ -109,7 +122,8 @@ namespace mathvm {
                     CALC(Int, Int, Int, ^)
                     break;
                 }
-                default:break;
+                default:
+                    break;
             }
             return Transformation::visit(expr);
 #undef CALC
@@ -119,21 +133,33 @@ namespace mathvm {
             if (!expr->operand->isLiteral()) return Transformation::visit(expr);
             switch (expr->type) {
                 case UnOp::UO_CAST_I2D:
-                   _changed = true; return new Double(expr->operand->asInt()->value);
+                    _changed = true;
+                    return new Double(expr->operand->asInt()->value);
                 case UnOp::UO_CAST_D2I:
-                    _changed = true;  return new Int(expr->operand->asInt()->value);
+                    _changed = true;
+                    return new Int(expr->operand->asInt()->value);
                 case UnOp::UO_NEG:
-                    if (expr->operand->isInt()) { _changed = true;  return new Int(-expr->operand->asInt()->value);}
-                    if (expr->operand->isDouble()) {_changed = true; return new Double(-expr->operand->asInt()->value);}
+                    if (expr->operand->isInt()) {
+                        _changed = true;
+                        return new Int(-expr->operand->asInt()->value);
+                    }
+                    if (expr->operand->isDouble()) {
+                        _changed = true;
+                        return new Double(-expr->operand->asInt()->value);
+                    }
                     break;
                 case UnOp::UO_NOT:
-                    if (expr->operand->isInt()) {_changed = true;  return new Int(!expr->operand->asInt()->value);}
+                    if (expr->operand->isInt()) {
+                        _changed = true;
+                        return new Int(!expr->operand->asInt()->value);
+                    }
                     break;
                 default:
                     break;
             }
             return Transformation::visit(expr);
         }
+
         void Substitution::start() {
             used.analyze(_old);
             Transformation::start();
