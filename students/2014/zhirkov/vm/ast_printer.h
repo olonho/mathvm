@@ -4,10 +4,6 @@
 #include "../../../../include/ast.h"
 #include "../../../../vm/parser.h"
 #include "../../../../include/visitors.h"
-
-
-#include "common.h"
-
 namespace mathvm {
 
     class AstPrinterVisitor : public AstBaseVisitor {

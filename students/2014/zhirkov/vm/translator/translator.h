@@ -4,8 +4,7 @@
 #include <stack>
 #include <map>
 #include "../../../../../vm/parser.h"
-#include "../ir/ir.h"
-#include "../common.h"
+#include "../ir/ir.h" 
 #include "../ir/ir_printer.h"
 #include "ssa_utils.h"
 #include "closure_analyzer.h"
