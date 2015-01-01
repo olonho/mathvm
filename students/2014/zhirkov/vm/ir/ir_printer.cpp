@@ -79,8 +79,11 @@ namespace mathvm {
         IrElement *IrPrinter::visit(Block const *const expr) {
             if (visited(expr)) return NULL;
             visitedBlocks.insert(expr);
-            _out << std::endl << "Block " << expr->name << std::endl;
-
+            _out << std::endl << "Block " << expr->name << std::endl
+                    << "  predecessors: ";
+            for(auto pred: expr->predecessors)
+                _out << pred->name << " ";
+            _out << std::endl;
             for (size_t i = 0; i < expr->contents.size(); i++) {
                 _out << "   " << i << " : ";
                 expr->contents[i]->visit(this);

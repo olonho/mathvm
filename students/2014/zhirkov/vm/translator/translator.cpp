@@ -342,6 +342,7 @@ namespace mathvm {
 
 
     void SimpleIrBuilder::start() {
+        assert(this != NULL);
         AstAnalyzer::start();
 
         insertPhi();

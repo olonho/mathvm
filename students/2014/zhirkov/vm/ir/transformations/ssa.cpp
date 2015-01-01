@@ -3,48 +3,27 @@
 namespace mathvm {
     namespace IR {
 
-        IrElement *SsaTransformation::visit(Variable const *const var) {
+        IrElement *Ssa::visit(Variable const *const var) {
             if (shouldBeRenamed(var->id))
                 return new Variable(_latestVersion[var->id]);
             else return Transformation::visit(var);
         }
 
-        static void lookupPreviousVariables(VarId originId, std::vector<IR::SimpleIr::VarMeta> const& varMeta,  std::set<VarId> & phiList, Block const* currentBlock)  {
-            for( auto it = currentBlock->contents.rbegin(); it != currentBlock->contents.rend(); ++it)
-                if ((*it)->isAssignment()) {
-                    auto a = (*it)->asAssignment();
-                    auto lhs = a->var->id;
-                    if (varMeta[lhs].isSourceVar && varMeta[lhs].originId == originId) {
-                        phiList.insert(lhs);
-                        return;
-                    }
-                }
-            for (auto pred : currentBlock->predecessors)
-                lookupPreviousVariables(originId, varMeta, phiList, pred);
-        }
-
-        IrElement *SsaTransformation::visit(Phi const *const expr) {
+        IrElement *Ssa::visit(Phi const *const expr) {
             auto oldVarId = expr->var->id;
 
             if (_currentIr->varMeta[oldVarId].isSourceVar) {
                 VarId newId = meta.size();
 
-                Variable const *const newLhs = new Variable(newId);
-
                 SimpleIr::VarMeta newmeta(newId, oldVarId, meta[oldVarId].type);
                 meta.push_back(newmeta);
                 _latestVersion[oldVarId] = newId;
-                Phi * result = new Phi(newLhs);
-                std::set<VarId> varids;
-                lookupPreviousVariables(oldVarId, meta, varids, _currentSourceBlock);
-                for (auto id : varids)
-                    result->vars.insert(new Variable(id));
-                return result;
+                return new Phi(newId); //expect phi to be empty at that stage, ssa should come before phi_values transformation
             }
             return Transformation::visit(expr);
         }
 
-        IrElement *SsaTransformation::visit(Assignment const *const expr) {
+        IrElement *Ssa::visit(Assignment const *const expr) {
             auto oldVarId = expr->var->id;
 
             if (meta[oldVarId].isSourceVar) {
@@ -62,7 +41,7 @@ namespace mathvm {
         }
 
 
-        IrElement *SsaTransformation::visit(Call const *const expr) {
+        IrElement *Ssa::visit(Call const *const expr) {
             std::vector<const Atom*> newparams;
             for (auto p : expr->params)
                 newparams.push_back((Atom const *) p->visit(this));
@@ -70,7 +49,7 @@ namespace mathvm {
             return new Call(expr->funId, newparams, expr->refParams);
         }
 
-        IrElement *SsaTransformation::visit(FunctionRecord const *const expr) {
+        IrElement *Ssa::visit(FunctionRecord const *const expr) {
             FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, NULL);
 
             for (auto p : expr->parametersIds)
@@ -85,14 +64,14 @@ namespace mathvm {
             return transformed;
         }
 
-        IrElement *SsaTransformation::visit(WriteRef const *const expr) {
+        IrElement *Ssa::visit(WriteRef const *const expr) {
 
             auto e = expr->atom->visit(this);
             if (!e) return NULL;
             return new WriteRef((Atom const *const) e, expr->refId);
         }
 
-        IrElement *SsaTransformation::visit(ReadRef const *const expr) {
+        IrElement *Ssa::visit(ReadRef const *const expr) {
             if (shouldBeRenamed(expr->refId))
                 return new ReadRef(_latestVersion[expr->refId]);
             return Transformation::visit(expr);

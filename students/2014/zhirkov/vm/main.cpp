@@ -7,6 +7,7 @@
 #include "ir/transformations/ssa.h"
 #include "ir/transformations/typecasts.h"
 #include "ir/transformations/substitutions.h"
+#include "ir/transformations/phi_values.h"
 
 using namespace mathvm;
 using namespace std;
@@ -51,12 +52,15 @@ int main(int argc, char **argv) {
 
     printIr(*translator.result(), irRepr);
 
-    IR::SsaTransformation ssaTransformation(translator.result(), irRepr);
+    IR::Ssa ssaTransformation(translator.result(), irRepr);
     ssaTransformation.start();
-
     printIr(*ssaTransformation.result(), irRepr);
 
-    IR::EmitCasts emitCasts(ssaTransformation.result(), irRepr);
+    IR::PhiFiller phis(ssaTransformation.result(), irRepr);
+    phis.start();
+    printIr(*phis.result(), irRepr);
+
+    IR::EmitCasts emitCasts(phis.result(), irRepr);
     emitCasts.start();
 
     printIr(*emitCasts.result(), irRepr);
@@ -82,6 +86,7 @@ int main(int argc, char **argv) {
 
     delete translator.result();
     delete ssaTransformation.result();
+    delete phis.result();
     delete emitCasts.result();
     irRepr.close();
     delete ca.result();

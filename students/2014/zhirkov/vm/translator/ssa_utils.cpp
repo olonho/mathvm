@@ -92,7 +92,7 @@ namespace mathvm {
                 if (*it == startBlock) continue;
                 IR::Block const &node = **it;
                 std::set<const IR::Block *> intersection(all.begin(), all.end());
-                for (std::vector<const IR::Block *>::const_iterator p = node.predecessors.cbegin(); p != node.predecessors.cend(); ++p)
+                for (std::set<const IR::Block *>::const_iterator p = node.predecessors.cbegin(); p != node.predecessors.cend(); ++p)
                     intersection = intersect(intersection, dom[*p]);
                 intersection.insert(&node);
 

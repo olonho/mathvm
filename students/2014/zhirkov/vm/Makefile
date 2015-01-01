@@ -17,6 +17,7 @@ USER_OBJ = \
    $(OBJ)/ir/transformations/identity$(OBJ_SUFF)\
    $(OBJ)/ir/transformations/substitutions$(OBJ_SUFF)\
    $(OBJ)/ir/transformations/ssa$(OBJ_SUFF)\
+   $(OBJ)/ir/transformations/phi_values$(OBJ_SUFF)\
    $(OBJ)/ir/transformations/typecasts$(OBJ_SUFF)\
    $(OBJ)/ir/util$(OBJ_SUFF)\
    $(OBJ)/translator/closure_analyzer$(OBJ_SUFF)\
