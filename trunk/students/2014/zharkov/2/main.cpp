@@ -2,10 +2,8 @@
 #include "ast_printer.h"
 #include "translator_impl.h"
 #include "stack_machine.h"
-
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/stat.h>
+#include "runtime_environment.h"
+#include "jit_builder.h"
 
 #include <iostream>
 
@@ -23,14 +21,19 @@ Translator * Translator::create(string const & impl) {
 int main(int argc, char** argv) {
     const char* script = NULL;
     const size_t max_stack_size = 512 * 1024 * 1024;
-    string impl = "translate";
+
+    bool use_jit = true;
+    string impl = "interpret";
+
     for (int32_t i = 1; i < argc; i++) {
       if (string(argv[i]) == "-j") {
-        impl = "jit";
+        use_jit = true;
       } else if (string(argv[i]) == "-p") {
         impl = "printer";
-      } else if (string(argv[i]) == "-e") {
-        impl = "exec";
+      } else if (string(argv[i]) == "-t") {
+          impl = "translate";
+      } else if (string(argv[i]) == "-i") {
+          use_jit = false;
       } else {
         script = argv[i];
       }
@@ -69,10 +72,18 @@ int main(int argc, char** argv) {
                translateStatus->getError().c_str());
     } else if (impl == "translate") {
         code->disassemble();
-    } else if (impl == "exec") {
-        StackMachine machine(cout, max_stack_size);
-        machine.execute(code);
+    } else if (impl == "interpret") {
+        if (use_jit) {
+            RuntimeEnvironment environment;
+            void * top_level = JitBuilder::instance().buildProgram(*code, environment);
+
+            (reinterpret_cast<void (*)()>(top_level))();
+        } else {
+            StackMachine machine(cout, max_stack_size);
+            machine.execute(code);
+        }
     }
+
     delete translateStatus;
     delete translator;
 

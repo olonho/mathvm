@@ -3,13 +3,13 @@ ROOT   = .
 VM_ROOT = ../../../../
 WITH_SDL = true
 
-ifneq ($(NO_JIT), 1)
-JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
+ifneq ($(OPT), true)
+JIT_FLAGS = -DJIT_LOG -DASMJIT_DEBUG
 else
-JIT_OBJ =
+JIT_FLAGS = -DASMJIT_RELEASE
 endif
 
-USER_CFLAGS += -std=c++11  
+USER_CFLAGS += -std=c++11 $(JIT_FLAGS)
 
 USER_OBJ = \
    $(JIT_OBJ) \
@@ -17,6 +17,9 @@ USER_OBJ = \
    $(OBJ)/translator_impl$(OBJ_SUFF) \
    $(OBJ)/interpreter_impl$(OBJ_SUFF) \
    $(OBJ)/jit_builder$(OBJ_SUFF) \
+   $(OBJ)/runtime_environment$(OBJ_SUFF) \
+   $(OBJ)/building_context$(OBJ_SUFF) \
+   $(OBJ)/annotated_bytecode$(OBJ_SUFF) \
    $(OBJ)/stack_machine$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
@@ -28,11 +31,11 @@ MATHVM = $(BIN)/mvm
 
 all: $(MATHVM)
 
-tests: all 
-	./tests/run.py -t translator $(OPT)
-	./tests/run.py -e fail $(OPT)
-	./tests/run.py -e interpreter $(OPT) 
-	./tests/run.py -e given $(OPT)
+tests: all
+	./tests/run.py -i interpreter $(OPT)
+	./tests/run.py -j interpreter $(OPT)
+	./tests/run.py -i given $(OPT)
+	./tests/run.py -j given $(OPT)
 
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)

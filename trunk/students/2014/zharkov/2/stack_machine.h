@@ -56,8 +56,6 @@ private:
     } data_;
 };
 
-typedef uint32_t insn_index_t;
-
 struct CodePointer {
     index_t function_id;
     insn_index_t bytecode_location;
