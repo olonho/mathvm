@@ -1,9 +1,9 @@
-int z0;
-double z1;
-string z2;
-int z3;
-string z4;
-int z5;
+int z0 = 0;
+double z1 = 0;
+string z2 = ''
+int z3 = 0;
+string z4 = '';
+int z5 = 0;
 
 function void foo(int y0, double y1, string y2) {
     int y3;
