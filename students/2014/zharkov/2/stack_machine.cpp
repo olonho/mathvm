@@ -269,8 +269,8 @@ void StackMachine::run() {
             case BC_IFICMPGE: {
                     index_t transition = calculateTransitionAndShiftLocation();
 
-                    int a = popInt();
-                    int b = popInt();
+                    vm_int_t a = popInt();
+                    vm_int_t b = popInt();
 
                     if (ifSatisfied(current_instruction, cmp(a, b))) {
                         current_location_= transition;
