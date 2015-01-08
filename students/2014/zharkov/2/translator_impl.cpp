@@ -35,7 +35,7 @@ Status* BytecodeTranslatorImpl::translateBytecode(const string& program, Interpr
     return Status::Ok(); 
 }
 
-Status * BytecodeTranslatorImpl::translate(string const & program, Code* *code) {
+Status * BytecodeTranslatorImpl::translate(const string & program, Code* *code) {
     InterpreterCodeImpl* result_code = new InterpreterCodeImpl(); 
     *code = result_code;
     return translateBytecode(program, &result_code);
@@ -418,6 +418,9 @@ void TranslatorVisitor::pushScope(Scope * scope) {
             void * proxy_addr = JitBuilder::instance().buildNativeProxy(func->node()->signature(), (const void *)natives_map_[func]);
             index_t id = code_.makeNativeFunction(func->name(), func->node()->signature(), proxy_addr);
             native_funcmap_[func->name()].push(id);
+
+            reinterpret_cast<InterpreterCodeImpl&>(code_).setNativeSource(id, (const void *)natives_map_[func]);
+
         } else {
             BytecodeFunction * bcf = new BytecodeFunction(func);
             code_.addFunction(bcf);
