@@ -75,7 +75,7 @@ namespace mathvm {
         size_t stack_frame_size = (annotated_bytecode_.maxStackSize() + function.localsNumber() + 2) * sizeof(word_t);
         is_rsp_odd_ = (bool)(stack_frame_size % 16);
 
-        assembler_.mov(ptr(rsp, -sizeof(word_t), sizeof(word_t)), rbx);
+        assembler_.mov(ptr(rsp, -((int32_t) sizeof(word_t)), sizeof(word_t)), rbx);
 
         if (annotated_bytecode_.used_closure()) {
             assembler_.mov(rax, imm_ptr(runtime_environment_.pointerToBspOfLastCall(function.id())));
@@ -330,7 +330,7 @@ namespace mathvm {
 
                     assembler_.add(rsp, imm(stack_frame_size));
 
-                    assembler_.mov(rbx, ptr(rsp, -sizeof(word_t), sizeof(word_t)));
+                    assembler_.mov(rbx, ptr(rsp, -((int32_t) sizeof(word_t)), sizeof(word_t)));
                     if (annotated_bytecode_.used_closure()) {
                         assembler_.mov(r11, ptr(rsp, -16, sizeof(word_t)));
                         assembler_.mov(rcx, imm_ptr(runtime_environment_.pointerToBspOfLastCall(function.id())));
