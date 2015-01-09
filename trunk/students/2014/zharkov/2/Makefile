@@ -9,7 +9,7 @@ else
 JIT_FLAGS = -DASMJIT_RELEASE
 endif
 
-USER_CFLAGS += -std=c++11 $(JIT_FLAGS)
+USER_CFLAGS += -Wno-unused -std=c++11 $(JIT_FLAGS)
 
 USER_OBJ = \
    $(JIT_OBJ) \
