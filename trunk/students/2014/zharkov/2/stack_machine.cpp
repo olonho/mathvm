@@ -61,10 +61,10 @@ void StackMachine::run() {
                 current_location_ += sizeof(vm_int_t);
                 break;
             case BC_ILOAD0:
-                push(0L);
+                push(vm_int_t(0L));
                 break;
             case BC_ILOAD1:
-                push(1L);
+                push(vm_int_t(1L));
                 break;
             case BC_SLOAD:
                 push(code_->constantById(getCurrent2BytesAndShiftLocation()).c_str());
@@ -361,7 +361,7 @@ void StackMachine::processNativeCall(index_t id) {
 
     Signature const * signature;
     string const * name;
-    const void * proxy_addr = code_->nativeById(id, &signature, &name);
+    void * proxy_addr = const_cast<void*>(code_->nativeById(id, &signature, &name));
 
     auto returnType = (*signature)[0].first;
     StackValue result;

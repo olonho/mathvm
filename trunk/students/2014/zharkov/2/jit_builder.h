@@ -68,7 +68,7 @@ namespace mathvm {
 
             assembler.call(addr);
 
-            assembler.add(rsp, stack_delta);
+            assembler.add(rsp, imm(stack_delta));
         }
         void * buildProgram(Code & code, RuntimeEnvironment & runtime_environment);
         static asmjit::Imm imm_ptr(const void * ptr) {

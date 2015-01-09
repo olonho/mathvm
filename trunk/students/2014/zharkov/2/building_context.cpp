@@ -83,7 +83,7 @@ namespace mathvm {
             assembler_.mov(ptr(rsp, -16, sizeof(word_t)), r11);
         }
 
-        assembler_.sub(rsp, stack_frame_size);
+        assembler_.sub(rsp, imm(stack_frame_size));
 
         if (annotated_bytecode_.used_closure()) {
             assembler_.mov(r11, rsp);
@@ -328,7 +328,7 @@ namespace mathvm {
                             break;
                     }
 
-                    assembler_.add(rsp, stack_frame_size);
+                    assembler_.add(rsp, imm(stack_frame_size));
 
                     assembler_.mov(rbx, ptr(rsp, -sizeof(word_t), sizeof(word_t)));
                     if (annotated_bytecode_.used_closure()) {
