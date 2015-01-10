@@ -281,7 +281,9 @@ namespace mathvm {
                 }
                 case BC_JA: {
                     insn_index_t next_transition = getCurrentInsnWithArg().transition_id;
-                    assembler_.jmp(all_labels_[next_transition]);
+                    if (next_transition != current_insn_index_ + 1) {
+                        assembler_.jmp(all_labels_[next_transition]);
+                    }
                     break;
                 }
                 case BC_IFICMPE:
@@ -531,7 +533,7 @@ namespace mathvm {
                 assembler_.mov(memoryStackSlotLocationFromTos(signature.size() - 1), rax);
                 break;
             default:
-                return;
+                break;
         }
 
         spillOrRestoreStack(true, false);
@@ -588,19 +590,27 @@ namespace mathvm {
         }
     }
 
+    void BuildingContext::emitCmpInsnByOpcode(uint32_t opcode, Reg const & tmp_reg) {
+        auto first_operand = getStackSlotLocationByOffsetFromTos(2);
+        if (!first_operand.isReg()) {
+            movFromStackLocation(2, tmp_reg);
+            first_operand = tmp_reg;
+        }
+        assembler_.emit(opcode, first_operand, getStackSlotLocationByOffsetFromTos(1));
+    }
+
     void BuildingContext::generateCmpInsn() {
         if (annotated_bytecode_.getInsn(current_insn_index_ + 1) == BC_ILOAD0 &&
                 isConiditionalJump(annotated_bytecode_.getInsn(current_insn_index_ + 2))) {
 
             bool is_xmm = getCurrentInsn() == BC_DCMP;
             if (is_xmm) {
-                movFromStackLocation(2, xmm15);
-                assembler_.emit(kX86InstIdUcomisd, xmm15, getStackSlotLocationByOffsetFromTos(1));
+                emitCmpInsnByOpcode(kX86InstIdUcomisd, xmm15);
             } else {
                 assert(getCurrentInsn() == BC_ICMP);
-                movFromStackLocation(2, rax);
-                assembler_.emit(kX86InstIdCmp, rax, getStackSlotLocationByOffsetFromTos(1));
+                emitCmpInsnByOpcode(kX86InstIdCmp, rax);
             }
+
             current_insn_index_ += 2;
             emitConditionalJump(is_xmm);
             return;

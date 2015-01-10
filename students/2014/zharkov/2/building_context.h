@@ -138,6 +138,7 @@ namespace mathvm {
         }
 
         void generateCmpInsn();
+        void emitCmpInsnByOpcode(uint32_t opcode, Reg const & tmp_reg);
         bool tryEmitNotPattern();
         bool tryEmitComparisionPattern(bool is_xmm);
 
