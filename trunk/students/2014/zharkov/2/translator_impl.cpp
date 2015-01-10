@@ -2,6 +2,7 @@
 #include "typing_visitor.h"
 #include "interpreter_impl.h"
 #include "jit_builder.h"
+#include "function_analysis.h"
 
 #include <map>
 
@@ -42,22 +43,24 @@ Status * BytecodeTranslatorImpl::translate(const string & program, Code* *code) 
 }
 
 void TranslatorVisitor::processTopLevel(AstFunction & top_level) {
-    BytecodeFunction * bcf = new BytecodeFunction(&top_level);
-    code_.addFunction(bcf);
-    funcmap_[AstFunction::top_name].push(bcf);
+    FunctionAnalysisVisitor functionAnalysisVisitor(code_);
+    functionAnalysisVisitor.processTopLevel(top_level);
+
+    is_function_recursive_ = functionAnalysisVisitor.is_function_recursive();
+
     processFunction(top_level);
 
-    bcf->bytecode()->addInsn(BC_RETURN);
+    reinterpret_cast<BytecodeFunction*>(top_level.info())->bytecode()->addInsn(BC_RETURN);
 }
 
 void TranslatorVisitor::processFunction(AstFunction & function) {
-    if (isFunctionNative(function)) {
+    if (isFunctionNative(function) || !inlining_contexts_.empty()) {
         return;
     }
 
     vars_count_.push(0); 
             
-    bytecode_functions_stack_.push(funcmap_[function.name()].top());
+    bytecode_functions_stack_.push(reinterpret_cast<BytecodeFunction*>(function.info()));
 
     for (size_t i = 0; i < function.parametersNumber(); ++i) {
         pushVar(function.parameterName(i));
@@ -357,13 +360,17 @@ void TranslatorVisitor::visitIfNode(IfNode* node) {
 }
 
 void TranslatorVisitor::visitReturnNode(ReturnNode* node) {
-    VarType retType = bytecode_functions_stack_.top()->returnType();
+    VarType retType = inlining_contexts_.empty() ? bytecode_functions_stack_.top()->returnType() : inlining_contexts_.top().second;
     
     if (node->returnExpr() != 0) {
         gen(node->returnExpr(), retType);
     }
-    
-    bytecodeStream().addInsn(BC_RETURN);
+
+    if (inlining_contexts_.empty()) {
+        bytecodeStream().addInsn(BC_RETURN);
+    } else {
+        bytecodeStream().addBranch(BC_JA, *(inlining_contexts_.top().first));
+    }
 }
 
 void TranslatorVisitor::visitCallNode(CallNode* node) {
@@ -378,9 +385,13 @@ void TranslatorVisitor::visitCallNode(CallNode* node) {
         bytecodeStream().addInsn(BC_CALLNATIVE);
         bytecodeStream().addUInt16(id);
     } else {
-        index_t id = funcmap_[node->name()].top()->id();        
-        bytecodeStream().addInsn(BC_CALL);
-        bytecodeStream().addUInt16(id);
+        index_t id = reinterpret_cast<BytecodeFunction*>(func->info())->id();
+        if (is_function_recursive_[id]) {
+            bytecodeStream().addInsn(BC_CALL);
+            bytecodeStream().addUInt16(id);
+        } else {
+            inlineCall(node);
+        }
     }
 }
 
@@ -421,10 +432,6 @@ void TranslatorVisitor::pushScope(Scope * scope) {
 
             reinterpret_cast<InterpreterCodeImpl&>(code_).setNativeSource(id, (const void *)natives_map_[func]);
 
-        } else {
-            BytecodeFunction * bcf = new BytecodeFunction(func);
-            code_.addFunction(bcf);
-            funcmap_[func->name()].push(bcf);
         }
     }
 
@@ -444,8 +451,6 @@ void TranslatorVisitor::popScope() {
         AstFunction * func = funcs_it.next();
         if (isFunctionNative(*func)) {
             native_funcmap_[func->name()].pop();
-        } else {
-            funcmap_[func->name()].pop();
         }
     }
 
@@ -556,6 +561,31 @@ void TranslatorVisitor::localVariableInsn(AstVar const * var, bool is_load) {
             bytecodeStream().addUInt16(var_desc.second);
         }
     }
+}
+
+void TranslatorVisitor::inlineCall(CallNode * node) {
+    Label end_of_function(&bytecodeStream());
+
+    AstFunction & function = *(scopes_.top()->lookupFunction(node->name()));
+    inlining_contexts_.push(make_pair(&end_of_function, function.returnType()));
+
+    for (size_t i = 0; i < function.parametersNumber(); ++i) {
+        pushVar(function.parameterName(i));
+    }
+
+    for (int i = function.parametersNumber() - 1; i >= 0; --i) {
+        AstVar var(function.parameterName(i), function.parameterType(i), scopes_.top());
+        localVariableInsn(&var, false);
+    }
+
+    function.node()->body()->visit(this);
+
+    for (size_t i = 0; i < function.parametersNumber(); ++i) {
+        popVar(function.parameterName(i));
+    }
+
+    bytecodeStream().bind(end_of_function);
+    inlining_contexts_.pop();
 }
 
 }

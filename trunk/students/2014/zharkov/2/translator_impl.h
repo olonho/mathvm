@@ -62,6 +62,8 @@ private:
     void pushVar(string const & name);
     void popVar(string const & name);
 
+    void inlineCall(CallNode * node);
+
     AstVar genTempVar(VarType type);
     
     void gen(AstNode * node, VarType type);
@@ -95,10 +97,12 @@ private:
     stack<BytecodeFunction *> bytecode_functions_stack_;  
     stack<index_t> vars_count_; 
     map<string, stack<pair<index_t, index_t>>> varmap_;
-    map<string, stack<BytecodeFunction*>> funcmap_;
     map<string, stack<index_t>> native_funcmap_;
     
     stack<Scope*> scopes_;
+
+    vector<bool> is_function_recursive_;
+    stack<pair<Label*, VarType>> inlining_contexts_;
 
     void fillVarInsns() {
         pair<VarInsns, VarInsns> insns;
