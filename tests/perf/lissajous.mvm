@@ -5,15 +5,15 @@ HEIGHT = 480;
 int BPP;
 BPP = 32;
 
-function void setMem(string base, int offset, int value, int width) native 'unsafe_setMem';
-function int getMem(string base, int offset, int width) native 'unsafe_getMem';
+function void setMem(int base, int offset, int value, int width) native 'unsafe_setMem';
+function int getMem(int base, int offset, int width) native 'unsafe_getMem';
 function int videoInitFramebuffer(int width, int height, int bpp, int fullscreen) native 'unsafe_videoInitFramebuffer';
 function void videoDenitFramebuffer() native 'unsafe_videoDeinitFramebuffer';
 function int videoCheckEvent() native 'unsafe_videoCheckEvent';
-function string videoGrabFramebuffer() native 'unsafe_videoGrabFramebuffer';
+function int videoGrabFramebuffer() native 'unsafe_videoGrabFramebuffer';
 function void videoReleaseFramebuffer() native 'unsafe_videoReleaseFramebuffer';
 
-function void setPixel(string mem, int x, int y, int r, int g, int b) {
+function void setPixel(int mem, int x, int y, int r, int g, int b) {
     int color;
     if (y >= HEIGHT || x >= WIDTH) {
       //print('out of bounds ', x, ' ', y, '\n');
@@ -86,7 +86,7 @@ t = 0.0;
 double chainsaw;
 chainsaw = 0.01;
 
-function void clrScr(string fb) {
+function void clrScr(int fb) {
   int y; int x;
   for (y in 0..(HEIGHT-1)) {
     for (x in 0..(WIDTH-1)) {
@@ -96,7 +96,7 @@ function void clrScr(string fb) {
 }
 
 function void drawFrame() {
-  string fb;
+  int fb;
   fb = videoGrabFramebuffer();
   if (!fb) {
     print('fb', fb, '\n');

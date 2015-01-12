@@ -1,4 +1,5 @@
 function double sqrt(double x) native 'sqrt';
+function int timestamp() native 'native_timestamp';
 
 function int int(double d) {
     return 0 + d;
@@ -80,6 +81,10 @@ function void factorize(int n, int printResult)  {
 }
 
 int n;
-for (n in 10000000..10100000) {
+int start = timestamp();
+int count = 1000000;
+for (n in 10000000..(10000000+count)) {
     factorize(n, 0);
 }
+int end = timestamp();
+print('factorize ', count, ' numbers took ', end - start, 'us\n');
