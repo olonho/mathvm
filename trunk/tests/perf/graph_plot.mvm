@@ -1,0 +1,90 @@
+int WIDTH = 600;
+int HEIGHT = 600;
+int BPP = 32;
+
+function void setMem(int base, int offset, int value, int width) native 'unsafe_setMem';
+function int getMem(int base, int offset, int width) native 'unsafe_getMem';
+function int videoInitFramebuffer(int width, int height, int bpp, int fullscreen) native 'unsafe_videoInitFramebuffer';
+function void videoDenitFramebuffer() native 'unsafe_videoDeinitFramebuffer';
+function int videoCheckEvent() native 'unsafe_videoCheckEvent';
+function int videoGrabFramebuffer() native 'unsafe_videoGrabFramebuffer';
+function void videoReleaseFramebuffer() native 'unsafe_videoReleaseFramebuffer';
+function int timestamp() native 'native_timestamp';
+function double sin(double x) native 'sin';
+
+function void setPixel(int mem, int x, int y, int r, int g, int b) {
+    int color;
+    color = (r % 256) * 65536 + (g % 256) *256 + (b % 256);
+    setMem(mem, (x + y*WIDTH) * BPP / 8 , color, 4);
+}
+
+function void plotter(double xmin, double ymin, double xmax, double ymax) {
+  function double func(double d) {
+      //return d * sin(1.0 / d);
+      return sin(d) / d;
+  }
+
+  function int getX(double x) {
+    return (x - xmin) / (xmax - xmin) * WIDTH;
+  }
+
+  function int getY(double y) {
+    return (1.0 - (y - ymin) / (ymax - ymin)) * HEIGHT;
+  }
+
+  function void drawAxis(int fb) {
+    int xstart = getX(xmin);
+    int ystart = getY(ymax); 
+    int xend = getX(xmax);
+    int yend = getY(ymin); 
+    int xzero = getX(0.0);
+    int yzero = getY(0.0);    
+    int x;
+    for (x in xstart .. xend) {
+       setPixel(fb, x, yzero, 255, 0, 0);
+    }
+    int y;
+    for (y in ystart .. yend) {
+       setPixel(fb, xzero, y, 0, 0, 255);
+    }
+  }
+
+  function void drawFunc(int fb) {
+    double step = (xmax - xmin) / WIDTH / 8;
+    double x = xmin;
+    while (x < xmax) {
+      double y = func(x);
+      int xs = getX(x);
+      int ys = getY(y);
+      if (xs >= 0 && xs < WIDTH && ys >=0 && ys < HEIGHT) {
+	  setPixel(fb, xs, ys, 0, 255, 0);
+      }
+      x += step;
+    }
+  }
+
+  int fb = videoGrabFramebuffer();
+
+  drawAxis(fb);
+  drawFunc(fb);
+
+  videoReleaseFramebuffer();
+}
+
+if (videoInitFramebuffer(WIDTH, HEIGHT, BPP, 0) == 0) {
+   print('Cannot init video\n');
+   return;
+}
+
+int start = timestamp();
+int repeat;
+for (repeat in 0 .. 1000) {
+ plotter(-20.0, -2.0, 20.0, 2.0);
+}
+int end = timestamp();
+
+print('Drawing took ', end - start, 'us\n');
+
+//while (videoCheckEvent() == 0) {}
+
+videoDenitFramebuffer();
