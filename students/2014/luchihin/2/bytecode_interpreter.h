@@ -14,7 +14,8 @@ using std::string;
 
 namespace mathvm {
 
-struct InterpreterCodeImpl: public Code {
+class InterpreterCodeImpl: public Code {
+public:
     InterpreterCodeImpl(): Code() {}
     Status* execute(vector<Var*> &vars);
 

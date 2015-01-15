@@ -2,7 +2,7 @@ ROOT = .
 VM_ROOT = ../../../..
 
 OPT=1
-WITH_SDL=1
+USER_CFLAGS += -Wno-unused
 
 USER_OBJ = $(OBJ)/main$(OBJ_SUFF) \
                    $(OBJ)/bytecode_translator$(OBJ_SUFF) \
