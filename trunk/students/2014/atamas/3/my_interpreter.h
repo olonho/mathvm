@@ -4,7 +4,7 @@ namespace mathvm{
         union{
             int64_t i;
             double d;
-            uint16_t u;
+            const char * c;
         } _item;
     public:
         StackItem(){}
@@ -20,9 +20,9 @@ namespace mathvm{
             return stackItem;
         }
 
-        static StackItem fromUint(uint16_t val){
+        static StackItem fromConstCharPtr(const char * val){
             StackItem stackItem;
-            stackItem._item.u = val;
+            stackItem._item.c = val;
             return stackItem;
         }
 
@@ -34,26 +34,38 @@ namespace mathvm{
             return _item.d;
         }
 
-        uint16_t asUint(){
-            return _item.u;
+        const char * asConstCharPtr(){
+            return _item.c;
         }
     };
 
         class Scope{
             BytecodeFunction * _fn;
+            uint16_t _id;
             std::vector<StackItem> _context;
             Scope * _parent;
+            Scope * _clojure_parent;
             uint64_t instructionPointer;
         public:
 
-            Scope(BytecodeFunction * fn, Scope * parent = NULL):
+            Scope(BytecodeFunction * fn, Scope * parent, Scope * clojure_parent):
             _fn(fn),
+            _id(fn->id()),
             _context(fn->localsNumber()),
             _parent(parent),
+            _clojure_parent(clojure_parent),
             instructionPointer(0){}
 
             Scope * parent(){
                 return _parent;
+            }
+
+            Scope * clojure_parent(){
+                return _clojure_parent;
+            }
+
+            BytecodeFunction * fn(){
+                return _fn;
             }
 
             Instruction getInstruction(){
@@ -88,16 +100,25 @@ namespace mathvm{
                 return _context[getUint()];
             }
 
-            StackItem getCtxVar(){
-                uint16_t ctx_id = getUint();
-                uint16_t var_id = getUint();
-                return getCtxVar(var_id, ctx_id);
+            StackItem getVarById(uint16_t id){
+                return _context[id];
             }
 
-            void setCtxVar(StackItem val){
-                uint16_t ctx_id = getUint();
-                uint16_t var_id = getUint();
-                setCtxVar(var_id, ctx_id, val);
+            inline StackItem getCtxVar(uint16_t var_id, uint16_t context_id){
+                Scope * curr_scope = this;
+                while(context_id != curr_scope->_id){
+                    curr_scope = curr_scope->_clojure_parent;
+                }
+                return curr_scope->_context[var_id];
+            }
+
+
+            inline void setCtxVar(uint16_t var_id, uint16_t context_id, StackItem val){
+                Scope * curr_scope = this;
+                while(context_id != curr_scope->_id){
+                    curr_scope = curr_scope->_clojure_parent;
+                }
+                curr_scope->_context[var_id] = val;
             }
 
             void setVar(StackItem val){
@@ -111,26 +132,6 @@ namespace mathvm{
 
             void jump(int16_t offset){
                 instructionPointer+=offset;
-            }
-        private:
-            StackItem getCtxVar(uint16_t var_id, uint16_t context_id){
-                if(context_id == _fn->id()){
-                    return _context[var_id];
-                } else if(_parent == 0){
-                    throw "Not found";
-                } else{
-                    return _parent->getCtxVar(var_id, context_id);
-                }
-            }
-
-            void setCtxVar(uint16_t var_id, uint16_t context_id, StackItem val){
-                if(context_id == _fn->id()){
-                    _context[var_id] = val;
-                } else if(_parent == NULL){
-                    throw "Not found";
-                } else{
-                    _parent->setCtxVar(var_id, context_id, val);
-                }
             }
         };
     }
