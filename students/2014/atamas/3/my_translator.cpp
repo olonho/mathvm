@@ -3,6 +3,7 @@
 #include "visitors.h"
 #include <stdexcept>
 #include <iostream>
+#include <dlfcn.h>
 
 namespace mathvm{
     Instruction BC_NEG(VarType type){
@@ -344,12 +345,12 @@ namespace mathvm{
         }
 
         void visitNativeCallNode(NativeCallNode *node){
-//            void *code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
-//            if (!code) throw std::runtime_error("Native function not found");
-//            uint16_t fnId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
-//            bc()->addInsn(BC_CALLNATIVE);
-//            bc()->addUInt16(fnId);
-//            bc()->addInsn(BC_RETURN);
+            void *code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+            if (!code) throw std::runtime_error("Native function not found");
+            uint16_t fnId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
+            bc()->addInsn(BC_CALLNATIVE);
+            bc()->addUInt16(fnId);
+            bc()->addInsn(BC_RETURN);
         }
 
         void visitBlockNode(BlockNode * node){
@@ -526,6 +527,7 @@ namespace mathvm{
                 default: throw std::runtime_error("Bad cast");
                 }
                 break;
+            case VT_STRING: return;
             default: throw std::runtime_error("Bad cast");
             }
         }

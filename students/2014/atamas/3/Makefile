@@ -1,8 +1,6 @@
 ROOT   = .
 VM_ROOT = ../../../..
 
-NO_JIT = 1
-
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
 else
