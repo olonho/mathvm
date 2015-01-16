@@ -1,7 +1,7 @@
 ROOT   = .
 VM_ROOT = ../../../..
 OPT = true
-#WITH_SDL = true
+WITH_SDL = true
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
