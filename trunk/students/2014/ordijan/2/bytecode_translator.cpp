@@ -212,7 +212,8 @@ void BytecodeTranslatorVisitor::visitForNode(ForNode* node) {
     if (needTempVar) {
         if (!scope()->declareVariable("<tempForEnd>", VT_INT))
             ERROR("internal error: temp name is unavailable");
-        temp = scope()->lookupVariable("<tempForEnd>", false);
+        temp = scope()->lookupVariable("<tempForEnd>");
+        variableInScope(temp);
     }
 
     Label L_Begin(bytecode());
