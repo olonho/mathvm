@@ -3,21 +3,27 @@
 #include <map>
 #include <set>
 #include "identity.h"
+#include "../../../../../../include/mathvm.h"
 
 namespace mathvm {
     namespace IR {
-        struct Ssa : public Transformation {
+        struct Ssa : public Transformation<> {
             virtual ~Ssa() {
             }
 
-            Ssa(SimpleIr* old, std::ostream& debug=std::cerr)
-                    : Transformation(old, "ssa transformation", debug),
-                      meta(_currentIr->varMeta) {
+            virtual void operator()() {
+                Transformation::visit(&_oldIr);
+            }
+
+            Ssa(SimpleIr const &source, SimpleIr &dest, std::ostream &debug = std::cerr)
+                    : Transformation(source, dest, "ssa transformation", debug),
+                      meta(_newIr.varMeta) {
             }
 
             bool shouldBeRenamed(VarId id) {
                 return _latestVersion.find(id) != _latestVersion.end();
             }
+
             VarId newName(VarId id) {
                 return _latestVersion[id];
             }
@@ -38,7 +44,7 @@ namespace mathvm {
             virtual IrElement *visit(const ReadRef *const expr);;
 
         private:
-            std::vector<IR::SimpleIr::VarMeta>& meta;
+            std::vector<IR::SimpleIr::VarMeta> &meta;
             std::map<VarId, VarId> _latestVersion;
 
         };

@@ -25,7 +25,7 @@ namespace mathvm {
             return "check varTypeStr, no case";
         }
 
-        class IrPrinter : public IrVisitor {
+        class IrPrinter : public IrVisitor<void> {
         protected:
             std::ostream &_out;
             std::set<const Block *> visitedBlocks;
@@ -35,7 +35,7 @@ namespace mathvm {
             }
 
         public:
-            FOR_IR(VISITOR)
+            FOR_IR(VISITOR_VOID)
 
             IrPrinter(std::ostream &out) : _out(out) , currentFunction(NULL) {
             }
@@ -51,11 +51,10 @@ namespace mathvm {
             IrTypePrinter(std::vector<SimpleIr::VarMeta> const& meta, std::ostream &out) : IrPrinter(out) , meta(meta) {
             }
 
-            virtual IrElement *visit(Variable const *const expr) {
+            virtual void visit(Variable const *const expr) {
                 auto& m = meta[expr->id];
                 _out << (m.isSourceVar ?  ("[var ") :( "[tmp "));
                 _out << expr->id  << ":" << varTypeStr(m.type) << "]";
-                return NULL;
             }
 
         };

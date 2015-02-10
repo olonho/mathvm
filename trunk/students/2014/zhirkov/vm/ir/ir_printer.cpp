@@ -6,12 +6,12 @@
 namespace mathvm {
     namespace IR {
 
-        IrElement *IrPrinter::visit(Variable const *const expr) {
+        void IrPrinter::visit(Variable const *const expr) {
             _out << "[var " << expr->id  << "]";
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(BinOp const *const expr) {
+        void IrPrinter::visit(BinOp const *const expr) {
             expr->left->visit(this);
             _out << " ";
             switch (expr->type) {
@@ -24,10 +24,10 @@ namespace mathvm {
             }
             _out << " ";
             expr->right->visit(this);
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(UnOp const *const expr) {
+        void IrPrinter::visit(UnOp const *const expr) {
             switch (expr->type) {
 #define UNOP_STR(name, str) case UnOp::UO_##name: _out << str; break;
                 FOR_IR_UNOP(UNOP_STR)
@@ -36,17 +36,17 @@ namespace mathvm {
                     break;
             }
             expr->operand->visit(this);
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Return const *const expr) {
+        void IrPrinter::visit(Return const *const expr) {
             _out << "return ";
             expr->atom->visit(this);
             _out << std::endl;
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Phi const *const expr) {
+        void IrPrinter::visit(Phi const *const expr) {
             expr->var->visit(this);
             _out << " = phi(";
             for (auto const v : expr->vars){
@@ -54,30 +54,30 @@ namespace mathvm {
                 _out << " ";
             }
             _out << ")";
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Int const *const expr) {
+        void IrPrinter::visit(Int const *const expr) {
             _out << expr->value;
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Double const *const expr) {
+        void IrPrinter::visit(Double const *const expr) {
             _out << expr->value;
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Ptr const *const expr) {
+        void IrPrinter::visit(Ptr const *const expr) {
             _out << "<ptr:" << expr->value;
             if (expr->isPooledString) _out << '@' ;
 //            if (expr->isPooledString && currentFunction != NULL)
 //                _out << "@\"" << escape(currentFunction->pool[expr->value]) << '\"';
             _out << ">";
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Block const *const expr) {
-            if (visited(expr)) return NULL;
+        void IrPrinter::visit(Block const *const expr) {
+            if (visited(expr)) 
             visitedBlocks.insert(expr);
             _out << std::endl << "Block " << expr->name << std::endl
                     << "  predecessors: ";
@@ -90,15 +90,26 @@ namespace mathvm {
                 _out << std::endl;
             }
 
-            if (expr->getTransition())
+            if (!expr->isLastBlock())
+            {
                 expr->getTransition()->visit(this);
+                if (expr->getTransition()->isJumpCond()) {
+                    JumpCond const* const jc = expr->getTransition()->asJumpCond();
+                    if (jc->yes) jc->yes->visit(this);
+                    if (jc->no) jc->no->visit(this);
+                }
+                else {
+                    JumpAlways const* const jmp = expr->getTransition()->asJumpAlways();
+                    if (jmp->destination) jmp->destination->visit(this);
+                }
+            }
 
             else _out << "<no jump>";
             _out << std::endl;
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(JumpCond const *const expr) {
+        void IrPrinter::visit(JumpCond const *const expr) {
             _out << "Cond  ";
             expr->condition->visit(this);
             _out << " ";
@@ -108,26 +119,23 @@ namespace mathvm {
             _out << "no  : " << (expr->no ? expr->no->name : "NULL") << std::endl;
             _out << std::endl;
 
-            if (expr->yes) expr->yes->visit(this);
-            if (expr->no) expr->no->visit(this);
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(JumpAlways const *const expr) {
+        void IrPrinter::visit(JumpAlways const *const expr) {
             _out << "Jump to " <<
                     (expr->destination ? expr->destination->name : "NULL") << std::endl;
-            if (expr->destination) expr->destination->visit(this);
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Assignment const *const expr) {
+        void IrPrinter::visit(Assignment const *const expr) {
             expr->var->visit(this);
             _out << " = ";
             expr->value->visit(this);
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(FunctionRecord const *const expr) {
+        void IrPrinter::visit(FunctionRecord const *const expr) {
             currentFunction = expr;
             _out << "Function id " << expr->id << " returns " << varTypeStr(expr->returnType) << "\n  parameters";
             for (auto v : expr->parametersIds)
@@ -145,10 +153,10 @@ namespace mathvm {
             expr->entry->visit(this);
             _out << std::endl;
             currentFunction = NULL;
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Call const *const expr) {
+        void IrPrinter::visit(Call const *const expr) {
             _out << "call " << expr->funId << "(";
             for (auto p : expr->params)
             {
@@ -159,13 +167,13 @@ namespace mathvm {
             for (auto p : expr->refParams)
                 _out << " " <<p;
             _out << " )";
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(Print const *const expr) {
+        void IrPrinter::visit(Print const *const expr) {
             _out << "print ";
             expr->atom->visit(this);
-            return NULL;
+            
         }
         static void printVarMeta(SimpleIr::VarMeta const& meta, std::ostream& out) {
             out << meta.id << " : " << varTypeStr(meta.type) <<" -> ";
@@ -188,17 +196,17 @@ namespace mathvm {
 
         }
 
-        IrElement *IrPrinter::visit(WriteRef const *const expr) {
+        void IrPrinter::visit(WriteRef const *const expr) {
             _out << "writeref ";
             expr->atom->visit(this);
             _out << " to " << expr->refId;
 
-            return NULL;
+            
         }
 
-        IrElement *IrPrinter::visit(ReadRef const *const expr) {
+        void IrPrinter::visit(ReadRef const *const expr) {
             _out << "readref " << expr->refId;
-            return NULL;
+            
         }
     }
 

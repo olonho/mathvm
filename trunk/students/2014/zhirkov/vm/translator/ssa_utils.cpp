@@ -19,6 +19,20 @@ namespace mathvm {
         acc.push_back(block);
     }
 
+    static void blocksOrder(const IR::Block *const block, std::vector<const IR::Block *> &acc, std::set<const IR::Block *> &visited) {
+        if (visited.find(block) != visited.end()) return;
+        visited.insert(block);
+        acc.push_back(block);
+        if (block->getTransition() != NULL) {
+            if (block->getTransition()->isJumpAlways())
+                blocksPostOrder(&(*(block->getTransition()->asJumpAlways()->destination)), acc, visited);
+            else {
+                blocksPostOrder(block->getTransition()->asJumpCond()->yes, acc, visited);
+                blocksPostOrder(block->getTransition()->asJumpCond()->no, acc, visited);
+            }
+        }
+    }
+
 //    std::vector<const IR::Block *> allBlocks(const IR::Block *const startBlock) {
 //        std::vector<const IR::Block *> blocks;
 //        std::queue<const IR::Block *> q;
@@ -46,6 +60,12 @@ namespace mathvm {
         return res;
     }
 
+    std::vector<const IR::Block *> blocksOrder(const IR::Block *const startBlock) {
+        std::vector<const IR::Block *> res;
+        std::set<const IR::Block *> visited = std::set<const IR::Block *>();
+        blocksOrder(startBlock, res, visited);
+        return res;
+    }
     std::set<const IR::Block *> collectPredecessors(IR::Block *block) {
         std::set<const IR::Block *> preds;
         std::queue<const IR::Block *> q;
@@ -132,6 +152,33 @@ namespace mathvm {
         return idoms;
     }
 
+    struct Node {
+        Node(IR::Block const *const _block) : block(_block) { }
+
+        const IR::Block* const block;
+        std::vector<Node const*> children;
+
+        void dfs(std::vector<const IR::Block*> &nodes) const {
+            for(auto c: children) c->dfs(nodes);
+            nodes.push_back(block);
+        }
+    };
+
+    std::vector<const IR::Block*> idomsReversePostOrder (const IR::Block* const entry) {
+        std::map<const IR::Block *, const IR::Block *> idoms = immediateDominators(entry);
+
+
+        std::map<const IR::Block*, Node*> nodes; for(auto kvp : idoms) nodes.insert(make_pair(kvp.first, new Node(kvp.first)));
+
+        nodes.insert(make_pair(entry, new Node(entry)));
+        for(auto kvp : idoms)
+            nodes[kvp.second]->children.push_back(nodes[kvp.first]);
+
+        std::vector<const IR::Block*> result;
+        nodes[entry]->dfs(result);
+        for( auto kvp : nodes) delete kvp.second;
+        return result;
+    }
 
     std::map<const IR::Block *, std::set<const IR::Block *>> dominanceFrontier(const IR::Block *const startBlock) {
         auto doms = immediateDominators(startBlock);

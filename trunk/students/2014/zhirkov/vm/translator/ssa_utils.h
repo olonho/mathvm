@@ -11,6 +11,7 @@ namespace mathvm {
 
 
     std::vector<const IR::Block*> blocksPostOrder(const IR::Block* const startBlock);
+    std::vector<const IR::Block*> blocksOrder(const IR::Block* const startBlock);
 
     std::set<const IR::Block *> collectPredecessors(IR::Block * block);
 
@@ -18,6 +19,8 @@ namespace mathvm {
     std::map<const IR::Block *, const IR::Block *> immediateDominators(const IR::Block *const startBlock);
 
     std::map<const IR::Block *, std::set<const IR::Block *>> dominanceFrontier(const IR::Block *const startBlock);
+
+    std::vector<const IR::Block*> idomsReversePostOrder (const IR::Block* const entry);
 
     inline IR::VarType vtToIrType(VarType type) {
         switch (type) {

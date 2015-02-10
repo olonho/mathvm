@@ -1,18 +1,20 @@
 #include <iostream>
 #include "ssa.h"
+#include "../../../../../../include/mathvm.h"
+
 namespace mathvm {
     namespace IR {
 
         IrElement *Ssa::visit(Variable const *const var) {
             if (shouldBeRenamed(var->id))
                 return new Variable(_latestVersion[var->id]);
-            else return Transformation::visit(var);
+            else return base::visit(var);
         }
 
         IrElement *Ssa::visit(Phi const *const expr) {
             auto oldVarId = expr->var->id;
 
-            if (_currentIr->varMeta[oldVarId].isSourceVar) {
+            if (_newIr.varMeta[oldVarId].isSourceVar) {
                 VarId newId = meta.size();
 
                 SimpleIr::VarMeta newmeta(newId, oldVarId, meta[oldVarId].type);
@@ -20,7 +22,7 @@ namespace mathvm {
                 _latestVersion[oldVarId] = newId;
                 return new Phi(newId); //expect phi to be empty at that stage, ssa should come before phi_values transformation
             }
-            return Transformation::visit(expr);
+            return base::visit(expr);
         }
 
         IrElement *Ssa::visit(Assignment const *const expr) {
@@ -37,12 +39,12 @@ namespace mathvm {
                 _latestVersion[oldVarId] = newId;
                 return new Assignment(newLhs, newrhs);
             }
-            return Transformation::visit(expr);
+            return base::visit(expr);
         }
 
 
         IrElement *Ssa::visit(Call const *const expr) {
-            std::vector<const Atom*> newparams;
+            std::vector<const Atom *> newparams;
             for (auto p : expr->params)
                 newparams.push_back((Atom const *) p->visit(this));
 
@@ -53,13 +55,16 @@ namespace mathvm {
             FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, NULL);
 
             for (auto p : expr->parametersIds)
-                transformed->parametersIds.push_back((shouldBeRenamed(p))? newName(p):p);
+                transformed->parametersIds.push_back((shouldBeRenamed(p)) ? newName(p) : p);
             for (auto p : expr->memoryCells)
-                transformed->memoryCells.push_back((shouldBeRenamed(p))? newName(p):p);
+                transformed->memoryCells.push_back((shouldBeRenamed(p)) ? newName(p) : p);
             for (auto p : expr->refParameterIds)
-                transformed->refParameterIds.push_back((shouldBeRenamed(p))? newName(p):p);
-            Block* newEntry = static_cast<Block*> ( expr->entry->visit(this) );
-            if (newEntry == NULL) { delete transformed; return NULL; }
+                transformed->refParameterIds.push_back((shouldBeRenamed(p)) ? newName(p) : p);
+            Block *newEntry = static_cast<Block *> ( expr->entry->visit(this) );
+            if (newEntry == NULL) {
+                delete transformed;
+                return NULL;
+            }
             transformed->entry = newEntry;
             return transformed;
         }
@@ -74,7 +79,9 @@ namespace mathvm {
         IrElement *Ssa::visit(ReadRef const *const expr) {
             if (shouldBeRenamed(expr->refId))
                 return new ReadRef(_latestVersion[expr->refId]);
-            return Transformation::visit(expr);
+            return base::visit(expr);
         }
+
+
     }
 }

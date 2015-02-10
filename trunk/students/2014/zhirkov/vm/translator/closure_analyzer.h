@@ -53,10 +53,6 @@ namespace mathvm {
             return functions.find(f) != functions.end() && !functions.at(f)->capturedOuterVars.empty();
         }
 
-
-//        void vivify(AstFunction const* const f) {
-//            if (functions.find(f) == functions.end()) functions[f] = Function() ;
-//        }
         virtual ~ClosureInfo() {
             for (auto item : functions) {
                 delete item.second;
@@ -67,6 +63,9 @@ namespace mathvm {
     class ClosureAnalyzer : public AstAnalyzer<ClosureInfo, AstAnalyzerContext> {
 
     public:
+        virtual ~ClosureAnalyzer() {
+        }
+
         virtual void declareFunction(AstFunction const *fun);
 
         ClosureAnalyzer(AstFunction const *top, ostream &debugStream) : AstAnalyzer(top, "closures", debugStream) {

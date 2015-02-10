@@ -67,7 +67,7 @@ namespace mathvm {
 
 
     void SimpleIrBuilder::argsForCaptured(AstFunction const * const f ) {
-        if (!_closureInfo->captures(f)) return;
+        if (!_closureInfo.captures(f)) return;
         for (auto cptVar : closureFunMeta(f).capturedOuterVars)
             if (!closureVarMeta(cptVar).isWritten) {
                 funMeta(f).capturedArgs.push_back(&varMeta(cptVar));
@@ -304,7 +304,7 @@ namespace mathvm {
             node->parameterAt(i)->visit(this);
             params.push_back(_popAtom());
         }
-        if (_closureInfo->captures(f)) {
+        if (_closureInfo.captures(f)) {
             for (auto cptVar : closureFunMeta(f).capturedOuterVars)
                 if (!closureVarMeta(cptVar).isWritten)
                     params.push_back(new IR::Variable(varMeta(cptVar).id));
@@ -313,7 +313,7 @@ namespace mathvm {
         }
 
         for (auto cptWriteVar: closureFunMeta(f).capturedOuterVars)
-            if (_closureInfo->capturedWritten(cptWriteVar)) {
+            if (_closureInfo.capturedWritten(cptWriteVar)) {
                 auto id = varMeta(cptWriteVar).id;
                 emit(new IR::WriteRef(new IR::Variable(id), id));
             }
@@ -330,7 +330,7 @@ namespace mathvm {
     }
 
     void SimpleIrBuilder::visitNativeCallNode(NativeCallNode *node) {
-        //debug("native call");
+        _debug << "Warning: Native calls are not supported yet";
     }
 
     void SimpleIrBuilder::visitPrintNode(PrintNode *node) {
@@ -341,11 +341,24 @@ namespace mathvm {
     }
 
 
-    void SimpleIrBuilder::start() {
+    IR::SimpleIr const& SimpleIrBuilder::operator()() {
         assert(this != NULL);
-        AstAnalyzer::start();
+        AstAnalyzer::operator()();
+
+        for(IR::FunctionRecord const* f : _result->functions){
+            _debug << "+ Immediate dominators for function " << f->id << ":\n";
+            for( auto kvp : immediateDominators(f->entry))
+                _debug <<"   " <<  kvp.first->name << " --> " << kvp.second->name << "\n";
+
+            _debug << "++ In reverse post order: \n";
+            for( auto block : idomsReversePostOrder(f->entry)) {
+                _debug << block->name << " " ;
+            }
+            _debug << std::endl;
+        }
 
         insertPhi();
+        return *result();
     }
 
     void SimpleIrBuilder::embraceVars(Scope* const scope) {
@@ -356,7 +369,6 @@ namespace mathvm {
         }
     }
 
-//fixme: too many phis! test: fib_closure.mvm
     void SimpleIrBuilder::insertPhi() {
         _debug << "inserting phi functions... \n";
 
@@ -373,8 +385,6 @@ namespace mathvm {
                         _debug << "   var " << assignedVar << " : ";
                         for (auto blockWithPhi: elemWithFrontier.second) {
                             _debug << " " << blockWithPhi->name;
-//                            IR::Phi const *a = new IR::Phi(assignedVar);
-//                            (const_cast<IR::Block *> (blockWithPhi))->contents.push_front(a);
                             auto b = (const_cast<IR::Block *> (blockWithPhi));
                             if (result.find(b) == result.end())
                                 result.insert(std::make_pair(b, std::set<uint64_t>()));
@@ -418,7 +428,7 @@ namespace mathvm {
 
     void SimpleIrBuilder::createMemoryCells(AstFunction const *const fun) {
         for (AstVar const* cptWriteVar : closureFunMeta(fun).capturedLocals)
-            if (_closureInfo->capturedWritten(cptWriteVar))
+            if (_closureInfo.capturedWritten(cptWriteVar))
             {
                 _result->functions[funMeta(fun).id]->memoryCells.push_back(varMeta(cptWriteVar).id);
                 _debug << "Created memory cell for variable " << cptWriteVar->name()

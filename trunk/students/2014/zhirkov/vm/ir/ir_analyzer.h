@@ -59,7 +59,7 @@ namespace mathvm {
             virtual T visit(const ReadRef *const expr) { return defaultAnswer(); }
 
             T visitExpression(const Expression* const expr) {
-                VarType result = VT_Undefined;
+                T result;
                 IrElement::IrType type = expr->getType();
                 switch (type) {
                     case IrElement::IT_BinOp: result = visit(expr->asBinOp());break;

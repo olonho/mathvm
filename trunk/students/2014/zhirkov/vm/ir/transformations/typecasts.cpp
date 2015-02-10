@@ -27,7 +27,7 @@ namespace mathvm {
                         auto newrvar = convertTo(VT_Double, expr->right);
                         return new BinOp((Atom const *) expr->left->visit(&copier), new Variable(newrvar), expr->type);
                     }
-                    else return Transformation::visit(expr);
+                    else return base::visit(expr);
                 case BinOp::BO_OR:
                 case BinOp::BO_AND:
                 case BinOp::BO_XOR:
@@ -40,7 +40,7 @@ namespace mathvm {
                         auto newrvar = convertTo(VT_Double, expr->right);
                         return new BinOp(expr->left, new Variable(newrvar), expr->type);
                     }
-                    else return Transformation::visit(expr);
+                    else return base::visit(expr);
 
                 default:
                     _debug << "typechecker can't handle binary operation " << binOpTypeName(expr->type);
@@ -51,12 +51,13 @@ namespace mathvm {
         IrElement *EmitCasts::visit(UnOp const *const expr) {
             switch (expr->type) {
                 case UnOp::UO_NEG:
-                    return Transformation::visit(expr);
+                    return expr->visit(&copier);
                 case UnOp::UO_NOT:
                     if (_deriver.visitExpression(expr->operand) == VT_Double) {
-                        auto newvar = convertTo(VT_Int, expr->operand    );
+                        auto newvar = convertTo(VT_Int, expr->operand);
                         return new UnOp(new Variable(newvar), expr->type);
                     }
+                    else return expr->visit(&copier);
                 default:
                     _debug << "typechecker can't handle unary operation " << unOpTypeName(expr->type);
                     return NULL;
@@ -65,7 +66,7 @@ namespace mathvm {
 
         IrElement *EmitCasts::visit(Return const *const expr) {
             if (_currentSourceFunction->returnType == _deriver.visitExpression(expr->atom))
-            return Transformation::visit(expr);
+                return base::visit(expr);
 
             auto newvar = convertTo(_currentSourceFunction->returnType, expr->atom);
             return new Return(new Variable(newvar));
@@ -73,31 +74,30 @@ namespace mathvm {
 
         IrElement *EmitCasts::visit(Assignment const *const expr) {
 
-            SimpleIr::VarMeta& meta = _currentIr->varMeta[expr->var->id];
+            SimpleIr::VarMeta &meta = _newIr.varMeta[expr->var->id];
             auto exprType = _deriver.visitExpression(expr->value);
-            if (meta.type == exprType) return Transformation::visit(expr);
-            if (!meta.isSourceVar)
-            {
+            if (meta.type == exprType) return base::visit(expr);
+            if (!meta.isSourceVar) {
                 meta.type = exprType;
-                return Transformation::visit(expr);
+                return base::visit(expr);
             }
             else {
-                auto convertedId= convertTo(meta.type, expr->value);
+                auto convertedId = convertTo(meta.type, expr->value);
                 return new Assignment(expr->var->id, new Variable(convertedId));
             }
         }
 
         IrElement *EmitCasts::visit(Call const *const expr) {
-            auto f = _old->functions[expr->funId];
+            auto f = _oldIr.functions[expr->funId];
 
-            std::vector<const Atom*> params;
-            for (size_t i = 0; i <expr->params.size(); i++) {
-                const VarType argSigType = _old->varMeta[f->parametersIds[i]].type;
+            std::vector<const Atom *> params;
+            for (size_t i = 0; i < expr->params.size(); i++) {
+                const VarType argSigType = _oldIr.varMeta[f->parametersIds[i]].type;
                 const VarType argType = _deriver.visitExpression(expr->params[i]);
                 if (argType == argSigType)
-                    params.push_back(static_cast<Atom*>( expr->params[i]->visit(this) ));
+                    params.push_back(static_cast<Atom *>( expr->params[i]->visit(this) ));
                 else {
-                    auto e = static_cast<Atom*>( expr->params[i]->visit(this) );
+                    auto e = static_cast<Atom *>( expr->params[i]->visit(this) );
                     params.push_back(new Variable(convertTo(argSigType, e)));
                 }
                 //todo: reference params need to be converted.??
@@ -108,35 +108,35 @@ namespace mathvm {
 
 
         IrElement *EmitCasts::visit(Print const *const expr) {
-            return Transformation::visit(expr);
+            return base::visit(expr);
         }
 
         IrElement *EmitCasts::visit(JumpAlways const *const expr) {
-            return Transformation::visit(expr);
+            return base::visit(expr);
         }
 
         IrElement *EmitCasts::visit(JumpCond const *const expr) {
-            return Transformation::visit(expr);
+            return base::visit(expr);
         }
 
         IrElement *EmitCasts::visit(WriteRef const *const expr) {
-            auto refType = _old->varMeta[expr->refId].type;
+            auto refType = _oldIr.varMeta[expr->refId].type;
             auto oldtype = _deriver.visitExpression(expr->atom);
             if (oldtype == refType)
-                return Transformation::visit(expr);
+                return base::visit(expr);
             auto id = convertTo(refType, expr->atom);
             return new WriteRef(new Variable(id), expr->refId);
         }
 
         IrElement *EmitCasts::visit(ReadRef const *const expr) {
-            return Transformation::visit(expr);
+            return base::visit(expr);
         }
 
         VarType TypeDeriver::visit(const BinOp *const expr) {
             auto r = IrAnalyzer::visitElement(expr->right);
             auto l = IrAnalyzer::visitElement(expr->left);
             if (l == VT_Error || r == VT_Error) return VT_Error;
-            if (l == VT_Undefined|| r == VT_Undefined) return VT_Undefined;
+            if (l == VT_Undefined || r == VT_Undefined) return VT_Undefined;
             if (l == VT_Ptr || r == VT_Ptr || l == VT_Unit || r == VT_Unit) return VT_Error;
 
             switch (expr->type) {
@@ -165,7 +165,7 @@ namespace mathvm {
         VarType TypeDeriver::visit(const UnOp *const expr) {
 
             auto opType = IrAnalyzer::visitElement(expr->operand);
-            switch(opType) {
+            switch (opType) {
                 case VT_Undefined:
                 case VT_Error:
                     return opType;
@@ -181,6 +181,30 @@ namespace mathvm {
                             return VT_Error;
                     }
             }
+        }
+
+        VarId EmitCasts::convertTo(VarType to, Expression const *expr) {
+
+            auto exprType = _deriver.visitExpression(expr);
+            auto resId = makeVar(exprType);
+
+            IrTypePrinter printer(_newIr.varMeta, _debug);
+            _debug << "converting expression ";
+            expr->visit(&printer);
+            _debug << " of type " << varTypeStr(exprType) << " to type " << varTypeStr(to) << std::endl;
+
+            emit(new Assignment(resId, (Expression const *const) expr->visit(&copier)));
+
+            if (exprType == to) return resId;
+            auto castOp = selectCast(exprType, to);
+            if (castOp == UnOp::UO_INVALID) {
+                _debug << "Can't convert from type " << varTypeStr(exprType) << " to " << varTypeStr(to) << std::endl;
+                return resId;
+            }
+
+            auto convertedId = makeVar(to);
+            emit(new Assignment(convertedId, new UnOp(new Variable(resId), castOp)));
+            return convertedId;
         }
 
     }

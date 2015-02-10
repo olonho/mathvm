@@ -107,7 +107,7 @@ namespace mathvm {
             }
         };
 
-        class Substitution : public Transformation {
+        class Substitution : public Transformation<bool> {
 
         public:
             virtual IrElement *visit(BinOp const *const expr) override;
@@ -120,15 +120,17 @@ namespace mathvm {
 
             virtual IrElement *visit(Phi const *const expr);
 
-            Substitution(SimpleIr const *old, std::ostream &_debug = std::cerr)
-                    : Transformation(old, "substitutions", _debug), used(_debug), _changed(false) {
+            virtual IrElement *visit(Return const* const expr);
+            Substitution(SimpleIr const &source, SimpleIr & dest, std::ostream &_debug = std::cerr)
+                    : Transformation(source, dest, "substitutions", _debug), used(_debug), _changed(false) {
             }
 
             bool isTrivial() {
                 return !_changed;
             }
 
-            virtual void start();
+
+            virtual bool operator()();
 
         private:
             std::map<VarId, Atom const *> _substitutions;
