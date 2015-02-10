@@ -4,7 +4,7 @@
 #include <stack>
 #include <map>
 #include "../../../../../vm/parser.h"
-#include "../ir/ir.h" 
+#include "../ir/ir.h"
 #include "../ir/ir_printer.h"
 #include "ssa_utils.h"
 #include "closure_analyzer.h"
@@ -60,8 +60,8 @@ namespace mathvm {
         std::map<AstFunction const *, AstFunctionMetadata *> funMeta;
     };
 
-    class SimpleIrBuilder : public AstAnalyzer<IR::SimpleSsaIr, TranslationContext> {
-        ClosureInfo const *const _closureInfo;
+    class SimpleIrBuilder : public AstAnalyzer<IR::SimpleIr, TranslationContext> {
+        ClosureInfo const&  _closureInfo;
         std::stack<IR::Atom const *> _lastAtoms;
 
     public:
@@ -104,16 +104,16 @@ namespace mathvm {
 
         void visitAstFunction(AstFunction const *function);
 
-        SimpleIrBuilder(AstFunction const *top, ClosureInfo const *closureInfo, std::ostream &debug)
+        SimpleIrBuilder(AstFunction const *top, ClosureInfo const &closureInfo, std::ostream &debug)
                 : AstAnalyzer(top, "translator", debug),
                   _closureInfo(closureInfo) {
         }
 
         ClosureInfo::Function const& closureFunMeta(AstFunction const* f) const {
-            return *(_closureInfo->functions.at(f));
+            return *(_closureInfo.functions.at(f));
         }
         ClosureInfo::Variable const& closureVarMeta(AstVar const* v) const {
-            return _closureInfo->vars.at(v);
+            return _closureInfo.vars.at(v);
         }
         AstVarMetadata & varMeta(AstVar const * const var)  {
             return *(ctx.astVarMeta.at(var));
@@ -128,7 +128,7 @@ namespace mathvm {
             return *(ctx.funMeta.at(f));
         }
 
-        virtual void start();
+        virtual IR::SimpleIr const& operator()();
 
 
     private:
@@ -164,6 +164,7 @@ namespace mathvm {
         virtual void declareFunction(AstFunction const *fun);
 
         void insertPhi();
+
     public:
         virtual ~SimpleIrBuilder() {
             for (auto v : ctx.allVarMeta)

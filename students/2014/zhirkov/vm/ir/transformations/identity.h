@@ -1,21 +1,26 @@
 #pragma once
 
+#include <map>
 #include <iostream>
 #include "../ir.h"
-#include "../../translator/ssa_utils.h"
-#include <map>
 
 
 namespace mathvm {
     namespace IR {
 
+        struct BaseTransform : public IrVisitor<> {
 
-        struct Transformation : public IrVisitor {
-
-            virtual ~Transformation() {
+            BaseTransform() :
+                    _currentSourceBlock(NULL),
+                    _currentSourceFunction(NULL),
+                    _currentResultFunction(NULL),
+                    _currentResultBlock(NULL) {
             }
 
-            virtual void visit(SimpleIr::StringPool const &pool);
+            virtual ~BaseTransform() {
+            }
+
+            virtual SimpleIr::StringPool visit(SimpleIr::StringPool const &pool);
 
             virtual IrElement *visit(const BinOp *const expr);
 
@@ -51,83 +56,89 @@ namespace mathvm {
 
             virtual IrElement *visit(const ReadRef *const expr);
 
-            Transformation(SimpleIr const *old, char const *const name, std::ostream &_debug = std::cerr)
-                    :
-                    _currentSourceBlock(NULL),
-                    _currentSourceFunction(NULL),
-                    _currentResultFunction(NULL),
-                    _currentResultBlock(NULL),
-                    _old(old),
-                    _currentIr((SimpleIr *) (old ? (new SimpleIr()) : NULL)),
-                    _debug(_debug),
-                    name(name) {
-                if (_old)
-                    for (auto m : _old->varMeta)
-                        _currentIr->varMeta.push_back(m);
-
-            }
-
         protected:
+            typedef BaseTransform base;
             Block const *_currentSourceBlock;
             FunctionRecord const *_currentSourceFunction;
             FunctionRecord *_currentResultFunction;
             Block *_currentResultBlock;
 
-            SimpleIr const *const _old;
-            SimpleIr *_currentIr;
-            std::ostream &_debug;
-            char const *const name;
+            std::map<IrElement const *, IrElement const *> _visited;
 
             virtual bool visited(IrElement *e) {
                 return _visited.find(e) != _visited.end();
             }
+        };
+
+        template<typename Status=void>
+        struct Transformation : public BaseTransform {
+
+            char const *const name;
+
+            Transformation(SimpleIr const &source, SimpleIr &dest, char const *const name, std::ostream &_debug = std::cerr)
+                    :
+                    name(name),
+                    _oldIr(source),
+                    _newIr(dest),
+                    _debug(_debug) {
+            }
+
+            virtual ~Transformation() {
+            }
+
+            virtual SimpleIr *visit(const SimpleIr *const expr) {
+                _debug << "\n-------------------------------\n   "
+                        << name << " has started \n-------------------------------\n";
+
+                for (auto m : _oldIr.varMeta)
+                    _newIr.varMeta.push_back(m);
+
+                for (auto f : _oldIr.functions) {
+                    FunctionRecord *ft = static_cast<FunctionRecord *> (f->visit(this));
+                    if (ft) {
+                        _newIr.addFunction(ft);
+                    }
+                }
+                _newIr.pool = BaseTransform::visit(_oldIr.pool);
+
+                for (auto kvp : _visited)
+                    if (kvp.first->isBlock()) {
+                        Block *b = const_cast<Block *>(kvp.first->asBlock());
+                        std::vector<Block const *> newpreds;
+                        for (auto oldpred : b->predecessors) {
+                            newpreds.push_back(_visited[oldpred]->asBlock());
+                        }
+                        b->predecessors.erase(b->predecessors.begin(), b->predecessors.end());
+                        b->predecessors.insert(newpreds.begin(), newpreds.end());
+                    }
+
+                return &_newIr;
+            }
+
+            virtual Status operator()() = 0;
+
+        protected:
+
+
+            SimpleIr const &_oldIr;
+            SimpleIr &_newIr;
+            std::ostream &_debug;
+
 
             void emit(Statement const *statement) {
                 _currentResultBlock->contents.push_back(statement);
             }
 
             VarId makeVar(VarType type = VT_Undefined) {
-                auto newid = _currentIr->varMeta.size();
+                auto newid = _newIr.varMeta.size();
                 SimpleIr::VarMeta newvarmeta(newid);
                 newvarmeta.type = type;
-                _currentIr->varMeta.push_back(newvarmeta);
+                _newIr.varMeta.push_back(newvarmeta);
                 return newid;
             }
 
-        public:
-            SimpleIr *result() const {
-                return _currentIr;
-            }
-
-            virtual void start() {
-                _debug << "\n-------------------------------\n   "
-                        << name << " has started \n-------------------------------\n";
-                for (auto f : _old->functions) {
-                    FunctionRecord *ft = static_cast<FunctionRecord *> (f->visit(this));
-                    if (ft) {
-                        _currentIr->addFunction(ft);
-                    }
-                }
-                visit(_old->pool);
-
-                for (auto kvp : _visited)
-                    if (kvp.first->isBlock()) {
-                        Block * b = const_cast<Block*>(kvp.first->asBlock());
-                        std::vector<Block const*> newpreds;
-                        for (auto oldpred : b->predecessors){
-                            newpreds.push_back(_visited[oldpred]->asBlock());
-                        }
-                        b->predecessors.erase(b->predecessors.begin(), b->predecessors.end());
-                        b->predecessors.insert(newpreds.begin(), newpreds.end());
-                    }
-            }
-
-        private:
-
-            std::map<IrElement const*, IrElement const*> _visited;
-
         };
 
-        extern Transformation copier;
+        extern BaseTransform copier;
     }
 }

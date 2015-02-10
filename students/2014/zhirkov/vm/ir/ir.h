@@ -4,7 +4,7 @@
 #include <memory>
 #include <deque>
 #include <set>
-#include <elf.h>
+#include <assert.h>
 #include "../util.h"
 
 namespace mathvm {
@@ -13,7 +13,8 @@ namespace mathvm {
         typedef uint64_t VarId;
 
 #define IR_COMMON_FUNCTIONS(ir) \
-virtual IrElement* visit(IrVisitor *const v) const { return v->visit(this); }\
+virtual IrElement* visit(IrVisitor<> *const v) const { return v->visit(this); }\
+virtual void visit(IrVisitor<void> *const v) const { v->visit(this); }\
 virtual bool is##ir() const { return true; } ;\
 virtual ir const* as##ir() const { return this; } ;\
 virtual IrType getType() const { return IT_##ir; }
@@ -40,7 +41,8 @@ virtual IrType getType() const { return IT_##ir; }
 #define DECLARE_IR(ir) struct ir;
         FOR_IR(DECLARE_IR)
 #undef DECLARE_IR
-
+        struct IrElement;
+        template<typename T = IrElement *>
         struct IrVisitor;
         struct Expression;
         struct Atom;
@@ -57,7 +59,10 @@ virtual IrType getType() const { return IT_##ir; }
 
             virtual IrType getType() const = 0;
 
-            virtual IrElement *visit(IrVisitor *const visitor) const = 0;
+            virtual void visit(IrVisitor<void> *const visitor) const {
+            };
+
+            virtual IrElement *visit(IrVisitor<> *const visitor) const = 0;
 
             virtual bool isAtom() const {
                 return false;
@@ -88,14 +93,17 @@ virtual IrType getType() const { return IT_##ir; }
             }
         };
 
+        template<typename T>
         struct IrVisitor {
-#define VISITORABSTR(ir) virtual IrElement *visit(const ir *const expr) { return NULL; }
+#define VISITORABSTR(ir) virtual T visit(const ir *const expr) = 0;
 
             FOR_IR(VISITORABSTR)
 
 #undef VISITORABSTR
 
-#define VISITOR(ir) virtual IrElement *visit(const ir * const expr) ;
+
+#define VISITOR_IRELEMENT(ir) virtual IrElement* visit(const ir * const expr) ;
+#define VISITOR_VOID(ir) virtual void visit(const ir * const expr) ;
 
             virtual ~IrVisitor() {
             }
@@ -151,7 +159,7 @@ virtual IrType getType() const { return IT_##ir; }
             }
         };
 
-        struct Jump : IrElement {
+        struct Jump : Statement {
             virtual ~Jump() {
             }
         };
@@ -179,6 +187,9 @@ virtual IrType getType() const { return IT_##ir; }
             Block *const no;
             const Atom *const condition;
 
+            JumpCond *replaceYes(Block *const repl) const;
+
+            JumpCond *replaceNo(Block *const repl) const;
 
             virtual ~JumpCond() {
                 delete condition;
@@ -262,12 +273,18 @@ virtual IrType getType() const { return IT_##ir; }
             const Atom *const right;
 #define FOR_IR_BINOP(DO) \
 DO(ADD, "+")\
+DO(FADD, ".+.")\
 DO(SUB, "-")\
+DO(FSUB, ".-.")\
 DO(MUL, "*")\
+DO(FMUL, ".*.")\
 DO(DIV, "/")\
+DO(FDIV, "./.")\
 DO(MOD, "%")\
 DO(LT, "<")\
+DO(FLT, ".<.")\
 DO(LE, "<=")\
+DO(FLE, ".<=.")\
 DO(EQ, "==")\
 DO(NEQ, "!=")\
 DO(OR, "|")\
@@ -300,6 +317,7 @@ DO(XOR, "^")
 DO(CAST_I2D, "<i2d>")\
 DO(CAST_D2I,"<d2i>")\
 DO(NEG, "-")\
+DO(FNEG, ".-.")\
 DO(NOT, "!")
 #define UNOP_NAME(o, _) UO_##o,
 
@@ -349,7 +367,7 @@ DO(NOT, "!")
         };
 
         struct Ptr : Atom {
-            const VarId value;
+            const uint64_t value;
             const bool isPooledString;
 
             virtual bool isLiteral() const {
@@ -384,14 +402,21 @@ DO(NOT, "!")
                 }
             }
 
-
             std::set<const Block *> predecessors;
 
             Block(std::string const &name) : _transition(NULL), name(name) {
             }
 
+            bool isEmpty() const {
+                return (contents.size() == 0) && (!isLastBlock()) && getTransition()->isJumpAlways();
+            }
+
+            bool isEntry() const {
+                return predecessors.size() == 0;
+            }
 
             void link(JumpCond *cond) {
+                if (_transition) delete _transition;
                 _transition = cond;
                 cond->yes->addPredecessor(this);
                 cond->no->addPredecessor(this);
@@ -414,6 +439,14 @@ DO(NOT, "!")
 
             void addPredecessor(Block const *block) {
                 predecessors.insert(block);
+            }
+
+            void removePredecessor(Block const *block) {
+                predecessors.erase(block);
+            }
+
+            bool isLastBlock() const {
+                return getTransition() == NULL;
             }
 
             IR_COMMON_FUNCTIONS(Block)
@@ -444,6 +477,13 @@ DO(NOT, "!")
             IR_COMMON_FUNCTIONS(FunctionRecord)
 
 
+            VarId argument(size_t idx) const {
+                if (idx < parametersIds.size()) return parametersIds[idx];
+                idx -= parametersIds.size();
+                if (idx < refParameterIds.size()) return refParameterIds[idx];
+                throw new std::out_of_range("Argument index is out of range");
+            }
+            size_t arguments() const { return parametersIds.size() + refParameterIds.size(); }
             virtual ~FunctionRecord();
         };
 
@@ -553,9 +593,5 @@ DO(NOT, "!")
                     delete f;
             }
         };
-
-        typedef SimpleIr SimpleSsaIr;
-
-
     }
 }
