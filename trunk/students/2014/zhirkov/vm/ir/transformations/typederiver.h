@@ -13,36 +13,36 @@ namespace mathvm {
                     : IrAnalyzer(debug, "TypeDeriver"), meta(meta), functions(functions) {
             }
 
-            virtual VarType visit(const BinOp *const expr);
+            virtual VarType visit(const BinOp *const expr) const ;
 
-            virtual VarType visit(const UnOp *const expr);
+            virtual VarType visit(const UnOp *const expr) const ;
 
-            virtual VarType visit(const Variable *const expr) {
+            virtual VarType visit(const Variable *const expr) const  {
                 return meta[expr->id].type;
             }
 
-            virtual VarType visit(const Int *const expr) {
+            virtual VarType visit(const Int *const expr) const  {
                 return VarType::VT_Int;
             }
 
-            virtual VarType visit(const Double *const expr) {
+            virtual VarType visit(const Double *const expr) const  {
                 return VarType::VT_Double;
             }
 
-            virtual VarType visit(const Ptr *const expr) {
+            virtual VarType visit(const Ptr *const expr)  const {
                 return VarType::VT_Ptr;
             }
 
-            virtual VarType visit(const Call *const expr) {
+            virtual VarType visit(const Call *const expr)  const {
                 return functions[expr->funId]->returnType;
             }
 
-            virtual VarType visit(const ReadRef *const expr) {
+            virtual VarType visit(const ReadRef *const expr) const  {
                 return meta[expr->refId].type;
             }
 
         protected:
-            virtual VarType defaultAnswer() {
+            virtual VarType defaultAnswer()  const {
                 return VT_Unit;
             }
 

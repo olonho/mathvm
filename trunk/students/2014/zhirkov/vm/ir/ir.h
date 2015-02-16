@@ -155,6 +155,8 @@ virtual IrType getType() const { return IT_##ir; }
         };
 
         struct Statement : IrElement {
+            mutable size_t num = 0;
+            Statement() {}
             virtual ~Statement() {
             }
         };

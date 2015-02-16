@@ -132,7 +132,7 @@ namespace mathvm {
             return base::visit(expr);
         }
 
-        VarType TypeDeriver::visit(const BinOp *const expr) {
+        VarType TypeDeriver::visit(const BinOp *const expr)  const {
             auto r = IrAnalyzer::visitElement(expr->right);
             auto l = IrAnalyzer::visitElement(expr->left);
             if (l == VT_Error || r == VT_Error) return VT_Error;
@@ -162,7 +162,7 @@ namespace mathvm {
             }
         }
 
-        VarType TypeDeriver::visit(const UnOp *const expr) {
+        VarType TypeDeriver::visit(const UnOp *const expr)  const {
 
             auto opType = IrAnalyzer::visitElement(expr->operand);
             switch (opType) {

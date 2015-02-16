@@ -28,6 +28,7 @@ USER_OBJ = \
    $(OBJ)/translator/machcode_generator$(OBJ_SUFF)\
    $(OBJ)/translator/ssa_utils$(OBJ_SUFF)\
    $(OBJ)/translator/translator$(OBJ_SUFF)\
+   $(OBJ)/translator/machcode_cmd_impl$(OBJ_SUFF)\
    $(OBJ)/util$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk

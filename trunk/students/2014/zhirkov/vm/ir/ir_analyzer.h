@@ -10,55 +10,89 @@ namespace mathvm {
 
         IrAnalyzer(std::ostream& debug, char const* name) : _debug(debug), _name(name) {}
         protected :
-            Ctx _status;
-            virtual T defaultAnswer() = 0;
+            mutable Ctx _status;
+            virtual T defaultAnswer() const = 0;
             std::ostream& _debug;
             const char* const _name;
-            std::set<Block const*> visited;
+            mutable std::set<Block const*> visited;
 
         public:
             Ctx const& status() { return _status; }
-            T    visitElement(IrElement const * element) {
+            T    visitElement(IrElement const * element) const {
 #define MAC(type) if (element->is##type()) return visit(element->as##type());
                 FOR_IR(MAC)
                 return defaultAnswer();
             }
 
-            virtual T visit(const BinOp *const expr) { return defaultAnswer(); }
+            virtual T visit(const BinOp *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const UnOp *const expr) { return defaultAnswer(); }
+            virtual T visit(const UnOp *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Variable *const expr) { return defaultAnswer(); }
+            virtual T visit(const Variable *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Return *const expr) { return defaultAnswer(); }
+            virtual T visit(const Return *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Phi *const expr) { return defaultAnswer(); }
+            virtual T visit(const Phi *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Int *const expr) { return defaultAnswer(); }
+            virtual T visit(const Int *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Double *const expr) { return defaultAnswer(); }
+            virtual T visit(const Double *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Ptr *const expr) { return defaultAnswer(); }
+            virtual T visit(const Ptr *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Block *const expr) { return defaultAnswer(); }
+            virtual T visit(const Block *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Assignment *const expr) { return defaultAnswer(); }
+            virtual T visit(const Assignment *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Call *const expr) { return defaultAnswer(); }
+            virtual T visit(const Call *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const Print *const expr) { return defaultAnswer(); }
+            virtual T visit(const Print *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const FunctionRecord *const expr) { return defaultAnswer(); }
+            virtual T visit(const FunctionRecord *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const JumpAlways *const expr) { return defaultAnswer(); }
+            virtual T visit(const JumpAlways *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const JumpCond *const expr) { return defaultAnswer(); }
+            virtual T visit(const JumpCond *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const WriteRef *const expr) { return defaultAnswer(); }
+            virtual T visit(const WriteRef *const expr) const {
+                return defaultAnswer();
+            }
 
-            virtual T visit(const ReadRef *const expr) { return defaultAnswer(); }
+            virtual T visit(const ReadRef *const expr) const {
+                return defaultAnswer();
+            }
 
-            T visitExpression(const Expression* const expr) {
+            T visitExpression(const Expression* const expr) const {
                 T result;
                 IrElement::IrType type = expr->getType();
                 switch (type) {

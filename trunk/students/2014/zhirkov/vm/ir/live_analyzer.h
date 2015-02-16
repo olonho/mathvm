@@ -21,16 +21,16 @@ namespace mathvm {
             public:
                 typedef bool(*IntervalComparer)(Interval const &, Interval const &);
 
-                const uint64_t var;
+                const IR::VarId var;
 
                 Interval(size_t const from, size_t const to, uint64_t const var)
                         : foundUsage(false), usageCount(0), from(from), to(to), var(var) {
                 }
 
-                Interval(uint64_t const var) : foundUsage(false), usageCount(0), from(0), to(0), var(var) {
+                Interval(IR::VarId const var) : foundUsage(false), usageCount(0), from(0), to(0), var(var) {
                 }
 
-                bool defined() {
+                bool defined() const {
                     return foundUsage;
                 }
 
@@ -43,9 +43,12 @@ namespace mathvm {
                     to = pos;
                 }
 
+                bool contains(size_t position) const { return getFrom() <= position && getTo() >= position; }
+
                 static bool ordIncStart(Interval const &left, Interval const &right) {
-                    if (left.from == right.from) return left.to < right.to;
-                    return left.from < right.from;
+                    if (left.from < right.from) return true;
+                    else if (left.to < right.to) return true;
+                    else return left.var < right.var;
                 }
 
                 size_t getFrom() const {
@@ -65,8 +68,9 @@ namespace mathvm {
                 }
 
                 static bool ordIncEnd(Interval const &left, Interval const &right) {
-                    if (left.to == right.to) return left.from < right.from;
-                    return left.to < right.to;
+                    if (left.from > right.from) return true;
+                    else if (left.to > right.to) return true;
+                    else return left.var < right.var;
                 }
             };
 
@@ -74,7 +78,7 @@ namespace mathvm {
             struct FunctionInfo {
                 const std::vector<Block const *> orderedBlocks;
                 std::vector<Statement const *> orderedStatements;
-                std::map<uint64_t, Interval> varIntervals;
+                std::map<IR::VarId, Interval> varIntervals;
 
                 FunctionInfo(FunctionRecord const *functionRecord) :
                         orderedBlocks(blocksOrder(functionRecord->entry)) {
@@ -89,7 +93,7 @@ namespace mathvm {
                 ~FunctionInfo() {
                 }
 
-                Interval *forVar(uint64_t id) {
+                Interval *forVar(IR::VarId id) {
                     auto found = varIntervals.find(id);
                     if (found != varIntervals.end()) return &found->second; else return NULL;
                 }
@@ -115,58 +119,58 @@ namespace mathvm {
         private:
             std::vector<IR::SimpleIr::VarMeta> const *varMeta;
         public:
-            virtual int visit(const Call *const expr) {
+            virtual int visit(const Call *const expr)  const {
                 for (auto p : expr->params) visitElement(p);
                 for (auto rp : expr->refParams) vivify(rp);
                 return 0;
             }
 
-            virtual int visit(const Print *const expr) {
+            virtual int visit(const Print *const expr) const  {
                 visitElement(expr->atom);
                 return 0;
             }
 
-            virtual int visit(const JumpCond *const expr) {
+            virtual int visit(const JumpCond *const expr) const  {
                 visitElement(expr->condition);
                 return 0;
             }
 
-            virtual int visit(const Variable *const expr) {
+            virtual int visit(const Variable *const expr) const  {
                 vivify(expr->id);
                 return 0;
             }
 
-            virtual int visit(const Assignment *const expr) {
-                if (!expr->var->id == SINK && varMeta->at(expr->var->id).type == IR::VT_Unit) return 0;
+            virtual int visit(const Assignment *const expr) const  {
+                if (varMeta->at(expr->var->id).type == IR::VT_Unit) return 0;
                 LiveInfo::Interval &interval = _status->vivify(_currentFunction, expr->var->id);
                 interval.mark(_currentPosition);
                 visitExpression(expr->value);
                 return 0;
             }
 
-            virtual int visit(const Phi *const expr) {
+            virtual int visit(const Phi *const expr) const  {
                 auto &interval = _status->vivify(_currentFunction, expr->var->id);
                 interval.mark(_currentPosition);
                 return 0;
             }
 
-            virtual int visit(const WriteRef *const expr) {
+            virtual int visit(const WriteRef *const expr) const  {
                 _status->vivify(_currentFunction, expr->refId);
                 visitExpression(expr->atom);
                 return 0;
             }
 
-            virtual int visit(const BinOp *const expr) {
+            virtual int visit(const BinOp *const expr) const  {
                 visitElement(expr->left);
                 visitElement(expr->right);
                 return 0;
             }
 
-            virtual int visit(const UnOp *const expr) {
+            virtual int visit(const UnOp *const expr) const  {
                 return visitElement(expr->operand);
             }
 
-            virtual int visit(const Return *const expr) {
+            virtual int visit(const Return *const expr)  const {
                 return visitElement(expr->atom);
             }
 
@@ -188,11 +192,14 @@ namespace mathvm {
                     }
                     _currentPosition++;
                 }
+                for (auto& kvp : _status->data)
+                    for(size_t i = 0; i < kvp.second->orderedStatements.size(); i++)
+                        kvp.second->orderedStatements[i]->num = i;
                 return _status;
             }
 
         protected:
-            virtual int defaultAnswer() {
+            virtual int defaultAnswer()  const {
                 return 0;
             }
 
@@ -207,7 +214,7 @@ namespace mathvm {
             FunctionRecord *_currentFunction;
             size_t _currentPosition;
 
-            void vivify(uint64_t id) {
+            void vivify(uint64_t id)  const  {
                 _status->vivify(_currentFunction, id).mark(_currentPosition);
             }
         };
