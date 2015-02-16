@@ -9,8 +9,12 @@
 namespace mathvm {
     namespace IR {
         struct RegAllocInfo {
-            std::map<uint64_t, uint64_t> regAlloc;
-            std::set<uint64_t> stackAlloc;
+            std::map<IR::VarId, uint64_t> regAlloc;
+            std::set<IR::VarId> stackAlloc;
+
+            std::map<uint64_t, IR::VarId> vregToVarId;
+
+            void allocateReg(IR::VarId id, uint64_t vreg) { regAlloc[id] = vreg; vregToVarId[vreg] = id; }
         };
 
 
@@ -42,7 +46,7 @@ namespace mathvm {
                 LiveInfo::Interval const &spill = *(actives.rbegin());
 
                 if (spill.getTo() > interval.getTo()) {
-                    result.regAlloc[interval.var] = result.regAlloc[spill.var];
+                    result.allocateReg(interval.var, result.regAlloc[spill.var]);
                     result.stackAlloc.insert(spill.var);
                     actives.erase(spill);
                     actives.insert(interval);
@@ -75,7 +79,7 @@ namespace mathvm {
                     else {
                         auto newReg = regPool.top();
                         regPool.pop();
-                        result.regAlloc[current.var] = newReg;
+                        result.allocateReg(current.var, newReg);
                         actives.insert(current);
                     }
                 }

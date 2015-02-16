@@ -16,33 +16,33 @@ namespace mathvm {
             Referenced(std::ostream &debug) : IrAnalyzer(debug, "referenced variables") {
             }
 
-            virtual bool visit(const BinOp *const expr) {
+            virtual bool visit(const BinOp *const expr)  const {
                 visitElement(expr->left);
                 visitElement(expr->right);
                 return false;
             }
 
-            virtual bool visit(const UnOp *const expr) {
+            virtual bool visit(const UnOp *const expr) const  {
                 visitElement(expr->operand);
                 return false;
             }
 
-            virtual bool visit(const Variable *const expr) {
+            virtual bool visit(const Variable *const expr) const  {
                 _status.insert(expr->id);
                 return false;
             }
 
-            virtual bool visit(const Return *const expr) {
+            virtual bool visit(const Return *const expr) const  {
                 visitElement(expr->atom);
                 return false;
             }
 
-            virtual bool visit(const Phi *const expr) {
+            virtual bool visit(const Phi *const expr) const  {
                 for (auto p : expr->vars) visitElement(p);
                 return false;
             }
 
-            virtual bool visit(const Block *const expr) {
+            virtual bool visit(const Block *const expr)  const {
                 if (visited.find(expr) != visited.end()) return false;
                 for (auto st : expr->contents)
                     visitElement(st);
@@ -54,55 +54,55 @@ namespace mathvm {
                 return false;
             }
 
-            virtual bool visit(const Assignment *const expr) {
+            virtual bool visit(const Assignment *const expr) const  {
                 visitElement(expr->value);
                 return false;
             }
 
-            virtual bool visit(const Call *const expr) {
+            virtual bool visit(const Call *const expr)  const {
                 for (auto p : expr->params) visitElement(p);
                 return false;
             }
 
-            virtual bool visit(const Print *const expr) {
+            virtual bool visit(const Print *const expr)  const {
                 visitElement(expr->atom);
                 return false;
             }
 
-            virtual bool visit(const FunctionRecord *const expr) {
+            virtual bool visit(const FunctionRecord *const expr) const  {
                 visitElement(expr->entry);
                 return false;
             }
 
-            virtual bool visit(const JumpAlways *const expr) {
+            virtual bool visit(const JumpAlways *const expr) const  {
                 visitElement(expr->destination);
                 return false;
             }
 
-            virtual bool visit(const JumpCond *const expr) {
+            virtual bool visit(const JumpCond *const expr)  const {
                 visitElement(expr->condition);
                 visitElement(expr->yes);
                 visitElement(expr->no);
                 return false;
             }
 
-            virtual bool visit(const WriteRef *const expr) {
+            virtual bool visit(const WriteRef *const expr)  const {
                 visitElement(expr->atom);
                 return false;
             }
 
-            virtual bool visit(const ReadRef *const expr) {
+            virtual bool visit(const ReadRef *const expr) const  {
                 _status.insert(expr->refId);
                 return false;
             }
 
-            virtual void analyze(SimpleIr const *const ir) {
+            virtual void analyze(SimpleIr const *const ir)  const {
                 for (auto f : ir->functions)
                     visitElement(f);
             }
 
         protected:
-            virtual bool defaultAnswer() {
+            virtual bool defaultAnswer() const  {
                 return false;
             }
         };

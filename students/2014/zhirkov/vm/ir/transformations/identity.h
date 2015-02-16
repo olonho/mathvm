@@ -89,9 +89,8 @@ namespace mathvm {
             virtual SimpleIr *visit(const SimpleIr *const expr) {
                 _debug << "\n-------------------------------\n   "
                         << name << " has started \n-------------------------------\n";
-
-                for (auto m : _oldIr.varMeta)
-                    _newIr.varMeta.push_back(m);
+                for (auto &v: _oldIr.varMeta)
+                    _newIr.varMeta.push_back(v);
 
                 for (auto f : _oldIr.functions) {
                     FunctionRecord *ft = static_cast<FunctionRecord *> (f->visit(this));
@@ -137,6 +136,17 @@ namespace mathvm {
                 return newid;
             }
 
+        };
+
+        struct Copier : public Transformation<> {
+
+            Copier(SimpleIr const &source, SimpleIr &dest, std::ostream &_debug)
+                    : Transformation(source, dest, "copier", _debug) {
+            }
+
+            virtual void operator()() {
+                Transformation<>::visit(&_oldIr);
+            }
         };
 
         extern BaseTransform copier;

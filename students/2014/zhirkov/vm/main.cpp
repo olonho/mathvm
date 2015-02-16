@@ -17,7 +17,6 @@
 #include "ir/transformations/optypes_normalizer.h"
 #include "translator/machcode_generator.h"
 
-void test();
 
 using namespace mathvm;
 using namespace std;
@@ -41,6 +40,7 @@ static void printIr(IR::SimpleIr const &ir, std::ostream &str = std::cerr) {
     printer.print(ir);
 }
 
+void test();
 
 int main(int argc, char **argv) {
 
@@ -124,19 +124,16 @@ int main(int argc, char **argv) {
     printLiveInfo(*secondLiveInfo, irRepr);
     IR::regAllocDump(finalGallocInfo, irRepr);
 
-    JitRuntime runtime;
-    MachCodeGenerator generator(spoiled, finalGallocInfo, runtime, std::cerr);
-    typedef double RetType;
-    typedef RetType (*Program)(void);
-
-    Program translated = (Program) generator.translate();
-    RetType result = translated();
-    std::cerr << result << std::endl;
-
+    mathvm::Runtime runtime;
+    MachCodeGenerator generator(spoiled, finalGallocInfo, runtime, irRepr);
+    typedef void (*Program)(void);
 //test();
+    Program translated = (Program) generator.translate();
+    translated();
 
 
-    runtime.release((void *) translated);
+
+    //  _runtime.jitRuntime.release((void *) translated);
     delete &closureInfo;
 
     for (auto ir : substituted) delete ir;
@@ -151,19 +148,29 @@ int main(int argc, char **argv) {
     return EXIT_SUCCESS;
 }
 
-//void test() {
-//    JitRuntime runtime;
-//    X86Assembler assembler(&runtime);
-//    double value = 42.0;
-//    uint64_t ivalue = *((uint64_t *) (&value));
-//    assembler.mov(rax, ivalue);
-//    assembler.movq(xmm0, rax);
-//    assembler.emms();
-//    assembler.ret();
-//    void *prgrm = assembler.make();
-//
-//    typedef uint64_t (*Program)(void);
-//    uint64_t result = ((Program) prgrm)();
-//    std::cerr << result << std::endl;
-//    runtime.release(prgrm);
-//}
+void yes() {
+    puts("yes");
+}
+
+void no() {
+    puts("no");
+}
+
+void test() {
+    JitRuntime runtime;
+    X86Assembler _(&runtime);
+    StringLogger logger;
+    _.setLogger(&logger);
+    asmjit::Label end = _.newLabel();
+    _.jmp(end);
+    _.call(Ptr(yes));
+    _.bind(end);
+    _.ret();
+
+    std::cerr << "Test\n" << logger.getString() << std::endl;
+    typedef void (*Program)(void);
+    Program t = (Program) _.make();
+    t();
+
+
+}
