@@ -7,10 +7,11 @@ namespace  mathvm {
         void printLiveInfo(LiveInfo &info, std::ostream &out) {
             out << "\n-------------------------------\n   Live variables \n-------------------------------\n";
             IrPrinter printer(out);
+            size_t idx = 0;
             for (auto fun : info.data) {
-                out << "---- Function id " << fun.first->id << " ----\n";
+                out << "---- Function id " << idx++ << " ----\n";
                 out << "  Ranges:\n";
-                for (auto liveRange : fun.second->varIntervals)
+                for (auto liveRange : fun->varIntervals)
                     out << liveRange.first << " : ["
                             << liveRange.second.getFrom()
                             << ", "
@@ -20,13 +21,13 @@ namespace  mathvm {
                             << " times\n";
 
                 size_t stIdx = 0;
-                for (auto st: fun.second->orderedStatements) {
+                for (auto st: fun->orderedStatements) {
 //                    out << "-- Block " << b->name << " --\n";
 //                    auto currentStatement = fun.second.orderedStatements[stIdx];
                     out << stIdx << ":\n";
                     st->visit(&printer);
                     out << std::endl << " " << " --> ";
-                    for (auto liveRange : fun.second->varIntervals)
+                    for (auto liveRange : fun->varIntervals)
                         if (liveRange.second.getFrom() <= stIdx && liveRange.second.getTo() >= stIdx)
                             out << " " << liveRange.second.var;
 

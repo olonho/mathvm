@@ -1,4 +1,5 @@
 #include "machcode_generator.h"
+#include "../ir/ir.h"
 
 #define XSAVE(reg) _.movq(tempXmmRegs[1], reg);
 #define XLOAD(reg) _.movq(reg, tempXmmRegs[1]);
@@ -137,7 +138,7 @@ namespace mathvm {
         _.mov(rax, dest);
         _.xor_(rdx, rdx);
         _.push(operand);
-        _.idiv(ptr(rsp));
+        _.idiv(qword_ptr(rsp));
         _.pop(rdx);
         _.pop(rdx);
         _.mov(dest, rax);
@@ -181,7 +182,7 @@ namespace mathvm {
         _.push(operand);
         _.xor_(rdx, rdx);
         _.mov(rax, dest);
-        _.idiv(ptr(rsp));
+        _.idiv(qword_ptr(rsp));
         _.mov(dest, rax);
         _.pop(rdx);
         _.pop(rdx);
@@ -193,7 +194,7 @@ namespace mathvm {
         _.push(operand);
         _.xor_(rdx, rdx);
         _.mov(rax, dest);
-        _.idiv(ptr(rsp));
+        _.idiv(qword_ptr(rsp));
         _.mov(dest, rax);
         _.pop(rdx);
         _.pop(rdx);
@@ -745,18 +746,20 @@ namespace mathvm {
     }
 
     static void genADD2(X86GpReg const &dest, int64_t fst, X86GpReg const &snd, X86Assembler &_) {
-        _.add(dest, fst);
+        _.mov(dest, fst);
         _.add(dest, snd);
     }
 
 
     static void genADD2(X86GpReg const &dest, X86GpReg const &fst, int64_t snd, X86Assembler &_) {
-        _.lea(dest, ptr(fst, snd));
+        _.mov(dest, fst);
+        _.add(dest, snd);
     }
 
 
     static void genADD2(X86GpReg const &dest, X86GpReg const &fst, X86GpReg const &snd, X86Assembler &_) {
-        _.lea(dest,ptr(fst,snd));
+        _.mov(dest, fst);
+        _.add(dest, snd);
     }
 
 
@@ -819,7 +822,7 @@ namespace mathvm {
                         _.mov(rax, fst);
                         _.push(rdx);
                         _.cqo();
-                        _.idiv(ptr(rsp));
+                        _.idiv(qword_ptr(rsp));
                         _.mov(dest, rax);
                         _.pop(rax);
                 )
@@ -854,7 +857,7 @@ namespace mathvm {
                         _.mov(rax, fst);
                         _.cqo();
                         _.push(snd);
-                        _.idiv(ptr(rsp));
+                        _.idiv(qword_ptr(rsp));
                         _.mov(dest, rax);
                         _.pop(rax);
             }
@@ -864,7 +867,7 @@ namespace mathvm {
                         _.mov(rax, fst);
                         _.push(snd);
                         _.cqo();
-                        _.idiv(ptr(rsp));
+                        _.idiv(qword_ptr(rsp));
                         _.mov(dest, rax);
                         _.pop(rax);
                 )
@@ -874,7 +877,7 @@ namespace mathvm {
                         _.mov(rax, fst);
                         _.cqo();
                         _.push(snd);
-                        _.idiv(ptr(rsp));
+                        _.idiv(qword_ptr(rsp));
                         _.mov(dest, rax);
                         _.pop(rax);
                 )
@@ -910,7 +913,7 @@ namespace mathvm {
             _.push(rdx);
             _.mov(fst, rax);
             _.cqo();
-            _.idiv(ptr(rsp));
+            _.idiv(qword_ptr(rsp));
             _.mov(dest, rax);
             _.pop(rax);
             return;
@@ -948,7 +951,7 @@ namespace mathvm {
             _.push(rdx);
             _.mov(rax, fst);
             _.cqo();
-            _.idiv(ptr(rsp));
+            _.idiv(qword_ptr(rsp));
             _.mov(dest, rax);
             _.pop(rdx);
         }
@@ -1701,7 +1704,7 @@ namespace mathvm {
     }
 
 
-    void MachCodeGenerator::genBinOp(IR::BinOp::Type type, RegOrMem lhs, IR::Atom const *const fst, IR::Atom const *const snd, X86Assembler &_) {
+    void CodeGenerator::genBinOp(IR::BinOp::Type type, RegOrMem lhs, IR::Atom const *const fst, IR::Atom const *const snd, X86Assembler& _) {
         if (type == IR::BinOp::BO_XOR && lhs.isGp() && fst->isVariable() && locate(fst->asVariable()).isGp() && snd->isVariable() && locate(snd->asVariable()).isGp()) {
             genXOR2(lhs.gp, locate(fst->asVariable()).gp, locate(snd->asVariable()).gp, _);
             return;
@@ -2258,7 +2261,7 @@ namespace mathvm {
     }
 
 
-    void MachCodeGenerator::genReducedBinOp(IR::BinOp::Type type, RegOrMem lhs, IR::Atom const *const operand, X86Assembler &_) {
+    void  CodeGenerator::genReducedBinOp(IR::BinOp::Type type, RegOrMem lhs, IR::Atom const *const operand, X86Assembler &_) {
         if (type == IR::BinOp::BO_XOR && lhs.isGp() && operand->isVariable() && locate(operand->asVariable()).isGp()) {
             genXOR1(lhs.gp, locate(operand->asVariable()).gp, _);
             return;
@@ -2743,7 +2746,7 @@ namespace mathvm {
     }
 
 
-    void MachCodeGenerator::genUnOp(IR::UnOp::Type type, RegOrMem lhs, IR::Atom const *const operand, X86Assembler &_) {
+    void CodeGenerator::genUnOp(IR::UnOp::Type type, RegOrMem lhs, IR::Atom const *const operand, X86Assembler &_) {
         if (type == IR::UnOp::UO_FNEG && lhs.isXmm() && operand->isVariable() && locate(operand->asVariable()).isXmm()) {
             genFNEG1(lhs.xmm, locate(operand->asVariable()).xmm, _);
             return;

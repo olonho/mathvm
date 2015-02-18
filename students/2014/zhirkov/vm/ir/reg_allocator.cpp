@@ -3,11 +3,11 @@
 
 namespace mathvm {
     namespace IR {
-        GlobalRegAllocInfo regAlloc(SimpleIr const&ir, LiveInfo &info, uint32_t regCount, std::ostream &debug) {
+        GlobalRegAllocInfo regAlloc(SimpleIr const&ir, LiveInfo const &info, uint32_t regCount, std::ostream &debug) {
             GlobalRegAllocInfo result;
             for (auto f : ir.functions) {
                 debug << "Function " << f->id << std::endl;
-                LiveInfo::FunctionInfo const *inf = info.data[f];
+                LiveInfo::FunctionInfo const *inf = info.data.at(f->id);
                 result.push_back(RegAllocator(regCount, debug).alloc(*inf));
             }
             return result;

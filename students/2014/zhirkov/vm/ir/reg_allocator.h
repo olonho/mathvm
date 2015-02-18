@@ -91,7 +91,7 @@ namespace mathvm {
 
         typedef std::vector<RegAllocInfo> GlobalRegAllocInfo;
 
-        GlobalRegAllocInfo regAlloc(SimpleIr const &ir, LiveInfo &info, uint32_t regCount, std::ostream &debug);
+        GlobalRegAllocInfo regAlloc(SimpleIr const &ir, LiveInfo const& info, uint32_t regCount, std::ostream &debug);
 
         void regAllocDump(GlobalRegAllocInfo &info, std::ostream &debug);
 

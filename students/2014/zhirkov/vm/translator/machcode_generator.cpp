@@ -1,8 +1,6 @@
 #include "machcode_generator.h"
-#include "../ir/transformations/typederiver.h"
 #include <queue>
 #include <algorithm>
-#include <stack>
 
 
 #define FOR_REGTYPES(reg, actGP, actXMM) if ((reg)->isGp())\
@@ -56,100 +54,52 @@ namespace mathvm {
     };
 
 
-    static void pushRegs(X86Assembler &_) {
-        _.pushf();
-        for (uint32_t i = 0; i < ALLOCABLE_REGS_COUNT; i++)
-            _.push(allocableRegs[i]);
-
-        for (uint32_t i = 0; i < 16; i++) {
-            _.movq(rax, xmm(i));
-            _.push(rax);
-        }
+    CodeGenerator::CodeGenerator(IR::SimpleIr const &ir, MvmRuntime &runtime,std::ostream &debug)
+            :
+            _ir(ir),
+            _runtime(runtime),
+            _(& _runtime.jitRuntime),
+            _liveInfo(IR::LiveAnalyzer(debug).start(ir)),
+            regAllocInfo(IR::regAlloc(ir, *_liveInfo, ALLOCABLE_REGS_COUNT, debug)),
+            _debug(debug),
+            _irPrinter(std::cerr),
+            _deriver(_ir.varMeta, _ir.functions, _debug) {
+        runtime.stringPool = ir.pool;
+        _functions.resize(ir.functions.size());
     }
 
-    static void popRegs(X86Assembler &_) {
-        for (uint32_t i = 0; i < 16; i++) {
-            _.pop(rax);
-            _.movq(xmm(15 - i), rax);
-        }
-        for (uint32_t i = 0; i < ALLOCABLE_REGS_COUNT; i++)
-            _.pop(allocableRegs[ALLOCABLE_REGS_COUNT - 1 - i]);
-
-        _.popf();
-    }
-
-    MachCodeGenerator::Function::Function(IR::SimpleIr const &ir, IR::RegAllocInfo const &regAllocInfo, IR::FunctionRecord const &f, asmjit::Label const &label)
-            : label(label), function(f) {
-        size_t intArgs = 0, sseArgs = 0;
-        uint32_t memArgs = 0;
-        for (size_t i = 0; i < f.arguments(); ++i) {
-            auto argId = f.argument(i);
-            uint64_t vreg = regAllocInfo.regAlloc.at(argId);
-            const IR::VarType type = ir.varMeta[argId].type;
-            switch(MachCodeGenerator::argumentClassForType(type)) {
-                case AC_INTEGER:
-                    if (intArgs < INTEGER_ARGUMENTS_REGS_LENGTH)
-                        arguments.push_back(Argument(i, argId, type, integerArgumentsRegs[intArgs]));
-                    else
-                        arguments.push_back(Argument(i, argId, type, memArgs++));
-                    intArgs++;
-                    break;
-                case AC_SSE:
-                    if (sseArgs < INTEGER_ARGUMENTS_REGS_LENGTH)
-                        arguments.push_back(Argument(i, argId, type, sseArgumentsRegs[intArgs]));
-                    else
-                        arguments.push_back(Argument(i, argId, type, memArgs++));
-                    sseArgs++;
-                    break;
-                case AC_MEM:
-                    arguments.push_back(Argument(i, argId, type, memArgs++));
-                    break;
-            }
-        }
-
+    CodeGenerator::Function::Function(CodeGenerator &generator, IR::FunctionRecord const &f, asmjit::Label const &label)
+            : label(label), function(f), generator(generator), orderedBlocks(generator._liveInfo->data.at(f.id)->orderedBlocks) {
+        setupArguments();
         setupRegisterMapping();
     }
 
 
-
-    void MachCodeGenerator::prologue(IR::FunctionRecord const &f) {
+    void CodeGenerator::prologue(IR::FunctionRecord const &f) {
         const size_t locals = f.memoryCells.size();
-        const size_t argcount = f.parametersIds.size() + f.refParameterIds.size();
-        if (f.id == 0) pushRegs(_);
-        if (locals > 0 || argcount > 0) {
+        if (locals > 0 || _functions[f.id]->hasMemArgs()) {
             _.push(rbp);
             _.mov(rbp, rsp);
         }
         if (locals > 0) _.sub(rsp, locals);
     }
 
-    void MachCodeGenerator::epilogue(IR::FunctionRecord const &f) {
+    void CodeGenerator::epilogue(IR::FunctionRecord const &f) {
         const size_t locals = f.memoryCells.size();
-        const size_t argcount = f.parametersIds.size() + f.refParameterIds.size();
 
-        if (locals > 0 || argcount > 0) {
-            _.mov(esp, ebp);
-            _.pop(ebp);
+        if (locals > 0 || _functions[f.id]->hasMemArgs()) {
+            _.mov(rsp, rbp);
+            _.pop(rbp);
         }
-        if (f.id == 0) popRegs(_);
         _.ret();
     }
 
-    void MachCodeGenerator::femms() {
-        _.femms();
-        _currentMode = CM_NORMAL;
+    int64_t CodeGenerator::contents(IR::Ptr const *ptr) const {
+        return (ptr->isPooledString) ? (uint64_t) (_runtime.stringPool[ptr->value].c_str()) : ptr->value;
     }
 
-    void MachCodeGenerator::emitCall(IR::Call const &call) {
-        if (_currentMode == CM_X87) femms();
-    }
-
-
-    void MachCodeGenerator::visit(const IR::Return *const expr) { //ok
-
-        auto a = expr->atom;
+    void CodeGenerator::visit(const IR::Return *const expr) {
         switch (_deriver.visitElement(expr->atom)) {
-
             case IR::VT_Int:
             case IR::VT_Ptr:
                 _nextAssignment = RegOrMem(rax);
@@ -164,157 +114,39 @@ namespace mathvm {
     }
 
 
-    void MachCodeGenerator::visit(const IR::Assignment *const expr) {
-        if (typeOf(expr->var->id) != IR::VT_Unit)
-        {
-            _nextAssignedVreg = expr->var->id;
-        _nextAssignment = locate(expr->var->id);
+    void CodeGenerator::visit(const IR::Assignment *const expr) {
+        if (typeOf(expr->var->id) != IR::VT_Unit) {
+            _nextAssignedVreg = virtRegOf(expr->var->id);
+            _nextAssignment = locate(expr->var->id);
         }
         expr->value->visit(this);
     }
 
-    void MachCodeGenerator::visit(const IR::FunctionRecord *const expr) {
+    void CodeGenerator::visit(const IR::FunctionRecord *const expr) {
         _currentFunction = expr;
-        _.bind(functions[expr]->label);
         prologue(*expr);
-        auto blocks = blocksPostOrder(expr->entry);
+        auto& blocks = _functions[expr->id]->orderedBlocks;
+        //std::reverse(blocks.begin(), blocks.end());
+        for (auto b : blocks) initBlock(b);
         for (auto b : blocks) visit(b);
 
-        epilogue(*expr);
     }
 
 
-    void MachCodeGenerator::visit(const IR::Block *const expr) {
-        initBlock(expr);
-        _.bind(blocks[expr].label);
+    void CodeGenerator::visit(const IR::Block *const expr) {
+        _debug << "visiting block " << expr->name << "\n";
+
+        if (_currentFunction->entry == expr)
+            _.bind(_functions[_currentFunction->id]->label);
+
+        _.bind(_blocks[expr].label);
         for (auto st: expr->contents)
             st->visit(this);
         if (!expr->isLastBlock()) expr->getTransition()->visit(this);
+        else epilogue(*_currentFunction);
     }
 
-
-    //assumes it is not an argument stored into stack
-    X86Reg const *MachCodeGenerator::regOfVar(IR::VarId id) const {
-        FOR_INT_DOUBLE(typeOf(id),
-                return &gpFromVirt(virtRegOf(id));,
-                return &xmmFromVirt(virtRegOf(id));)
-    }
-
-//    void MachCodeGenerator::genAssign(X86Mem const &dest, IR::Atom const *const atom) {
-//        switch (atom->getType()) {
-//            case IR::IrElement::IT_Variable: {
-//                const IR::Variable *const var = atom->asVariable();
-//                auto const *const memArg = functions[_currentFunction]->isMemArg(var->id);
-//                if (memArg) {
-//                    _.mov(tempGpRegs[0], ptr(rbp, memArg->ebpOffset, 1));
-//                    _.mov(dest, tempGpRegs[0]);
-//                }
-//                else { //not a memory argument
-//                    FOR_INT_DOUBLE(
-//                            typeOf(var->id),
-//                            {
-//                                _.mov(dest, gpFromVirt(virtRegOf(var->id)));
-//                            },
-//                            {
-//                                _.movq(dest, xmmFromVirt(virtRegOf(var->id)));
-//                            })
-//                }
-//                break;
-//            };
-//            case IR::IrElement::IT_Int:
-//                _.mov(dest, atom->asInt()->value);
-//                break;
-//            case IR::IrElement::IT_Double:
-//                _.mov(dest, D2I(atom->asDouble()->value));
-//                break;
-//            case IR::IrElement::IT_Ptr: {
-//                IR::Ptr const *const ptr = atom->asPtr();
-//                _.mov(dest, contents(ptr));
-//                break;
-//            }
-//            case IR::IrElement::IT_ReadRef:
-//                throw std::invalid_argument("readref not supported yet");
-//            default:
-//                throw std::invalid_argument("attempt to move non-atom into memory");
-//        };
-//    }
-
-//    void MachCodeGenerator::genAssign(X86Reg const &dest, IR::Atom const *const atom) {
-//        FOR_ATOM(atom,
-//                {
-//                    FOR_REGTYPES(&dest,
-//                            _.mov(gpReg, aInt->value);, {
-//                        _.mov(tempGpRegs[0], aInt->value);
-//                        _.movq(xmmReg, tempGpRegs[0]);
-//                    });
-//                },
-//                {
-//                    FOR_REGTYPES(&dest,
-//                            _.mov(gpReg, D2I(aDouble->value));, {
-//                        _.mov(tempGpRegs[0], D2I(aDouble->value));
-//                        _.movq(xmmReg, tempGpRegs[0]);
-//                    });
-//                },
-//                {
-//                    FOR_REGTYPES(&dest, {
-//                            if (aPtr->isPooledString) _.mov(gpReg, imm_ptr((void *) _ir.pool[aPtr->value].c_str()));
-//                            else _.mov(gpReg, aPtr->value);
-//                    }, {
-//                            if (aPtr->isPooledString) {
-//                                _.mov(tempGpRegs[0], imm_ptr((void *) _ir.pool[aPtr->value].c_str()));
-//                                _.movq(xmmReg, tempGpRegs[0]);
-//                            }
-//                            else {
-//                                _.mov(tempGpRegs[0], aPtr->value);
-//                                _.movq(xmmReg, tempGpRegs[0]);
-//                            }
-//                    });
-//                },
-//                {
-//                    auto const *const memArg = functions[_currentFunction]->isMemArg(aVar->id);
-//                    if (memArg) {
-//                        FOR_REGTYPES(&dest,
-//                                {
-//                                        _.mov(gpReg, ptr(rbp, memArg->ebpOffset, 1));
-//                                },
-//                                {
-//                                        _.movq(xmmReg, ptr(rbp, memArg->ebpOffset, 1));
-//                                });
-//                    }
-//                    else { //not a memory argument
-//                        FOR_REGTYPES(&dest,
-//                                FOR_INT_DOUBLE(
-//                                        typeOf(aVar->id),
-//                                        {
-//                                                _.mov(gpReg, gpFromVirt(virtRegOf(aVar)));
-//                                        },
-//                                        {
-//                                                _.movq(gpReg, xmmFromVirt(virtRegOf(aVar)));
-//                                        }),
-//                                FOR_INT_DOUBLE(
-//                                        typeOf(aVar->id),
-//                                        {
-//                                                _.movq(xmmReg, gpFromVirt(virtRegOf(aVar)));
-//                                        },
-//                                        {
-//                                                _.movq(xmmReg, xmmFromVirt(virtRegOf(aVar)));
-//                                        })
-//                        )
-//                    }
-//                },
-//                {
-//                    (void) aReadRef;
-//                    throw std::invalid_argument("readref not supported yet");
-//                }
-//        )
-//    }
-
-//    void MachCodeGenerator::genAssign(RegOrMem const &dest, IR::Atom const *const atom) {
-//        RegOrMemMatch(dest, genAssign(mem, atom);, genAssign(gpReg, atom);, genAssign(xmmReg, atom););
-//    }
-
-
-    void MachCodeGenerator::visit(IR::Variable const *const var) {
+    void CodeGenerator::visit(IR::Variable const *const var) {
         auto rm = locate(var);
         RegOrMemMatchNoRedef(rm, {
             RegOrMemMatchNoRedef(_nextAssignment,
@@ -326,21 +158,21 @@ namespace mathvm {
         }, {
             RegOrMemMatchNoRedef(_nextAssignment,
                     _.mov(_nextAssignment.mem, rm.gp),
-                    _.mov(_nextAssignment.mem, rm.gp),
-            _.movq(_nextAssignment.xmm, rm.gp))
+                    _.mov(_nextAssignment.gp, rm.gp),
+                    _.movq(_nextAssignment.xmm, rm.gp))
         }, {
-            RegOrMemMatch(_nextAssignment,
+            RegOrMemMatchNoRedef(_nextAssignment,
                     _.movq(_nextAssignment.mem, rm.xmm),
                     _.movq(_nextAssignment.gp, rm.xmm),
-            _.movq(_nextAssignment.xmm,rm.xmm))
+                    _.movq(_nextAssignment.xmm, rm.xmm))
         });
     }
 
-    void MachCodeGenerator::visit(IR::Phi const *const expr) {
+    void CodeGenerator::visit(IR::Phi const *const expr) {
         throw std::bad_function_call();
     }
 
-    void MachCodeGenerator::visit(IR::Int const *const expr) {
+    void CodeGenerator::visit(IR::Int const *const expr) {
         RegOrMemMatch(_nextAssignment,
                 _.mov(mem, expr->value),
                 _.mov(gpReg, expr->value),
@@ -348,7 +180,7 @@ namespace mathvm {
                 _.movq(xmmReg, tempGpRegs[0]));
     }
 
-    void MachCodeGenerator::visit(IR::Double const *const expr) {
+    void CodeGenerator::visit(IR::Double const *const expr) {
         const int64_t value = D2I(expr->value);
         RegOrMemMatch(_nextAssignment,
                 _.mov(mem, value),
@@ -357,8 +189,8 @@ namespace mathvm {
                 _.movq(xmmReg, tempGpRegs[0]))
     }
 
-    void MachCodeGenerator::visit(IR::Ptr const *const expr) {
-        const uint64_t value = (expr->isPooledString) ? (uint64_t) (&_runtime.stringPool[expr->value]) : expr->value;
+    void CodeGenerator::visit(IR::Ptr const *const expr) {
+        const int64_t value = contents(expr);
         RegOrMemMatch(_nextAssignment,
                 _.mov(mem, value),
                 _.mov(gpReg, value),
@@ -366,11 +198,11 @@ namespace mathvm {
                 _.movq(xmmReg, tempGpRegs[0]));
     }
 
-    void MachCodeGenerator::visit(IR::ReadRef const *const expr) {
+    void CodeGenerator::visit(IR::ReadRef const *const expr) {
 
     }
 
-    void MachCodeGenerator::visit(const IR::BinOp *const expr) {
+    void CodeGenerator::visit(const IR::BinOp *const expr) {
 
         switch (expr->type) {
 
@@ -385,8 +217,8 @@ namespace mathvm {
             case IR::BinOp::BO_LOR:
             case IR::BinOp::BO_LAND:
             case IR::BinOp::BO_XOR:
-                if (expr->right->isVariable() && expr->right->asVariable()->id == _nextAssignedVreg) {
-                    genReducedBinOp(expr->type, _nextAssignment, expr->right, _);
+                if (expr->right->isVariable() && virtRegOf(expr->right->asVariable()->id) == _nextAssignedVreg) {
+                    genReducedBinOp(expr->type, _nextAssignment, expr->left, _);
                     return;
                 }
 
@@ -399,7 +231,7 @@ namespace mathvm {
             case IR::BinOp::BO_FLT:
             case IR::BinOp::BO_LE:
             case IR::BinOp::BO_FLE:
-                if (expr->left->isVariable() && expr->left->asVariable()->id == _nextAssignedVreg) {
+                if (expr->left->isVariable() && virtRegOf(expr->left->asVariable()->id) == _nextAssignedVreg) {
                     {
                         genReducedBinOp(expr->type, _nextAssignment, expr->right, _);
                         return;
@@ -412,7 +244,7 @@ namespace mathvm {
         };
     }
 
-    void MachCodeGenerator::visit(const IR::UnOp *const unop) {
+    void CodeGenerator::visit(const IR::UnOp *const unop) {
         genUnOp(unop->type, _nextAssignment, unop->operand, _);
         return;
 //todo this should be done in  a generic way
@@ -485,16 +317,16 @@ namespace mathvm {
 //        }
     }
 
-    void MachCodeGenerator::visit(const IR::Call *const expr) {
-        IR::FunctionRecord const* const calledFunction = _ir.functions[expr->funId];
-        Function const& descr = * functions[calledFunction];
-        std::stack<X86Reg const*> savedRegs;
-
+    void CodeGenerator::visit(const IR::Call *const expr) {
+//        IR::FunctionRecord const *const calledFunction = _ir.functions[expr->funId];
+        Function const &descr = *_functions[expr->funId];
+        std::stack<X86Reg const *> savedRegs;
+        RegOrMem writeResultInto = _nextAssignment;
         //first save all registers we need
 
         //then insert arguments
         for (size_t i = 0; i < descr.arguments.size(); i++) {
-            switch( descr.arguments[i].class_) {
+            switch (descr.arguments[i].class_) {
                 case AC_INTEGER:
                     _nextAssignment = RegOrMem(descr.arguments[i].gpReg);
                     break;
@@ -502,7 +334,7 @@ namespace mathvm {
                     _nextAssignment = RegOrMem(descr.arguments[i].xmmReg);
                     break;
                 case AC_MEM:
-                    _nextAssignment = RegOrMem(X86Mem(ptr(rbp, descr.arguments[i].getRbpOffset(),8)));
+                    _nextAssignment = RegOrMem(X86Mem(ptr(rbp, descr.arguments[i].getRbpOffset(), 8)));
                     break;
             }
             expr->params[i]->visit(this);
@@ -510,38 +342,35 @@ namespace mathvm {
         //todo reference parameters!
 
         //emit call
-        _.call(functions[_ir.functions[expr->funId]]->label);
+        _.call(descr.label);
         //pop registers
+
+
+        if (_ir.functions[expr->funId]->returnType == IR::VT_Unit) {}
+        else if (_ir.functions[expr->funId]->returnType == IR::VT_Double)
+            genAssign(RegOrMem(xmm0), writeResultInto);
+        else
+            genAssign(RegOrMem(rax), writeResultInto);
+
     }
 
-    static void print_int(int64_t i) {
-        printf("%ld", i);
-    }
 
-    static void print_double(double d) {
-        printf("%lf", d);
-    }
-
-    static void print_str(char const *s) {
-        printf("%s", s);
-    }
-
-    void MachCodeGenerator::visit(const IR::Print *const expr) {
+    void CodeGenerator::visit(const IR::Print *const expr) {
 
         FOR_ATOM(expr->atom,
                 {
                     _.mov(integerArgumentsRegs[0], contents(aInt));
-                    _.call(Ptr(&print_int));
+                    _.call(Ptr(&MvmRuntime::print_int));
                 },
                 {//double
                     const double cnt = contents(aDouble);
                     _.mov(tempGpRegs[0], D2I(cnt));
                     _.movq(sseArgumentsRegs[0], tempGpRegs[0]);
-                    _.call(Ptr(&print_double));
+                    _.call(Ptr(&MvmRuntime::print_double));
                 },
                 {//ptr
                     _.mov(integerArgumentsRegs[0], contents(aPtr));
-                    _.call(Ptr(&print_str));
+                    _.call(Ptr(&MvmRuntime::print_str));
                 },
                 {
                     const RegOrMem rm = locate(aVar);
@@ -549,27 +378,28 @@ namespace mathvm {
                                     if (typeOf(aVar->id) == IR::VT_Double)
                                     {
                                         _.movq(sseArgumentsRegs[0], mem);
-                                        _.call(Ptr(&print_double));
+                                        _.call(Ptr(&MvmRuntime::print_double));
                                     }
                                     else if (typeOf(aVar->id) == IR::VT_Ptr)
                                     {
                                         _.mov(integerArgumentsRegs[0], mem);
-                                        _.call(Ptr(&print_str));
+                                        _.call(Ptr(&MvmRuntime::print_str));
                                     } else {
                                         _.mov(integerArgumentsRegs[0], mem);
-                                        _.call(Ptr(&print_int));
+                                        _.call(Ptr(&MvmRuntime::print_int));
                                     }
                             },
                             {
                                     _.mov(integerArgumentsRegs[0], gpReg);
-                                    _.call(Ptr(&print_int));
+                                    _.call(Ptr(&MvmRuntime::print_int));
                             },
                             {
                                     _.movq(sseArgumentsRegs[0], xmmReg);
-                                    _.call(Ptr(&print_double));
+                                    _.call(Ptr(&MvmRuntime::print_double));
                             }
                     );
                 }, {
+            (void) aReadRef;
             //readref not supported
         }
         );
@@ -578,18 +408,15 @@ namespace mathvm {
     }
 
 
-    void MachCodeGenerator::visit(const IR::JumpAlways *const expr) {
-        initBlock(expr->destination);
-        _.jmp(blocks[expr->destination].label);
+    void CodeGenerator::visit(const IR::JumpAlways *const expr) {
+        _.jmp(_blocks[expr->destination].label);
     }
 
-    void MachCodeGenerator::visit(const IR::JumpCond *const expr) {
-        initBlock(expr->yes);
-        initBlock(expr->no);
+    void CodeGenerator::visit(const IR::JumpCond *const expr) {
         FOR_ATOM(expr->condition,
-                _.jmp(blocks[(contents(aInt)) ? expr->yes : expr->no].label);,
-                _.jmp(blocks[(contents(aDouble)) ? expr->yes : expr->no].label);,
-                _.jmp(blocks[(contents(aPtr)) ? expr->yes : expr->no].label);,
+                _.jmp(_blocks[(contents(aInt)) ? expr->yes : expr->no].label);,
+                _.jmp(_blocks[(contents(aDouble)) ? expr->yes : expr->no].label);,
+                _.jmp(_blocks[(contents(aPtr)) ? expr->yes : expr->no].label);,
                 {
                     RegOrMemMatch(locate(aVar),
                             _.mov(rax, mem);
@@ -598,146 +425,107 @@ namespace mathvm {
                     _.movq(rax, xmmReg);
                     _.test(rax, rax);
                     );
+                    _.jz(_blocks[expr->no].label);
+                    _.jmp(_blocks[expr->yes].label);
                 }, {
+            (void) aReadRef;
             throw std::invalid_argument("readref not supported yet");
         };
         );
-        _.jz(blocks[expr->no].label);
-        _.jmp(blocks[expr->yes].label);
     }
 
-    void MachCodeGenerator::visit(const IR::WriteRef *const expr) {
+    void CodeGenerator::visit(const IR::WriteRef *const expr) {
 
     }
 
 
     bool CodeGenErrorHandler::handleError(Error code, const char *message) {
         _debug << message << std::endl;
-        throw std::invalid_argument(message);
         return true;
     }
 
-    void *MachCodeGenerator::translate() {
+    void *CodeGenerator::translate() {
         _debug << "\n-------------------------------\n   Code generation has started \n-------------------------------\n";
 
+
         StringLogger logger;
-        // CodeGenErrorHandler handler(_debug);
+        _.setErrorHandler(new CodeGenErrorHandler(_debug));
         _.setLogger(&logger);
-        // _.setErrorHandler(&handler);
+
         for (auto f: _ir.functions) initFunction(f);
         for (auto f: _ir.functions) visit(f);
 
         void *result = _.make();
         _debug << "Logged:\n" << logger.getString() << std::endl;
-        _debug << ErrorUtil::asString(_.getError()) << std::endl;
 
         if (result) return result;
         return NULL;
     }
 
-    X86XmmReg const &MachCodeGenerator::xmmFromVirt(uint64_t vreg) const {
-        return allocableXmmRegs[functions.at(_currentFunction)->regsXmm[vreg]];
+    X86XmmReg const &CodeGenerator::xmmFromVirt(uint64_t vreg) const {
+        return allocableXmmRegs[_functions.at(_currentFunction->id)->regsXmm[vreg]];
     }
 
-    X86GpReg const &MachCodeGenerator::gpFromVirt(uint64_t vreg) const {
-        return allocableRegs[functions.at(_currentFunction)->regsGp[vreg]];
+    X86GpReg const &CodeGenerator::gpFromVirt(uint64_t vreg) const {
+        return allocableRegs[_functions.at(_currentFunction->id)->regsGp[vreg]];
     }
 
-    RegOrMem MachCodeGenerator::locate(IR::VarId id) const {
-        Function::Argument const* const arg = functions.at(_currentFunction)->argumentForVar(id);
-        if (arg && arg->class_ == AC_MEM)
-            return RegOrMem(X86Mem(rbp,arg->getRbpOffset()));
+    RegOrMem CodeGenerator::locate(IR::VarId id) const {
+        Function::Argument const *const arg = _functions.at(_currentFunction->id)->argumentForVar(id);
+        if (arg)
+            switch (arg->class_) {
+                case AC_INTEGER:
+                    return RegOrMem(arg->gpReg);
+                case AC_SSE:
+                    return RegOrMem(arg->xmmReg);
+                case AC_MEM:
+                    return RegOrMem(X86Mem(rbp, arg->getRbpOffset()));
+                default:
+                    throw std::invalid_argument("Can't locate var");
+            }
         else {
             auto vreg = virtRegOf(id);
             FOR_INT_DOUBLE(typeOf(id),
                     return RegOrMem(gpFromVirt(vreg));,
                     return RegOrMem(xmmFromVirt(vreg));)
         }
+
     }
 
-
-    bool MachCodeGenerator::isRegAliveAfter(const IR::Statement* const statement, X86GpReg const& reg) {
-        size_t* regs = functions.at(_currentFunction)->regsGp;
-        for( size_t vreg = 0; vreg < ALLOCABLE_REGS_COUNT; vreg++)
+    bool CodeGenerator::isRegAliveAfter(const IR::Statement *const statement, X86GpReg const &reg) {
+        size_t *regs = _functions.at(_currentFunction->id)->regsGp;
+        for (size_t vreg = 0; vreg < ALLOCABLE_REGS_COUNT; vreg++)
             if (allocableRegs[regs[vreg]].getId() == reg.getId()) {
                 auto regIt = allocations().vregToVarId.find(vreg);
                 if (regIt == allocations().vregToVarId.end()) return false;
                 IR::VarId varid = (*regIt).second;
-                return _liveInfo->data.at(_currentFunction)->varIntervals.at(varid).contains(statement->num+1);
-        }
-        throw std::invalid_argument("This register is not allocable");
-    }
-
-    bool MachCodeGenerator::isRegAliveAfter(const IR::Statement *const statement, X86XmmReg const &reg) {
-        size_t* regs = functions.at(_currentFunction)->regsXmm;
-        for( size_t vreg = 0; vreg < ALLOCABLE_REGS_COUNT; vreg++)
-            if (allocableRegs[regs[vreg]].getId() == reg.getId()) {
-                auto regIt = allocations().vregToVarId.find(vreg);
-                if (regIt == allocations().vregToVarId.end()) return false;
-                IR::VarId varid = (*regIt).second;
-                return _liveInfo->data.at(_currentFunction)->varIntervals.at(varid).contains(statement->num+1);
+                return _liveInfo->data.at(_currentFunction->id)->varIntervals.at(varid).contains(statement->num + 1);
             }
         throw std::invalid_argument("This register is not allocable");
     }
 
-    MachCodeGenerator::Info::Info() {
+    bool CodeGenerator::isRegAliveAfter(const IR::Statement *const statement, X86XmmReg const &reg) {
+        size_t *regs = _functions.at(_currentFunction->id)->regsXmm;
+        for (size_t vreg = 0; vreg < ALLOCABLE_REGS_COUNT; vreg++)
+            if (allocableRegs[regs[vreg]].getId() == reg.getId()) {
+                auto regIt = allocations().vregToVarId.find(vreg);
+                if (regIt == allocations().vregToVarId.end()) return false;
+                IR::VarId varid = (*regIt).second;
+                return _liveInfo->data.at(_currentFunction->id)->varIntervals.at(varid).contains(statement->num + 1);
+            }
+        throw std::invalid_argument("This register is not allocable");
+    }
+
+    CodeGenerator::Info::Info() {
         for (size_t i = 0; i < INTEGER_ARGUMENTS_REGS_LENGTH; i++)
             nextIntArg.push_back(std::find(allocableRegs, std::end(allocableRegs), integerArgumentsRegs[i]) - allocableRegs);
         for (size_t i = 0; i < SSE_ARGUMENTS_REGS_LENGTH; i++)
             nextSseArg.push_back(std::find(allocableXmmRegs, std::end(allocableXmmRegs), sseArgumentsRegs[i]) - allocableXmmRegs);
     }
 
-    void MachCodeGenerator::Function::setupRegisterMapping() {
-        bool assignedGp[ALLOCABLE_REGS_COUNT] = {false};
-        bool assignedXmm[ALLOCABLE_REGS_COUNT] = {false};
-        size_t intArgs = 0, sseArgs = 0;
-        int32_t memArgs = 0;
 
-        std::set<size_t> freeGpRegs;
-        std::set<size_t> freeXmmRegs;
 
-        for (size_t i = 0; i < INTEGER_ARGUMENTS_REGS_LENGTH; i++) freeGpRegs.insert(i);
-        for (size_t i = 0; i < SSE_ARGUMENTS_REGS_LENGTH; i++) freeXmmRegs.insert(i);
-
-        for (Argument const &arg : arguments) {
-            switch (arg.class_) {
-                case AC_INTEGER:
-                {
-                    auto regIdx= std::find(allocableRegs, std::end(allocableRegs), arg.gpReg) - allocableRegs;
-                    regsGp[arg.var] = regIdx;
-                    assignedGp[arg.var] = true;
-                    freeGpRegs.erase(regIdx);
-                    break;
-                }
-                case AC_SSE:
-                {
-                    auto regIdx= std::find(allocableXmmRegs, std::end(allocableXmmRegs), arg.xmmReg) - allocableXmmRegs;
-                    regsXmm[arg.var] = regIdx;
-                    assignedXmm[arg.var] = true;
-                    freeXmmRegs.erase(regIdx);
-                    break;
-                }
-                    break;
-                case AC_MEM:
-                    break;
-            };
-        }
-
-        auto freeGpIt = freeGpRegs.cbegin();
-        auto freeXmmIt = freeXmmRegs.cbegin();
-        for (size_t i = 0; i < ALLOCABLE_REGS_COUNT; i++) {
-            if (!assignedGp[i]) {
-                regsGp[i] = *freeGpIt;
-                freeGpIt++;
-            }
-            if (!assignedXmm[i]) {
-                regsXmm[i] = *freeXmmIt;
-                freeXmmIt++;
-            }
-        }
-    }
-
-    void MachCodeGenerator::genAssign(RegOrMem const &from, RegOrMem const &to) {
+    void CodeGenerator::genAssign(RegOrMem const &from, RegOrMem const &to) {
         RegOrMemMatchNoRedef(from,
                 RegOrMemMatchNoRedef(to,
                         _.mov(rax, from.mem);
@@ -750,9 +538,94 @@ namespace mathvm {
                 RegOrMemMatchNoRedef(to, _.movq(to.mem, from.xmm);, _.movq(to.gp, from.xmm), _.movq(to.xmm, from.xmm);)
         )
     }
+
+
+
+    void CodeGenerator::Function::setupRegisterMapping() {
+        bool assignedGp[ALLOCABLE_REGS_COUNT] = {false};
+        bool assignedXmm[ALLOCABLE_REGS_COUNT] = {false};
+
+        std::set<size_t> freeGpRegs;
+        std::set<size_t> freeXmmRegs;
+
+        for (size_t i = 0; i < ALLOCABLE_REGS_COUNT; i++) freeGpRegs.insert(i);
+        for (size_t i = 0; i < ALLOCABLE_REGS_COUNT; i++) freeXmmRegs.insert(i);
+
+        for (Argument const& arg : arguments) {
+            auto vreg = generator.virtRegOf(function.id, arg.var);
+
+            switch (arg.class_) {
+                case AC_INTEGER: {
+                    auto regIdx = std::find(allocableRegs, std::end(allocableRegs), arg.gpReg) - allocableRegs;
+                    regsGp[vreg] = regIdx;
+                    assignedGp[vreg] = true;
+                    freeGpRegs.erase(regIdx);
+                    break;
+                }
+                case AC_SSE: {
+                    auto regIdx = std::find(allocableXmmRegs, std::end(allocableXmmRegs), arg.xmmReg) - allocableXmmRegs;
+                    regsXmm[vreg] = regIdx;
+                    assignedXmm[vreg] = true;
+                    freeXmmRegs.erase(regIdx);
+                    break;
+                }
+                default:
+                    break;
+            };
+        }
+
+        auto freeGpIt = freeGpRegs.cbegin();
+        auto freeXmmIt = freeXmmRegs.cbegin();
+        for (size_t vreg = 0; vreg < ALLOCABLE_REGS_COUNT; vreg++) {
+            if (!assignedGp[vreg]) {
+                regsGp[vreg] = *freeGpIt;
+                freeGpIt++;
+            }
+            if (!assignedXmm[vreg]) {
+                regsXmm[vreg] = *freeXmmIt;
+                freeXmmIt++;
+            }
+        }
+        generator._debug << "GP reg mappings for functions" << function.id << ":\n";
+        for (size_t i = 0; i < ALLOCABLE_REGS_COUNT; i++) {
+            generator._debug << i << "->" << regsGp[i] <<  "\n";
+        }
+        generator._debug << "Xmm reg mappings for function " << function.id << ":\n";
+        for (size_t i = 0; i < ALLOCABLE_REGS_COUNT; i++) {
+            generator._debug << i << "->" << regsXmm[i] <<  "\n";
+        }
+    }
+    void CodeGenerator::Function::setupArguments() {
+        size_t intArgs = 0, sseArgs = 0;
+        uint32_t memArgs = 0;
+
+        for (size_t i = 0; i < function.arguments(); ++i) {
+            auto argId = function.argument(i);
+            const IR::VarType type = generator.typeOf(argId);
+            switch (CodeGenerator::argumentClassForType(type)) {
+                case AC_INTEGER:
+                    if (intArgs < INTEGER_ARGUMENTS_REGS_LENGTH)
+                        arguments.push_back(Argument(i, argId, type, integerArgumentsRegs[intArgs]));
+                    else
+                        arguments.push_back(Argument(i, argId, type, memArgs++));
+                    intArgs++;
+                    break;
+                case AC_SSE:
+                    if (sseArgs < SSE_ARGUMENTS_REGS_LENGTH)
+                        arguments.push_back(Argument(i, argId, type, sseArgumentsRegs[intArgs]));
+                    else
+                        arguments.push_back(Argument(i, argId, type, memArgs++));
+                    sseArgs++;
+                    break;
+                case AC_MEM:
+                    arguments.push_back(Argument(i, argId, type, memArgs++));
+                    break;
+            };
+        }
+    }
 }
 
-//    MachCodeGenerator::FunctionDescriptor::FunctionDescriptor(IR::SimpleIr const &ir, IR::RegAllocInfo const &regAllocInfo, IR::FunctionRecord const &f, asmjit::Label const &label)
+//    CodeGenerator::FunctionDescriptor::FunctionDescriptor(IR::SimpleIr const &ir, IR::RegAllocInfo const &regAllocInfo, IR::FunctionRecord const &f, asmjit::Label const &label)
 //            : label(label), function(f) {
 //
 //        std::vector<size_t> nextIntArg;
