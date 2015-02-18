@@ -1,6 +1,7 @@
 ROOT   = .
 VM_ROOT = ../../../..
 
+WITH_SDL = true
 OPT = true
 
 USER_OBJ = \
