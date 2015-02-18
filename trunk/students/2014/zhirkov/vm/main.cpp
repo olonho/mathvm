@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
     IR::Substitution(normalized, *substituted.back(), irRepr)();
 
     size_t i;
-    for (i = 1; i < 1; i++) {
+    for (i = 1; i < 100; i++) {
         IR::SimpleIr &prev = *substituted.back();
         substituted.push_back(new IR::SimpleIr());
         IR::SimpleIr &next = *substituted.back();
@@ -116,29 +116,22 @@ int main(int argc, char **argv) {
     IR::RegSpiller(nophi, spoiled, gallocInfo, irRepr, 42)();
     printIr(spoiled, irRepr);
 
+    MvmRuntime runtime;
+    CodeGenerator generator(spoiled, runtime, irRepr);
 
-    IR::LiveAnalyzer secondLiveAnalyzer(irRepr);
-    IR::LiveInfo *secondLiveInfo = secondLiveAnalyzer.start(spoiled);
-    auto finalGallocInfo = IR::regAlloc(spoiled, *secondLiveInfo, 12, irRepr);
 
-    printLiveInfo(*secondLiveInfo, irRepr);
-    IR::regAllocDump(finalGallocInfo, irRepr);
+    Program translated = asmjit_cast<Program>(generator.translate());
+    Program starter = runtime.getStarter(translated);
+    if (translated) starter();
+    else irRepr << "Compilation error occured\n";
 
-    mathvm::Runtime runtime;
-    MachCodeGenerator generator(spoiled, finalGallocInfo, runtime, irRepr);
-    typedef void (*Program)(void);
+
 //test();
-    Program translated = (Program) generator.translate();
-    translated();
 
-
-
-    //  _runtime.jitRuntime.release((void *) translated);
     delete &closureInfo;
 
     for (auto ir : substituted) delete ir;
     delete liveInfo;
-    delete secondLiveInfo;
     delete &initial;
 
     irRepr.close();
@@ -161,10 +154,7 @@ void test() {
     X86Assembler _(&runtime);
     StringLogger logger;
     _.setLogger(&logger);
-    asmjit::Label end = _.newLabel();
-    _.jmp(end);
     _.call(Ptr(yes));
-    _.bind(end);
     _.ret();
 
     std::cerr << "Test\n" << logger.getString() << std::endl;

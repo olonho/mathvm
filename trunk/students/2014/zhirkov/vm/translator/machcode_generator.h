@@ -4,8 +4,9 @@
 #include "../../../../../libs/asmjit/asmjit.h"
 #include "../ir/live_analyzer.h"
 #include "../ir/reg_allocator.h"
-#include "mathvm_runtime.h"
 #include "../ir/transformations/typederiver.h"
+
+#include "mathvm_runtime.h"
 
 #define D2I(d) (*((int64_t*)(&d)))
 
@@ -13,6 +14,8 @@
 namespace mathvm {
     using namespace asmjit;
     using namespace asmjit::x86;
+
+    struct MvmRuntime;
 
     struct CodeGenErrorHandler : public ErrorHandler {
         CodeGenErrorHandler(std::ostream &debug) : _debug(debug) {
@@ -38,16 +41,16 @@ namespace mathvm {
 //    };
 
 
-    extern const X86GpReg allocableRegs[];
-    extern const X86GpReg tempGpRegs[];
+    extern const X86GpReg allocableRegs[ALLOCABLE_REGS_COUNT];
+    extern const X86GpReg tempGpRegs[1];
 
-    extern const X86GpReg tempOneByteRegs[];
+    extern const X86GpReg tempOneByteRegs[1];
 
-    extern const X86XmmReg tempXmmRegs[];
-    extern const X86XmmReg allocableXmmRegs[];
+    extern const X86XmmReg tempXmmRegs[2];
+    extern const X86XmmReg allocableXmmRegs[ALLOCABLE_REGS_COUNT];
 
-    extern const X86GpReg integerArgumentsRegs[];
-    extern const X86XmmReg sseArgumentsRegs[];
+    extern const X86GpReg integerArgumentsRegs[INTEGER_ARGUMENTS_REGS_LENGTH];
+    extern const X86XmmReg sseArgumentsRegs[SSE_ARGUMENTS_REGS_LENGTH];
 
 
 #pragma GCC visibility push(hidden)
@@ -104,12 +107,13 @@ namespace mathvm {
 }
 
 
-    struct MachCodeGenerator : public IR::IrVisitor<void> {
+    struct CodeGenerator : public IR::IrVisitor<void> {
         friend class Info;
 
         struct Info {
             std::vector<size_t> nextIntArg;
             std::vector<size_t> nextSseArg;
+
             Info();
         };
 
@@ -123,6 +127,7 @@ namespace mathvm {
             AC_SSE,
             AC_MEM
         };
+
 
         struct Function {
             struct Argument {
@@ -146,7 +151,7 @@ namespace mathvm {
                         : idx(idx),
                           var(var),
                           type(type),
-                          class_(MachCodeGenerator::argumentClassForType(type)),
+                          class_(CodeGenerator::argumentClassForType(type)),
                           gpReg(gpReg) {
                 }
 
@@ -154,7 +159,7 @@ namespace mathvm {
                         : idx(idx),
                           var(var),
                           type(type),
-                          class_(MachCodeGenerator::argumentClassForType(type)),
+                          class_(CodeGenerator::argumentClassForType(type)),
                           xmmReg(xmmReg) {
                 }
 
@@ -164,45 +169,62 @@ namespace mathvm {
             };
 
 
-            Function(IR::SimpleIr const &ir, IR::RegAllocInfo const &regAllocInfo, IR::FunctionRecord const &f, asmjit::Label const &label);
+            Function(CodeGenerator &generator, IR::FunctionRecord const &f, asmjit::Label const &label);
 
             asmjit::Label label;
             std::vector<Argument> arguments;
-//            std::vector<X86Reg *> registers;
             size_t regsGp[ALLOCABLE_REGS_COUNT];  //vreg -> index of allocableReg
             size_t regsXmm[ALLOCABLE_REGS_COUNT]; //vreg -> index of allocableXmmReg
             IR::FunctionRecord const &function;
-
-
-            Argument const* argumentForVar(IR::VarId id) const {
-                for(auto& a: arguments) if (a.var == id) return &a;
+            CodeGenerator const &generator;
+            std::vector<IR::Block const*> const& orderedBlocks ;
+            Argument const *argumentForVar(IR::VarId id) const {
+                for (auto &a: arguments) if (a.var == id) return &a;
                 return NULL;
             }
+
+            bool hasMemArgs() const {
+                for (Argument const &arg: arguments) if (arg.class_ == AC_MEM) return true;
+                return false;
+            }
+
         private:
             void setupRegisterMapping();
-        };
 
+            void setupArguments();
+        };
 
 
     private:
-        const IR::GlobalRegAllocInfo &regAllocInfo;
         const IR::SimpleIr &_ir;
-        mathvm::Runtime &_runtime;
+        MvmRuntime &_runtime;
         X86Assembler _;
-        std::map<IR::Block const *, BlockDescriptor> blocks;
-        std::map<IR::FunctionRecord const *, Function *> functions;
-        IR::LiveInfo const *_liveInfo;
-        enum CpuMode {
-            CM_X87,
-            CM_NORMAL
-        };
-        CpuMode _currentMode;
+        std::map<IR::Block const *, BlockDescriptor> _blocks;
+        std::vector<Function *> _functions;
+
+        IR::LiveInfo const *const _liveInfo;
+        const IR::GlobalRegAllocInfo regAllocInfo;
+
         std::ostream &_debug;
         IR::IrPrinter _irPrinter;
-
         IR::TypeDeriver _deriver;
 
+
+        IR::FunctionRecord const *_currentFunction;
+        RegOrMem _nextAssignment;
+        IR::VarId _nextAssignedVreg;
+
+
     public:
+
+        CodeGenerator(IR::SimpleIr const &ir, MvmRuntime &runtime, std::ostream &debug);
+
+        virtual ~CodeGenerator() {
+        }
+
+
+        void *translate();
+
         virtual void visit(IR::ReadRef const *const expr);
 
         virtual void visit(IR::Ptr const *const expr);
@@ -214,21 +236,6 @@ namespace mathvm {
         virtual void visit(IR::Phi const *const expr) override;
 
         virtual void visit(IR::Variable const *const expr);
-
-        MachCodeGenerator(IR::SimpleIr const &ir, IR::GlobalRegAllocInfo const &regAllocInfo, mathvm::Runtime &runtime, std::ostream &debug)
-                : regAllocInfo(regAllocInfo),
-                  _ir(ir),
-                  _runtime(runtime),
-                  _(&runtime.jitRuntime),
-                  _liveInfo(IR::LiveAnalyzer(debug).start(ir)),
-                  _currentMode(CM_NORMAL),
-                  _debug(debug),
-                  _irPrinter(_debug),
-                  _deriver(_ir.varMeta, _ir.functions, _debug) {
-            runtime.stringPool = ir.pool;
-        }
-
-        void *translate();
 
         virtual void visit(const IR::BinOp *const expr);
 
@@ -254,50 +261,35 @@ namespace mathvm {
 
 
     private:
-        IR::FunctionRecord const *_currentFunction;
-
-        RegOrMem _nextAssignment;
-        IR::VarId _nextAssignedVreg;
-
-
-        void genAssign(RegOrMem const& from, RegOrMem const& to) ;
-//        void genAssign(X86Reg const &dest, IR::Atom const *const atom);
-
-//        void genAssign(X86Mem const &dest, IR::Atom const *const atom);
-
-//        void genAssign(RegOrMem const &dest, IR::Atom const *const atom);
-
-        void genBinOp(IR::BinOp::Type type, RegOrMem lhs, IR::Atom const *const fst, IR::Atom const *const snd, X86Assembler &_);
 
         void prologue(IR::FunctionRecord const &f);
 
         void epilogue(IR::FunctionRecord const &f);
 
+        void genAssign(RegOrMem const &from, RegOrMem const &to);
+
+        void genBinOp(IR::BinOp::Type type, RegOrMem lhs, IR::Atom const *const fst, IR::Atom const *const snd, X86Assembler &_);
+
+
         void initBlock(IR::Block const *const block) {
-            if (blocks.find(block) == blocks.end()) blocks[block] = BlockDescriptor {_.newLabel()};
+            _blocks[block] = BlockDescriptor {_.newLabel()};
         }
 
-        void initFunction(IR::FunctionRecord const* const f) {
-            functions[f] = new Function(_ir, regAllocInfo[f->id], *f, _.newLabel());
+        void initFunction(IR::FunctionRecord const *const f) {
+            _functions[f->id] = new Function(*this, *f, _.newLabel());
         }
 
-        X86Reg const *regOfVar(IR::VarId id) const;
+        uint64_t virtRegOf(uint64_t funId, IR::VarId id) const {
+            return regAllocInfo.at(funId).regAlloc.at(id);
+        }
 
         uint64_t virtRegOf(IR::VarId id) const {
-            return regAllocInfo.at(_currentFunction->id).regAlloc.at(id);
-        }
-
-        uint64_t virtRegOf(IR::Variable const *var) const {
-            return virtRegOf(var->id);
+            return virtRegOf(_currentFunction->id, id);
         }
 
         X86GpReg const &gpFromVirt(uint64_t vreg) const;
 
         X86XmmReg const &xmmFromVirt(uint64_t vreg) const;
-
-        void femms();
-
-        void emitCall(IR::Call const &call);
 
         static ArgumentClass argumentClassForType(IR::VarType type) {
             switch (type) {
@@ -320,16 +312,13 @@ namespace mathvm {
         }
 
 
-
         RegOrMem locate(IR::VarId id) const;
 
         RegOrMem locate(IR::Variable const *var) const {
             return locate(var->id);
         }
 
-        int64_t contents(IR::Ptr const *ptr) const {
-            return (ptr->isPooledString) ? (uint64_t) (_runtime.stringPool[ptr->value].c_str()) : ptr->value;
-        }
+        int64_t contents(IR::Ptr const *ptr) const;
 
         int64_t contents(IR::Int const *i) const {
             return i->value;
@@ -347,12 +336,8 @@ namespace mathvm {
             return regAllocInfo[_currentFunction->id].regAlloc;
         };
 
-        std::set<IR::VarId> const &stackAlloc() const {
-            return regAllocInfo[_currentFunction->id].stackAlloc;
-        };
-
         bool isVarAlive(IR::VarId var, size_t position) const {
-            return _liveInfo->data.at(_currentFunction)->varIntervals.at(var).contains(position);
+            return _liveInfo->data.at(_currentFunction->id)->varIntervals.at(var).contains(position);
         }
 
         bool isVarAlive(IR::VarId var, const IR::Statement *const statement) const {
@@ -366,7 +351,6 @@ namespace mathvm {
         void genReducedBinOp(IR::BinOp::Type, RegOrMem, IR::Atom const *const, X86Assembler &assembler);
 
         void genUnOp(IR::UnOp::Type, RegOrMem, IR::Atom const *const, X86Assembler &assembler);
-
 
     };
 

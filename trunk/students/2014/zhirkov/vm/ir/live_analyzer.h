@@ -100,17 +100,21 @@ namespace mathvm {
 
             };
 
-            std::map<FunctionRecord const *, FunctionInfo *> data;
+            std::vector<FunctionInfo *> data;
 
             void vivify(FunctionRecord const *fun) {
-                if (data.find(fun) == data.end()) data.insert(make_pair(fun, new FunctionInfo(fun)));
+                if (fun->id >= data.size()) data.resize(fun->id+1);
+                if (! data.at(fun->id)) data.at(fun->id) = new FunctionInfo(fun);
             }
 
             Interval &vivify(FunctionRecord const *fun, uint64_t var) {
 
-                if (data.at(fun)->varIntervals.find(var) == data.at(fun)->varIntervals.end())
-                    data.at(fun)->varIntervals.insert(std::map<uint64_t, Interval>::value_type(var, Interval(var))); //.insert(make_pair(var, new Interval(var)));
-                return data.at(fun)->varIntervals.at(var);
+                if (data.at(fun->id)->varIntervals.find(var) == data.at(fun->id)->varIntervals.end())
+                    data.at(fun->id)->varIntervals.insert(std::map<uint64_t, Interval>::value_type(var, Interval(var))); //.insert(make_pair(var, new Interval(var)));
+                return data.at(fun->id)->varIntervals.at(var);
+            }
+
+            virtual ~LiveInfo() { 
             }
         };
 
@@ -186,15 +190,15 @@ namespace mathvm {
                     _status->vivify(f);
 
                     embraceArgs(f);
-                    for (auto st : _status->data.at(f)->orderedStatements) {
+                    for (auto st : _status->data.at(f->id)->orderedStatements) {
                         visitElement(st);
                         _currentPosition++;
                     }
                     _currentPosition++;
                 }
-                for (auto& kvp : _status->data)
-                    for(size_t i = 0; i < kvp.second->orderedStatements.size(); i++)
-                        kvp.second->orderedStatements[i]->num = i;
+                for (auto f: _status->data)
+                    for(size_t i = 0; i < f->orderedStatements.size(); i++)
+                        f->orderedStatements[i]->num = i;
                 return _status;
             }
 

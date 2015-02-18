@@ -10,8 +10,6 @@ namespace mathvm {
         }
 
         IrElement *RegSpiller::visit(const Assignment *const expr) {
-            if (_oldIr.varMeta[expr->var->id].type == IR::VT_Unit)
-                return new Assignment(SINK, (Expression const *) expr->value->visit(this));
             if (isStackAllocated(expr->var->id)) {
                 _currentResultBlock->contents.push_back(new Assignment(accReg, (Expression const *) expr->value->visit(this)));
                 if (!hasMemoryCell(expr->var->id))
