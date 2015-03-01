@@ -1,17 +1,13 @@
 #include "substitutions.h"
+#include "../ir_printer.h"
 
 namespace mathvm {
     namespace IR {
 
         IrElement *Substitution::visit(Variable const *const expr) {
-            if (_substitutions.find(expr->id) != _substitutions.end()) {
-                IrPrinter printer(_debug);
-                _debug << "! substituted ";
-                expr->visit(&printer);
-                _debug << " -> ";
+            if (canSubstitute(expr->id)) {
                 IrElement *res = _substitutions[expr->id]->visit(&copier);
-                res->visit(&printer);
-                _debug << std::endl;
+                _debug << "! substituted " << *expr << " -> " << *res  << std::endl;
                 _changed = true;
                 return res;
             }
@@ -19,35 +15,28 @@ namespace mathvm {
         }
 
         IrElement *Substitution::visit(Phi const *const expr) {
-            if (used.status().find(expr->var->id) == used.status().end() && _oldIr.varMeta[expr->var->id].type != VT_Unit) {
-                _debug << "dead phi function will be removed: ";
-                IrPrinter printer(_debug);
-                expr->visit(&printer);
-                _debug << std::endl;
+            if (!isUsed(expr->var->id) && _oldIr.varMeta[expr->var->id].type != VT_Unit) {
+                _debug << "dead phi function will be removed: " << *expr << std::endl;
+                _changed = true;
                 return NULL;
             }
             if (expr->vars.size() == 1)
+            {
+                _changed = true;
                 return new Assignment(expr->var->id, new Variable((*(expr->vars.begin()))->id));
+            }
             return copier.visit(expr);
         }
 
         IrElement *Substitution::visit(Assignment const *const expr) {
-            if (used.status().find(expr->var->id) == used.status().end() && _oldIr.varMeta[expr->var->id].type != VT_Unit) {
-                _debug << "dead assignment will be removed: ";
-                IrPrinter printer(_debug);
-                expr->visit(&printer);
-                _debug << std::endl;
+            if (!isUsed(expr->var->id) && _oldIr.varMeta[expr->var->id].type != VT_Unit ) {
+                _debug << "dead assignment will be removed: " << *expr << std::endl;
                 _changed = true;
                 return NULL;
             }
             Expression const *const res = (Expression const *const) expr->value->visit(this);
-            if (expr->value->isAtom()) {
-                IrPrinter printer(_debug);
-                _debug << "will substitute ";
-                expr->var->visit(&printer);
-                _debug << " -> ";
-                res->visit(&printer);
-                _debug << std::endl;
+            if (expr->value->isAtom() && ! _oldIr.varMeta[expr->var->id].isReference) {
+                _debug << "will substitute " << *expr << " -> " << *res << std::endl;
                 _substitutions[expr->var->id] = res->asAtom();
                 _changed = true;
             }
@@ -166,7 +155,7 @@ namespace mathvm {
 
                 case UnOp::UO_FNEG:
                     _changed = true;
-                    return new Double(-expr->operand->asInt()->value);
+                    return new Double(-expr->operand->asDouble()->value);
                 case UnOp::UO_NOT:
                     if (expr->operand->isInt()) {
                         _changed = true;
@@ -185,7 +174,6 @@ namespace mathvm {
         }
 
         bool Substitution::operator()() {
-            used.analyze(&_oldIr);
             Transformation::visit(&_oldIr);
             return isTrivial();
         }
@@ -194,15 +182,11 @@ namespace mathvm {
         IrElement *Substitution::visit(Return const *const expr) {
             if (expr->atom->isVariable()) {
                 auto varid = expr->atom->asVariable()->id;
-                if (_substitutions.find(varid) != _substitutions.end()) {
-                    IrPrinter printer(_debug);
-                    _debug << "! substituted ";
-                    expr->visit(&printer);
-                    _debug << " -> ";
-                    Atom const* const resAtom = (Atom const *const) _substitutions[varid]->visit(&copier);
-                    IR::Return* res = new Return(resAtom);
-                    res->visit(&printer);
-                    _debug << std::endl;
+                if (canSubstitute(varid)) {
+                    IR::Return* const res = new Return((Atom const *const) _substitutions[varid]->visit(&copier));
+
+                    _debug << "! substituted " << *expr << " -> " << *res;
+
                     _changed = true;
                     return res;
                 }

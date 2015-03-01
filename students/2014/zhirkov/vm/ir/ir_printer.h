@@ -28,11 +28,7 @@ namespace mathvm {
         class IrPrinter : public IrVisitor<void> {
         protected:
             std::ostream &_out;
-            std::set<const Block *> visitedBlocks;
-            FunctionRecord const* currentFunction;
-            bool visited(const Block *const block)  {
-                return visitedBlocks.find(block) != visitedBlocks.end();
-            }
+            Function const* currentFunction;
 
         public:
             FOR_IR(VISITOR_VOID)
@@ -59,6 +55,12 @@ namespace mathvm {
 
         };
 
+
+        inline std::ostream& operator<<(std::ostream& s, IR::IrElement const& elem) {
+            IrPrinter printer(s);
+            elem.visit(&printer);
+            return s;
+        }
 
     }
 }

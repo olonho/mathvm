@@ -1,6 +1,8 @@
 #include <iostream>
+#include <sstream>
 #include "typecasts.h"
 #include "../util.h"
+#include "../../exceptions.h"
 
 namespace mathvm {
     namespace IR {
@@ -198,8 +200,9 @@ namespace mathvm {
             if (exprType == to) return resId;
             auto castOp = selectCast(exprType, to);
             if (castOp == UnOp::UO_INVALID) {
-                _debug << "Can't convert from type " << varTypeStr(exprType) << " to " << varTypeStr(to) << std::endl;
-                return resId;
+                std::stringstream msg;
+                msg<< "Can't convert from type " << varTypeStr(exprType) << " to " << varTypeStr(to);
+                throw BadIr(msg.str());
             }
 
             auto convertedId = makeVar(to);

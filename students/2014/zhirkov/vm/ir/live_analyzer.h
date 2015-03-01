@@ -4,11 +4,11 @@
 #include <vector>
 #include <set>
 #include <iostream>
+#include <algorithm>
 #include "ir.h"
 #include "ir_printer.h"
 #include "ir_analyzer.h"
 #include "../translator/ssa_utils.h"
-#include "../translator/reg_common.h"
 
 namespace mathvm {
     namespace IR {
@@ -80,7 +80,7 @@ namespace mathvm {
                 std::vector<Statement const *> orderedStatements;
                 std::map<IR::VarId, Interval> varIntervals;
 
-                FunctionInfo(FunctionRecord const *functionRecord) :
+                FunctionInfo(Function const *functionRecord) :
                         orderedBlocks(blocksOrder(functionRecord->entry)) {
                     for (auto b : orderedBlocks) {
                         for (auto st : b->contents)
@@ -102,12 +102,12 @@ namespace mathvm {
 
             std::vector<FunctionInfo *> data;
 
-            void vivify(FunctionRecord const *fun) {
+            void vivify(Function const *fun) {
                 if (fun->id >= data.size()) data.resize(fun->id+1);
                 if (! data.at(fun->id)) data.at(fun->id) = new FunctionInfo(fun);
             }
 
-            Interval &vivify(FunctionRecord const *fun, uint64_t var) {
+            Interval &vivify(Function const *fun, uint64_t var) {
 
                 if (data.at(fun->id)->varIntervals.find(var) == data.at(fun->id)->varIntervals.end())
                     data.at(fun->id)->varIntervals.insert(std::map<uint64_t, Interval>::value_type(var, Interval(var))); //.insert(make_pair(var, new Interval(var)));
@@ -121,10 +121,12 @@ namespace mathvm {
 
         struct LiveAnalyzer : public IrAnalyzer<int, LiveInfo *> {
         private:
+            const bool _hasAccRegs;
             std::vector<IR::SimpleIr::VarMeta> const *varMeta;
+            bool varMatters(Function const& f, VarId var) const;
         public:
             virtual int visit(const Call *const expr)  const {
-                for (auto p : expr->params) visitElement(p);
+                for (auto p : expr->params) visitExpression(p);
                 for (auto rp : expr->refParams) vivify(rp);
                 return 0;
             }
@@ -145,22 +147,25 @@ namespace mathvm {
             }
 
             virtual int visit(const Assignment *const expr) const  {
+                visitExpression(expr->value);
+                if (!varMatters(*_currentFunction, expr->var->id)) return 0;
                 if (varMeta->at(expr->var->id).type == IR::VT_Unit) return 0;
                 LiveInfo::Interval &interval = _status->vivify(_currentFunction, expr->var->id);
                 interval.mark(_currentPosition);
-                visitExpression(expr->value);
                 return 0;
             }
 
             virtual int visit(const Phi *const expr) const  {
+                if (!varMatters(*_currentFunction, expr->var->id)) return 0;
                 auto &interval = _status->vivify(_currentFunction, expr->var->id);
                 interval.mark(_currentPosition);
                 return 0;
             }
 
             virtual int visit(const WriteRef *const expr) const  {
-                _status->vivify(_currentFunction, expr->refId);
                 visitExpression(expr->atom);
+                if (!varMatters(*_currentFunction, expr->refId)) return 0;
+                _status->vivify(_currentFunction, expr->refId);
                 return 0;
             }
 
@@ -178,7 +183,10 @@ namespace mathvm {
                 return visitElement(expr->atom);
             }
 
-            LiveAnalyzer(ostream &debug) : IrAnalyzer(debug, "liveness"), varMeta(NULL) {
+            LiveAnalyzer(bool hasAccRegs = false, ostream &debug = std::cerr) :
+                    IrAnalyzer(debug, "liveness"),
+                    _hasAccRegs(hasAccRegs),
+                    varMeta(NULL) {
                 _status = new LiveInfo();
             }
 
@@ -194,7 +202,7 @@ namespace mathvm {
                         visitElement(st);
                         _currentPosition++;
                     }
-                    _currentPosition++;
+                   // _currentPosition++;
                 }
                 for (auto f: _status->data)
                     for(size_t i = 0; i < f->orderedStatements.size(); i++)
@@ -208,18 +216,19 @@ namespace mathvm {
             }
 
         private:
-            void embraceArgs(FunctionRecord const *f) {
-                for (auto param: f->parametersIds) {
+            void embraceArgs(Function const *f) {
+                for (auto param: f->parametersIds) if (param < varMeta->size()) {
                     auto &interval = _status->vivify(_currentFunction, param);
                     interval.mark(_currentPosition);
                 }
             }
 
-            FunctionRecord *_currentFunction;
+            Function *_currentFunction;
             size_t _currentPosition;
 
-            void vivify(uint64_t id)  const  {
-                _status->vivify(_currentFunction, id).mark(_currentPosition);
+            void vivify(IR::VarId id)  const  {
+                if (varMatters(*_currentFunction, id))
+                     _status->vivify(_currentFunction, id).mark(_currentPosition);
             }
         };
 

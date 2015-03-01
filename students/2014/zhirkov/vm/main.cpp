@@ -18,8 +18,13 @@
 #include "translator/machcode_generator.h"
 
 
+#include <cstdio>
+
 using namespace mathvm;
 using namespace std;
+
+
+
 
 const char *programTextOrFailure(int argc, char **argv) {
     if (argc < 2 || argv[1] == NULL) {
@@ -51,6 +56,10 @@ int main(int argc, char **argv) {
 
     Parser parser;
     Status *status = parser.parseProgram(program);
+
+    if (!status->isOk()) throw ParseError(std::string("Syntax error:") + status->getError() + " at " + toString(status->getPosition()));
+
+
     ClosureInfo const &closureInfo = ClosureAnalyzer(parser.top(), irRepr)();
 
     IR::IrPrinter printer(irRepr);
@@ -80,7 +89,7 @@ int main(int argc, char **argv) {
     IR::Substitution(normalized, *substituted.back(), irRepr)();
 
     size_t i;
-    for (i = 1; i < 100; i++) {
+    for (i = 1; i < 10; i++) {
         IR::SimpleIr &prev = *substituted.back();
         substituted.push_back(new IR::SimpleIr());
         IR::SimpleIr &next = *substituted.back();
@@ -108,12 +117,12 @@ int main(int argc, char **argv) {
 
     printLiveInfo(*liveInfo, irRepr);
 
-    auto gallocInfo = IR::regAlloc(nophi, *liveInfo, 12, irRepr);
+    auto gallocInfo = IR::regAlloc(nophi, *liveInfo, ALLOCABLE_REGS_COUNT, irRepr);
 
     IR::regAllocDump(gallocInfo, irRepr);
 
     IR::SimpleIr spoiled;
-    IR::RegSpiller(nophi, spoiled, gallocInfo, irRepr, 42)();
+    IR::RegSpiller(nophi, spoiled, gallocInfo, irRepr)();
     printIr(spoiled, irRepr);
 
     MvmRuntime runtime;
@@ -122,11 +131,10 @@ int main(int argc, char **argv) {
 
     Program translated = asmjit_cast<Program>(generator.translate());
     Program starter = runtime.getStarter(translated);
+
+    irRepr << runtime;
     if (translated) starter();
     else irRepr << "Compilation error occured\n";
-
-
-//test();
 
     delete &closureInfo;
 
@@ -141,26 +149,19 @@ int main(int argc, char **argv) {
     return EXIT_SUCCESS;
 }
 
-void yes() {
-    puts("yes");
-}
-
-void no() {
-    puts("no");
-}
-
-void test() {
-    JitRuntime runtime;
-    X86Assembler _(&runtime);
-    StringLogger logger;
-    _.setLogger(&logger);
-    _.call(Ptr(yes));
-    _.ret();
-
-    std::cerr << "Test\n" << logger.getString() << std::endl;
-    typedef void (*Program)(void);
-    Program t = (Program) _.make();
-    t();
+//static char const *const spec = "%lf\n";
 
 
-}
+//void test() {
+//    JitRuntime runtime;
+//    X86Assembler _(&runtime);
+//    double d = 42.0;
+//    _.push(rax);
+//    _.mov(rax, Imm(D2I(d)));
+//    _.movq(xmm0, rax);
+//    _.call(Ptr(&print_double));
+//    _.pop(rax);
+//    _.ret();
+//    Program t = (Program) _.make();
+//    t();
+//}

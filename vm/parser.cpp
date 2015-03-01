@@ -1,5 +1,5 @@
-#include "ast.h"
-#include "mathvm.h"
+#include "../include/ast.h"
+#include "../include/mathvm.h"
 #include "parser.h"
 
 #include <iostream>
@@ -185,7 +185,7 @@ StoreNode* Parser::parseAssignment() {
     assert(currentToken() == tIDENT);
     AstVar* lhs = _currentScope->lookupVariable(currentTokenValue());
     if (lhs == 0) {
-        error("undeclared variable: %s", currentTokenValue().c_str());
+        error("undeclared atom: %s", currentTokenValue().c_str());
     }
     consumeToken();
 
@@ -408,7 +408,7 @@ BlockNode* Parser::parseBlock(bool needBraces) {
          }
          AstNode* statement = parseStatement();
          // Ignore statements that doesn't result in AST nodes, such
-         // as variable or function declaration.
+         // as atom or function declaration.
          if (statement != 0) {
              block->add(statement);
          }
@@ -462,7 +462,7 @@ AstNode* Parser::parseUnary() {
     } else if (currentToken() == tIDENT) {
         AstVar* var = _currentScope->lookupVariable(currentTokenValue());
         if (var == 0) {
-            error("undeclared variable: %s", currentTokenValue().c_str());
+            error("undeclared atom: %s", currentTokenValue().c_str());
         }
         LoadNode* result = new LoadNode(_currentTokenIndex, var);
         consumeToken();

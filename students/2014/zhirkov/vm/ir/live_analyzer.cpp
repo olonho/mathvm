@@ -37,5 +37,11 @@ namespace  mathvm {
             }
         }
 
+        bool LiveAnalyzer::varMatters(Function const& f, VarId var) const {
+            if (std::find(f.memoryCells.cbegin(), f.memoryCells.cend(), var) != f.memoryCells.cend()) return false;
+            if (_hasAccRegs && var >= varMeta->size()) return false;
+            return true;
+        }
+
     }
 }

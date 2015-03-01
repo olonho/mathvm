@@ -1,5 +1,5 @@
 #pragma once
-
+#include <sstream>
 #include <vector>
 #include <memory>
 #include <deque>
@@ -32,7 +32,7 @@ virtual IrType getType() const { return IT_##ir; }
         DO(Assignment)\
         DO(Call)\
         DO(Print)\
-        DO(FunctionRecord)\
+        DO(Function)\
         DO(JumpAlways)\
         DO(JumpCond)\
         DO(WriteRef)\
@@ -156,7 +156,7 @@ virtual IrType getType() const { return IT_##ir; }
 
         struct Statement : IrElement {
             mutable size_t num = 0;
-            Statement() {}
+
             virtual ~Statement() {
             }
         };
@@ -174,7 +174,6 @@ virtual IrType getType() const { return IT_##ir; }
             }
 
             IR_COMMON_FUNCTIONS(JumpAlways)
-
 
             virtual ~JumpAlways() {
             }
@@ -260,7 +259,6 @@ virtual IrType getType() const { return IT_##ir; }
             const uint16_t funId;
             std::vector<Atom const *> params;
             std::vector<VarId> refParams;
-
 
             IR_COMMON_FUNCTIONS(Call)
 
@@ -455,17 +453,21 @@ DO(NOT, "!")
         };
 
 
-        class FunctionRecord : public IrElement {
+        class Function : public IrElement {
 
         public:
-            FunctionRecord(uint16_t id, VarType returnType)
-                    : id(id), entry(new Block(mathvm::toString(id))), returnType(returnType) {
+            Function(uint16_t id, VarType returnType, std::string const& name)
+                    : name(name), id(id), entry(new Block(mathvm::toString(id))), returnType(returnType), nativeAddress(NULL)  {
+            }
+            Function(uint16_t id, void const* address, VarType returnType, std::string const& name)
+                    : name(name),  id(id), entry(new Block("NATIVE_STUB")), returnType(returnType), nativeAddress(address) {
             }
 
-            FunctionRecord(uint16_t id, VarType returnType, Block *startBlock)
-                    : id(id), entry(startBlock), returnType(returnType) {
+            Function(uint16_t id, VarType returnType, Block *startBlock, std::string const& name)
+                    :  name(name), id(id), entry(startBlock), returnType(returnType), nativeAddress(NULL)  {
             }
 
+            const std::string name;
             const uint16_t id;
             Block *entry;
             std::vector<VarId> parametersIds;
@@ -476,17 +478,23 @@ DO(NOT, "!")
 
             VarType returnType;
 
-            IR_COMMON_FUNCTIONS(FunctionRecord)
+            const void* const nativeAddress;
+            bool isNative() const { return nativeAddress != NULL; }
+
+            IR_COMMON_FUNCTIONS(Function)
 
 
             VarId argument(size_t idx) const {
                 if (idx < parametersIds.size()) return parametersIds[idx];
                 idx -= parametersIds.size();
                 if (idx < refParameterIds.size()) return refParameterIds[idx];
-                throw new std::out_of_range("Argument index is out of range");
+                std::stringstream msg;
+                msg << "Argument index is out of range: total args: " << arguments() << " index " << idx ;
+                throw new std::out_of_range(msg.str());
             }
             size_t arguments() const { return parametersIds.size() + refParameterIds.size(); }
-            virtual ~FunctionRecord();
+
+            virtual ~Function();
         };
 
 
@@ -532,9 +540,9 @@ DO(NOT, "!")
             struct VarMeta {
                 const VarId id;
                 const bool isSourceVar;
-                const bool isReference;
+                bool isReference;
                 const VarId originId;
-                const FunctionRecord *pointsTo;
+                const Function *pointsTo;
                 const uint32_t offset;
 
                 VarType type;
@@ -544,6 +552,15 @@ DO(NOT, "!")
                           isSourceVar(true),
                           isReference(false),
                           originId(from),
+                          pointsTo(NULL),
+                          offset(0),
+                          type(type) {
+                }
+                VarMeta(VarId id,  VarType type)
+                        : id(id),
+                          isSourceVar(true),
+                          isReference(false),
+                          originId(0),
                           pointsTo(NULL),
                           offset(0),
                           type(type) {
@@ -568,7 +585,7 @@ DO(NOT, "!")
                           type(VT_Undefined) {
                 }
 
-                VarMeta(VarId id, VarType type, FunctionRecord const *pointsTo, uint32_t offset)
+                VarMeta(VarId id, VarType type, Function const *pointsTo, uint32_t offset)
                         : id(id),
                           isSourceVar(false),
                           isReference(true),
@@ -582,9 +599,9 @@ DO(NOT, "!")
             typedef std::vector<std::string> StringPool;
 
             StringPool pool;
-            std::vector<FunctionRecord *> functions;
+            std::vector<Function *> functions;
 
-            void addFunction(FunctionRecord *rec) {
+            void addFunction(Function *rec) {
                 functions.push_back(rec);
             }
 

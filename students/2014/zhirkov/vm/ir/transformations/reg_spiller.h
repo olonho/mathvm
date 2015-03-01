@@ -10,11 +10,11 @@ namespace mathvm {
     namespace IR {
 
 
-        class RegSpiller : public Transformation<> {
+        struct RegSpiller : public Transformation<> {
 
             const GlobalRegAllocInfo allocations;
-            const uint64_t accReg;
-
+            const VarId gpAcc;
+            const VarId doubleAcc;
 
         private:
             bool hasMemoryCell(uint64_t id) {
@@ -23,8 +23,15 @@ namespace mathvm {
             }
 
         public:
-            RegSpiller(SimpleIr const &source, SimpleIr &dest, GlobalRegAllocInfo const &alloc, std::ostream &_debug, uint64_t const accReg)
-                    : Transformation(source, dest, "stack allocator", _debug), allocations(alloc), accReg(accReg) {
+            RegSpiller(SimpleIr const &source,
+                    SimpleIr &dest,
+                    GlobalRegAllocInfo const &alloc,
+                    std::ostream &_debug)
+                    : Transformation(source, dest, "stack allocator", _debug),
+                      allocations(alloc),
+                      gpAcc(source.varMeta.size()),
+                      doubleAcc(source.varMeta.size() + 1) {
+                _debug << "Double acc id is " << doubleAcc << "\nGP acc id is " << gpAcc << "\n";
             }
 
             bool isStackAllocated(uint64_t id) const;
@@ -38,7 +45,7 @@ namespace mathvm {
 
             virtual IrElement *visit(const Variable *const expr);
 
-            virtual IrElement *visit(const FunctionRecord *const expr);
+            virtual IrElement *visit(const Function *const expr);
 
             virtual void operator()() {
                 Transformation::visit(&_oldIr);

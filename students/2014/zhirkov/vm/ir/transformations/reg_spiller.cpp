@@ -1,5 +1,4 @@
 #include "reg_spiller.h"
-#include "../../translator/reg_common.h"
 
 namespace mathvm {
     namespace IR {
@@ -11,6 +10,7 @@ namespace mathvm {
 
         IrElement *RegSpiller::visit(const Assignment *const expr) {
             if (isStackAllocated(expr->var->id)) {
+                VarId accReg = (_oldIr.varMeta[expr->var->id].type == VT_Double)? doubleAcc : gpAcc;
                 _currentResultBlock->contents.push_back(new Assignment(accReg, (Expression const *) expr->value->visit(this)));
                 if (!hasMemoryCell(expr->var->id))
                     _currentResultFunction->memoryCells.push_back(expr->var->id);
@@ -24,8 +24,8 @@ namespace mathvm {
             return base::visit(expr);
         }
 
-        IrElement *RegSpiller::visit(const FunctionRecord *const expr) {
-            FunctionRecord *visited = (FunctionRecord *) base::visit(expr);
+        IrElement *RegSpiller::visit(const Function *const expr) {
+            Function *visited = (Function *) base::visit(expr);
             for (auto p : expr->parametersIds)
                 if (isStackAllocated(expr->id)) {
                     visited->memoryCells.push_back(p);

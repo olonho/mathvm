@@ -54,7 +54,7 @@ namespace mathvm {
 
         IrElement *BaseTransform::visit(Block const *const expr) {
             _currentSourceBlock = expr;
-            Block *result = new Block(expr->name + "'");
+            Block *result = new Block(expr->name);
             _currentResultBlock = result;
             for (auto st : expr->contents) {
                 auto transformed = st->visit(this);
@@ -93,17 +93,22 @@ namespace mathvm {
             return new Print(inner);
         }
 
-        IrElement *BaseTransform::visit(FunctionRecord const *const expr) {
+        IrElement *BaseTransform::visit(Function const *const expr) {
             _currentSourceFunction = expr;
-            Block *newEntry = static_cast<Block *> ( expr->entry->visit(this) );
-            if (newEntry == NULL) return NULL;
 
-            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, newEntry);
+            Function *transformed = (expr->isNative()) ?
+                    new Function(expr->id, expr->nativeAddress, expr->returnType, expr->name):
+                    new Function(expr->id, expr->returnType, NULL, expr->name);
             _currentResultFunction = transformed;
             transformed->parametersIds = expr->parametersIds;
             transformed->memoryCells = expr->memoryCells;
             transformed->refParameterIds = expr->refParameterIds;
             transformed->returnType = expr->returnType;
+
+            Block *newEntry = static_cast<Block *> ( expr->entry->visit(this) );
+            if (newEntry == NULL) {delete transformed; return NULL; }
+            transformed->entry = newEntry;
+
             return transformed;
         }
 

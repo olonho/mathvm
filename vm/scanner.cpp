@@ -1,6 +1,6 @@
-#include "mathvm.h"
+#include "../include/mathvm.h"
 #include "scanner.h"
-#include "ast.h"
+#include "../include/ast.h"
 
 #include <iostream>
 

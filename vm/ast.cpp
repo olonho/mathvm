@@ -1,5 +1,7 @@
-#include "ast.h"
-#include "visitors.h"
+#include "../include/ast.h"
+#include "../include/visitors.h"
+#include "../include/ast.h"
+#include "../include/visitors.h"
 
 #include <iostream>
 
