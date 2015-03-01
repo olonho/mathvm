@@ -68,7 +68,7 @@ namespace mathvm {
 
             RegAllocInfo alloc(LiveInfo::FunctionInfo const &liveInfo) {
 
-                for (auto &item : liveInfo.varIntervals) intervals.insert(item.second);
+                for (auto &item : liveInfo.varIntervals)   intervals.insert(item.second);
 
                 //fixme  the order is shit?
                 for (LiveInfo::Interval const &current : intervals) {
@@ -93,7 +93,7 @@ namespace mathvm {
 
         GlobalRegAllocInfo regAlloc(SimpleIr const &ir, LiveInfo const& info, uint32_t regCount, std::ostream &debug);
 
-        void regAllocDump(GlobalRegAllocInfo &info, std::ostream &debug);
+        void regAllocDump(GlobalRegAllocInfo const &info, std::ostream &debug);
 
     }
 }

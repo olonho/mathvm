@@ -6,7 +6,7 @@
 namespace mathvm {
     namespace IR {
 
-        FunctionRecord::~FunctionRecord() {
+        Function::~Function() {
             if (entry)
                 for( auto b : blocksPostOrder(entry))
                     delete b;

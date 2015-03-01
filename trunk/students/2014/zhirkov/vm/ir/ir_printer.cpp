@@ -1,6 +1,7 @@
 #include <iostream>
 #include "ir_printer.h"
 #include "../util.h"
+#include "../translator/ssa_utils.h"
 #include <vector>
 
 namespace mathvm {
@@ -77,8 +78,6 @@ namespace mathvm {
         }
 
         void IrPrinter::visit(Block const *const expr) {
-            if (visited(expr)) 
-            visitedBlocks.insert(expr);
             _out << std::endl << "Block " << expr->name << std::endl
                     << "  predecessors: ";
             for(auto pred: expr->predecessors)
@@ -91,18 +90,7 @@ namespace mathvm {
             }
 
             if (!expr->isLastBlock())
-            {
                 expr->getTransition()->visit(this);
-                if (expr->getTransition()->isJumpCond()) {
-                    JumpCond const* const jc = expr->getTransition()->asJumpCond();
-                    if (jc->yes) jc->yes->visit(this);
-                    if (jc->no) jc->no->visit(this);
-                }
-                else {
-                    JumpAlways const* const jmp = expr->getTransition()->asJumpAlways();
-                    if (jmp->destination) jmp->destination->visit(this);
-                }
-            }
 
             else _out << "<no jump>";
             _out << std::endl;
@@ -135,23 +123,36 @@ namespace mathvm {
             
         }
 
-        void IrPrinter::visit(FunctionRecord const *const expr) {
+        void IrPrinter::visit(Function const *const expr) {
             currentFunction = expr;
-            _out << "Function id " << expr->id << " returns " << varTypeStr(expr->returnType) << "\n  parameters";
-            for (auto v : expr->parametersIds)
-                _out << " " << v;
+            if (expr->isNative())
+                _out << "Native ";
+            _out << "Function id " << expr->id << " name '" << expr->name << "' returns " << varTypeStr(expr->returnType) << "\n";
 
-            _out << "\n  reference parameters: ";
-            for (auto v: expr->refParameterIds)
-                _out << v << " ";
+            if (expr->parametersIds.size() > 0 ) {
+                _out << "\n  parameters";
+                for (auto v : expr->parametersIds)
+                    _out << " " << v;
+            }
+            if (expr->refParameterIds.size() > 0) {
+                _out << "\n  reference parameters: ";
+                for (auto v: expr->refParameterIds)
+                    _out << v << " ";
 
-            _out << "\n  memory cells for: ";
-            for (auto v : expr->memoryCells) _out << v << " ";
-            _out << std::endl;
+            }
+            if (expr->memoryCells.size() > 0) {
+                _out << "\n  memory cells for: ";
+                for (auto v : expr->memoryCells) _out << v << " ";
+                _out << std::endl;
+            }
+            if (!expr->isNative()) {
+                _out << "\n entry point : ";
+                if (expr->entry) _out << expr->entry->name;
 
-
-            expr->entry->visit(this);
-            _out << std::endl;
+                for (auto b : blocksOrder(expr->entry))
+                    b->visit(this);
+                _out << std::endl;
+            }
             currentFunction = NULL;
             
         }
@@ -192,6 +193,7 @@ namespace mathvm {
 
             _out<< "Functions" << std::endl;
             for (auto f : ir.functions)
+                if (!f->isNative())
                 f->visit(this);
 
         }

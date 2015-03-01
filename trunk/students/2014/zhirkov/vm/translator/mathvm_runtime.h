@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <vector>
 #include <string>
 
@@ -19,23 +20,11 @@ namespace mathvm {
 
         std::vector<std::string> stringPool;
 
-        __attribute_noinline__
-        static void print_int(int64_t i) {
-            printf("%ld", i);
+        MvmRuntime() {
+            _fConstPool.reserve(4096);
         }
 
-        __attribute_noinline__
-        static void print_double(double d) {
-            printf("%lf", d);
-        }
-
-        __attribute_noinline__
-        static void print_str(char const *s) {
-            printf("%s", s);
-        }
-
-
-        MvmRuntime() {}
+        static const int64_t FNEG_MASK;
 
         Program getStarter(Program program) {
             if (!_starter) {
@@ -51,11 +40,23 @@ namespace mathvm {
         }
 
         ~MvmRuntime() {
-            if (_program ) jitRuntime.release((void*)_program);
-            if (_starter) jitRuntime.release((void*)_starter);
+            if (_program) jitRuntime.release((void *) _program);
+            if (_starter) jitRuntime.release((void *) _starter);
+        }
+
+        double *vivify(double c) {
+            for (double &d : _fConstPool) if (d == c) return &d;
+            _fConstPool.push_back(c);
+            return &_fConstPool.back();
+        }
+
+        std::vector<double> const &floatConstants() const {
+            return _fConstPool;
         }
 
     private :
+
+        std::vector<double> _fConstPool;
 
         void pushRegs(X86Assembler &_);
 
@@ -65,4 +66,24 @@ namespace mathvm {
         Program _program = NULL;
 
     };
+
+    inline std::ostream &operator<<(std::ostream &str, MvmRuntime const &rt) {
+        str << " -- Runtime -- \n";
+        size_t i = 0;
+        str << "  strings:  \n";
+        for (auto &s : rt.stringPool)
+            str << i++ << " : " << (void*)s.c_str() <<  " : '" << s.c_str() << "'\n";
+
+        i = 0;
+        str << "  floats:  \n";
+        for (auto &d : rt.floatConstants())
+            str << i++ << " : " << &d << " : " << d << std::endl;
+
+
+        str << "\n\n";
+
+        return str;
+    }
+
+
 }

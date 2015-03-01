@@ -1,6 +1,4 @@
 #include "mathvm_runtime.h"
-#include "machcode_generator.h"
-#include "../../../../../libs/asmjit/asmjit.h"
 
 namespace mathvm {
 
@@ -15,6 +13,8 @@ namespace mathvm {
                 }
             }
 
+    const int64_t MvmRuntime::FNEG_MASK = 1LL<<63;// 0x8000000000000000;
+
     void mathvm::MvmRuntime::popRegs(X86Assembler &_)  {
         for (uint32_t i = 0; i < ALLOCABLE_REGS_COUNT; i++) {
             _.pop(rax);
@@ -25,4 +25,6 @@ namespace mathvm {
 
         _.popf();
     }
+
+
 }

@@ -48,19 +48,21 @@ namespace mathvm {
                     visitElement(st);
 
                 visited.insert(expr);
-                auto tr = expr->getTransition();
-                if (tr)
-                    visitElement(tr);
+                if (!expr->isLastBlock())
+                    visitElement(expr->getTransition());
                 return false;
             }
 
-            virtual bool visit(const Assignment *const expr) const  {
+            virtual bool visit(const Assignment *const expr) const {
+                //todo consider pure and non-pure functions here.
+                if (expr->value->isCall()) _status.insert(expr->var->id);
                 visitElement(expr->value);
                 return false;
             }
 
             virtual bool visit(const Call *const expr)  const {
                 for (auto p : expr->params) visitElement(p);
+                for (auto p : expr->refParams)   _status.insert(p);
                 return false;
             }
 
@@ -69,7 +71,7 @@ namespace mathvm {
                 return false;
             }
 
-            virtual bool visit(const FunctionRecord *const expr) const  {
+            virtual bool visit(const Function *const expr) const  {
                 visitElement(expr->entry);
                 return false;
             }
@@ -87,6 +89,7 @@ namespace mathvm {
             }
 
             virtual bool visit(const WriteRef *const expr)  const {
+                _status.insert(expr->refId);
                 visitElement(expr->atom);
                 return false;
             }
@@ -122,7 +125,8 @@ namespace mathvm {
 
             virtual IrElement *visit(Return const* const expr);
             Substitution(SimpleIr const &source, SimpleIr & dest, std::ostream &_debug = std::cerr)
-                    : Transformation(source, dest, "substitutions", _debug), used(_debug), _changed(false) {
+                    : Transformation(source, dest, "substitutions", _debug), used(_debug), _changed(false)  {
+                used.analyze(&_oldIr);
             }
 
             bool isTrivial() {
@@ -136,6 +140,9 @@ namespace mathvm {
             std::map<VarId, Atom const *> _substitutions;
             Referenced used;
             bool _changed;
+
+            bool isUsed(VarId var) const { return used.status().find(var) != used.status().end(); }
+            bool canSubstitute(VarId var) const { return _substitutions.find(var) != _substitutions.cend(); }
         };
     }
 }

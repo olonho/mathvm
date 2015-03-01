@@ -12,7 +12,7 @@ namespace mathvm {
             }
             return result;
         }
-        void regAllocDump(GlobalRegAllocInfo &info, std::ostream &debug) {
+        void regAllocDump(GlobalRegAllocInfo const&info, std::ostream &debug) {
             debug << "-------------------------\nRegistry allocation info\n-------------------------\n";
             size_t i = 0;
             for (GlobalRegAllocInfo::value_type fun : info) {

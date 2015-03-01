@@ -51,15 +51,17 @@ namespace mathvm {
             return new Call(expr->funId, newparams, expr->refParams);
         }
 
-        IrElement *Ssa::visit(FunctionRecord const *const expr) {
-            FunctionRecord *transformed = new FunctionRecord(expr->id, expr->returnType, NULL);
+        IrElement *Ssa::visit(Function const *const expr) {
+            Function *transformed = (expr->isNative()) ?
+                    new Function(expr->id, expr->nativeAddress, expr->returnType, expr->name):
+                    new Function(expr->id, expr->returnType, NULL, expr->name);
 
             for (auto p : expr->parametersIds)
                 transformed->parametersIds.push_back((shouldBeRenamed(p)) ? newName(p) : p);
             for (auto p : expr->memoryCells)
                 transformed->memoryCells.push_back((shouldBeRenamed(p)) ? newName(p) : p);
             for (auto p : expr->refParameterIds)
-                transformed->refParameterIds.push_back((shouldBeRenamed(p)) ? newName(p) : p);
+                transformed->refParameterIds.push_back(/*(shouldBeRenamed(p)) ? newName(p) :*/ p);
             Block *newEntry = static_cast<Block *> ( expr->entry->visit(this) );
             if (newEntry == NULL) {
                 delete transformed;
@@ -73,12 +75,12 @@ namespace mathvm {
 
             auto e = expr->atom->visit(this);
             if (!e) return NULL;
-            return new WriteRef((Atom const *const) e, expr->refId);
+                return new WriteRef((Atom const *const) e,  expr->refId );
         }
 
         IrElement *Ssa::visit(ReadRef const *const expr) {
-            if (shouldBeRenamed(expr->refId))
-                return new ReadRef(_latestVersion[expr->refId]);
+//            if (shouldBeRenamed(expr->refId))
+//                return new ReadRef(_latestVersion[expr->refId]);
             return base::visit(expr);
         }
 

@@ -17,7 +17,7 @@ namespace mathvm {
             mutable std::set<Block const*> visited;
 
         public:
-            Ctx const& status() { return _status; }
+            Ctx const& status() const { return _status; }
             T    visitElement(IrElement const * element) const {
 #define MAC(type) if (element->is##type()) return visit(element->as##type());
                 FOR_IR(MAC)
@@ -72,7 +72,7 @@ namespace mathvm {
                 return defaultAnswer();
             }
 
-            virtual T visit(const FunctionRecord *const expr) const {
+            virtual T visit(const Function *const expr) const {
                 return defaultAnswer();
             }
 

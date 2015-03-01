@@ -8,6 +8,7 @@
 #include "../ir/ir_printer.h"
 #include "ssa_utils.h"
 #include "closure_analyzer.h"
+#include "../exceptions.h"
 
 
 namespace mathvm {
@@ -58,6 +59,7 @@ namespace mathvm {
         std::map<AstVar const *, AstVarMetadata *> astVarMeta;
         std::map<uint64_t, AstVarMetadata *> allVarMeta;
         std::map<AstFunction const *, AstFunctionMetadata *> funMeta;
+        std::map<std::string, IR::Function const*> nativeFunctions;
     };
 
     class SimpleIrBuilder : public AstAnalyzer<IR::SimpleIr, TranslationContext> {
@@ -125,8 +127,14 @@ namespace mathvm {
         }
 
         AstFunctionMetadata & funMeta(AstFunction const *f) {
-            return *(ctx.funMeta.at(f));
-        }
+            try{
+                    return *(ctx.funMeta.at(f));
+            }
+            catch (const std::out_of_range& oor)
+            {
+                throw TranslationError("No such function " + f->name());
+            }
+        };
 
         virtual IR::SimpleIr const& operator()();
 
@@ -144,12 +152,12 @@ namespace mathvm {
 
         std::string nextBlockName() {
             std::ostringstream str;
-            str << ctx.function->name() << '[' << ctx.nBlocks++ << ']';
+            str << '[' << ctx.function->name() << ctx.nBlocks++ << ']';
             return str.str();
         }
 
-        IR::Block *newBlock() {
-            std::string name = nextBlockName();
+        IR::Block *newBlock(std::string const& str) {
+            std::string name = str + " " + nextBlockName();
             return new IR::Block(name);
         }
 
@@ -159,7 +167,7 @@ namespace mathvm {
 
         uint64_t makeAstVar(AstVar const *var);
 
-        uint64_t makeTempVar();
+        uint64_t makeTempVar(VarType type = VT_INVALID);
 
         virtual void declareFunction(AstFunction const *fun);
 

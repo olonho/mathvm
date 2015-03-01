@@ -46,7 +46,7 @@ namespace mathvm {
 
             virtual IrElement *visit(const Print *const expr);
 
-            virtual IrElement *visit(const FunctionRecord *const expr);
+            virtual IrElement *visit(const Function *const expr);
 
             virtual IrElement *visit(const JumpAlways *const expr);
 
@@ -59,8 +59,8 @@ namespace mathvm {
         protected:
             typedef BaseTransform base;
             Block const *_currentSourceBlock;
-            FunctionRecord const *_currentSourceFunction;
-            FunctionRecord *_currentResultFunction;
+            Function const *_currentSourceFunction;
+            Function *_currentResultFunction;
             Block *_currentResultBlock;
 
             std::map<IrElement const *, IrElement const *> _visited;
@@ -93,7 +93,7 @@ namespace mathvm {
                     _newIr.varMeta.push_back(v);
 
                 for (auto f : _oldIr.functions) {
-                    FunctionRecord *ft = static_cast<FunctionRecord *> (f->visit(this));
+                    Function *ft = static_cast<Function *> (f->visit(this));
                     if (ft) {
                         _newIr.addFunction(ft);
                     }

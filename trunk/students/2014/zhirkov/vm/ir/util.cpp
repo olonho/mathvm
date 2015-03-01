@@ -16,7 +16,7 @@ namespace mathvm {
                 case VT_Undefined:
                     return "???";
                 default:
-                    return "ErrorType";
+                    throw std::invalid_argument("Invalid vartype");
             }
         }
 
@@ -34,7 +34,7 @@ namespace mathvm {
             switch (type) {
                 FOR_IR_BINOP(NAME)
                 default:
-                    return "???";
+                    throw std::invalid_argument("Invalid binop type");
             }
 #undef NAME
         }
@@ -44,7 +44,7 @@ namespace mathvm {
             switch (type) {
                 FOR_IR_UNOP(NAME)
                 default:
-                    return "???";
+                    throw std::invalid_argument("Invalid unop type");
             }
 #undef NAME
         }

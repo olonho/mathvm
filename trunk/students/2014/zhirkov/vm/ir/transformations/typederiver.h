@@ -9,7 +9,7 @@ namespace mathvm {
 
         struct TypeDeriver : public IrAnalyzer<VarType, void *> {
 
-            TypeDeriver(std::vector<SimpleIr::VarMeta> const &meta, std::vector<FunctionRecord *> const &functions, std::ostream &debug)
+            TypeDeriver(std::vector<SimpleIr::VarMeta> const &meta, std::vector<Function *> const &functions, std::ostream &debug)
                     : IrAnalyzer(debug, "TypeDeriver"), meta(meta), functions(functions) {
             }
 
@@ -47,7 +47,7 @@ namespace mathvm {
             }
 
             std::vector<SimpleIr::VarMeta> const &meta;
-            std::vector<FunctionRecord *> const &functions;
+            std::vector<Function *> const &functions;
         };
 
 

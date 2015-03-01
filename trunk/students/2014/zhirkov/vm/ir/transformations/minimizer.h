@@ -20,7 +20,7 @@ namespace mathvm {
             virtual ~Minimizer() {
             }
 
-            virtual IrElement * visit(const FunctionRecord *const expr);
+            virtual IrElement * visit(const Function *const expr);
 
         private:
             static void replaceSucc(Block *parent, Block *old) ;

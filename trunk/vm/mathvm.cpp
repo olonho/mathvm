@@ -1,5 +1,5 @@
-#include "mathvm.h"
-#include "ast.h"
+#include "../include/mathvm.h"
+#include "../include/ast.h"
 
 #include <stdio.h>
 

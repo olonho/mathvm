@@ -7,6 +7,11 @@
 
 namespace mathvm {
     namespace IR {
+
+        /**
+        * static single assignment
+        * inserts empty phi functions which should be filled with phi_filler transformation after.
+        */
         struct Ssa : public Transformation<> {
             virtual ~Ssa() {
             }
@@ -37,7 +42,7 @@ namespace mathvm {
 
             virtual IrElement *visit(const Call *const expr);
 
-            virtual IrElement *visit(const FunctionRecord *const expr);
+            virtual IrElement *visit(const Function *const expr);
 
             virtual IrElement *visit(const WriteRef *const expr);
 

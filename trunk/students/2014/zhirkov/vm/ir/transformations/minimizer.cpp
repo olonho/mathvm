@@ -22,8 +22,8 @@ namespace mathvm {
             }
         }
 
-        IrElement *Minimizer::visit(const FunctionRecord *const expr) {
-            FunctionRecord *fr = (FunctionRecord *) base::visit(expr);
+        IrElement *Minimizer::visit(const Function *const expr) {
+            Function *fr = (Function *) base::visit(expr);
             auto blocks = blocksOrder(fr->entry);
             for (auto b : blocks) {
                 _debug << "Processing " << b->name << std::endl;

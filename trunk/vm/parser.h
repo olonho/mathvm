@@ -1,8 +1,8 @@
 #ifndef _MATHVM_PARSER_H
 #define _MATHVM_PARSER_H
 
-#include "mathvm.h"
-#include "ast.h"
+#include "../include/mathvm.h"
+#include "../include/ast.h"
 #include "scanner.h"
 
 namespace mathvm {

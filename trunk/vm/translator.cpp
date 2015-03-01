@@ -1,20 +1,20 @@
-#include "mathvm.h"
+#include "../include/mathvm.h"
 #include "parser.h"
-#include "visitors.h"
+#include "../include/visitors.h"
 
-namespace mathvm {
+//namespace mathvm {
 
 // Implement me!
-Translator* Translator::create(const string& impl) {
-    if (impl == "" || impl == "intepreter") {
-        //return new BytecodeTranslatorImpl();
-        return 0;
-    }
-    if (impl == "jit") {
-        //return new MachCodeTranslatorImpl();
-    }
-    assert(false);
-    return 0;
-}
-
-}
+//Translator* Translator::create(const string& impl) {
+//    if (impl == "" || impl == "intepreter") {
+//        //return new BytecodeTranslatorImpl();
+//        return 0;
+//    }
+//    if (impl == "jit") {
+//        //return new MachCodeTranslatorImpl();
+//    }
+//    assert(false);
+//    return 0;
+//}
+//
+//}
