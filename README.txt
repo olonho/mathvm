@@ -1,8 +1,8 @@
                 Introduction.
 
-  This folder contains partial source code for a simple VM, with few intentionally 
- missed pieces. This VM implements simple language (MVM language) with basic
- computational functionality and flow control.
+  This folder contains partial source code for a simple VM, with few
+ intentionally missing pieces. This VM implements simple language
+ (MVM language) with basic computational functionality and flow control.
 
                 MVM language.
 
@@ -17,11 +17,11 @@
  error will happen.
 
   Values in variable could be modified with traditional C-style
- expressions, like x= 2+y*3; with traditional C-style operators
+ expressions, like x = 2+y*3; with traditional C-style operators
  precedence, i.e. aforementioned expression is evaluated as 
   x= (2+(y*3));
 
-  Variables in topmost scope could be bound to Var class
+  Variables in topmost scope could be bound to 'Var' class
  instances, to allow interoperability between MVM programs and C++. 
 
 
@@ -71,4 +71,7 @@
                 Building.
 
   Build shall be pretty straightforward, just type 'make' in command
- line (known to work with MacOS and Linux). Use 'make OPT=1' for an optimized build.
+ line (known to work with MacOS and Linux). Use 'make OPT=1' for an optimized
+ build. NO_JIT variables controls if JIT dependencies shall be compiled in.
+  Create your own implementation in students/<year>/<your last name> folder,
+using Makefile.student template.
