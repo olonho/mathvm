@@ -42,7 +42,7 @@ def main(argv):
     testdir = options.testdir
     if not testdir:
         # refer to parent 'test' dir with mvm files
-        testdir = '..'
+        testdir = '.'
     elif not os.path.isdir(testdir):
         print testdir, ' is not existing directory'
         return
@@ -50,7 +50,7 @@ def main(argv):
         match = re.match(r'(.*)\.mvm$', name)
         full_name = os.path.join(testdir, name)
         if match and os.path.isfile(full_name):
-            run_test(match.group(1), executable, full_name)    
+            run_test(match.group(1), executable, full_name)
 
 if __name__ == '__main__':
     main(sys.argv)
