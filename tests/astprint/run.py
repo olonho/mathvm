@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2.7
 from optparse import OptionParser
 import re, os, sys, subprocess
 
