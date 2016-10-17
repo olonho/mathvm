@@ -10,9 +10,11 @@ namespace mathvm
 {
 
 void transformer::visitBinaryOpNode(BinaryOpNode *node) {
+    ss << transformer::token(TokenKind::tLPAREN);
     node->left()->visit(this);
     ss << ' ' << transformer::token(node->kind()) << ' ';
     node->right()->visit(this);
+    ss << transformer::token(TokenKind::tRPAREN);
 }
 
 void transformer::visitBlockNode(BlockNode *node) {
