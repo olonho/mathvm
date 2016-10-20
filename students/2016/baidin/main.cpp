@@ -19,9 +19,11 @@ public:
     virtual ~PrintVisitor() {}
 
     virtual void visitBinaryOpNode(BinaryOpNode *node) {
+        _out << "(";
         node->left()->visit(this);
         _out << " " << tokenOp(node->kind()) << " ";
         node->right()->visit(this);
+        _out << ")";
     }
 
     virtual void visitUnaryOpNode(UnaryOpNode *node) {
