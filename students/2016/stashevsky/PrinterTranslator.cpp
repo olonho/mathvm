@@ -11,16 +11,19 @@ namespace details {
 PrinterVisitor::~PrinterVisitor() {}
 
 void PrinterVisitor::visitBinaryOpNode(BinaryOpNode* node) {
+    cout << "(";
     node->left()->visit(this);
     cout << " " << tokenOp(node->kind()) << " ";
     node->right()->visit(this);
+    cout << ")";
 }
 
 void PrinterVisitor::visitUnaryOpNode(UnaryOpNode* node) {
-    cout << tokenOp(node->kind());
+    cout << "(" << tokenOp(node->kind());
     format_ = false;
     node->visitChildren(this);
     format_ = true;
+    cout << ")";
 }
 
 void PrinterVisitor::visitStringLiteralNode(StringLiteralNode* node) {
