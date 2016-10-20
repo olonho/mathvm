@@ -1,3 +1,4 @@
+//#include "mathvm.h"
 #include "../../../include/mathvm.h"
 
 #include <stdio.h>
@@ -30,7 +31,13 @@ int main(int argc, char** argv) {
 
     const char* expr = "double x; double y;"
             "x += 8.0; y = 2.0;"
-            "print('Hello, x=',x,' y=',y,'\n');";
+            "int i;  for (i in -3..4) { print('5'); }"
+            "if (x < y && y > 1 && !(x < 2)) {\n"
+            "    print('1: Less\\n');\n"
+            "} else {"
+            "   print('2: Greater or equal\n');"
+            "}"
+            "print('Hello, x=',x,' y=',y,'\n \"quote\"');";
     bool isDefaultExpr = true;
 
     if (script != NULL) {

@@ -4,12 +4,16 @@
 
 #pragma once
 
+//#include "mathvm.h"
 #include "../../../include/mathvm.h"
-#include "../../../include/visitors.h"
-#include "../../../vm/parser.h"
 
-class PrintTranslatorImpl : Translator {
+namespace mathvm {
 
-};
+    class PrintTranslatorImpl : public Translator {
 
+    public:
+        virtual ~PrintTranslatorImpl();
+        virtual Status* translate(const string& program, Code* *code);
+    };
 
+} //mathvm namespace
