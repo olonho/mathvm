@@ -1,8 +1,8 @@
 ROOT   = .
-VM_ROOT = ../../..
+VM_ROOT = ../../../..
 TEST_ROOT = $(VM_ROOT)/tests
 
-USER_CFLAGS = -std=c++11
+USER_CFLAGS = -std=c++1y -Wall -Werror -g
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
@@ -13,7 +13,7 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/formatter$(OBJ_SUFF)
+   $(OBJ)/astprinter$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
