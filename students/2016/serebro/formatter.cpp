@@ -11,13 +11,19 @@ const std::string Formatter::blockIndent = "  ";
 const std::string Formatter::separator = " ";
 
 void Formatter::rewindLastSeparator() {
+  if (sstream.str().empty() || 
+       !std::equal(separator.rbegin(), separator.rend(), sstream.str().rbegin()))
+    return;
   sstream.seekp(-separator.size(), std::ios_base::end);
 }
 
 void Formatter::visitBinaryOpNode(BinaryOpNode* node) { 
+  sstream << "(";
   node->left()->visit(this);
   sstream << tokenOp(node->kind()) << separator;
   node->right()->visit(this);
+  rewindLastSeparator();
+  sstream << ") ";
 }
 
 void Formatter::visitUnaryOpNode(UnaryOpNode *node) {
