@@ -1,5 +1,5 @@
 ROOT   = .
-VM_ROOT = ../../..
+VM_ROOT = ../../../..
 TEST_ROOT = $(VM_ROOT)/tests
 
 USER_CFLAGS = -std=c++11
@@ -13,7 +13,8 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/formatter$(OBJ_SUFF)
+   $(OBJ)/m_translator$(OBJ_SUFF) \
+	 $(OBJ)/translator_creator$(OBJ_SUFF) \
 
 include $(VM_ROOT)/common.mk
 
