@@ -14,13 +14,6 @@ class code_maker: public mathvm::AstVisitor {
 
     mathvm::Bytecode* bc;
 
-//    std::vector<std::map<std::string, uint16_t>> variables;
-//    std::vector<uint16_t> scopes;
-//    std::vector<std::vector<mathvm::VarType>> types;
-
-
-//    typedef vector<map<string, pair<uint16_t, VarType>> small_scope;
-
     vector<vector<map<string, pair<uint16_t, VarType>>>> variables;
     vector<uint16_t> locals;
     vector<uint16_t> scopes;
@@ -32,12 +25,6 @@ class code_maker: public mathvm::AstVisitor {
         scopes.clear();
         top_type = mathvm::VT_INVALID;
     }
-
-//    void clear_context() {
-//        variables.clear();
-//        scopes.clear();
-//        top_type = mathvm::VT_INVALID;
-//    }
 
     void add_small_scope() {
         (*variables.rbegin()).push_back(map<string, pair<uint16_t, VarType>>());
@@ -65,54 +52,9 @@ public:
         scopes.pop_back();
     }
 
-//    void add_scope() {
-//        variables.push_back(std::map<std::string, uint16_t>());
-//        scopes.push_back(types.size());
-//        types.push_back(std::vector<mathvm::VarType>());
-//    }
-//
-//    uint16_t locals() {
-//        uint16_t sid = *scopes.rbegin();
-//        return (uint16_t) types[sid].size();
-//    }
-//
-//    void pop_scope() {
-//        variables.pop_back();
-//        scopes.pop_back();
-//    }
 
 private:
 
-//    std::pair<uint16_t, uint16_t> add_name(const std::string& name, mathvm::VarType type) {
-//        map<std::string, uint16_t>& right = variables[variables.size() - 1];
-//        if (right.find(name) != right.end()) throw "Variable exists";
-//        uint16_t sid = *scopes.rbegin();
-//        uint16_t vid = (uint16_t) types[sid].size();
-//        types[sid].push_back(type);
-//        right[name] = vid;
-//        auto pair = std::make_pair(sid, vid);
-//        return pair;
-//    }
-
-//    std::pair<uint16_t, uint16_t> resolve_name(const std::string& name) {
-//        for (int i = variables.size() - 1; i >= (int) variables.size() - 1 /*no closure*/; --i) {
-//            auto res = variables[i].find(name);
-//            if (res != variables[i].end()) {
-//                return std::make_pair(scopes[i], (*res).second);
-//            }
-//        }
-//        throw "Variable not found (resolve_name)";
-//    }
-
-//    mathvm::VarType get_type(uint16_t sid, uint16_t vid) {
-//        if (types.size() <= sid) throw "Scope not found (get_type)";
-//        if (types[sid].size() <= vid) throw "Variable not fount (get_type)";
-//        return types[sid][vid];
-//    }
-
-//    mathvm::VarType get_type(std::pair<uint16_t, uint16_t> id) {
-//        return get_type(id.first, id.second);
-//    }
 
     std::pair<uint16_t, VarType> add_name(const std::string& name, mathvm::VarType type) {
         vector<map<string, pair<uint16_t, VarType>>>& tmp = *variables.rbegin();
@@ -137,20 +79,10 @@ private:
         throw "Variable not found (resolve_name)";
     }
 
-//    mathvm::VarType get_type(uint16_t sid, uint16_t vid) {
-//        if (types.size() <= sid) throw "Scope not found (get_type)";
-//        if (types[sid].size() <= vid) throw "Variable not fount (get_type)";
-//        return types[sid][vid];
-//    }
-
-//    mathvm::VarType get_type(std::pair<uint16_t, uint16_t> id) {
-//        return get_type(id.first, id.second);
-//    }
 
     void load(const std::string& name) {
         auto pair = resolve_name(name);
         VarType type = pair.second;
-//        VarType type = get_type(pair);
         switch (type) {
             case VT_INT: bc->addInsn(BC_LOADIVAR); break;
             case VT_DOUBLE: bc->addInsn(BC_LOADDVAR); break;
@@ -158,14 +90,12 @@ private:
             default: throw "Not valid type (load)";
         }
         bc->addUInt16(pair.first);
-//        bc->addUInt16(pair.second);
         top_type = type;
     }
 
     void store(const std::string& name) {
         auto pair = resolve_name(name);
         VarType type = pair.second;
-//        VarType type = get_type(pair);
         if (top_type != type) throw "Wrong type (store)";
         switch (top_type) {
             case VT_INT: bc->addInsn(BC_STOREIVAR); break;
@@ -174,7 +104,6 @@ private:
             default: throw "Not valid type (store)";
         }
         bc->addUInt16(pair.first);
-//        bc->addUInt16(pair.second);
         top_type = VT_VOID;
     }
 
