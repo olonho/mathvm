@@ -5,7 +5,9 @@
 
 pretty_print::pretty_print() : AstVisitor(), indent(0) {}
 
-pretty_print::~pretty_print() {}
+pretty_print::~pretty_print() {
+    std::cout << ss.str();
+}
 
 void pretty_print::visitForNode(mathvm::ForNode *node) {
     ss << "for (" <<  node->var()->name() << " in ";
@@ -55,10 +57,10 @@ void pretty_print::visitStringLiteralNode(mathvm::StringLiteralNode *node) {
         switch (c) {
             case '\n':
                 ss << "\\n";
-                return;
+                break;
             default:
                 ss << c;
-                return;
+                break;
         }
     }
     ss << "\'";
@@ -136,7 +138,7 @@ void pretty_print::visitFunctionNode(mathvm::FunctionNode *node) {
 
 void pretty_print::visitReturnNode(mathvm::ReturnNode *node) {
     ss << "return ";
-    node->returnExpr()->visit(this);
+    if (node->returnExpr() != nullptr) node->returnExpr()->visit(this);
 }
 
 void pretty_print::visitStoreNode(mathvm::StoreNode *node) {
