@@ -76,7 +76,7 @@ void TypeDeducer::visitUnaryOpNode(UnaryOpNode *node) {
     if (node->kind() == tNOT) {
         _nodeType.insert({node, VT_INT});
     } else {
-        node->visit(this);
+        node->operand()->visit(this);
         _nodeType.insert({node, _nodeType.at(node)});
     }
 }
