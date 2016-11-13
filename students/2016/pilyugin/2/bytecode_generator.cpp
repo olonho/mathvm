@@ -13,8 +13,10 @@ public:
     BytecodeGenerator(Code* code) :
             code_(code) {}
 
-    Status* add(AstFunction* function) {
-        addAstFunction(function);
+    Status* generate(AstFunction* top) {
+        BytecodeFunction* bytecodeTop = new BytecodeFunction(top);
+        code_->addFunction(bytecodeTop);
+        addFunction(top, bytecodeTop);
         return Status::Ok();
     }
 
@@ -148,7 +150,7 @@ public:
         Label l1(bytecode());
         bytecode()->addInsn(BC_ILOAD0);
         bytecode()->addBranch(BC_IFICMPE, l1);
-        
+
         node->loopBlock()->visit(this);
         bytecode()->addBranch(BC_JA, l2);
         bytecode()->bind(l1);
@@ -184,7 +186,7 @@ public:
     }
 
     void visitNativeCallNode(NativeCallNode* node) override {
-        void *code = dlsym((void *) -2/*RTLD_DEFAULT*/, node->nativeName().c_str());
+        void* code = dlsym((void*) -2/*RTLD_DEFAULT*/, node->nativeName().c_str());
         if (!code) {
             throw BytecodeGeneratorException("Invalid native function: " + node->nativeName());
         }
@@ -199,8 +201,7 @@ public:
     void visitBlockNode(BlockNode* node) override {
         Scope::VarIterator varIterator(node->scope());
         while (varIterator.hasNext()) {
-            AstVar* var = varIterator.next();
-            scope_->addVar(var);
+            scope_->addVar(varIterator.next());
         }
 
         Scope::FunctionIterator funcIterator(node->scope());
@@ -210,8 +211,14 @@ public:
             if (code_->functionByName(astFunction->name())) {
                 throw BytecodeGeneratorException("Duplicated function");
             } else {
-                addAstFunction(astFunction);
+                code_->addFunction(new BytecodeFunction(astFunction));
             }
+        }
+
+        funcIterator = Scope::FunctionIterator(node->scope());
+        while (funcIterator.hasNext()) {
+            AstFunction* astFunction = funcIterator.next();
+            addFunction(astFunction, (BytecodeFunction*) code_->functionByName(astFunction->name()));
         }
 
         for (uint32_t i = 0; i < node->nodes(); ++i) {
@@ -235,9 +242,7 @@ private:
     VarType tosType_;
     GeneratorScope* scope_;
 
-    void addAstFunction(AstFunction* astFunction) {
-        BytecodeFunction* bytecodeFunction = new BytecodeFunction(astFunction);
-        code_->addFunction(bytecodeFunction);
+    void addFunction(AstFunction* astFunction, BytecodeFunction* bytecodeFunction) {
         GeneratorScope* newScope = new GeneratorScope(bytecodeFunction, astFunction->scope(), scope_);
         scope_ = newScope;
 
@@ -322,7 +327,7 @@ private:
         bytecode()->addInsn(arithmeticInsn(node->kind(), resultType));
         return resultType;
     }
-    
+
     void addNotOp(UnaryOpNode* node) {
         node->operand()->visit(this);
         if (tosType_ != VT_INT) {
@@ -341,15 +346,15 @@ private:
     }
 
     void storeVar(const AstVar* var) {
-        addVar(var, localStoreInsn(var->type()), contextStoreInsn(var->type()));
+        processVar(var, localStoreInsn(var->type()), contextStoreInsn(var->type()));
     }
 
     void loadVar(const AstVar* var) {
-        addVar(var, localLoadInsn(var->type()), contextLoadInsn(var->type()));
+        processVar(var, localLoadInsn(var->type()), contextLoadInsn(var->type()));
     }
 
-    void addVar(const AstVar* var, Instruction localInsn, Instruction contextInsn) {
-        VarInfo varInfo = scope_->getVar(var->name());
+    void processVar(const AstVar* var, Instruction localInsn, Instruction contextInsn) {
+        VarInfo varInfo = scope_->findVar(var->name());
         if (varInfo.scopeId == scope_->scopeId()) {
             bytecode()->addInsn(localInsn);
         } else {
@@ -406,7 +411,7 @@ public:
         }
 
         BytecodeGenerator generator(*code);
-        return generator.add(parser.top());
+        return generator.generate(parser.top());
     }
 };
 

@@ -22,8 +22,7 @@ public:
 
         Scope::VarIterator it = Scope::VarIterator(scope);
         while (it.hasNext()) {
-            AstVar* var = it.next();
-            variables_[var->name()] = variables_.size();
+            addVar(it.next());
         }
     }
 
@@ -38,14 +37,14 @@ public:
         variables_[var->name()] = variables_.size();
     }
 
-    VarInfo getVar(const std::string& name) {
+    VarInfo findVar(const std::string& name) {
         if (variables_.find(name) != variables_.end()) {
             return {variables_[name], scopeId_};
         }
         if (parent_ == nullptr) {
             throw BytecodeGeneratorException("Variable not found: " + name);
         }
-        return parent_->getVar(name);
+        return parent_->findVar(name);
     }
 
     uint16_t scopeId() {

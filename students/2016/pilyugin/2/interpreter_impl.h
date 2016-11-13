@@ -52,6 +52,9 @@ public:
     }
 
     void checkType(VarType type) const {
+        if (type_ == VT_INVALID) {
+            throw InterpreterException("Value is not initialized");
+        }
         if (type_ != type) {
             throw InterpreterException("Type mismatch");
         }
@@ -116,18 +119,18 @@ public:
     }
 
     StackValue getContextVar() {
-        uint16_t contextId = getUInt16();
+        uint16_t scopeId = getUInt16();
         uint16_t varId = getUInt16();
-        return getContextVar(contextId, varId);
+        return getContextVar(scopeId, varId);
     }
 
-    StackValue getContextVar(uint16_t contextId, uint16_t varId) {
-        if (contextId == function_->scopeId()) {
+    StackValue getContextVar(uint16_t scopeId, uint16_t varId) {
+        if (scopeId == function_->scopeId()) {
             checkBounds(varId);
             return scopeVars_[varId];
         }
         if (parent_ != NULL) {
-            return parent_->getContextVar(contextId, varId);
+            return parent_->getContextVar(scopeId, varId);
         }
         throw InterpreterException("Invalid variable");
     }
@@ -147,15 +150,12 @@ public:
         } else {
             throw InterpreterException("Invalid variable to store");
         }
-
     }
 
     void jump(bool condition) {
+        int16_t offset = getInt16();
         if (condition) {
-            int16_t offset = getInt16();
             position_ += offset - sizeof(int16_t);
-        } else {
-            getInt16();
         }
     }
 
