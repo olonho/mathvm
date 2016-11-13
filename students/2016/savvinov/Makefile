@@ -15,7 +15,12 @@ USER_OBJ = \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translator_impl$(OBJ_SUFF) \
    $(OBJ)/PrinterTranslator$(OBJ_SUFF) \
-   $(OBJ)/PrinterVisitor$(OBJ_SUFF)
+   $(OBJ)/PrinterVisitor$(OBJ_SUFF) \
+	 $(OBJ)/BytecodeCode$(OBJ_SUFF) \
+	 $(OBJ)/BytecodeTranslator_impl$(OBJ_SUFF) \
+	 $(OBJ)/BytecodeTranslatorVisitor$(OBJ_SUFF) \
+	 $(OBJ)/TranslationContext$(OBJ_SUFF) \
+	 $(OBJ)/TranslationException$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
