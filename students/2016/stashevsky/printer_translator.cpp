@@ -1,4 +1,4 @@
-#include "PrinterTranslator.h"
+#include "printer_translator.h"
 
 #include "parser.h"
 
@@ -71,7 +71,9 @@ void PrinterVisitor::visitForNode(ForNode* node) {
 void PrinterVisitor::visitWhileNode(WhileNode* node) {
     printIndent();
     cout << "while (";
+    format_ = false;
     node->whileExpr()->visit(this);
+
     cout << ")" << endl;
     node->loopBlock()->visit(this);
 }
@@ -272,3 +274,4 @@ Status *PrinterTranslator::translate(const string &program, Code **code) {
 }
 
 }
+
