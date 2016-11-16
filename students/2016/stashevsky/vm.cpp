@@ -346,11 +346,10 @@ void vm::repl() {
                 break;
             }
             case BC_CALLNATIVE: {
-//                uint16_t id = READPOP(id);
-//                std::string const *name;
-//                Signature const *signature;
-//                void const* ptr = code_.nativeById(id, &signature, &name);
-
+                uint16_t id = bytecode().getUInt16(ip_ + 1);
+                std::string const *name;
+                Signature const *signature;
+                void const* ptr = code_.nativeById(id, &signature, &name);
                 // TODO : make call
                 break;
             }

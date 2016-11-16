@@ -336,9 +336,8 @@ void TranslatorVisitor::visitCallNode(CallNode* node) {
         convert(type, handler->parameterType(i));
     }
 
-    Instruction callInstruction =
-            (handler->node()->body()->nodes() > 0 && handler->node()->body()->nodeAt(0)->isNativeCallNode()) ?
-            BC_CALLNATIVE : BC_CALL;
+    bool native = (handler->node()->body()->nodes() > 0 && handler->node()->body()->nodeAt(0)->isNativeCallNode());
+    Instruction callInstruction = native ? BC_CALLNATIVE : BC_CALL;
 
     uint16_t id = reinterpret_cast<BytecodeFunction*>(handler->info())->id();
     instruction(callInstruction, node->parametersNumber());
@@ -592,14 +591,16 @@ void TranslatorVisitor::indexFunctions() {
 
     while (function_iter.hasNext()) {
         auto function = function_iter.next();
-        if (function->node()->body()->nodes() > 0 && function->node()->body()->nodeAt(0)->isNativeCallNode()) {
-//            void* handler = dlsym(RTLD_DEFAULT, function->name().c_str());
-//            code_.makeNativeFunction(function->name(), function->node()->signature(), handler);
-        }
-
         auto bytecode = new BytecodeFunction(function);
-        code_.addFunction(bytecode);
         function->setInfo(bytecode);
+
+        if (function->node()->body()->nodes() > 0 && function->node()->body()->nodeAt(0)->isNativeCallNode()) {
+            void* handler = dlsym(RTLD_DEFAULT, function->name().c_str());
+            uint16_t id = code_.makeNativeFunction(function->name(), function->node()->signature(), handler);
+            bytecode->assignId(id);
+        } else {
+            code_.addFunction(bytecode);
+        }
     }
 
 }

@@ -2,6 +2,8 @@
 
 #include "mathvm.h"
 
+#include "asmjit/asmjit.h"
+
 #include <iostream>
 #include <vector>
 #include <stack>
@@ -56,7 +58,6 @@ private:
     std::vector<std::stack<details::Context*>> contexts_;
 
     void repl();
-
     Bytecode& bytecode();
 };
 
