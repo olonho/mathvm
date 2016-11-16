@@ -2,8 +2,6 @@
 
 #include "mathvm.h"
 
-#include "asmjit/asmjit.h"
-
 #include <iostream>
 #include <vector>
 #include <stack>
