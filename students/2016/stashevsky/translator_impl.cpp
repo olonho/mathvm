@@ -8,11 +8,7 @@ Translator* Translator::create(const string& impl) {
         return new PrinterTranslator();
     }
 
-    if (impl == "translator") {
-        return new BytecodeTranslatorImpl();
-    }
-
-    return nullptr;
+    return new BytecodeTranslatorImpl();
 }
 
 }

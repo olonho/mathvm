@@ -6,11 +6,13 @@
 
 #include <iostream>
 
+#include "vm.h"
+
 using namespace mathvm;
 using namespace std;
 
 int main(int argc, char **argv) {
-    string impl = "";
+    string impl = "run";
     const char *script = NULL;
     for (int32_t i = 1; i < argc; i++) {
         if (string(argv[i]) == "-j") {
@@ -19,10 +21,13 @@ int main(int argc, char **argv) {
             impl = "printer";
         } else if (string(argv[i]) == "-t") {
             impl = "translator";
+        } else if (string(argv[i]) == "-r") {
+            impl = "run";
         } else {
             script = argv[i];
         }
     }
+
     Translator *translator = Translator::create(impl);
 
     if (translator == 0) {
@@ -57,6 +62,9 @@ int main(int argc, char **argv) {
                translateStatus->getErrorCstr());
     } else if (impl == "translator") {
         code->disassemble();
+    } else if (impl == "run") {
+        vm executor(*code, cout);
+        executor.run();
     } else {
         if (impl != "printer") {
             assert(code != 0);

@@ -41,19 +41,19 @@ private:
     VarType eval(AstNode &node);
 
     void instruction(Instruction ins, int stack_pop);
-    void convert(VarType from, VarType to);
+    void convert(VarType from, VarType to, bool implicit = true);
 
     void store(AstVar const& variable);
     void load(AstVar const& variable);
 
-    void index_functions();
-    void index_variable(AstVar const& variable);
-    void unindex_variable(AstVar const& variable);
+    void indexFunctions();
+    void indexVariable(AstVar const& variable);
+    void unindexVariable(AstVar const& variable);
 
-    void generate_lazy_binary_op(BinaryOpNode *node);
-    void generate_compare(BinaryOpNode *node);
+    void generateLazyBinaryOp(BinaryOpNode *node);
+    void generateCompare(BinaryOpNode *node);
 
-    VarType unify_top(VarType left, VarType right);
+    VarType unifyTop(VarType left, VarType right);
     AstVar newVar(VarType type);
 
     Bytecode& bytecode();

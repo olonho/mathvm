@@ -2,6 +2,7 @@
 #include "interpreter_code.h"
 
 #include "parser.h"
+#include <dlfcn.h>
 
 namespace mathvm {
 
@@ -33,6 +34,7 @@ void TranslatorVisitor::visitUnaryOpNode(UnaryOpNode* node) {
             }
             break;
         case tNOT:
+            assert(type == VT_INT);
             instruction(BC_ILOAD0, 0);
             instruction(BC_ICMP, 0);
             instruction(BC_ILOAD1, 0);
@@ -139,7 +141,7 @@ void TranslatorVisitor::visitPrintNode(PrintNode* node) {
     for (uint32_t i = 0; i < node->operands(); ++i) {
         VarType type = eval(*node->operandAt(i));
 
-        Instruction print = BC_INVALID;
+        Instruction print;
         switch (type) {
             case VT_DOUBLE:
                 print = BC_DPRINT;
@@ -164,7 +166,10 @@ void TranslatorVisitor::visitReturnNode(ReturnNode* node) {
 
     if (node->returnExpr() != nullptr) {
         VarType type = eval(*node->returnExpr());
+        assert(returnType != VT_VOID);
         convert(type, returnType);
+    } else {
+        assert(returnType == VT_VOID);
     }
 
     instruction(BC_RETURN, 0);
@@ -174,7 +179,25 @@ void TranslatorVisitor::visitStoreNode(StoreNode* node) {
     VarType type = eval(*node->value());
     VarType storeType = node->var()->type();
     convert(type, storeType);
-    store(*node->var());
+
+    switch (node->op()) {
+        case tASSIGN:
+            store(*node->var());
+            return;
+        case tINCRSET:
+            load(*node->var());
+            instruction(storeType == VT_DOUBLE ? BC_DADD : BC_IADD, 1);
+            store(*node->var());
+            break;
+        case tDECRSET:
+            load(*node->var());
+            instruction(storeType == VT_DOUBLE ? BC_DSUB : BC_ISUB, 1);
+            store(*node->var());
+            break;
+        default:
+            assert(false);
+    }
+
 }
 
 void TranslatorVisitor::visitLoadNode(LoadNode* node) {
@@ -185,11 +208,11 @@ void TranslatorVisitor::visitBlockNode(BlockNode* node) {
     Scope* scope = node->scope();
     scopes_.push(scope);
 
-    index_functions();
+    indexFunctions();
 
     auto var_iter = Scope::VarIterator(scope);
     while (var_iter.hasNext()) {
-        index_variable(*var_iter.next());
+        indexVariable(*var_iter.next());
     }
 
     auto function_iter = Scope::FunctionIterator(scope);
@@ -205,7 +228,7 @@ void TranslatorVisitor::visitBlockNode(BlockNode* node) {
 
     var_iter = Scope::VarIterator(scope);
     while (var_iter.hasNext()) {
-        unindex_variable(*var_iter.next());
+        unindexVariable(*var_iter.next());
     }
 
     scopes_.pop();
@@ -214,6 +237,8 @@ void TranslatorVisitor::visitBlockNode(BlockNode* node) {
 void TranslatorVisitor::visitForNode(ForNode* node) {
     BinaryOpNode* range = node->inExpr()->asBinaryOpNode();
     AstVar const* counter = node->var();
+
+    assert(range->kind() == tRANGE);
 
     StoreNode startValue(-1, counter, range->left(), tASSIGN);
     visitStoreNode(&startValue);
@@ -230,6 +255,7 @@ void TranslatorVisitor::visitForNode(ForNode* node) {
     load(*counter);
 
     bytecode().addBranch(BC_IFICMPG, end);
+    stack_types_.pop(); stack_types_.pop();
 
     VarType type = eval(*node->body());
     convert(type, VT_VOID);
@@ -243,20 +269,20 @@ void TranslatorVisitor::visitForNode(ForNode* node) {
 
 void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode* node) {
     if (node->kind() == tOR || node->kind() == tAND) {
-        generate_lazy_binary_op(node);
+        generateLazyBinaryOp(node);
         return;
     }
 
     if (node->kind() >= tEQ && node->kind() <= tLE) {
-        generate_compare(node);
+        generateCompare(node);
         return;
     }
 
-    VarType left = eval(*node->left());
     VarType right = eval(*node->right());
-    VarType common_type = unify_top(left, right);
+    VarType left = eval(*node->left());
+    VarType common_type = unifyTop(right, left);
 
-    Instruction instruction = BC_INVALID;
+    Instruction instruction;
     VarType resultType = common_type;
     switch (node->kind()) {
         case tAOR:
@@ -269,7 +295,7 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode* node) {
             instruction = BC_IAXOR;
             break;
         case tADD:
-            instruction = (common_type == VT_DOUBLE) ? BC_DSUB : BC_ISUB;
+            instruction = (common_type == VT_DOUBLE) ? BC_DADD: BC_IADD;
             break;
         case tSUB:
             instruction = (common_type == VT_DOUBLE) ? BC_DSUB : BC_ISUB;
@@ -326,18 +352,16 @@ void TranslatorVisitor::visitNativeCallNode(NativeCallNode* node) {
     assert(false);
 }
 
-void TranslatorVisitor::generate_lazy_binary_op(BinaryOpNode *node) {
+void TranslatorVisitor::generateLazyBinaryOp(BinaryOpNode *node) {
     VarType left = eval(*node->left());
     convert(left, VT_INT);
     Label afterFirst(&bytecode());
     Label afterSecond(&bytecode());
 
-    instruction(BC_ILOAD0, 0);
+    instruction(BC_ILOAD0, 1);
     Instruction cmp = node->kind() == tAND ? BC_IFICMPE : BC_IFICMPNE;
-    // if left part enough
     bytecode().addBranch(cmp, afterFirst);
 
-    // evaluate right part
     VarType result = eval(*node->right());
     convert(result, VT_INT);
     bytecode().addBranch(BC_JA, afterSecond);
@@ -348,14 +372,15 @@ void TranslatorVisitor::generate_lazy_binary_op(BinaryOpNode *node) {
     bytecode().bind(afterSecond);
 }
 
-void TranslatorVisitor::generate_compare(BinaryOpNode *node) {
-    VarType left = eval(*node->left());
+void TranslatorVisitor::generateCompare(BinaryOpNode *node) {
     VarType right = eval(*node->right());
-    VarType resultType = unify_top(left, right);
+    VarType left = eval(*node->left());
+    assert(right != VT_STRING && left != VT_STRING);
+    VarType resultType = unifyTop(left, right);
 
     instruction(resultType == VT_INT ? BC_ICMP : BC_DCMP, 1);
 
-    Instruction instruction = BC_INVALID;
+    Instruction instruction;
     switch (node->kind()) {
         case tEQ:
             instruction = BC_IFICMPE;
@@ -405,14 +430,14 @@ void TranslatorVisitor::translateFunction(AstFunction &function) {
 
     for (uint32_t i = 0; i < function.parametersNumber(); ++i) {
         AstVar* variable = function.scope()->lookupVariable(function.parameterName(i), false);
-        index_variable(*variable);
+        indexVariable(*variable);
     }
 
     function.node()->body()->visit(this);
 
     for (uint32_t i = 0; i < function.parametersNumber(); ++i) {
         AstVar* variable = function.scope()->lookupVariable(function.parameterName(i), false);
-        unindex_variable(*variable);
+        unindexVariable(*variable);
     }
 
     stack_size_.pop();
@@ -425,6 +450,7 @@ void TranslatorVisitor::translate(AstFunction &top) {
     top.setInfo(bytecode);
 
     translateFunction(top);
+    bytecode->bytecode()->addInsn(BC_RETURN);
 }
 
 VarType TranslatorVisitor::eval(AstNode &node) {
@@ -444,7 +470,7 @@ void TranslatorVisitor::instruction(Instruction ins, int stack_pop) {
     }
 }
 
-void TranslatorVisitor::convert(VarType from, VarType to) {
+void TranslatorVisitor::convert(VarType from, VarType to, bool implicit) {
     if (from == to) {
         return;
     }
@@ -466,6 +492,7 @@ void TranslatorVisitor::convert(VarType from, VarType to) {
         return;
     }
 
+    assert(!implicit);
     if (from == VT_STRING && to == VT_INT) {
         instruction(BC_S2I, 1);
         stack_types_.push(VT_INT);
@@ -484,7 +511,7 @@ void TranslatorVisitor::convert(VarType from, VarType to) {
 
 void TranslatorVisitor::store(AstVar const& variable) {
     VarLocation location = locals_[variable.name()].top();
-    bool outer_scope = location.scope == function_scope_.top()->id();
+    bool outer_scope = location.scope != function_scope_.top()->id();
 
     Instruction storeInstruction = BC_INVALID;
     switch (variable.type()) {
@@ -513,9 +540,9 @@ void TranslatorVisitor::store(AstVar const& variable) {
 
 void TranslatorVisitor::load(AstVar const& variable) {
     VarLocation location = locals_[variable.name()].top();
-    bool outer_scope = location.scope == function_scope_.top()->id();
+    bool outer_scope = location.scope != function_scope_.top()->id();
 
-    Instruction loadInstrction = BC_INVALID;
+    Instruction loadInstrction;
     switch (variable.type()) {
         case VT_INT:
             loadInstrction = outer_scope ? BC_LOADCTXIVAR : BC_LOADIVAR;
@@ -543,28 +570,31 @@ void TranslatorVisitor::load(AstVar const& variable) {
     bytecode().addUInt16(location.local);
 }
 
-void TranslatorVisitor::index_variable(AstVar const& variable) {
+void TranslatorVisitor::indexVariable(AstVar const& variable) {
     locals_[variable.name()].push(
             {function_scope_.top()->id(),
              static_cast<uint16_t>(stack_size_.top()++) });
 
+    assert(stack_size_.top() <= UINT16_MAX);
+
     function_scope_.top()->setLocalsNumber(std::max(
-            stack_size_.top(),
-            function_scope_.top()->localsNumber())
+            static_cast<uint16_t>(stack_size_.top()),
+            static_cast<uint16_t>(function_scope_.top()->localsNumber()))
     );
 }
 
-void TranslatorVisitor::unindex_variable(AstVar const& variable) {
+void TranslatorVisitor::unindexVariable(AstVar const& variable) {
     locals_[variable.name()].pop();
 }
 
-void TranslatorVisitor::index_functions() {
+void TranslatorVisitor::indexFunctions() {
     auto function_iter = Scope::FunctionIterator(scopes_.top());
 
     while (function_iter.hasNext()) {
         auto function = function_iter.next();
         if (function->node()->body()->nodes() > 0 && function->node()->body()->nodeAt(0)->isNativeCallNode()) {
-            code_.makeNativeFunction(function->name(), function->node()->signature(), 0);
+//            void* handler = dlsym(RTLD_DEFAULT, function->name().c_str());
+//            code_.makeNativeFunction(function->name(), function->node()->signature(), handler);
         }
 
         auto bytecode = new BytecodeFunction(function);
@@ -579,7 +609,7 @@ AstVar TranslatorVisitor::newVar(VarType type) {
     AstVar result = AstVar("tmp$" + to_string(index), VT_INT, nullptr);
     ++index;
 
-    index_variable(result);
+    indexVariable(result);
     return result;
 }
 
@@ -587,7 +617,7 @@ Bytecode& TranslatorVisitor::bytecode() {
     return *function_scope_.top()->bytecode();
 }
 
-VarType TranslatorVisitor::unify_top(VarType left, VarType right) {
+VarType TranslatorVisitor::unifyTop(VarType left, VarType right) {
     if (left == right) {
         return left;
     }
