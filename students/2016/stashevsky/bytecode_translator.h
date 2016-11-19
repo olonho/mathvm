@@ -41,7 +41,7 @@ private:
     VarType eval(AstNode &node);
 
     void instruction(Instruction ins, int stack_pop);
-    void convert(VarType from, VarType to, bool implicit = true);
+    void convert(VarType from, VarType to);
 
     void store(AstVar const& variable);
     void load(AstVar const& variable);

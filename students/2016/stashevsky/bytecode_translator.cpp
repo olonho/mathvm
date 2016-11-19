@@ -34,7 +34,6 @@ void TranslatorVisitor::visitUnaryOpNode(UnaryOpNode* node) {
             }
             break;
         case tNOT:
-            assert(type == VT_INT);
             instruction(BC_ILOAD0, 0);
             instruction(BC_ICMP, 0);
             instruction(BC_ILOAD1, 0);
@@ -316,10 +315,6 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode* node) {
             assert(false);
     }
 
-    if (instruction == BC_INVALID) {
-        assert(false);
-    }
-
     this->instruction(instruction, 2);
     stack_types_.push(resultType);
 }
@@ -374,7 +369,6 @@ void TranslatorVisitor::generateLazyBinaryOp(BinaryOpNode *node) {
 void TranslatorVisitor::generateCompare(BinaryOpNode *node) {
     VarType right = eval(*node->right());
     VarType left = eval(*node->left());
-    assert(right != VT_STRING && left != VT_STRING);
     VarType resultType = unifyTop(left, right);
 
     instruction(resultType == VT_INT ? BC_ICMP : BC_DCMP, 1);
@@ -469,7 +463,7 @@ void TranslatorVisitor::instruction(Instruction ins, int stack_pop) {
     }
 }
 
-void TranslatorVisitor::convert(VarType from, VarType to, bool implicit) {
+void TranslatorVisitor::convert(VarType from, VarType to) {
     if (from == to) {
         return;
     }
@@ -491,7 +485,6 @@ void TranslatorVisitor::convert(VarType from, VarType to, bool implicit) {
         return;
     }
 
-    assert(!implicit);
     if (from == VT_STRING && to == VT_INT) {
         instruction(BC_S2I, 1);
         stack_types_.push(VT_INT);
@@ -512,22 +505,22 @@ void TranslatorVisitor::store(AstVar const& variable) {
     VarLocation location = locals_[variable.name()].top();
     bool outer_scope = location.scope != function_scope_.top()->id();
 
-    Instruction storeInstruction = BC_INVALID;
+    Instruction instruction;
     switch (variable.type()) {
         case VT_INT:
-            storeInstruction = outer_scope ? BC_STORECTXIVAR : BC_STOREIVAR;
+            instruction = outer_scope ? BC_STORECTXIVAR : BC_STOREIVAR;
             break;
         case VT_DOUBLE:
-            storeInstruction = outer_scope ? BC_STORECTXDVAR : BC_STOREDVAR;
+            instruction = outer_scope ? BC_STORECTXDVAR : BC_STOREDVAR;
             break;
         case VT_STRING:
-            storeInstruction = outer_scope ? BC_STORECTXSVAR : BC_STORESVAR;
+            instruction = outer_scope ? BC_STORECTXSVAR : BC_STORESVAR;
             break;
         default:
             assert(false);
     }
 
-    instruction(storeInstruction, 1);
+    this->instruction(instruction, 1);
     if (outer_scope) {
         bytecode().addUInt16(location.scope);
         bytecode().addUInt16(location.local);

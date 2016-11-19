@@ -189,7 +189,7 @@ void vm::repl() {
             }
             case BC_S2I: {
                 uint16_t id = READPOP(id);
-                int64_t result = std::stoll(code_.constantById(id));
+                int64_t result = reinterpret_cast<int64_t>(&code_.constantById(id));
                 stack_.push_back(result);
                 break;
             }
