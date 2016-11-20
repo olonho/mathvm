@@ -20,6 +20,10 @@ Status* ExecutableCode :: execute(vector<Var*>& vars) {
 
     while(true) {
         switch (_env->getCurrentInstruction()) {
+            case BC_INVALID: {
+                throw TranslationException("Invalid instruction.");
+                break;
+            }
             case BC_CALL: {
                 uint16_t functionId = _env->getShort();
                 BytecodeFunction* fun = (BytecodeFunction*) functionById(functionId);
