@@ -8,15 +8,12 @@
 #ifndef _ASMJIT_HOST_H
 #define _ASMJIT_HOST_H
 
-// [Dependencies - Core]
-#include "base.h"
+// [Dependencies]
+#include "./base.h"
 
-// ============================================================================
-// [asmjit::host - X86 / X64]
-// ============================================================================
-
-#if defined(ASMJIT_HOST_X86) || defined(ASMJIT_HOST_X64)
-#include "x86.h"
+// [X86 / X64]
+#if ASMJIT_ARCH_X86 || ASMJIT_ARCH_X64
+#include "./x86.h"
 
 namespace asmjit {
 
@@ -35,9 +32,6 @@ typedef X86YmmReg YmmReg;
 typedef X86SegReg SegReg;
 typedef X86Mem Mem;
 
-// Define host utilities.
-typedef X86CpuInfo HostCpuInfo;
-
 // Define host compiler and related.
 #if !defined(ASMJIT_DISABLE_COMPILER)
 typedef X86Compiler HostCompiler;
@@ -53,7 +47,7 @@ typedef X86YmmVar YmmVar;
 
 } // asmjit namespace
 
-#endif // ASMJIT_HOST_X86 || ASMJIT_HOST_X64
+#endif // ASMJIT_ARCH_X86 || ASMJIT_ARCH_X64
 
 // [Guard]
 #endif // _ASMJIT_HOST_H

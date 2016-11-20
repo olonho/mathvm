@@ -11,9 +11,9 @@
 #include "../build.h"
 #if !defined(ASMJIT_DISABLE_COMPILER)
 
-// [Dependencies - AsmJit]
-#include "../base/context_p.h"
-#include "../base/intutil.h"
+// [Dependencies]
+#include "../base/compilercontext_p.h"
+#include "../base/utils.h"
 
 // [Api-Begin]
 #include "../apibegin.h"
@@ -26,12 +26,12 @@ namespace asmjit {
 
 Context::Context(Compiler* compiler) :
   _compiler(compiler),
-  _varMapToVaListOffset(0),
-  _baseZone(8192 - kZoneOverhead) {
+  _zoneAllocator(8192 - Zone::kZoneOverhead),
+  _traceNode(nullptr),
+  _varMapToVaListOffset(0) {
 
   Context::reset();
 }
-
 Context::~Context() {}
 
 // ============================================================================
@@ -39,20 +39,21 @@ Context::~Context() {}
 // ============================================================================
 
 void Context::reset(bool releaseMemory) {
-  _baseZone.reset(releaseMemory);
+  _zoneAllocator.reset(releaseMemory);
 
-  _func = NULL;
-  _start = NULL;
-  _end = NULL;
-  _extraBlock = NULL;
-  _stop = NULL;
+  _func = nullptr;
+  _start = nullptr;
+  _end = nullptr;
+  _extraBlock = nullptr;
+  _stop = nullptr;
 
   _unreachableList.reset();
+  _returningList.reset();
   _jccList.reset();
   _contextVd.reset(releaseMemory);
 
-  _memVarCells = NULL;
-  _memStackCells = NULL;
+  _memVarCells = nullptr;
+  _memStackCells = nullptr;
 
   _mem1ByteVarsUsed = 0;
   _mem2ByteVarsUsed = 0;
@@ -69,7 +70,7 @@ void Context::reset(bool releaseMemory) {
   _memAllTotal = 0;
   _annotationLength = 12;
 
-  _state = NULL;
+  _state = nullptr;
 }
 
 // ============================================================================
@@ -93,21 +94,21 @@ static ASMJIT_INLINE uint32_t BaseContext_getDefaultAlignment(uint32_t size) {
     return 1;
 }
 
-MemCell* Context::_newVarCell(VarData* vd) {
-  ASMJIT_ASSERT(vd->_memCell == NULL);
+VarCell* Context::_newVarCell(VarData* vd) {
+  ASMJIT_ASSERT(vd->_memCell == nullptr);
 
-  MemCell* cell;
+  VarCell* cell;
   uint32_t size = vd->getSize();
 
   if (vd->isStack()) {
     cell = _newStackCell(size, vd->getAlignment());
 
-    if (cell == NULL)
-      return NULL;
+    if (cell == nullptr)
+      return nullptr;
   }
   else {
-    cell = static_cast<MemCell*>(_baseZone.alloc(sizeof(MemCell)));
-    if (cell == NULL)
+    cell = static_cast<VarCell*>(_zoneAllocator.alloc(sizeof(VarCell)));
+    if (cell == nullptr)
       goto _NoMemory;
 
     cell->_next = _memVarCells;
@@ -117,7 +118,7 @@ MemCell* Context::_newVarCell(VarData* vd) {
     cell->_size = size;
     cell->_alignment = size;
 
-    _memMaxAlign = IntUtil::iMax<uint32_t>(_memMaxAlign, size);
+    _memMaxAlign = Utils::iMax<uint32_t>(_memMaxAlign, size);
     _memVarTotal += size;
 
     switch (size) {
@@ -128,7 +129,9 @@ MemCell* Context::_newVarCell(VarData* vd) {
       case 16: _mem16ByteVarsUsed++; break;
       case 32: _mem32ByteVarsUsed++; break;
       case 64: _mem64ByteVarsUsed++; break;
-      default: ASMJIT_ASSERT(!"Reached");
+
+      default:
+        ASMJIT_NOT_REACHED();
     }
   }
 
@@ -136,13 +139,13 @@ MemCell* Context::_newVarCell(VarData* vd) {
   return cell;
 
 _NoMemory:
-  _compiler->setError(kErrorNoHeapMemory);
-  return NULL;
+  _compiler->setLastError(kErrorNoHeapMemory);
+  return nullptr;
 }
 
-MemCell* Context::_newStackCell(uint32_t size, uint32_t alignment) {
-  MemCell* cell = static_cast<MemCell*>(_baseZone.alloc(sizeof(MemCell)));
-  if (cell == NULL)
+VarCell* Context::_newStackCell(uint32_t size, uint32_t alignment) {
+  VarCell* cell = static_cast<VarCell*>(_zoneAllocator.alloc(sizeof(VarCell)));
+  if (cell == nullptr)
     goto _NoMemory;
 
   if (alignment == 0)
@@ -151,19 +154,22 @@ MemCell* Context::_newStackCell(uint32_t size, uint32_t alignment) {
   if (alignment > 64)
     alignment = 64;
 
-  ASMJIT_ASSERT(IntUtil::isPowerOf2(alignment));
-  size = IntUtil::alignTo<uint32_t>(size, alignment);
+  ASMJIT_ASSERT(Utils::isPowerOf2(alignment));
+  size = Utils::alignTo<uint32_t>(size, alignment);
 
   // Insert it sorted according to the alignment and size.
   {
-    MemCell** pPrev = &_memStackCells;
-    MemCell* cur = *pPrev;
+    VarCell** pPrev = &_memStackCells;
+    VarCell* cur = *pPrev;
 
-    for (cur = *pPrev; cur != NULL; cur = cur->_next) {
-      if (cur->getAlignment() > alignment)
+    while (cur != nullptr) {
+      if ((cur->getAlignment() > alignment) ||
+          (cur->getAlignment() == alignment && cur->getSize() > size)) {
+        pPrev = &cur->_next;
+        cur = *pPrev;
         continue;
-      if (cur->getAlignment() == alignment && cur->getSize() > size)
-        continue;
+      }
+
       break;
     }
 
@@ -175,23 +181,23 @@ MemCell* Context::_newStackCell(uint32_t size, uint32_t alignment) {
     *pPrev = cell;
     _memStackCellsUsed++;
 
-    _memMaxAlign = IntUtil::iMax<uint32_t>(_memMaxAlign, alignment);
+    _memMaxAlign = Utils::iMax<uint32_t>(_memMaxAlign, alignment);
     _memStackTotal += size;
   }
 
   return cell;
 
 _NoMemory:
-  _compiler->setError(kErrorNoHeapMemory);
-  return NULL;
+  _compiler->setLastError(kErrorNoHeapMemory);
+  return nullptr;
 }
 
 Error Context::resolveCellOffsets() {
-  MemCell* varCell = _memVarCells;
-  MemCell* stackCell = _memStackCells;
+  VarCell* varCell = _memVarCells;
+  VarCell* stackCell = _memStackCells;
 
   uint32_t stackAlignment = 0;
-  if (stackCell != NULL)
+  if (stackCell != nullptr)
     stackAlignment = stackCell->getAlignment();
 
   uint32_t pos64 = 0;
@@ -207,15 +213,16 @@ Error Context::resolveCellOffsets() {
   uint32_t gapAlignment = stackAlignment;
   uint32_t gapSize = 0;
 
+  // TODO: Not used!
   if (gapAlignment)
-    IntUtil::deltaTo(stackPos, gapAlignment);
+    Utils::alignDiff(stackPos, gapAlignment);
   stackPos += gapSize;
 
   uint32_t gapPos = stackPos;
   uint32_t allTotal = stackPos;
 
   // Vars - Allocated according to alignment/width.
-  while (varCell != NULL) {
+  while (varCell != nullptr) {
     uint32_t size = varCell->getSize();
     uint32_t offset = 0;
 
@@ -227,20 +234,22 @@ Error Context::resolveCellOffsets() {
       case 16: offset = pos16; pos16 += 16; break;
       case 32: offset = pos32; pos32 += 32; break;
       case 64: offset = pos64; pos64 += 64; break;
-      default: ASMJIT_ASSERT(!"Reached");
+
+      default:
+        ASMJIT_NOT_REACHED();
     }
 
     varCell->setOffset(static_cast<int32_t>(offset));
     varCell = varCell->_next;
   }
 
-  // Stack - Allocated according to alignment and width.
-  while (stackCell != NULL) {
+  // Stack - Allocated according to alignment/width.
+  while (stackCell != nullptr) {
     uint32_t size = stackCell->getSize();
     uint32_t alignment = stackCell->getAlignment();
     uint32_t offset;
 
-    // Try to fill the gap between variables / stack first.
+    // Try to fill the gap between variables/stack first.
     if (size <= gapSize && alignment <= gapAlignment) {
       offset = gapPos;
 
@@ -270,24 +279,50 @@ Error Context::resolveCellOffsets() {
 // ============================================================================
 
 Error Context::removeUnreachableCode() {
-  PodList<Node*>::Link* link = _unreachableList.getFirst();
-  Node* stop = getStop();
+  Compiler* compiler = getCompiler();
 
-  while (link != NULL) {
-    Node* node = link->getValue();
-    if (node != NULL && node->getPrev() != NULL) {
+  PodList<HLNode*>::Link* link = _unreachableList.getFirst();
+  HLNode* stop = getStop();
+
+  while (link != nullptr) {
+    HLNode* node = link->getValue();
+    if (node != nullptr && node->getPrev() != nullptr && node != stop) {
       // Locate all unreachable nodes.
-      Node* first = node;
+      HLNode* first = node;
       do {
         if (node->isFetched())
           break;
         node = node->getNext();
       } while (node != stop);
 
-      // Remove.
+      // Remove unreachable nodes that are neither informative nor directives.
       if (node != first) {
-        Node* last = (node != NULL) ? node->getPrev() : getCompiler()->getLastNode();
-        getCompiler()->removeNodes(first, last);
+        HLNode* end = node;
+        node = first;
+
+        // NOTE: The strategy is as follows:
+        // 1. The algorithm removes everything until it finds a first label.
+        // 2. After the first label is found it removes only removable nodes.
+        bool removeEverything = true;
+        do {
+          HLNode* next = node->getNext();
+          bool remove = node->isRemovable();
+
+          if (!remove) {
+            if (node->isLabel())
+              removeEverything = false;
+            remove = removeEverything;
+          }
+
+          if (remove) {
+            ASMJIT_TSEC({
+              this->_traceNode(this, node, "[REMOVED UNREACHABLE] ");
+            });
+            compiler->removeNode(node);
+          }
+
+          node = next;
+        } while (node != end);
       }
     }
 
@@ -307,30 +342,34 @@ struct LivenessTarget {
   LivenessTarget* prev;
 
   //! Target node.
-  TargetNode* node;
+  HLLabel* node;
   //! Jumped from.
-  JumpNode* from;
+  HLJump* from;
 };
 
 Error Context::livenessAnalysis() {
-  FuncNode* func = getFunc();
-  JumpNode* from = NULL;
-
-  Node* node = func->getEnd();
   uint32_t bLen = static_cast<uint32_t>(
-    ((_contextVd.getLength() + VarBits::kEntityBits - 1) / VarBits::kEntityBits));
-
-  LivenessTarget* ltCur = NULL;
-  LivenessTarget* ltUnused = NULL;
-
-  size_t varMapToVaListOffset = _varMapToVaListOffset;
+    ((_contextVd.getLength() + BitArray::kEntityBits - 1) / BitArray::kEntityBits));
 
   // No variables.
   if (bLen == 0)
     return kErrorOk;
 
-  VarBits* bCur = newBits(bLen);
-  if (bCur == NULL)
+  HLFunc* func = getFunc();
+  HLJump* from = nullptr;
+
+  LivenessTarget* ltCur = nullptr;
+  LivenessTarget* ltUnused = nullptr;
+
+  PodList<HLNode*>::Link* retPtr = _returningList.getFirst();
+  ASMJIT_ASSERT(retPtr != nullptr);
+
+  HLNode* node = retPtr->getValue();
+
+  size_t varMapToVaListOffset = _varMapToVaListOffset;
+  BitArray* bCur = newBits(bLen);
+
+  if (bCur == nullptr)
     goto _NoMemory;
 
   // Allocate bits for code visited first time.
@@ -343,14 +382,14 @@ _OnVisit:
         goto _OnDone;
     }
 
-    VarBits* bTmp = copyBits(bCur, bLen);
-    if (bTmp == NULL)
+    BitArray* bTmp = copyBits(bCur, bLen);
+    if (bTmp == nullptr)
       goto _NoMemory;
 
     node->setLiveness(bTmp);
     VarMap* map = node->getMap();
 
-    if (map != NULL) {
+    if (map != nullptr) {
       uint32_t vaCount = map->getVaCount();
       VarAttr* vaList = reinterpret_cast<VarAttr*>(((uint8_t*)map) + varMapToVaListOffset);
 
@@ -359,22 +398,22 @@ _OnVisit:
         VarData* vd = va->getVd();
 
         uint32_t flags = va->getFlags();
-        uint32_t ctxId = vd->getContextId();
+        uint32_t localId = vd->getLocalId();
 
-        if ((flags & kVarAttrOutAll) && !(flags & kVarAttrInAll)) {
+        if ((flags & kVarAttrWAll) && !(flags & kVarAttrRAll)) {
           // Write-Only.
-          bTmp->setBit(ctxId);
-          bCur->delBit(ctxId);
+          bTmp->setBit(localId);
+          bCur->delBit(localId);
         }
         else {
           // Read-Only or Read/Write.
-          bTmp->setBit(ctxId);
-          bCur->setBit(ctxId);
+          bTmp->setBit(localId);
+          bCur->setBit(localId);
         }
       }
     }
 
-    if (node->getType() == kNodeTypeTarget)
+    if (node->getType() == HLNode::kTypeLabel)
       goto _OnTarget;
 
     if (node == func)
@@ -388,12 +427,12 @@ _OnVisit:
 _OnPatch:
   for (;;) {
     ASMJIT_ASSERT(node->hasLiveness());
-    VarBits* bNode = node->getLiveness();
+    BitArray* bNode = node->getLiveness();
 
     if (!bNode->_addBitsDelSource(bCur, bLen))
       goto _OnDone;
 
-    if (node->getType() == kNodeTypeTarget)
+    if (node->getType() == HLNode::kTypeLabel)
       goto _OnTarget;
 
     if (node == func)
@@ -403,30 +442,30 @@ _OnPatch:
   }
 
 _OnTarget:
-  if (static_cast<TargetNode*>(node)->getNumRefs() != 0) {
+  if (static_cast<HLLabel*>(node)->getNumRefs() != 0) {
     // Push a new LivenessTarget onto the stack if needed.
-    if (ltCur == NULL || ltCur->node != node) {
+    if (ltCur == nullptr || ltCur->node != node) {
       // Allocate a new LivenessTarget object (from pool or zone).
       LivenessTarget* ltTmp = ltUnused;
 
-      if (ltTmp != NULL) {
+      if (ltTmp != nullptr) {
         ltUnused = ltUnused->prev;
       }
       else {
-        ltTmp = _baseZone.allocT<LivenessTarget>(
-          sizeof(LivenessTarget) - sizeof(VarBits) + bLen * sizeof(uintptr_t));
+        ltTmp = _zoneAllocator.allocT<LivenessTarget>(
+          sizeof(LivenessTarget) - sizeof(BitArray) + bLen * sizeof(uintptr_t));
 
-        if (ltTmp == NULL)
+        if (ltTmp == nullptr)
           goto _NoMemory;
       }
 
       // Initialize and make current - ltTmp->from will be set later on.
       ltTmp->prev = ltCur;
-      ltTmp->node = static_cast<TargetNode*>(node);
+      ltTmp->node = static_cast<HLLabel*>(node);
       ltCur = ltTmp;
 
-      from = static_cast<TargetNode*>(node)->getFrom();
-      ASMJIT_ASSERT(from != NULL);
+      from = static_cast<HLLabel*>(node)->getFrom();
+      ASMJIT_ASSERT(from != nullptr);
     }
     else {
       from = ltCur->from;
@@ -452,7 +491,7 @@ _OnJumpNext:
       }
 
       from = from->getJumpNext();
-    } while (from != NULL);
+    } while (from != nullptr);
 
     // Pop the current LivenessTarget from the stack.
     {
@@ -477,24 +516,80 @@ _OnJumpNext:
     goto _OnPatch;
 
 _OnDone:
-  if (ltCur != NULL) {
+  if (ltCur != nullptr) {
     node = ltCur->node;
     from = ltCur->from;
 
     goto _OnJumpNext;
   }
+
+  retPtr = retPtr->getNext();
+  if (retPtr != nullptr) {
+    node = retPtr->getValue();
+    goto _OnVisit;
+  }
+
   return kErrorOk;
 
 _NoMemory:
-  return setError(kErrorNoHeapMemory);
+  return setLastError(kErrorNoHeapMemory);
 }
 
 // ============================================================================
-// [asmjit::Context - Schedule]
+// [asmjit::Context - Annotate]
 // ============================================================================
 
-Error Context::schedule() {
-  // By default there is no instruction scheduler implemented.
+Error Context::formatInlineComment(StringBuilder& dst, HLNode* node) {
+#if !defined(ASMJIT_DISABLE_LOGGER)
+  if (node->getComment())
+    dst.appendString(node->getComment());
+
+  if (node->hasLiveness()) {
+    if (dst.getLength() < _annotationLength)
+      dst.appendChars(' ', _annotationLength - dst.getLength());
+
+    uint32_t vdCount = static_cast<uint32_t>(_contextVd.getLength());
+    size_t offset = dst.getLength() + 1;
+
+    dst.appendChar('[');
+    dst.appendChars(' ', vdCount);
+    dst.appendChar(']');
+
+    BitArray* liveness = node->getLiveness();
+    VarMap* map = node->getMap();
+
+    uint32_t i;
+    for (i = 0; i < vdCount; i++) {
+      if (liveness->getBit(i))
+        dst.getData()[offset + i] = '.';
+    }
+
+    if (map != nullptr) {
+      uint32_t vaCount = map->getVaCount();
+      VarAttr* vaList = reinterpret_cast<VarAttr*>(((uint8_t*)map) + _varMapToVaListOffset);
+
+      for (i = 0; i < vaCount; i++) {
+        VarAttr* va = &vaList[i];
+        VarData* vd = va->getVd();
+
+        uint32_t flags = va->getFlags();
+        char c = 'u';
+
+        if ( (flags & kVarAttrRAll) && !(flags & kVarAttrWAll)) c = 'r';
+        if (!(flags & kVarAttrRAll) &&  (flags & kVarAttrWAll)) c = 'w';
+        if ( (flags & kVarAttrRAll) &&  (flags & kVarAttrWAll)) c = 'x';
+
+        // Uppercase if unused.
+        if ((flags & kVarAttrUnuse))
+          c -= 'a' - 'A';
+
+        ASMJIT_ASSERT(offset + vd->getLocalId() < dst.getLength());
+        dst._data[offset + vd->getLocalId()] = c;
+      }
+    }
+  }
+#endif // !ASMJIT_DISABLE_LOGGER
+
   return kErrorOk;
 }
 
@@ -508,21 +603,21 @@ void Context::cleanup() {
 
   for (size_t i = 0; i < length; i++) {
     VarData* vd = array[i];
-    vd->resetContextId();
+    vd->resetLocalId();
     vd->resetRegIndex();
   }
 
   _contextVd.reset(false);
-  _extraBlock = NULL;
+  _extraBlock = nullptr;
 }
 
 // ============================================================================
 // [asmjit::Context - CompileFunc]
 // ============================================================================
 
-Error Context::compile(FuncNode* func) {
-  Node* end = func->getEnd();
-  Node* stop = end->getNext();
+Error Context::compile(HLFunc* func) {
+  HLNode* end = func->getEnd();
+  HLNode* stop = end->getNext();
 
   _func = func;
   _stop = stop;
@@ -535,19 +630,16 @@ Error Context::compile(FuncNode* func) {
   Compiler* compiler = getCompiler();
 
 #if !defined(ASMJIT_DISABLE_LOGGER)
-  if (compiler->hasLogger())
+  if (compiler->getAssembler()->hasLogger())
     ASMJIT_PROPAGATE_ERROR(annotate());
 #endif // !ASMJIT_DISABLE_LOGGER
 
   ASMJIT_PROPAGATE_ERROR(translate());
 
-  if (compiler->hasFeature(kCodeGenEnableScheduler))
-    ASMJIT_PROPAGATE_ERROR(schedule());
-
   // We alter the compiler cursor, because it doesn't make sense to reference
   // it after compilation - some nodes may disappear and it's forbidden to add
   // new code after the compilation is done.
-  compiler->_setCursor(NULL);
+  compiler->_setCursor(nullptr);
 
   return kErrorOk;
 }
