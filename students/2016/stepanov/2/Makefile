@@ -1,8 +1,8 @@
 ROOT   = .
 VM_ROOT = ../../../..
 # This flag disables JIT dependencies.
-# NO_JIT = 1
-JIT_FLAGS = -DASMJIT_RELEASE
+NO_JIT = 0
+# JIT_FLAGS = -DASMJIT_RELEASE
 
 
 USER_CFLAGS = -std=c++11 -O2 -lstdc++ -Wl,--no-as-needed -ldl -g $(JIT_FLAGS)
