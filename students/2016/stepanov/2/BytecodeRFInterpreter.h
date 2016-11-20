@@ -16,35 +16,20 @@ namespace mathvm {
             double doubleValue;
             uint16_t stringIdValue;
         } value;
-        VarType type;
+        StackItem() {
+            value.intValue = 0;
+        }
+
         StackItem(int64_t arg) {
             value.intValue = arg;
-            type = VT_INT;
         }
 
         StackItem(double arg) {
             value.doubleValue = arg;
-            type = VT_DOUBLE;
         }
 
         StackItem(uint16_t arg) {
             value.stringIdValue = arg;
-            type = VT_STRING;
-        }
-
-        inline double getDouble() {
-            assert (type == VT_DOUBLE);
-            return value.doubleValue;
-        }
-
-        inline int64_t getInt() {
-            assert (type == VT_INT);
-            return value.intValue;
-        }
-
-        inline  uint16_t getStringId() {
-            assert (type == VT_STRING);
-            return value.stringIdValue;
         }
     };
 
@@ -57,6 +42,7 @@ namespace mathvm {
         BytecodeFunction *bf;
     public:
         uint32_t IP = 0;
+        //[TODO] REWRITE
         std::vector<StackItem> variables;
         InterScope * parent;
         Status *getStatus() const;
@@ -66,8 +52,6 @@ namespace mathvm {
         Instruction next();
 
         inline uint16_t nextUint16t();
-
-        inline void skip2xUint16t();
 
         inline void skipUint16t();
 

@@ -6,6 +6,75 @@
 #include <cinttypes>
 #include <cmath>
 #include "BytecodeRFInterpreter.h"
+#include "../../../../libs/asmjit/asmjit.h"
+
+using namespace asmjit;
+using namespace asmjit::x86;
+
+namespace mathvm {
+    const int MAX_RARGS = 6;
+    const int MAX_XMM = 8;
+
+    inline int countRegisterArguments(const Signature &signature) {
+        int rArgs = 0, xmm = 0;
+        for (size_t i = 1; i < signature.size(); ++i) {
+            rArgs += signature[i].first != VT_DOUBLE;
+            xmm += signature[i].first == VT_DOUBLE;
+        }
+        return std::min(rArgs, MAX_RARGS) + std::min(xmm, MAX_XMM);
+    }
+
+    X86GpReg rRegisters[] = {rdi, rsi, rdx, rcx, r8, r9};
+    X86XmmReg xmmRegisters[] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
+
+    typedef int64_t (*nativePtr)(int64_t *);
+
+    JitRuntime runtime;
+    X86Assembler assembler(&runtime);
+
+    //[TODO] save
+    nativePtr buildNativeFunction(const Signature &signature, const void *call) {
+        //FileLogger logger(stdout);
+        //assembler.setLogger(&logger);
+
+        const int registersSize = countRegisterArguments(signature);
+        size_t stackSize = signature.size() - registersSize - 1;
+
+        assembler.mov(rax, rdi); // we can clean
+
+        int indexRarg = 0;
+        int indexXmm = 0;
+
+        for (uint64_t i = signature.size(); i >= 2; i--) {
+            if ((signature[i - 1].first == VT_DOUBLE) && (indexXmm < MAX_XMM)) {
+                assembler.movq(xmmRegisters[indexXmm], ptr(rax));
+            } else if ((signature[i - 1].first != VT_DOUBLE) && (indexXmm < MAX_RARGS)) {
+                assembler.mov(rRegisters[indexRarg], ptr(rax));
+            } else {
+                assembler.mov(rsp, ptr(rax));
+                assembler.sub(rsp, 8);
+            }
+            assembler.add(rax, 8);
+        }
+        if (stackSize & 1LL) {
+            assembler.sub(rsp, 8); // Stack aligned on 16 bytes boundary.
+        }
+        assembler.mov(rax, imm_ptr((void *) call));
+        assembler.call(rax);
+        if (signature.operator[](0).first == VT_DOUBLE) {
+            assembler.movq(rax, xmm0); //speed up for if;
+        }
+        if (stackSize & 1LL) {
+            assembler.add(rsp, 8 * (stackSize + 1));
+        } else {
+            assembler.add(rsp, 8 * stackSize);
+        }
+        assembler.ret();
+        return reinterpret_cast<int64_t (*)(int64_t *)>(assembler.make());
+    }
+
+}
+
 
 mathvm::Status *mathvm::InterScope::getStatus() const {
     return status;
@@ -49,10 +118,6 @@ void mathvm::InterScope::skipUint16t() {
     IP += sizeof(uint16_t);
 }
 
-void mathvm::InterScope::skip2xUint16t() {
-    IP += sizeof(uint16_t) + sizeof(uint16_t);
-}
-
 
 bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) {
     static StackItem top((int64_t) 0);
@@ -61,6 +126,10 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
     static InterScope *oldScope;
     static uint16_t scopeId;
     static uint16_t itemId;
+    static const Signature *signature;
+    static const string *name;
+    static const void *call;
+    static nativePtr target;
     switch (instr) {
         case BC_DLOAD:
             stack.push_back(StackItem(is->nextDouble()));
@@ -170,20 +239,17 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             break;
         case BC_SPRINT:
             //printf("%s", constantById(stack.back().getStringId()).c_str());
-            std::cout << constantById(stack.back().getStringId()).c_str();
+            std::cout << constantById(stack.back().value.stringIdValue).c_str();
             stack.pop_back();
             break;
         case BC_I2D:
             stack.back().value.doubleValue = (double) stack.back().value.intValue;
-            stack.back().type = VT_DOUBLE;
             break;
         case BC_D2I:
-            stack.back().value.intValue = (int) stack.back().value.doubleValue;
-            stack.back().type = VT_INT;
+            stack.back().value.intValue = (int64_t) stack.back().value.doubleValue;
             break;
         case BC_S2I:
-            stack.back().value.intValue = (int) stack.back().value.stringIdValue;
-            stack.back().type = VT_INT;
+            stack.back().value.intValue = (int64_t) &constantById(stack.back().value.stringIdValue);
             break;
         case BC_SWAP:
             std::swap(stack.back(), stack[stack.size() - 2]);
@@ -272,7 +338,6 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
         case BC_DCMP:
             top = stack.back();
             stack.pop_back();
-            stack.back().type = VT_INT;
             if (top.value.doubleValue < stack.back().value.doubleValue) {
                 stack.back().value.intValue = -1;
             } else if (fabs(top.value.doubleValue - stack.back().value.doubleValue) <= 1E-10) {
@@ -379,8 +444,32 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             variablesPtr = &(is->variables);
             break;
         case BC_CALLNATIVE:
-            std::cerr << ("native calls in interpretator are not supported yet");
-            assert(false);
+            itemId = is->nextUint16t();
+            call = nativeById(itemId, &signature, &name);
+
+            target = buildNativeFunction(*signature, (void *) call);
+
+            itemId = 1;
+            for (uint64_t i = signature->size(); i >= 2; i--) {
+                if (signature->operator[](i - 1).first == VT_STRING) {
+                    stack[stack.size() - itemId].value.intValue = (int64_t) &(constantById(
+                            stack[stack.size() - itemId].value.stringIdValue)[0]);
+                }
+                ++itemId;
+            }
+
+            top.value.intValue = target(&(stack[stack.size() - signature->size() + 1].value.intValue));
+
+            if (signature->operator[](0).first == VT_STRING) {
+                top.value.stringIdValue = makeStringConstant((char *) top.value.intValue);
+            }
+
+            stack.resize(stack.size() - signature->size() + 1);
+            stack.push_back(top);
+
+            std::cerr << ("native calls in the interpreter are partially supported");
+
+            //assert(false);
             break;
         case BC_RETURN:
             oldScope = is;
@@ -399,6 +488,7 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
     }
     return true;
 }
+
 
 uint16_t mathvm::BytecodeRFInterpreterCode::emptyString() {
     static uint16_t emptyStringId = makeStringConstant("");
