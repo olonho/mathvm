@@ -98,8 +98,9 @@ void PPrintVisitor::visitBlockNode(BlockNode* node) {
 	
 	for (uint32_t i = 0; i < node->nodes(); ++i) {
 		_out << blockIndent;
-		node->nodeAt(i)->visit(this);
-		if (!node->nodeAt(i)->isBlockNode()) {
+        auto st = node->nodeAt(i);
+        st->visit(this);
+		if (!st->isBlockNode() && !st->isWhileNode() && !st->isIfNode() && !st->isForNode()) {
 			_out << SEMICOLON;
 		}
 		_out << std::endl;
@@ -141,8 +142,11 @@ void PPrintVisitor::visitIfNode(IfNode* node) {
 }
 
 void PPrintVisitor::visitReturnNode(ReturnNode* node) {
-	_out << "return" << SPACE;
-	node->returnExpr()->visit(this);
+	_out << "return";
+	if (node->returnExpr() != nullptr) {
+        _out << SPACE;
+		node->returnExpr()->visit(this);
+	}
 }
 
 void PPrintVisitor::visitFunctionNode(FunctionNode* node) {
