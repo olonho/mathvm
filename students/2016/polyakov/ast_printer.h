@@ -2,8 +2,8 @@
 
 #include <string>
 #include <sstream>
-#include "ast.h"
 #include "visitors.h"
+#include "ast.h"
 
 namespace mathvm {
 
@@ -12,12 +12,13 @@ class ASTPrinter : public AstBaseVisitor {
   static const std::string separator;
   static const std::string endline;
 
-  std::stringstream sstream;
+  std::stringstream& sstream;
   std::string currentIndent;
   bool isFunctionBlock;
 
 public:
-  ASTPrinter() { 
+  ASTPrinter(std::stringstream& sstream):
+     sstream(sstream) { 
     isFunctionBlock = false;
   }
 
@@ -27,8 +28,6 @@ public:
   FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
 
-  Status* print_code(std::string &outputSource, 
-    const std::string &inputSource);
 };
 
 }

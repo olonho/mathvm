@@ -9,17 +9,6 @@ const std::string ASTPrinter::indent = "  ";
 const std::string ASTPrinter::separator = " ";
 const std::string ASTPrinter::endline = "\n";
 
-Status* ASTPrinter::print_code(std::string &outputSource, const std::string &inputSource) {
-  Parser parser; 
-  Status* status = parser.parseProgram(inputSource); 
-  if (status->isError()) {
-      return status;
-  }
-  parser.top()->node()->visit(this);
-  outputSource = sstream.str();
-  return Status::Ok();
-}
-
 void ASTPrinter::visitBinaryOpNode(BinaryOpNode* node) { 
   sstream << "(";
   node->left()->visit(this);
