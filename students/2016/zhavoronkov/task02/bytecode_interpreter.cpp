@@ -292,7 +292,7 @@ Status* ExecutableCode :: execute(vector<Var*>& vars) {
                 stack.pop_back();
                 double lower = stack.back().doubleVal();
                 stack.pop_back();
-                int64_t res = upper == lower ? 0 : (upper < lower ? -1 : 1);
+                int64_t res = (upper == lower) ? 0 : (upper < lower ? -1 : 1);
                 stack.push_back(StackValue::saveInt(res));
                 break;
             }
@@ -302,7 +302,9 @@ Status* ExecutableCode :: execute(vector<Var*>& vars) {
                 stack.pop_back();
                 int64_t lower = stack.back().doubleVal();
                 stack.pop_back();
-                int64_t res = upper == lower ? 0 : (upper < lower ? -1 : 1);
+                cout << "INT: " << upper << " " << lower << std :: endl;
+                int64_t res = (upper == lower) ? 0 : (upper < lower ? -1 : 1);
+                cout << "INT: " << res << std :: endl;
                 stack.push_back(StackValue::saveInt(res));
                 break;
             }

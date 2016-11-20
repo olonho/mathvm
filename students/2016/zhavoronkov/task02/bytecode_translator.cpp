@@ -286,59 +286,36 @@ Bytecode* BytecodePrinter :: getCurrentBytecode() {
 }
 
 void BytecodePrinter :: handleCmp(BinaryOpNode* node) {
-    node->right()->visit(this);
-    VarType rType = _topType;
-    node->left()->visit(this);
-    VarType lType = _topType;
-
-    castOperandTypes(lType, rType);
-
-    getCurrentBytecode()->addInsn(COMPARE(_topType));
+    Instruction ins = BC_INVALID;
 
     switch (node->kind()) {
         case tGT: {
-            getCurrentBytecode()->addInsn(BC_INEG);
-            //break;
+            ins = BC_IFICMPG;
+            break;
         }
 
         case tLT: {
-            getCurrentBytecode()->addInsn(BC_ILOAD);
-            getCurrentBytecode()->addInt64(-2);
-            getCurrentBytecode()->addInsn(BC_IAAND);
-            getCurrentBytecode()->addInsn(BC_ILOAD);
-            getCurrentBytecode()->addInt64(-2);
-            getCurrentBytecode()->addInsn(BC_SWAP);
-            getCurrentBytecode()->addInsn(BC_IDIV);
+            ins = BC_IFICMPL;
             break;
         }
 
         case tLE: {
-            getCurrentBytecode()->addInsn(BC_INEG);
-            //break;
+            ins = BC_IFICMPLE;
+            break;
         }
 
         case tGE: {
-            getCurrentBytecode()->addInsn(BC_ILOAD);
-            getCurrentBytecode()->addInt64(-2);
-            getCurrentBytecode()->addInsn(BC_IAAND);
-            getCurrentBytecode()->addInsn(BC_ILOAD);
-            getCurrentBytecode()->addInt64(-2);
-            getCurrentBytecode()->addInsn(BC_SWAP);
-            getCurrentBytecode()->addInsn(BC_IDIV);
-            getCurrentBytecode()->addInsn(BC_ILOAD1);
-            getCurrentBytecode()->addInsn(BC_IAXOR);
+            ins = BC_IFICMPGE;
             break;
         }
 
         case tEQ: {
-            getCurrentBytecode()->addInsn(BC_ILOAD1);
-            getCurrentBytecode()->addInsn(BC_IAXOR);
-            //break;
+            ins = BC_IFICMPE;
+            break;
         }
 
         case tNEQ: {
-            getCurrentBytecode()->addInsn(BC_ILOAD1);
-            getCurrentBytecode()->addInsn(BC_IAAND);
+            ins = BC_IFICMPNE;
             break;
         }
 
@@ -346,6 +323,21 @@ void BytecodePrinter :: handleCmp(BinaryOpNode* node) {
             throw TranslationException("Unknown comparison operation.");
         }
     }
+
+    node->right()->visit(this);
+    castTopType(VT_INT);
+    node->left()->visit(this);
+    castTopType(VT_INT);
+
+    Label l1(getCurrentBytecode());
+    getCurrentBytecode()->addBranch(ins, l1);
+    getCurrentBytecode()->addInsn(BC_ILOAD0);
+    Label l2(getCurrentBytecode());
+    getCurrentBytecode()->addBranch(BC_JA, l2);
+    getCurrentBytecode()->bind(l1);
+    getCurrentBytecode()->addInsn(BC_ILOAD1);
+    getCurrentBytecode()->bind(l2);
+    _topType = VT_INT;
 }
 
 void BytecodePrinter :: handleArithmeticOp(BinaryOpNode* node) {
@@ -557,6 +549,10 @@ void BytecodePrinter :: castTopType(VarType targetType) {
                     throw TranslationException("Can't cast double to specifed type.");
                 }
             }
+            break;
+        }
+
+        case VT_STRING: {
             break;
         }
 
