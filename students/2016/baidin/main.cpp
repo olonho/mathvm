@@ -1,243 +1,147 @@
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include "parser.h"
+
 #include "mathvm.h"
-#include "visitors.h"
+#include "parser.h"
+#include "BytecodeTranslator.h"
+#include "BytecodeInterpreter.h"
+#include <stdio.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
-using namespace std;
+
+#include <iostream>
+
+namespace mathvm {
+    using namespace std;
+
+    class ToBytecodeTranslator : public Translator {
+        ostream &out;
+    public:
+        ToBytecodeTranslator(ostream &out = cout) : out(out) {};
+
+        virtual ~ToBytecodeTranslator() override {}
+
+        virtual Status *translate(const string &program, Code **code) override {
+            Parser parser = Parser();
+            Status *parseStatus = parser.parseProgram(program);
+            if (parseStatus->isError()) {
+                return parseStatus;
+            }
+            delete parseStatus;
+
+
+            BytecodeInterpreter *interpreter = new BytecodeInterpreter(out);
+            try {
+                BytecodeFunction *topFunction = new BytecodeFunction(parser.top());
+                interpreter->addFunction(topFunction);
+                ToBytecodeVisitor *visitor = new ToBytecodeVisitor(interpreter, topFunction->bytecode(),
+                                                                   topFunction);
+                parser.top()->node()->visit(visitor);
+                delete visitor;
+            } catch (const char *msg) {
+                return Status::Error(msg);
+            }
+
+            *code = interpreter;
+
+            return Status::Ok();
+        }
+    };
+
+
+    Translator *Translator::create(const string &impl) {
+        return new ToBytecodeTranslator();
+    }
+}
+
+
 using namespace mathvm;
+using namespace std;
 
-class PrintVisitor : public AstVisitor {
-private:
-    stringstream _out{};
-    int32_t indentCount = 0;
-public:
-    PrintVisitor() {
-    }
 
-    virtual ~PrintVisitor() {}
+void translateAndRun(string &programText, Translator *translator) {
+    Code *code = 0;
 
-    virtual void visitBinaryOpNode(BinaryOpNode *node) {
-        _out << "(";
-        node->left()->visit(this);
-        _out << " " << tokenOp(node->kind()) << " ";
-        node->right()->visit(this);
-        _out << ")";
-    }
+    Status *translateStatus = translator->translate(programText, &code);
+    if (translateStatus->isError()) {
+        uint32_t position = translateStatus->getPosition();
+        uint32_t line = 0, offset = 0;
+        positionToLineOffset(programText, position, line, offset);
+        printf("Cannot translate expression: expression at %d,%d; "
+                       "error '%s'\n",
+               line, offset,
+               translateStatus->getErrorCstr());
+    } else {
+        vector<Var *> vars;
 
-    virtual void visitUnaryOpNode(UnaryOpNode *node) {
-        _out << tokenOp(node->kind());
-        node->operand()->visit(this);
-    }
 
-    virtual void visitStringLiteralNode(StringLiteralNode *node) {
-        _out << "'";
-        for (auto c: node->literal()) {
-            _out << escapeCharacter(c);
+        Status *execStatus = code->execute(vars);
+        if (execStatus->isError()) {
+            printf("Cannot execute expression: error: %s\n",
+                   execStatus->getErrorCstr());
         }
-        _out << "'";
+        delete code;
+        delete execStatus;
     }
+    delete translateStatus;
+    delete translator;
+}
 
-    static string escapeCharacter(char ch) {
-        switch (ch) {
-            case '\'':
-                return "\\'";
-            case '\"':
-                return "\\'";
-            case '\n':
-                return "\\n";
-            case '\r':
-                return "\\r";
-            case '\t':
-                return "\\t";
-            default:
-                return string(1, ch);
-        }
-    }
-
-    virtual void visitDoubleLiteralNode(DoubleLiteralNode *node) {
-        _out << node->literal();
-    }
-
-    virtual void visitIntLiteralNode(IntLiteralNode *node) {
-        _out << node->literal();
-    }
-
-    virtual void visitLoadNode(LoadNode *node) {
-        _out << node->var()->name();
-    }
-
-    virtual void visitStoreNode(StoreNode *node) {
-        _out << node->var()->name() << " ";
-        _out << tokenOp(node->op()) << " ";
-        node->value()->visit(this);
-    }
-
-    virtual void visitBlockNode(BlockNode *node) {
-        if (indentCount != 0) {
-            _out << " {\n";
-        }
-        ++indentCount;
-
-        Scope::VarIterator varIterator{node->scope()};
-        while (varIterator.hasNext()) {
-            auto *var = varIterator.next();
-            addIndent();
-            _out << typeToName(var->type()) << " " << var->name() << ";" << "\n";
-        }
-
-
-        Scope::FunctionIterator functionIterator{node->scope()};
-        while (functionIterator.hasNext()) {
-            auto *var = functionIterator.next();
-            addIndent();
-            visitFunctionNode(var->node());
-        }
-
-        uint32_t nodeCount = node->nodes();
-        for (uint32_t i = 0; i < nodeCount; ++i) {
-            addIndent();
-            auto *child = node->nodeAt(i);
-            child->visit(this);
-            if (!(child->isBlockNode() || child->isIfNode() || child->isForNode()
-                  || child->isWhileNode()))
-                _out << ";" << "\n";
-        }
-        --indentCount;
-        if (indentCount != 0) {
-            addIndent();
-            _out << "}\n";
-        }
-    }
-
-    virtual void visitNativeCallNode(NativeCallNode *node) {
-        _out << "native '" << node->nativeName() << "';";
-    }
-
-    virtual void visitForNode(ForNode *node) {
-        _out << "for (" << node->var()->name() << " in ";
-        node->inExpr()->visit(this);
-        _out << ")";
-        node->body()->visit(this);
-    }
-
-    virtual void visitWhileNode(WhileNode *node) {
-        _out << "while (";
-        node->whileExpr()->visit(this);
-        _out << ")";
-        node->loopBlock()->visit(this);
-    }
-
-    virtual void visitIfNode(IfNode *node) {
-        _out << "if (";
-        node->ifExpr()->visit(this);
-        _out << ")";
-        node->thenBlock()->visit(this);
-        if (node->elseBlock() != 0) {
-            addIndent();
-            _out << "else\n";
-            for (int32_t j = 0; j < 3 * (indentCount - 1) - 1; ++j) {
-                _out << " ";
-            }
-            node->elseBlock()->visit(this);
-        }
-    }
-
-    virtual void visitReturnNode(ReturnNode *node) {
-        _out << "return ";
-        if (node->returnExpr()) {
-            node->returnExpr()->visit(this);
-        }
-    }
-
-    virtual void visitFunctionNode(FunctionNode *node) {
-        _out << "function " << typeToName(node->returnType()) << " " << node->name() << "(";
-        uint32_t parameterCount = node->parametersNumber();
-        for (uint32_t i = 0; i < parameterCount; ++i) {
-            if (i != 0) {
-                _out << ", ";
-            }
-            _out << typeToName(node->parameterType(i)) << " " << node->parameterName(i);
-        }
-        _out << ")";
-
-        if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode()) {
-            node->body()->nodeAt(0)->visit(this);
-        } else {
-            node->body()->visit(this);
-        }
-
-
-    }
-
-    virtual void visitCallNode(CallNode *node) {
-        _out << node->name() << "(";
-        uint32_t parameterCount = node->parametersNumber();
-        for (uint32_t i = 0; i < parameterCount; ++i) {
-            if (i != 0) {
-                _out << ", ";
-            }
-            node->parameterAt(i)->visit(this);
-        }
-        _out << ")";
-    }
-
-    virtual void visitPrintNode(PrintNode *node) {
-        _out << "print(";
-        uint32_t operandCount = node->operands();
-        for (uint32_t i = 0; i < operandCount; ++i) {
-            if (i != 0) {
-                _out << ", ";
-            }
-            node->operandAt(i)->visit(this);
-        }
-        _out << ")";
-    }
-
-    string toString() {
-        return _out.str();
-    }
-
-private:
-    void addIndent() {
-        for (int32_t j = 0; j < indentCount - 1; ++j) {
-            _out << "   ";
-        }
-    }
-};
-
-
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        std::cout << "No file specified!" << std::endl;
-        return 0;
-    }
-
-    string fileName = argv[1];
-
+string loadText(const string &fileName) {
     ifstream inputFileStream{fileName};
 
     stringstream stringStream;
     stringStream << inputFileStream.rdbuf();
 
-    string programText = stringStream.str();
-
-
-    Parser parser{};
-    Status *status = parser.parseProgram(programText);
-
-    if (status->isError()) {
-        cout << status->getError() << endl;
-        return 0;
-    }
-
-    delete status;
-
-    PrintVisitor printVisitor;
-    parser.top()->node()->visitChildren(&printVisitor);
-    cout << printVisitor.toString();
-
+    return stringStream.str();
 }
 
 
+int main(int argc, char **argv) {
+    string impl = "";
+    if (argc <= 1) {
+        cout << "No file name arg!" << endl;
+        return 1;
+    }
+
+    //test mode
+    if (string(argv[1]) == "-t") {
+        vector<string> tests = {"ackermann", "add", "assign", "bitwise", "div", "expr", "for", "function", "if", "literal", "mul",
+                                "sub", "while"};
+        for (auto it = tests.begin(); it != tests.end(); ++it) {
+            stringstream stream;
+            Translator *translator = new ToBytecodeTranslator{stream};
+            cout << "test name:" << (*it) << endl;
+            string mvmFileName = "./tests/" + (*it) + ".mvm";
+//            cout << "load from " << mvmFileName << endl;
+
+            string programText = loadText(mvmFileName.c_str());
+
+//            cout << programText << endl;
+            translateAndRun(programText, translator);
+            string resultText = stream.str();
+//            cout << "result: \n" << resultText << endl;
+
+            string expectedFileName = "./tests/" + (*it) + ".expect";
+            string expectedString = loadText(expectedFileName.c_str());
+//            cout << "expected: \n" << expectedString << endl;
+
+            if (resultText != expectedString) {
+                cout << "TEST FAILED!" << endl;
+            } else {
+                cout << "TEST PASSED!" << endl;
+            }
+        }
+        return 0;
+    }
+
+    string programText = loadText(argv[1]);
+
+    Translator *translator = Translator::create(impl);
+    translateAndRun(programText, translator);
+
+    return 0;
+}

@@ -4,8 +4,7 @@ namespace mathvm {
 
 Translator *Translator::create(const string& impl) {
     if (impl == "" || impl == "intepreter") {
-        //return new BytecodeTranslatorImpl();
-        return 0;
+        return new BytecodeTranslatorImpl();
     }
     if (impl == "jit") {
         //return new MachCodeTranslatorImpl();

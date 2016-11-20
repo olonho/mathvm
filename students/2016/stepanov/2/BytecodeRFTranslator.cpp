@@ -482,9 +482,7 @@ void mathvm::BytecodeRfVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 
     switch (node->kind()) {
         case tNOT:
-            if (type != VT_INT) {
-                throw new VmException("unexpected type for not operator", node->position());
-            }
+            prepareTopType(VT_INT);
             bc->add(BC_ILOAD0);
             bc->addBranch(BC_IFICMPNE, failLabel);
             bc->add(BC_ILOAD1);
