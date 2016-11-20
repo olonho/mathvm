@@ -20,7 +20,8 @@ USER_OBJ = \
 	 $(OBJ)/BytecodeTranslator_impl$(OBJ_SUFF) \
 	 $(OBJ)/BytecodeTranslatorVisitor$(OBJ_SUFF) \
 	 $(OBJ)/TranslationContext$(OBJ_SUFF) \
-	 $(OBJ)/TranslationException$(OBJ_SUFF)
+	 $(OBJ)/TranslationException$(OBJ_SUFF) \
+	 $(OBJ)/Interpreter$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 

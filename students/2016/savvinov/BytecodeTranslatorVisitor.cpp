@@ -50,13 +50,7 @@ void BytecodeTranslatorVisitor::visitBlockNode(BlockNode *node) {
             statement->visit(this);
 
             // Remove ignored return value
-            if (statement->isIntLiteralNode()
-                    || statement->isStringLiteralNode()
-                    || statement->isDoubleLiteralNode()
-                    || statement->isLoadNode()
-                    || statement->isCallNode()
-                    || statement->isBinaryOpNode()
-                    || statement->isUnaryOpNode()) {
+            if (pushesOnStack(statement)) {
                 ctx.curFunction()->bytecode()->addInsn(BC_POP);
             }
         }
@@ -65,10 +59,10 @@ void BytecodeTranslatorVisitor::visitBlockNode(BlockNode *node) {
 
 void BytecodeTranslatorVisitor::visitScope(Scope *scope) {
     Scope::VarIterator varIterator(scope);
-    
+
     while(varIterator.hasNext()) {
         AstVar * curVar = varIterator.next();
-        ctx.declareVariable(curVar);
+        ctx.declareVariable(curVar, scope);
     }
 
     vector <AstFunction*> funDeclarations {};
@@ -116,8 +110,14 @@ void BytecodeTranslatorVisitor::visitForNode(ForNode *node) {
 
     // assign initial value to iterator
     VarType leftType = visitExpressionWithResult(range->left());
-    if (leftType != VT_INT) {
-        throw TranslationException("Ranges boundaries can be only integer");
+    switch(leftType) {
+        case VT_DOUBLE:
+            curBytecode->addInsn(BC_D2I);
+            break;
+        case VT_STRING:
+            curBytecode->addInsn(BC_S2I);
+        default:
+            break;
     }
     storeIntoVariable(VT_INT, forVarId);
 
@@ -128,11 +128,17 @@ void BytecodeTranslatorVisitor::visitForNode(ForNode *node) {
     curBytecode->bind(boundsCheckLabel);
     // Emit bounds check code
     VarType rightType = visitExpressionWithResult(range->right());
-    if (rightType != VT_INT) {
-        throw TranslationException("Ranges boundaries can be only integer!");
+    switch(rightType) {
+        case VT_DOUBLE:
+            curBytecode->addInsn(BC_D2I);
+            break;
+        case VT_STRING:
+            curBytecode->addInsn(BC_S2I);
+        default:
+            break;
     }
-    loadFromVariable(VT_INT, forVarId);
-    curBytecode->addBranch(BC_IFICMPL, end);
+    loadFromLocal(VT_INT, forVarId);
+    curBytecode->addBranch(BC_IFICMPG, end);
 
     ctx.pushScope(innerScope);
     visitScope(innerScope);
@@ -197,7 +203,7 @@ void BytecodeTranslatorVisitor::assignConstant(uint16_t id, VarType type, T valu
     storeIntoVariable(type, id);
 }
 
-void BytecodeTranslatorVisitor::loadFromVariable(VarType type, uint16_t id) {
+void BytecodeTranslatorVisitor::loadFromLocal(VarType type, uint16_t id) {
     Bytecode *bytecode = ctx.curFunction()->bytecode();
     Instruction insn;
 
@@ -207,7 +213,7 @@ void BytecodeTranslatorVisitor::loadFromVariable(VarType type, uint16_t id) {
         case VT_STRING: insn = BC_LOADSVAR; break;
         default: throw TranslationException(
                     (
-                            string("Can't load variable of type ") + string(typeToName(VT_STRING))
+                            string("Can't load variable of type ") + string(typeToName(type))
                     ).c_str()
             );
     }
@@ -220,7 +226,7 @@ void BytecodeTranslatorVisitor::loadFromVariable(VarType type, uint16_t id) {
 void BytecodeTranslatorVisitor::increment(uint16_t id) {
     Bytecode * bytecode = ctx.curFunction()->bytecode();
 
-    loadFromVariable(VT_INT, id);
+    loadFromLocal(VT_INT, id);
     bytecode->addInsn(BC_ILOAD1);
     bytecode->addInsn(BC_IADD);
     storeIntoVariable(VT_INT, id);
@@ -279,13 +285,18 @@ VarType BytecodeTranslatorVisitor::visitExpressionWithResult(AstNode * node) {
 void BytecodeTranslatorVisitor::visitLoadNode(LoadNode *node) {
     const AstVar * var = node->var();
     uint16_t id = ctx.getVarID(var);
-    loadFromVariable(var->type(), id);
+    uint16_t ctxId = ctx.getCtxID(var);
+    if (ctxId == ctx.curFunction()->id()) {
+        loadFromLocal(var->type(), id);
+    } else {
+        loadFromContext(var->type(), id, ctxId);
+    }
 }
 
 void BytecodeTranslatorVisitor::visitIfNode(IfNode *node) {
     AstNode * ifExpr = node->ifExpr();
     Bytecode *bytecode = ctx.curFunction()->bytecode();
-    Label falseBranch(bytecode);
+    Label falseBranch(bytecode), end(bytecode);
 
     // check condition
     visitExpressionWithResult(ifExpr);
@@ -297,8 +308,9 @@ void BytecodeTranslatorVisitor::visitIfNode(IfNode *node) {
     ctx.pushScope(thenScope);
     visitScope(thenScope);
     node->thenBlock()->visit(this);
+    bytecode->addBranch(BC_JA, end);
     ctx.popScope();
-    
+
     // false branch
     bytecode->bind(falseBranch);
     if (node->elseBlock()) {
@@ -308,6 +320,7 @@ void BytecodeTranslatorVisitor::visitIfNode(IfNode *node) {
         node->elseBlock()->visit(this);
         ctx.popScope();
     }
+    bytecode->bind(end);
 }
 
 void BytecodeTranslatorVisitor::visitStoreNode(StoreNode *node) {
@@ -316,43 +329,35 @@ void BytecodeTranslatorVisitor::visitStoreNode(StoreNode *node) {
 
     VarType valueType = visitExpressionWithResult(node->value());
 
-    if (var->type() != valueType) {
-        throw TranslationException(
-                (
-                        string("Can't assign value of type ") +
-                        string(typeToName(valueType)) +
-                        string(" to ") +
-                        string(typeToName(var->type()))
-                ).c_str());
-    }
-    
+    castType(valueType, var->type());
+
     if (node->op() == tINCRSET) {
         incrementIntoVariable(var->type(), id);
         return;
     }
-    
+
     if (node->op() == tDECRSET) {
         decrementIntoVariable(var->type(), id);
         return;
     }
-    
+
     storeIntoVariable(var->type(), id);
 }
 
 void BytecodeTranslatorVisitor::visitWhileNode(WhileNode *node) {
     Bytecode * bytecode = ctx.curFunction()->bytecode();
     Label end(bytecode), check(bytecode);
-    
+
     // Condition check
     bytecode->bind(check);
     visitExpressionWithResult(node->whileExpr());
     bytecode->addInsn(BC_ILOAD0);
     bytecode->addBranch(BC_IFICMPE, end);
-    
+
     // Body
     Scope * loopScope = node->loopBlock()->scope();
     ctx.pushScope(loopScope);
-    
+
     visitScope(loopScope);
     node->loopBlock()->visit(this);
     bytecode->addBranch(BC_JA, check);
@@ -372,17 +377,7 @@ void BytecodeTranslatorVisitor::visitReturnNode(ReturnNode *node) {
     }
     VarType exprType = visitExpressionWithResult(returnExpr);
 
-    if (exprType != ctx.curFunction()->returnType()) {
-        throw TranslationException(
-                (
-                        string("Can't return expression of type ") +
-                        string(typeToName(exprType)) +
-                        string(" for function with return type ") +
-                        string(typeToName(ctx.curFunction()->returnType()))
-                ).c_str()
-        );
-    }
-
+    castType(exprType, ctx.curFunction()->returnType());
     bytecode->addInsn(BC_RETURN);
 }
 
@@ -415,26 +410,17 @@ void BytecodeTranslatorVisitor::visitCallNode(CallNode *node) {
         throw TranslationException(
                 (
                         string("Bad arguments number: expected ") +
-                        std::to_string(function->signature().size()) + 
-                        string(" got ") + 
+                        std::to_string(function->signature().size()) +
+                        string(" got ") +
                         std::to_string(node->parametersNumber())
                 ).c_str()
         );
     }
-    
+
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
         AstNode *expr = node->parameterAt(i);
         VarType type = visitExpressionWithResult(expr);
-        if (type != function->parameterType(i)) {
-            throw TranslationException(
-                    (
-                            string("Can't pass expression of type ") +
-                            string(typeToName(type)) +
-                            string(" to function argument with return type ") +
-                            string(typeToName(function->parameterType(i)))
-                    ).c_str()
-            );
-        }
+        castType(type, function->parameterType(i));
     }
 
     bytecode->addInsn(BC_CALL);
@@ -482,12 +468,10 @@ void BytecodeTranslatorVisitor::visitUnaryOpNode(UnaryOpNode *node) {
         ctx.tosType = type;
         switch (type) {
             case VT_INT:
-                bytecode->addInsn(BC_ILOAD0);
-                bytecode->addInsn(BC_ISUB);
+                bytecode->addInsn(BC_INEG);
                 break;
             case VT_DOUBLE:
-                bytecode->addInsn(BC_DLOAD0);
-                bytecode->addInsn(BC_DSUB);
+                bytecode->addInsn(BC_DNEG);
                 break;
             default:
                 throw TranslationException(
@@ -587,7 +571,7 @@ BytecodeTranslatorVisitor::BytecodeTranslatorVisitor()
 
 void BytecodeTranslatorVisitor::incrementIntoVariable(VarType type, uint16_t id) {
     Bytecode *bytecode = ctx.curFunction()->bytecode();
-    loadFromVariable(type, id);
+    loadFromLocal(type, id);
     switch (type) {
         case VT_INT:
             bytecode->addInsn(BC_IADD);
@@ -603,7 +587,7 @@ void BytecodeTranslatorVisitor::incrementIntoVariable(VarType type, uint16_t id)
 
 void BytecodeTranslatorVisitor::decrementIntoVariable(VarType type, uint16_t id) {
     Bytecode *bytecode = ctx.curFunction()->bytecode();
-    loadFromVariable(type, id);
+    loadFromLocal(type, id);
     switch (type) {
         case VT_INT:
             bytecode->addInsn(BC_ISUB);
@@ -657,4 +641,69 @@ void BytecodeTranslatorVisitor::compare(Instruction insn, VarType type) {
 
     ctx.tosType = VT_INT;
 }
-} // mathvm namespace
+
+bool BytecodeTranslatorVisitor::pushesOnStack(AstNode * statement) {
+    // Call is a separate case
+    if (statement->isCallNode()) {
+        string const & functionName = statement->asCallNode()->name();
+        TranslatedFunction *function = code->functionByName(functionName);
+        return function->returnType() != VT_VOID;
+    }
+    return statement->isIntLiteralNode()
+            || statement->isStringLiteralNode()
+            || statement->isDoubleLiteralNode()
+            || statement->isLoadNode()
+            || statement->isBinaryOpNode()
+            || statement->isUnaryOpNode();
+}
+
+void BytecodeTranslatorVisitor::castType(VarType from, VarType to) {
+    if (from == to) {
+        return;
+    }
+
+    if (from == VT_INT || to == VT_DOUBLE) {
+        ctx.curFunction()->bytecode()->addInsn(BC_I2D);
+        return;
+    }
+
+    if (from == VT_DOUBLE && to == VT_INT) {
+        ctx.curFunction()->bytecode()->addInsn(BC_D2I);
+        return;
+    }
+
+    if (from == VT_STRING && to == VT_INT) {
+        ctx.curFunction()->bytecode()->addInsn(BC_S2I);
+        return;
+    }
+
+    throw TranslationException(
+            (
+                    string("Can't assign value of type ") +
+                    string(typeToName(from)) +
+                    string(" to ") +
+                    string(typeToName(to))
+            ).c_str());
+    }
+
+void BytecodeTranslatorVisitor::loadFromContext(VarType type, uint16_t id, uint16_t ctxId) {
+    Bytecode *bytecode = ctx.curFunction()->bytecode();
+    Instruction insn;
+
+    switch (type) {
+        case VT_INT: insn = BC_LOADCTXIVAR; break;
+        case VT_DOUBLE: insn = BC_LOADCTXDVAR; break;
+        case VT_STRING: insn = BC_LOADCTXSVAR; break;
+        default: throw TranslationException(
+                    (
+                            string("Can't load variable of type ") + string(typeToName(type))
+                    ).c_str()
+            );
+    }
+
+    bytecode->addInsn(insn);
+    bytecode->addUInt16(ctxId);
+    bytecode->addUInt16(id);
+    ctx.tosType = type;
+}
+}  // mathvm namespace

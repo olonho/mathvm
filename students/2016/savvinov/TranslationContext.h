@@ -14,6 +14,13 @@
 
 namespace mathvm {
 
+class Info {
+public:
+    uint32_t localId;
+    int16_t funcId;
+
+    Info(uint32_t id, int16_t funcId);
+};
 class TranslationContext {
     unordered_map<string, FunctionID> functionsIDs {};
     unordered_map<string, uint16_t> stringIDs {};
@@ -35,7 +42,9 @@ public:
     uint16_t getVarID(AstVar const * var);
     uint16_t getFunID(const string & name);
 
-    void declareVariable(AstVar *pVar);
+    void declareVariable(AstVar *pVar, Scope *pScope);
+
+    uint16_t getCtxID(const AstVar *pVar);
 };
 
 } // mathvm namespace

@@ -24,7 +24,7 @@ private:
     template <class T>
     void loadConstant(VarType type, T value);
     void storeIntoVariable(VarType type, uint16_t id);
-    void loadFromVariable(VarType type, uint16_t id);
+    void loadFromLocal(VarType type, uint16_t id);
     void visitScope(Scope * scope);
     VarType visitExpressionWithResult(AstNode *pNode);
 
@@ -58,6 +58,12 @@ public:
     void decrementIntoVariable(VarType type, uint16_t id);
 
     void compare(Instruction insn, VarType type);
+
+    bool pushesOnStack(AstNode *pNode);
+
+    void castType(VarType type, VarType returnType);
+
+    void loadFromContext(VarType type, uint16_t id, uint16_t ctxId);
 };
 
 }

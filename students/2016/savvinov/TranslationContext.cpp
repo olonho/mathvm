@@ -45,10 +45,15 @@ uint16_t TranslationContext::getVarID(const string &name) {
     return *static_cast<uint16_t *>(info);
 }
 
-void TranslationContext::declareVariable(AstVar * var) {
-    uint32_t * varLocalId = new uint32_t(curFunction()->localsNumber());
-    curFunction()->setLocalsNumber(*varLocalId + 1);
-    var->setInfo(varLocalId);
+void TranslationContext::declareVariable(AstVar *var, Scope *pScope) {
+    uint32_t varLocalId = curFunction()->localsNumber();
+    curFunction()->setLocalsNumber((uint16_t) (varLocalId + 1));
+    uint16_t curFunctionId = curFunction()->id();
+
+    Info * info = new Info(varLocalId, curFunctionId);
+    var->setInfo(info);
+
+    Bytecode * bc = curFunction()->bytecode();
 }
 
 uint16_t TranslationContext::getFunID(const string &name) {
@@ -65,4 +70,9 @@ uint16_t TranslationContext::getFunID(const string &name) {
     return iter->second;
 }
 
+uint16_t TranslationContext::getCtxID(const AstVar *pVar) {
+    return (uint16_t) static_cast<Info *>(pVar->info())->funcId;
+}
+
+Info::Info(uint32_t id, int16_t funcId) : localId(id), funcId(funcId) {}
 }
