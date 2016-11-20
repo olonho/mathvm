@@ -1,4 +1,5 @@
-#include "PrinterTranslator.h"
+#include "printer_translator.h"
+#include "bytecode_translator.h"
 
 namespace mathvm {
 
@@ -7,7 +8,7 @@ Translator* Translator::create(const string& impl) {
         return new PrinterTranslator();
     }
 
-    return nullptr;
+    return new BytecodeTranslatorImpl();
 }
 
 }

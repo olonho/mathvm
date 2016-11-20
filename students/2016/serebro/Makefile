@@ -13,7 +13,10 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/formatter$(OBJ_SUFF)
+   $(OBJ)/formatter$(OBJ_SUFF) \
+   $(OBJ)/translator_impl$(OBJ_SUFF) \
+   $(OBJ)/bytecode_writer$(OBJ_SUFF) \
+   $(OBJ)/type_deducer$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 

@@ -170,7 +170,7 @@ void PrinterVisitor::visitNativeCallNode(NativeCallNode *node) {
 
 void PrinterVisitor::visitBlockNode(BlockNode *node) {
     // Check if it is native call block, because it's a degenerate case
-    if (node->nodeAt(0)->isNativeCallNode()) {
+    if (node->nodes() > 0 && node->nodeAt(0)->isNativeCallNode()) {
         shouldIndent = false;
         node->nodeAt(0)->visit(this);
         shouldIndent = true;
