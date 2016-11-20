@@ -1,5 +1,5 @@
 ROOT   = .
-VM_ROOT = ../../..
+VM_ROOT = ../../../..
 TEST_ROOT = $(VM_ROOT)/tests
 
 # This flag disables JIT dependencies.
