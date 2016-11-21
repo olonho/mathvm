@@ -1,8 +1,8 @@
 //
 // Created by Mark Geller on 13.10.16.
 //
-#include "../../../include/ast.h"
-#include "../../../vm/parser.h"
+#include "../../../../include/ast.h"
+#include "../../../../vm/parser.h"
 #include "translator_impl.h"
 
 

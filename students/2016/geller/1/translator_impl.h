@@ -7,7 +7,7 @@
 
 #include <fstream>
 #include <iostream>
-#include "../../../include/ast.h"
+#include "../../../../include/ast.h"
 using namespace mathvm;
 
 class ASTPrinter: AstVisitor{
