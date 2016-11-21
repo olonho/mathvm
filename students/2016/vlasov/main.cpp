@@ -39,6 +39,25 @@ int printer(int argc, char** argv) {
     return 0;
 }
 
+void printError(mathvm::Status *status, const std::string& program) {
+    int pos = 0;
+    int nextLine = -1;
+    while((nextLine = program.find('\n', nextLine + 1)) != -1) {
+        if(nextLine > (int)status->getPosition()) {
+			break;
+        }
+        pos = nextLine;
+    }
+    if(nextLine == -1) {
+        nextLine = program.length();
+    }
+    std::string line(program, pos, nextLine - pos);
+    std::cout << line << std::endl;
+    std::string pointer(status->getPosition() - pos, ' ');
+    std::cout << pointer << '^' << std::endl;
+    std::cout << "Error: " << status->getError() << std::endl;
+}
+
 int translator(int argc, char** argv) {
     if(argc < 3) {
         std::cout << "Usage: " << argv[0] << " <input_file> <output_file>" << std::endl;
@@ -52,10 +71,16 @@ int translator(int argc, char** argv) {
 
 	mathvm::Translator* translator = mathvm::Translator::create();
     mathvm::Code* code = new mathvm::CodeImpl();
-    translator->translate(content, &code);
+    mathvm::Status* s = translator->translate(content, &code);
+
+    if(!s->isOk()) {
+        printError(s, content);
+		return 1;
+    }
 
     std::ofstream out(argv[2]);
     code->disassemble(out);
+	std::cout << "Done" << std::endl;
     return 0;
 }
 

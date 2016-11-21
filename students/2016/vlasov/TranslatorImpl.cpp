@@ -28,8 +28,7 @@ Status* BytecodeTranslatorImpl::translate(const std::string& program, Code** cod
 
 	TranslatorVisitor vis(*code);
 	try {
-		vis.prepareScope(parser.top()->scope());
-		parser.top()->node()->visit(&vis);
+		vis.declareScope(parser.top()->scope(), true);
 	} catch (Status* s) {
 		return s;
 	}

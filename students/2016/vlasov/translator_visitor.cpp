@@ -243,7 +243,9 @@ void TranslatorVisitor::visitIfNode(IfNode *node) {
 	node->thenBlock()->visit(this);
 	bc->addBranch(BC_JA, endLabel);
 	bc->bind(elseLabel);
-	node->elseBlock()->visit(this);
+	if(node->elseBlock() != nullptr) {
+		node->elseBlock()->visit(this);
+	}
 	bc->bind(endLabel);
 }
 
@@ -277,27 +279,8 @@ void TranslatorVisitor::visitNativeCallNode(NativeCallNode *node) {
 
 void TranslatorVisitor::visitBlockNode(BlockNode *node) {
 	Scope* scope = node->scope();
-	assert(scope->parent() == ctx.scope);
-	ctx.scope = scope;
-	Scope::VarIterator vIt(scope);
-	while(vIt.hasNext()) {
-		AstVar* var = vIt.next();
-		ctx.declareVar(var->name());
-	}
 
-	Scope::FunctionIterator fIt(scope);
-	while(fIt.hasNext()) {
-		AstFunction *func = fIt.next();
-		BytecodeFunction *bFunc = new BytecodeFunction(func);
-		Scope* fScope = func->scope();
-		assert(fScope->parent() == ctx.scope);
-		ctx.scope = fScope;
-		ctx.functions.push(bFunc);
-		code->addFunction(bFunc);
-		func->node()->visit(this);
-		ctx.functions.pop();
-		ctx.scope = ctx.scope->parent();
-	}
+	declareScope(scope);
 
 	for(uint32_t i = 0; i < node->nodes(); ++i) {
 		AstNode* child = node->nodeAt(i);
@@ -319,6 +302,9 @@ void TranslatorVisitor::visitBlockNode(BlockNode *node) {
 
 void TranslatorVisitor::visitCallNode(CallNode *node) {
 	TranslatedFunction* func = code->functionByName(node->name());
+	if(func == nullptr) {
+		throw Status::Error(("Using undeclared function " + node->name()).c_str(), node->position());
+	}
 	if(func->parametersNumber() != node->parametersNumber()) {
 		throw Status::Error("Invalid parameters count", node->position());
 	}
@@ -468,7 +454,10 @@ void TranslatorVisitor::convertLogic(VarType &t1, VarType &t2, uint32_t pos) {
 	}
 }
 
-void TranslatorVisitor::prepareScope(Scope* scope) {
+void TranslatorVisitor::declareScope(Scope *scope, bool isGlobal) {
+	if(!isGlobal) {
+		assert(scope->parent() == ctx.scope);
+	}
 	ctx.scope = scope;
 	Scope::VarIterator vIt(scope);
 	while(vIt.hasNext()) {
@@ -480,10 +469,21 @@ void TranslatorVisitor::prepareScope(Scope* scope) {
 	while(fIt.hasNext()) {
 		AstFunction *func = fIt.next();
 		BytecodeFunction *bFunc = new BytecodeFunction(func);
-		ctx.functions.push(bFunc);
 		code->addFunction(bFunc);
+	}
+	fIt = Scope::FunctionIterator(scope);
+	while(fIt.hasNext()) {
+		AstFunction *func = fIt.next();
+		BytecodeFunction *bFunc = dynamic_cast<BytecodeFunction*>(code->functionByName(func->name()));
+		assert(bFunc);
+		Scope* fScope = func->scope();
+		if(!isGlobal) {
+			declareScope(fScope);
+		}
+		ctx.functions.push(bFunc);
 		func->node()->visit(this);
 		ctx.functions.pop();
+		ctx.scope = ctx.scope->parent();
 	}
 }
 

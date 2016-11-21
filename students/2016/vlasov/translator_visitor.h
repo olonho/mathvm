@@ -24,7 +24,8 @@ public:
 	void convertAriphmetic(VarType& t1, VarType& t2, uint32_t pos);
 	void convertLogic(VarType& t1, VarType& t2, uint32_t pos);
 
-	void prepareScope(Scope* scope);
+	void declareScope(Scope *scope, bool isGlobal = false);
+
 
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(type* node) override;
