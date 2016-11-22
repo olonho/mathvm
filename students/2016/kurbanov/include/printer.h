@@ -1,6 +1,7 @@
 #pragma once
 #include <ostream>
 #include <visitors.h>
+#include "visitors.h"
 
 namespace mathvm {
     class AstPrinterVisitor : public AstBaseVisitor {

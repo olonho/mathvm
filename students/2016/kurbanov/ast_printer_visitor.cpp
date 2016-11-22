@@ -1,5 +1,4 @@
-#include "printer.h"
-
+#include "include/printer.h"
 
 void mathvm::AstPrinterVisitor::print_symbol(char c) {
     switch (c) {
