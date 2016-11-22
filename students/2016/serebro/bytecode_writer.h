@@ -9,6 +9,7 @@
 #include <memory>
 #include <unordered_map>
 #include "type_deducer.h"
+#include "MetaInfo.h"
 
 namespace mathvm
 {
@@ -25,10 +26,18 @@ class BytecodeWriter : public AstBaseVisitor
     };
 
     Code *_code;
+    MetaInfo &_info;
     std::unordered_map<const AstVar*, VarDescription> _varDescriptions;
     uint16_t _localVariablesOffset; // equals to 0 if currently not in function scope else number of arguments
     std::vector<Scope*> _scopesStack;
+    TypeDeducer _typeDeducer;
+
+    // state
+    BytecodeScope *_currentBytecodeScope;
     Bytecode* _currentCode;
+    TranslatedFunction *_currentFunction;
+    vector<function<void()>> startupBlockCode;
+    vector<function<void()>> finishBlockCode;
 
     uint16_t currentScopeId() const {
         return (uint16_t) (_scopesStack.size() - 1);
@@ -43,7 +52,6 @@ class BytecodeWriter : public AstBaseVisitor
     void comparison(BinaryOpNode *node);
     void integerBinaryOp(BinaryOpNode *node);
     void numberBinaryOp(BinaryOpNode *node);
-    TypeDeducer _typeDeducer;
 public:
 #define VISITOR_FUNCTION(type, name) \
     virtual void visit##type(type* node);
@@ -51,17 +59,21 @@ public:
     FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
 
-    BytecodeWriter(Code * code, AstFunction *topLevel) : _code(code), _typeDeducer(code) {
+    BytecodeWriter(Code * code, AstFunction *topLevel, MetaInfo &info)
+            : _code(code), _info(info), _typeDeducer(code) {
         TranslatedFunction *translated = new BytecodeFunction{topLevel};
         _code->addFunction(translated);
         translated->setScopeId(0);
         _localVariablesOffset = 0;
+        _currentFunction = translated;
+        _currentBytecodeScope = nullptr;
+
     }
 
     class PositionalException : public std::logic_error {
     public:
-        const size_t position;
-        PositionalException(size_t position, const string &__arg) : logic_error(__arg),
+        const uint32_t position;
+        PositionalException(uint32_t position, const string &__arg) : logic_error(__arg),
         position(position) { }
     };
 };

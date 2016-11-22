@@ -1,7 +1,9 @@
 #include <parser.h>
-#include "mathvm.h"
 #include "formatter.h"
 #include "bytecode_writer.h"
+#include "interpreter_impl.h"
+#include "bytecode_optimizer.h"
+#include "translator_impl.h"
 
 namespace mathvm {
 
@@ -10,24 +12,14 @@ public:
     Status* translate(const string& program, Code* *) override;
 };
 
-class SourceToBytecodeTranslator : public Translator {
-public:
-    Status* translate(const string& program, Code* *) override;
-};
-
-
 Translator* Translator::create(const string& impl) {
-    if (impl == "" || impl == "interpreter") {
-        //return new BytecodeTranslatorImpl();
-        return 0;
-    }
-    if (impl == "printer") {
+    if (impl == TR_FORMATTER) {
         return new PrintTranslator();
     }
-    if (impl == "src2bc") {
-        return new SourceToBytecodeTranslator();
+    if (impl == TR_BYTECODE) {
+        return new BytecodeTranslatorImpl();
     }
-    if (impl == "jit") {
+    if (impl == TR_JITCODE) {
         //return new MachCodeTranslatorImpl();
         return 0;
     }
@@ -49,15 +41,7 @@ Status *PrintTranslator::translate(const string &program, Code **) {
     return status;
 }
 
-class BytecodeImpl : public Code {
-public:
-    virtual Status* execute(vector<Var*>& vars) override {
-
-        return Status::Ok();
-    }
-};
-
-mathvm::Status *mathvm::SourceToBytecodeTranslator::translate(
+Status *BytecodeTranslatorImpl::translate(
         const std::string &program, mathvm::Code **pCode) {
     Parser parser;
     Status *s = parser.parseProgram(program);
@@ -66,34 +50,20 @@ mathvm::Status *mathvm::SourceToBytecodeTranslator::translate(
         return s;
     }
 
-    *pCode = new BytecodeImpl;
-    BytecodeWriter writer(*pCode, parser.top());
+    InterpreterCodeImpl *code = new InterpreterCodeImpl;
+    BytecodeWriter writer(code, parser.top(), code->getMeta());
     try {
         parser.top()->node()->visit(&writer);
     } catch (BytecodeWriter::PositionalException &e) {
         return Status::Error(e.what(), e.position);
     }
 
-    (**pCode).disassemble();
+    *pCode = code;
+    BytecodeOptimizer optimizer(code, code->getMeta());
+    optimizer.removeEmptyBlocks();
+
     return Status::Ok();
 }
 
-Status* BytecodeTranslatorImpl::translate(const string &program, Code **code) {
-    Parser parser;
-    Status *s = parser.parseProgram(program);
-
-    if (s->isError()) {
-        return s;
-    }
-
-    delete s;
-    //TODO
-    return Status::Ok();
-}
-
-Status* BytecodeTranslatorImpl::translateBytecode(const string &program,
-                                                  InterpreterCodeImpl **code) {
-    return Status::Ok();
-}
 
 }
