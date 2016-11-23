@@ -80,6 +80,8 @@ namespace mathvm {
         void processBitwiseOperation(BinaryOpNode *node);
 
         void processComparisonOperation(BinaryOpNode *node);
+
+        void loadVariableByInfo(const VariableRF *variableInfo, VarType type);
     };
 }
 

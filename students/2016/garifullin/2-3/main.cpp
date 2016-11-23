@@ -1,15 +1,10 @@
 #include <iostream>
 
 #include "mathvm.h"
+#include "m_interpreter.h"
 
 using namespace mathvm;
 using namespace std;
-
-class DummyCode : public Code {
-    Status* execute(vector<Var *> &){
-        return Status::Ok();
-    }
-};
 
 int main(int argc, char **argv) {
     string impl = "interpreter";
@@ -38,14 +33,21 @@ int main(int argc, char **argv) {
 
     translator = Translator::create(impl);
 
-    Code *code = new DummyCode;
+    Code *code = new InterpreterCode;
     Status *translate_status = translator->translate(expr, &code);
     if (translate_status->isError()) {
         printf("Cannot translate. "
                "Error: '%s'\n",
                translate_status->getErrorCstr());
     } else {
-        code->disassemble();
+        std::vector<Var *> empty_vec;
+        Status *execute_status = code->execute(empty_vec);
+        if (execute_status->isError()) {
+            printf("Cannot interpret. "
+                   "Error: '%s'\n",
+                   execute_status->getErrorCstr());
+        }
+        delete execute_status;
     }
 
     delete translate_status;

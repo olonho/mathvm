@@ -7,7 +7,7 @@
 // [Export]
 #define ASMJIT_EXPORTS
 
-// [Dependencies - AsmJit]
+// [Dependencies]
 #include "../base/globals.h"
 
 // [Api-Begin]
@@ -20,17 +20,31 @@ namespace asmjit {
 // ============================================================================
 
 // Prevent static initialization.
-struct Operand {
-  uint8_t op;
-  uint8_t size;
-  uint8_t reserved_2_1;
-  uint8_t reserved_3_1;
-  uint32_t id;
-  uint64_t reserved_8_8;
+class Operand {
+ public:
+  struct BaseOp {
+    uint8_t op;
+    uint8_t size;
+    uint8_t reserved_2_1;
+    uint8_t reserved_3_1;
+
+    uint32_t id;
+
+    uint32_t reserved_8_4;
+    uint32_t reserved_12_4;
+  };
+
+  // Kept in union to prevent LTO warnings.
+  union {
+    BaseOp _base;
+
+    // Required to properly align this _fake_ `Operand`, not used.
+    uint64_t _data[2];
+  };
 };
 
-ASMJIT_VAR const Operand noOperand;
-const Operand noOperand = { 0, 0, 0, 0, kInvalidValue, 0 };
+ASMJIT_VARAPI const Operand noOperand;
+const Operand noOperand = {{ 0, 0, 0, 0, kInvalidValue, 0, 0 }};
 
 } // asmjit namespace
 

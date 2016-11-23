@@ -11,10 +11,11 @@
 #include "../build.h"
 #if !defined(ASMJIT_DISABLE_COMPILER)
 
-// [Dependencies - AsmJit]
+// [Dependencies]
 #include "../base/compiler.h"
 #include "../base/vectypes.h"
 #include "../x86/x86assembler.h"
+#include "../x86/x86compilerfunc.h"
 
 // [Api-Begin]
 #include "../apibegin.h"
@@ -25,1216 +26,46 @@ namespace asmjit {
 // [Forward Declarations]
 // ============================================================================
 
-struct X86CallNode;
-struct X86FuncNode;
-struct X86VarState;
+class X86CallNode;
+class X86FuncNode;
 
-//! \addtogroup asmjit_x86_compiler
+//! \addtogroup asmjit_x86
 //! \{
 
-// ============================================================================
-// [asmjit::k86VarType]
-// ============================================================================
-
-//! X86/X64 variable type.
-ASMJIT_ENUM(kX86VarType) {
-  //! Variable is SP-FP (x87).
-  kX86VarTypeFp32 = kVarTypeFp32,
-  //! Variable is DP-FP (x87).
-  kX86VarTypeFp64 = kVarTypeFp64,
-
-  //! Variable is Mm (MMX).
-  kX86VarTypeMm = 12,
-
-  //! Variable is K (AVX512+)
-  kX86VarTypeK,
-
-  //! Variable is Xmm (SSE+).
-  kX86VarTypeXmm,
-  //! Variable is a scalar Xmm SP-FP number.
-  kX86VarTypeXmmSs,
-  //! Variable is a packed Xmm SP-FP number (4 floats).
-  kX86VarTypeXmmPs,
-  //! Variable is a scalar Xmm DP-FP number.
-  kX86VarTypeXmmSd,
-  //! Variable is a packed Xmm DP-FP number (2 doubles).
-  kX86VarTypeXmmPd,
-
-  //! Variable is Ymm (AVX+).
-  kX86VarTypeYmm,
-  //! Variable is a packed Ymm SP-FP number (8 floats).
-  kX86VarTypeYmmPs,
-  //! Variable is a packed Ymm DP-FP number (4 doubles).
-  kX86VarTypeYmmPd,
-
-  //! Variable is Zmm (AVX512+).
-  kX86VarTypeZmm,
-  //! Variable is a packed Zmm SP-FP number (16 floats).
-  kX86VarTypeZmmPs,
-  //! Variable is a packed Zmm DP-FP number (8 doubles).
-  kX86VarTypeZmmPd,
-
-  //! Count of variable types.
-  kX86VarTypeCount,
-
-  //! \internal
-  //! \{
-  _kX86VarTypeMmStart = kX86VarTypeMm,
-  _kX86VarTypeMmEnd = kX86VarTypeMm,
-
-  _kX86VarTypeXmmStart = kX86VarTypeXmm,
-  _kX86VarTypeXmmEnd = kX86VarTypeXmmPd,
-
-  _kX86VarTypeYmmStart = kX86VarTypeYmm,
-  _kX86VarTypeYmmEnd = kX86VarTypeYmmPd,
-
-  _kX86VarTypeZmmStart = kX86VarTypeZmm,
-  _kX86VarTypeZmmEnd = kX86VarTypeZmmPd
-  //! \}
-};
-
-// ============================================================================
-// [asmjit::kX86VarAttr]
-// ============================================================================
-
-//! X86/X64 VarAttr flags.
-ASMJIT_ENUM(kX86VarAttr) {
-  kX86VarAttrGpbLo = 0x10000000,
-  kX86VarAttrGpbHi = 0x20000000
-};
-
-// ============================================================================
-// [asmjit::kX86FuncConv]
-// ============================================================================
-
-//! X86 function calling conventions.
-//!
-//! Calling convention is scheme how function arguments are passed into
-//! function and how functions returns values. In assembler programming
-//! it's needed to always comply with function calling conventions, because
-//! even small inconsistency can cause undefined behavior or crash.
-//!
-//! List of calling conventions for 32-bit x86 mode:
-//! - `kX86FuncConvCDecl` - Calling convention for C runtime.
-//! - `kX86FuncConvStdCall` - Calling convention for WinAPI functions.
-//! - `kX86FuncConvMsThisCall` - Calling convention for C++ members under
-//!    Windows (produced by MSVC and all MSVC compatible compilers).
-//! - `kX86FuncConvMsFastCall` - Fastest calling convention that can be used
-//!    by MSVC compiler.
-//! - `kX86FuncConvBorlandFastCall` - Borland fastcall convention.
-//! - `kX86FuncConvGccFastCall` - GCC fastcall convention (2 register arguments).
-//! - `kX86FuncConvGccRegParm1` - GCC regparm(1) convention.
-//! - `kX86FuncConvGccRegParm2` - GCC regparm(2) convention.
-//! - `kX86FuncConvGccRegParm3` - GCC regparm(3) convention.
-//!
-//! List of calling conventions for 64-bit x86 mode (x64):
-//! - `kX86FuncConvW64` - Windows 64-bit calling convention (WIN64 ABI).
-//! - `kX86FuncConvU64` - Unix 64-bit calling convention (AMD64 ABI).
-//!
-//! There is also `kFuncConvHost` that is defined to fit the host calling
-//! convention.
-//!
-//! These types are used together with `Compiler::addFunc()` method.
-ASMJIT_ENUM(kX86FuncConv) {
-  // --------------------------------------------------------------------------
-  // [X64]
-  // --------------------------------------------------------------------------
-
-  //! X64 calling convention for Windows platform (WIN64 ABI).
-  //!
-  //! For first four arguments are used these registers:
-  //! - 1. 32/64-bit integer or floating point argument - rcx/xmm0
-  //! - 2. 32/64-bit integer or floating point argument - rdx/xmm1
-  //! - 3. 32/64-bit integer or floating point argument - r8/xmm2
-  //! - 4. 32/64-bit integer or floating point argument - r9/xmm3
-  //!
-  //! Note first four arguments here means arguments at positions from 1 to 4
-  //! (included). For example if second argument is not passed in register then
-  //! rdx/xmm1 register is unused.
-  //!
-  //! All other arguments are pushed on the stack in right-to-left direction.
-  //! Stack is aligned by 16 bytes. There is 32-byte shadow space on the stack
-  //! that can be used to save up to four 64-bit registers (probably designed to
-  //! be used to save first four arguments passed in registers).
-  //!
-  //! Arguments direction:
-  //! - Right to Left (except for first 4 parameters that's in registers)
-  //!
-  //! Stack is cleaned by:
-  //! - Caller.
-  //!
-  //! Return value:
-  //! - Integer types - Rax register.
-  //! - Floating points - Xmm0 register.
-  //!
-  //! Stack is always aligned by 16 bytes.
-  //!
-  //! More information about this calling convention can be found on MSDN:
-  //! http://msdn.microsoft.com/en-us/library/9b372w95.aspx .
-  kX86FuncConvW64 = 1,
-
-  //! X64 calling convention for Unix platforms (AMD64 ABI).
-  //!
-  //! First six 32 or 64-bit integer arguments are passed in rdi, rsi, rdx,
-  //! rcx, r8, r9 registers. First eight floating point or Xmm arguments
-  //! are passed in xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7 registers.
-  //! This means that in registers can be transferred up to 14 arguments total.
-  //!
-  //! There is also RED ZONE below the stack pointer that can be used for
-  //! temporary storage. The red zone is the space from [rsp-128] to [rsp-8].
-  //!
-  //! Arguments direction:
-  //! - Right to Left (Except for arguments passed in registers).
-  //!
-  //! Stack is cleaned by:
-  //! - Caller.
-  //!
-  //! Return value:
-  //! - Integer types - Rax register.
-  //! - Floating points - Xmm0 register.
-  //!
-  //! Stack is always aligned by 16 bytes.
-  kX86FuncConvU64 = 2,
-
-  // --------------------------------------------------------------------------
-  // [X86]
-  // --------------------------------------------------------------------------
-
-  //! Cdecl calling convention (used by C runtime).
-  //!
-  //! Compatible across MSVC and GCC.
-  //!
-  //! Arguments direction:
-  //! - Right to Left
-  //!
-  //! Stack is cleaned by:
-  //! - Caller.
-  kX86FuncConvCDecl = 3,
-
-  //! Stdcall calling convention (used by WinAPI).
-  //!
-  //! Compatible across MSVC and GCC.
-  //!
-  //! Arguments direction:
-  //! - Right to Left
-  //!
-  //! Stack is cleaned by:
-  //! - Callee.
-  //!
-  //! Return value:
-  //! - Integer types - EAX:EDX registers.
-  //! - Floating points - fp0 register.
-  kX86FuncConvStdCall = 4,
-
-  //! MSVC specific calling convention used by MSVC/Intel compilers
-  //! for struct/class methods.
-  //!
-  //! This is MSVC (and Intel) only calling convention used in Windows
-  //! world for C++ class methods. Implicit 'this' pointer is stored in
-  //! ECX register instead of storing it on the stack.
-  //!
-  //! Arguments direction:
-  //! - Right to Left (except this pointer in ECX)
-  //!
-  //! Stack is cleaned by:
-  //! - Callee.
-  //!
-  //! Return value:
-  //! - Integer types - EAX:EDX registers.
-  //! - Floating points - fp0 register.
-  //!
-  //! C++ class methods that have variable count of arguments uses different
-  //! calling convention called cdecl.
-  //!
-  //! \note This calling convention is always used by MSVC for class methods,
-  //! it's implicit and there is no way how to override it.
-  kX86FuncConvMsThisCall = 5,
-
-  //! MSVC specific fastcall.
-  //!
-  //! Two first parameters (evaluated from left-to-right) are in ECX:EDX
-  //! registers, all others on the stack in right-to-left order.
-  //!
-  //! Arguments direction:
-  //! - Right to Left (except to first two integer arguments in ECX:EDX)
-  //!
-  //! Stack is cleaned by:
-  //! - Callee.
-  //!
-  //! Return value:
-  //! - Integer types - EAX:EDX registers.
-  //! - Floating points - fp0 register.
-  //!
-  //! \note This calling convention differs to GCC one in stack cleaning
-  //! mechanism.
-  kX86FuncConvMsFastCall = 6,
-
-  //! Borland specific fastcall with 2 parameters in registers.
-  //!
-  //! Two first parameters (evaluated from left-to-right) are in ECX:EDX
-  //! registers, all others on the stack in left-to-right order.
-  //!
-  //! Arguments direction:
-  //! - Left to Right (except to first two integer arguments in ECX:EDX)
-  //!
-  //! Stack is cleaned by:
-  //! - Callee.
-  //!
-  //! Return value:
-  //! - Integer types - EAX:EDX registers.
-  //! - Floating points - fp0 register.
-  //!
-  //! \note Arguments on the stack are in left-to-right order that differs
-  //! to other fastcall conventions used in different compilers.
-  kX86FuncConvBorlandFastCall = 7,
-
-  //! GCC specific fastcall convention.
-  //!
-  //! Two first parameters (evaluated from left-to-right) are in ECX:EDX
-  //! registers, all others on the stack in right-to-left order.
-  //!
-  //! Arguments direction:
-  //! - Right to Left (except to first two integer arguments in ECX:EDX)
-  //!
-  //! Stack is cleaned by:
-  //! - Callee.
-  //!
-  //! Return value:
-  //! - Integer types - EAX:EDX registers.
-  //! - Floating points - fp0 register.
-  //!
-  //! \note This calling convention should be compatible with `kX86FuncConvMsFastCall`.
-  kX86FuncConvGccFastCall = 8,
-
-  //! GCC specific regparm(1) convention.
-  //!
-  //! The first parameter (evaluated from left-to-right) is in EAX register,
-  //! all others on the stack in right-to-left order.
-  //!
-  //! Arguments direction:
-  //! - Right to Left (except to first one integer argument in EAX)
-  //!
-  //! Stack is cleaned by:
-  //! - Caller.
-  //!
-  //! Return value:
-  //! - Integer types - EAX:EDX registers.
-  //! - Floating points - fp0 register.
-  kX86FuncConvGccRegParm1 = 9,
-
-  //! GCC specific regparm(2) convention.
-  //!
-  //! Two first parameters (evaluated from left-to-right) are in EAX:EDX
-  //! registers, all others on the stack in right-to-left order.
-  //!
-  //! Arguments direction:
-  //! - Right to Left (except to first two integer arguments in EAX:EDX)
-  //!
-  //! Stack is cleaned by:
-  //! - Caller.
-  //!
-  //! Return value:
-  //! - Integer types - EAX:EDX registers.
-  //! - Floating points - fp0 register.
-  kX86FuncConvGccRegParm2 = 10,
-
-  //! GCC specific fastcall with 3 parameters in registers.
-  //!
-  //! Three first parameters (evaluated from left-to-right) are in
-  //! EAX:EDX:ECX registers, all others on the stack in right-to-left order.
-  //!
-  //! Arguments direction:
-  //! - Right to Left (except to first three integer arguments in EAX:EDX:ECX)
-  //!
-  //! Stack is cleaned by:
-  //! - Caller.
-  //!
-  //! Return value:
-  //! - Integer types - EAX:EDX registers.
-  //! - Floating points - fp0 register.
-  kX86FuncConvGccRegParm3 = 11,
-
-  //! \internal
-  //!
-  //! Count of function calling conventions.
-  _kX86FuncConvCount = 12
-};
-
-#if !defined(ASMJIT_DOCGEN)
-// X86/X64 Host Support - documented in base/compiler.h.
-#if defined(ASMJIT_HOST_X86)
-enum {
-  // X86.
-  kFuncConvHost = kX86FuncConvCDecl,
-  kFuncConvHostCDecl = kX86FuncConvCDecl,
-  kFuncConvHostStdCall = kX86FuncConvStdCall,
-#if defined(_MSC_VER)
-  kFuncConvHostFastCall = kX86FuncConvMsFastCall
-#elif defined(__GNUC__)
-  kFuncConvHostFastCall = kX86FuncConvGccFastCall
-#elif defined(__BORLANDC__)
-  kFuncConvHostFastCall = kX86FuncConvBorlandFastCall
-#else
-#error "kFuncConvHostFastCall not determined."
-#endif
-};
-#endif // ASMJIT_HOST_X86
-
-#if defined(ASMJIT_HOST_X64)
-enum {
-#if defined(ASMJIT_OS_WINDOWS)
-  kFuncConvHost = kX86FuncConvW64,
-#else
-  kFuncConvHost = kX86FuncConvU64,
-#endif
-  kFuncConvHostCDecl = kFuncConvHost,
-  kFuncConvHostStdCall = kFuncConvHost,
-  kFuncConvHostFastCall = kFuncConvHost
-};
-#endif // ASMJIT_HOST_X64
-#endif // !ASMJIT_DOCGEN
-
-// ============================================================================
-// [asmjit::kX86FuncHint]
-// ============================================================================
-
-//! X86 function hints.
-ASMJIT_ENUM(kX86FuncHint) {
-  //! Use push/pop sequences instead of mov sequences in function prolog
-  //! and epilog.
-  kX86FuncHintPushPop = 16,
-  //! Add emms instruction to the function epilog.
-  kX86FuncHintEmms = 17,
-  //! Add sfence instruction to the function epilog.
-  kX86FuncHintSFence = 18,
-  //! Add lfence instruction to the function epilog.
-  kX86FuncHintLFence = 19
-};
-
-// ============================================================================
-// [asmjit::kX86FuncFlags]
-// ============================================================================
-
-//! X86 function flags.
-ASMJIT_ENUM(kX86FuncFlags) {
-  //! Whether to emit register load/save sequence using push/pop pairs.
-  kX86FuncFlagPushPop = 0x00010000,
-
-  //! Whether to emit `enter` instead of three instructions in case
-  //! that the function is not naked or misaligned.
-  kX86FuncFlagEnter = 0x00020000,
-
-  //! Whether to emit `leave` instead of two instructions in case
-  //! that the function is not naked or misaligned.
-  kX86FuncFlagLeave = 0x00040000,
-
-  //! Whether it's required to move arguments to a new stack location,
-  //! because of manual aligning.
-  kX86FuncFlagMoveArgs = 0x00080000,
-
-  //! Whether to emit `emms` instruction in epilog (auto-detected).
-  kX86FuncFlagEmms = 0x01000000,
-
-  //! Whether to emit `sfence` instruction in epilog (auto-detected).
-  //!
-  //! `kX86FuncFlagSFence` with `kX86FuncFlagLFence` results in emitting `mfence`.
-  kX86FuncFlagSFence = 0x02000000,
-
-  //! Whether to emit `lfence` instruction in epilog (auto-detected).
-  //!
-  //! `kX86FuncFlagSFence` with `kX86FuncFlagLFence` results in emitting `mfence`.
-  kX86FuncFlagLFence = 0x04000000
-};
-
-// ============================================================================
-// [asmjit::X86VarInfo]
-// ============================================================================
-
 //! \internal
-//!
-//! X86 variable information.
-struct X86VarInfo {
-  // --------------------------------------------------------------------------
-  // [Accessors]
-  // --------------------------------------------------------------------------
-
-  //! Get register type, see `kX86RegType`.
-  ASMJIT_INLINE uint32_t getReg() const { return _reg; }
-  //! Get register size in bytes.
-  ASMJIT_INLINE uint32_t getSize() const { return _size; }
-  //! Get variable class, see `kRegClass`.
-  ASMJIT_INLINE uint32_t getClass() const { return _class; }
-  //! Get variable description, see `kVarFlag`.
-  ASMJIT_INLINE uint32_t getDesc() const { return _desc; }
-  //! Get variable type name.
-  ASMJIT_INLINE const char* getName() const { return _name; }
-
-  // --------------------------------------------------------------------------
-  // [Members]
-  // --------------------------------------------------------------------------
-
-  //! Register type, see `kX86RegType`.
-  uint8_t _reg;
-  //! Register size in bytes.
-  uint8_t _size;
-  //! Register class, see `kRegClass`.
-  uint8_t _class;
-  //! Variable flags, see `kVarFlag`.
-  uint8_t _desc;
-  //! Variable type name.
-  char _name[4];
-};
-
-//! \internal
-ASMJIT_VAR const X86VarInfo _x86VarInfo[];
+ASMJIT_VARAPI const VarInfo _x86VarInfo[];
 
 #if defined(ASMJIT_BUILD_X86)
 //! \internal
 //!
-//! Mapping of x86 variables into their real IDs.
+//! Mapping of x86 variable types, including all abstract types, into their real types.
 //!
 //! This mapping translates the following:
 //! - `kVarTypeInt64` to `kInvalidVar`.
 //! - `kVarTypeUInt64` to `kInvalidVar`.
 //! - `kVarTypeIntPtr` to `kVarTypeInt32`.
 //! - `kVarTypeUIntPtr` to `kVarTypeUInt32`.
-ASMJIT_VAR const uint8_t _x86VarMapping[kX86VarTypeCount];
+ASMJIT_VARAPI const uint8_t _x86VarMapping[kX86VarTypeCount];
 #endif // ASMJIT_BUILD_X86
 
 #if defined(ASMJIT_BUILD_X64)
 //! \internal
 //!
-//! Mapping of x64 variables into their real IDs.
+//! Mapping of x64 variable types, including all abstract types, into their real types.
 //!
 //! This mapping translates the following:
 //! - `kVarTypeIntPtr` to `kVarTypeInt64`.
 //! - `kVarTypeUIntPtr` to `kVarTypeUInt64`.
-ASMJIT_VAR const uint8_t _x64VarMapping[kX86VarTypeCount];
+ASMJIT_VARAPI const uint8_t _x64VarMapping[kX86VarTypeCount];
 #endif // ASMJIT_BUILD_X64
-
-// ============================================================================
-// [asmjit::X86Var]
-// ============================================================================
-
-//! Base class for all X86 variables.
-struct X86Var : public Var {
-  // --------------------------------------------------------------------------
-  // [Construction / Destruction]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE X86Var() : Var(NoInit) {
-    reset();
-  }
-
-  ASMJIT_INLINE X86Var(const X86Var& other) : Var(other) {}
-
-  explicit ASMJIT_INLINE X86Var(const _NoInit&) : Var(NoInit) {}
-
-  // --------------------------------------------------------------------------
-  // [X86Var Specific]
-  // --------------------------------------------------------------------------
-
-  //! Clone X86Var operand.
-  ASMJIT_INLINE X86Var clone() const {
-    return X86Var(*this);
-  }
-
-  // --------------------------------------------------------------------------
-  // [Type]
-  // --------------------------------------------------------------------------
-
-  //! Get register type.
-  ASMJIT_INLINE uint32_t getRegType() const { return _vreg.type; }
-  //! Get variable type.
-  ASMJIT_INLINE uint32_t getVarType() const { return _vreg.vType; }
-
-  //! Get whether the variable is Gp register.
-  ASMJIT_INLINE bool isGp() const { return _vreg.type <= kX86RegTypeGpq; }
-  //! Get whether the variable is Gpb (8-bit) register.
-  ASMJIT_INLINE bool isGpb() const { return _vreg.type <= kX86RegTypeGpbHi; }
-  //! Get whether the variable is Gpb-lo (8-bit) register.
-  ASMJIT_INLINE bool isGpbLo() const { return _vreg.type == kX86RegTypeGpbLo; }
-  //! Get whether the variable is Gpb-hi (8-bit) register.
-  ASMJIT_INLINE bool isGpbHi() const { return _vreg.type == kX86RegTypeGpbHi; }
-  //! Get whether the variable is Gpw (16-bit) register.
-  ASMJIT_INLINE bool isGpw() const { return _vreg.type == kX86RegTypeGpw; }
-  //! Get whether the variable is Gpd (32-bit) register.
-  ASMJIT_INLINE bool isGpd() const { return _vreg.type == kX86RegTypeGpd; }
-  //! Get whether the variable is Gpq (64-bit) register.
-  ASMJIT_INLINE bool isGpq() const { return _vreg.type == kX86RegTypeGpq; }
-
-  //! Get whether the variable is Mm (64-bit) register.
-  ASMJIT_INLINE bool isMm() const { return _vreg.type == kX86RegTypeMm; }
-  //! Get whether the variable is K (64-bit) register.
-  ASMJIT_INLINE bool isK() const { return _vreg.type == kX86RegTypeK; }
-
-  //! Get whether the variable is Xmm (128-bit) register.
-  ASMJIT_INLINE bool isXmm() const { return _vreg.type == kX86RegTypeXmm; }
-  //! Get whether the variable is Ymm (256-bit) register.
-  ASMJIT_INLINE bool isYmm() const { return _vreg.type == kX86RegTypeYmm; }
-  //! Get whether the variable is Zmm (512-bit) register.
-  ASMJIT_INLINE bool isZmm() const { return _vreg.type == kX86RegTypeZmm; }
-
-  // --------------------------------------------------------------------------
-  // [Memory Cast]
-  // --------------------------------------------------------------------------
-
-  //! Cast this variable to a memory operand.
-  //!
-  //! \note Size of operand depends on native variable type, you can use other
-  //! variants if you want specific one.
-  ASMJIT_INLINE X86Mem m(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, getSize());
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, getSize());
-  }
-
-  //! Cast this variable to 8-bit memory operand.
-  ASMJIT_INLINE X86Mem m8(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, 1);
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m8(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, 1);
-  }
-
-  //! Cast this variable to 16-bit memory operand.
-  ASMJIT_INLINE X86Mem m16(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, 2);
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m16(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, 2);
-  }
-
-  //! Cast this variable to 32-bit memory operand.
-  ASMJIT_INLINE X86Mem m32(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, 4);
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m32(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, 4);
-  }
-
-  //! Cast this variable to 64-bit memory operand.
-  ASMJIT_INLINE X86Mem m64(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, 8);
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m64(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, 8);
-  }
-
-  //! Cast this variable to 80-bit memory operand (long double).
-  ASMJIT_INLINE X86Mem m80(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, 10);
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m80(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, 10);
-  }
-
-  //! Cast this variable to 128-bit memory operand.
-  ASMJIT_INLINE X86Mem m128(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, 16);
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m128(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, 16);
-  }
-
-  //! Cast this variable to 256-bit memory operand.
-  ASMJIT_INLINE X86Mem m256(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, 32);
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m256(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, 32);
-  }
-
-  //! Cast this variable to 256-bit memory operand.
-  ASMJIT_INLINE X86Mem m512(int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, disp, 64);
-  }
-
-  //! \overload
-  ASMJIT_INLINE X86Mem m512(const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return X86Mem(Init, kMemTypeStackIndex, *this, index, shift, disp, 64);
-  }
-
-  // --------------------------------------------------------------------------
-  // [Operator Overload]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE X86Var& operator=(const X86Var& other) {
-    _copy(other);
-    return *this;
-  }
-
-  ASMJIT_INLINE bool operator==(const X86Var& other) const {
-    return _packed[0] == other._packed[0];
-  }
-
-  ASMJIT_INLINE bool operator!=(const X86Var& other) const {
-    return _packed[0] != other._packed[0];
-  }
-
-  // --------------------------------------------------------------------------
-  // [Private]
-  // --------------------------------------------------------------------------
-
-protected:
-  ASMJIT_INLINE X86Var(const X86Var& other, uint32_t reg, uint32_t size) : Var(NoInit) {
-    _init_packed_op_sz_w0_id(kOperandTypeVar, size, (reg << 8) + other._vreg.index, other._base.id);
-    _vreg.vType = other._vreg.vType;
-  }
-};
-
-// ============================================================================
-// [asmjit::X86GpVar]
-// ============================================================================
-
-//! Gp variable.
-struct X86GpVar : public X86Var {
-  // --------------------------------------------------------------------------
-  // [Construction / Destruction]
-  // --------------------------------------------------------------------------
-
-  //! Create a new uninitialized `X86GpVar` instance.
-  ASMJIT_INLINE X86GpVar() : X86Var() {}
-
-  //! Create a new initialized `X86GpVar` instance.
-  ASMJIT_INLINE X86GpVar(Compiler& c, uint32_t type = kVarTypeIntPtr, const char* name = NULL) : X86Var(NoInit) {
-    c._newVar(this, type, name);
-  }
-
-  //! Create a clone of `other`.
-  ASMJIT_INLINE X86GpVar(const X86GpVar& other) : X86Var(other) {}
-
-  //! Create a new uninitialized `X86GpVar` instance (internal).
-  explicit ASMJIT_INLINE X86GpVar(const _NoInit&) : X86Var(NoInit) {}
-
-  // --------------------------------------------------------------------------
-  // [X86GpVar Specific]
-  // --------------------------------------------------------------------------
-
-  //! Clone X86GpVar operand.
-  ASMJIT_INLINE X86GpVar clone() const {
-    return X86GpVar(*this);
-  }
-
-  //! Reset X86GpVar operand.
-  ASMJIT_INLINE void reset() {
-    X86Var::reset();
-  }
-
-  // --------------------------------------------------------------------------
-  // [X86GpVar Cast]
-  // --------------------------------------------------------------------------
-
-  //! Cast this variable to 8-bit (LO) part of variable
-  ASMJIT_INLINE X86GpVar r8() const { return X86GpVar(*this, kX86RegTypeGpbLo, 1); }
-  //! Cast this variable to 8-bit (LO) part of variable
-  ASMJIT_INLINE X86GpVar r8Lo() const { return X86GpVar(*this, kX86RegTypeGpbLo, 1); }
-  //! Cast this variable to 8-bit (HI) part of variable
-  ASMJIT_INLINE X86GpVar r8Hi() const { return X86GpVar(*this, kX86RegTypeGpbHi, 1); }
-
-  //! Cast this variable to 16-bit part of variable
-  ASMJIT_INLINE X86GpVar r16() const { return X86GpVar(*this, kX86RegTypeGpw, 2); }
-  //! Cast this variable to 32-bit part of variable
-  ASMJIT_INLINE X86GpVar r32() const { return X86GpVar(*this, kX86RegTypeGpd, 4); }
-  //! Cast this variable to 64-bit part of variable
-  ASMJIT_INLINE X86GpVar r64() const { return X86GpVar(*this, kX86RegTypeGpq, 8); }
-
-  // --------------------------------------------------------------------------
-  // [Operator Overload]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE X86GpVar& operator=(const X86GpVar& other) { _copy(other); return *this; }
-
-  ASMJIT_INLINE bool operator==(const X86GpVar& other) const { return X86Var::operator==(other); }
-  ASMJIT_INLINE bool operator!=(const X86GpVar& other) const { return X86Var::operator!=(other); }
-
-  // --------------------------------------------------------------------------
-  // [Private]
-  // --------------------------------------------------------------------------
-
-protected:
-  ASMJIT_INLINE X86GpVar(const X86GpVar& other, uint32_t reg, uint32_t size) : X86Var(other, reg, size) {}
-};
-
-// ============================================================================
-// [asmjit::X86MmVar]
-// ============================================================================
-
-//! Mm variable.
-struct X86MmVar : public X86Var {
-  // --------------------------------------------------------------------------
-  // [Construction / Destruction]
-  // --------------------------------------------------------------------------
-
-  //! Create a new uninitialized `X86MmVar` instance.
-  ASMJIT_INLINE X86MmVar() : X86Var() {}
-  //! Create a new initialized `X86MmVar` instance.
-  ASMJIT_INLINE X86MmVar(Compiler& c, uint32_t type = kX86VarTypeMm, const char* name = NULL) : X86Var(NoInit) {
-    c._newVar(this, type, name);
-  }
-
-  //! Create a clone of `other`.
-  ASMJIT_INLINE X86MmVar(const X86MmVar& other) : X86Var(other) {}
-
-  //! Create a new uninitialized `X86MmVar` instance (internal).
-  explicit ASMJIT_INLINE X86MmVar(const _NoInit&) : X86Var(NoInit) {}
-
-  // --------------------------------------------------------------------------
-  // [X86MmVar Specific]
-  // --------------------------------------------------------------------------
-
-  //! Clone X86MmVar operand.
-  ASMJIT_INLINE X86MmVar clone() const {
-    return X86MmVar(*this);
-  }
-
-  //! Reset X86MmVar operand.
-  ASMJIT_INLINE void reset() {
-    X86Var::reset();
-  }
-
-  // --------------------------------------------------------------------------
-  // [Operator Overload]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE X86MmVar& operator=(const X86MmVar& other) { _copy(other); return *this; }
-
-  ASMJIT_INLINE bool operator==(const X86MmVar& other) const { return X86Var::operator==(other); }
-  ASMJIT_INLINE bool operator!=(const X86MmVar& other) const { return X86Var::operator!=(other); }
-};
-
-// ============================================================================
-// [asmjit::X86XmmVar]
-// ============================================================================
-
-//! Xmm variable.
-struct X86XmmVar : public X86Var {
-  // --------------------------------------------------------------------------
-  // [Construction / Destruction]
-  // --------------------------------------------------------------------------
-
-  //! Create a new uninitialized `X86XmmVar` instance.
-  ASMJIT_INLINE X86XmmVar() : X86Var() {}
-  //! Create a new initialized `X86XmmVar` instance.
-  ASMJIT_INLINE X86XmmVar(Compiler& c, uint32_t type = kX86VarTypeXmm, const char* name = NULL) : X86Var(NoInit) {
-    c._newVar(this, type, name);
-  }
-
-  //! Create a clone of `other`.
-  ASMJIT_INLINE X86XmmVar(const X86XmmVar& other) : X86Var(other) {}
-
-  //! Create a new uninitialized `X86XmmVar` instance (internal).
-  explicit ASMJIT_INLINE X86XmmVar(const _NoInit&) : X86Var(NoInit) {}
-
-  // --------------------------------------------------------------------------
-  // [X86XmmVar Specific]
-  // --------------------------------------------------------------------------
-
-  //! Clone X86XmmVar operand.
-  ASMJIT_INLINE X86XmmVar clone() const {
-    return X86XmmVar(*this);
-  }
-
-  //! Reset X86XmmVar operand.
-  ASMJIT_INLINE void reset() {
-    X86Var::reset();
-  }
-
-  // --------------------------------------------------------------------------
-  // [Operator Overload]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE X86XmmVar& operator=(const X86XmmVar& other) { _copy(other); return *this; }
-
-  ASMJIT_INLINE bool operator==(const X86XmmVar& other) const { return X86Var::operator==(other); }
-  ASMJIT_INLINE bool operator!=(const X86XmmVar& other) const { return X86Var::operator!=(other); }
-};
-
-// ============================================================================
-// [asmjit::X86YmmVar]
-// ============================================================================
-
-//! Ymm variable.
-struct X86YmmVar : public X86Var {
-  // --------------------------------------------------------------------------
-  // [Construction / Destruction]
-  // --------------------------------------------------------------------------
-
-  //! Create a new uninitialized `X86YmmVar` instance.
-  ASMJIT_INLINE X86YmmVar() : X86Var() {}
-  //! Create a new initialized `X86YmmVar` instance.
-  ASMJIT_INLINE X86YmmVar(Compiler& c, uint32_t type = kX86VarTypeYmm, const char* name = NULL) : X86Var(NoInit) {
-    c._newVar(this, type, name);
-  }
-
-  //! Create a clone of `other`.
-  ASMJIT_INLINE X86YmmVar(const X86YmmVar& other) : X86Var(other) {}
-
-  //! Create a new uninitialized `X86YmmVar` instance (internal).
-  explicit ASMJIT_INLINE X86YmmVar(const _NoInit&) : X86Var(NoInit) {}
-
-  // --------------------------------------------------------------------------
-  // [X86YmmVar Specific]
-  // --------------------------------------------------------------------------
-
-  //! Clone X86YmmVar operand.
-  ASMJIT_INLINE X86YmmVar clone() const {
-    return X86YmmVar(*this);
-  }
-
-  //! Reset X86YmmVar operand.
-  ASMJIT_INLINE void reset() {
-    X86Var::reset();
-  }
-
-  // --------------------------------------------------------------------------
-  // [Operator Overload]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE X86YmmVar& operator=(const X86YmmVar& other) { _copy(other); return *this; }
-
-  ASMJIT_INLINE bool operator==(const X86YmmVar& other) const { return X86Var::operator==(other); }
-  ASMJIT_INLINE bool operator!=(const X86YmmVar& other) const { return X86Var::operator!=(other); }
-};
-
-// ============================================================================
-// [asmjit::X86VarMap]
-// ============================================================================
-
-struct X86VarMap : public VarMap {
-  // --------------------------------------------------------------------------
-  // [Accessors]
-  // --------------------------------------------------------------------------
-
-  //! Get variable-attributes list as VarAttr data.
-  ASMJIT_INLINE VarAttr* getVaList() const {
-    return const_cast<VarAttr*>(_list);
-  }
-
-  //! Get variable-attributes list as VarAttr data (by class).
-  ASMJIT_INLINE VarAttr* getVaListByClass(uint32_t c) const {
-    return const_cast<VarAttr*>(_list) + _start.get(c);
-  }
-
-  //! Get position of variables (by class).
-  ASMJIT_INLINE uint32_t getVaStart(uint32_t c) const {
-    return _start.get(c);
-  }
-
-  //! Get count of variables (by class).
-  ASMJIT_INLINE uint32_t getVaCountByClass(uint32_t c) const {
-    return _count.get(c);
-  }
-
-  //! Get VarAttr at `index`.
-  ASMJIT_INLINE VarAttr* getVa(uint32_t index) const {
-    ASMJIT_ASSERT(index < _vaCount);
-    return getVaList() + index;
-  }
-
-  //! Get VarAttr of `c` class at `index`.
-  ASMJIT_INLINE VarAttr* getVaByClass(uint32_t c, uint32_t index) const {
-    ASMJIT_ASSERT(index < _count._regs[c]);
-    return getVaListByClass(c) + index;
-  }
-
-  // --------------------------------------------------------------------------
-  // [Utils]
-  // --------------------------------------------------------------------------
-
-  //! Find VarAttr.
-  ASMJIT_INLINE VarAttr* findVa(VarData* vd) const {
-    VarAttr* list = getVaList();
-    uint32_t count = getVaCount();
-
-    for (uint32_t i = 0; i < count; i++)
-      if (list[i].getVd() == vd)
-        return &list[i];
-
-    return NULL;
-  }
-
-  //! Find VarAttr (by class).
-  ASMJIT_INLINE VarAttr* findVaByClass(uint32_t c, VarData* vd) const {
-    VarAttr* list = getVaListByClass(c);
-    uint32_t count = getVaCountByClass(c);
-
-    for (uint32_t i = 0; i < count; i++)
-      if (list[i].getVd() == vd)
-        return &list[i];
-
-    return NULL;
-  }
-
-  // --------------------------------------------------------------------------
-  // [Members]
-  // --------------------------------------------------------------------------
-
-  //! Special registers on input.
-  //!
-  //! Special register(s) restricted to one or more physical register. If there
-  //! is more than one special register it means that we have to duplicate the
-  //! variable content to all of them (it means that the same varible was used
-  //! by two or more operands). We forget about duplicates after the register
-  //! allocation finishes and marks all duplicates as non-assigned.
-  X86RegMask _inRegs;
-
-  //! Special registers on output.
-  //!
-  //! Special register(s) used on output. Each variable can have only one
-  //! special register on the output, 'X86VarMap' contains all registers from
-  //! all 'VarAttr's.
-  X86RegMask _outRegs;
-
-  //! Clobbered registers (by a function call).
-  X86RegMask _clobberedRegs;
-
-  //! Start indexes of variables per register class.
-  X86RegCount _start;
-  //! Count of variables per register class.
-  X86RegCount _count;
-
-  //! VarAttr list.
-  VarAttr _list[1];
-};
-
-// ============================================================================
-// [asmjit::X86StateCell]
-// ============================================================================
-
-//! X86/X64 state-cell.
-union X86StateCell {
-  // --------------------------------------------------------------------------
-  // [Accessors]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE uint32_t getState() const {
-    return _state;
-  }
-
-  ASMJIT_INLINE void setState(uint32_t state) {
-    _state = static_cast<uint8_t>(state);
-  }
-
-  // --------------------------------------------------------------------------
-  // [Reset]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE void reset() { _packed = 0; }
-
-  // --------------------------------------------------------------------------
-  // [Members]
-  // --------------------------------------------------------------------------
-
-  uint8_t _packed;
-
-  struct {
-    uint8_t _state : 2;
-    uint8_t _unused : 6;
-  };
-};
-
-// ============================================================================
-// [asmjit::X86VarState]
-// ============================================================================
-
-//! X86/X64 state.
-struct X86VarState : VarState {
-  enum {
-    //! Base index of Gp registers.
-    kGpIndex = 0,
-    //! Count of Gp registers.
-    kGpCount = 16,
-
-    //! Base index of Mm registers.
-    kMmIndex = kGpIndex + kGpCount,
-    //! Count of Mm registers.
-    kMmCount = 8,
-
-    //! Base index of Xmm registers.
-    kXmmIndex = kMmIndex + kMmCount,
-    //! Count of Xmm registers.
-    kXmmCount = 16,
-
-    //! Count of all registers in `X86VarState`.
-    kAllCount = kXmmIndex + kXmmCount
-  };
-
-  // --------------------------------------------------------------------------
-  // [Accessors]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE VarData** getList() {
-    return _list;
-  }
-
-  ASMJIT_INLINE VarData** getListByClass(uint32_t c) {
-    switch (c) {
-      case kX86RegClassGp : return _listGp;
-      case kX86RegClassMm : return _listMm;
-      case kX86RegClassXyz: return _listXmm;
-
-      default:
-        return NULL;
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // [Clear]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_INLINE void reset(size_t numCells) {
-    ::memset(this, 0, kAllCount * sizeof(VarData*) +
-                      2         * sizeof(X86RegMask) +
-                      numCells  * sizeof(X86StateCell));
-  }
-
-  // --------------------------------------------------------------------------
-  // [Members]
-  // --------------------------------------------------------------------------
-
-  union {
-    //! List of all allocated variables in one array.
-    VarData* _list[kAllCount];
-
-    struct {
-      //! Allocated Gp registers.
-      VarData* _listGp[kGpCount];
-      //! Allocated Mm registers.
-      VarData* _listMm[kMmCount];
-      //! Allocated Xmm registers.
-      VarData* _listXmm[kXmmCount];
-    };
-  };
-
-  //! Occupied registers (mask).
-  X86RegMask _occupied;
-  //! Modified registers (mask).
-  X86RegMask _modified;
-
-  //! Variables data, the length is stored in `X86Context`.
-  X86StateCell _cells[1];
-};
-
-// ============================================================================
-// [asmjit::X86FuncDecl]
-// ============================================================================
-
-//! X86 function, including calling convention, arguments and their
-//! register indices or stack positions.
-struct X86FuncDecl : public FuncDecl {
-  // --------------------------------------------------------------------------
-  // [Construction / Destruction]
-  // --------------------------------------------------------------------------
-
-  //! Create a new `X86FuncDecl` instance.
-  ASMJIT_INLINE X86FuncDecl() {
-    reset();
-  }
-
-  // --------------------------------------------------------------------------
-  // [Accessors - X86]
-  // --------------------------------------------------------------------------
-
-  //! Get used registers (mask).
-  //!
-  //! \note The result depends on the function calling convention AND the
-  //! function prototype. Returned mask contains only registers actually used
-  //! to pass function arguments.
-  ASMJIT_INLINE uint32_t getUsed(uint32_t c) const {
-    return _used.get(c);
-  }
-
-  //! Get passed registers (mask).
-  //!
-  //! \note The result depends on the function calling convention used; the
-  //! prototype of the function doesn't affect the mask returned.
-  ASMJIT_INLINE uint32_t getPassed(uint32_t c) const {
-    return _passed.get(c);
-  }
-
-  //! Get preserved registers (mask).
-  //!
-  //! \note The result depends on the function calling convention used; the
-  //! prototype of the function doesn't affect the mask returned.
-  ASMJIT_INLINE uint32_t getPreserved(uint32_t c) const {
-    return _preserved.get(c);
-  }
-
-  //! Get ther order of passed registers (Gp).
-  //!
-  //! \note The result depends on the function calling convention used; the
-  //! prototype of the function doesn't affect the mask returned.
-  ASMJIT_INLINE const uint8_t* getPassedOrderGp() const {
-    return _passedOrderGp;
-  }
-
-  //! Get ther order of passed registers (Xmm).
-  //!
-  //! \note The result depends on the function calling convention used; the
-  //! prototype of the function doesn't affect the mask returned.
-  ASMJIT_INLINE const uint8_t* getPassedOrderXmm() const {
-    return _passedOrderXmm;
-  }
-
-  // --------------------------------------------------------------------------
-  // [SetPrototype]
-  // --------------------------------------------------------------------------
-
-  //! Set function prototype.
-  //!
-  //! This will set function calling convention and setup arguments variables.
-  //!
-  //! \note This function will allocate variables, it can be called only once.
-  ASMJIT_API Error setPrototype(uint32_t conv, const FuncPrototype& p);
-
-  // --------------------------------------------------------------------------
-  // [Reset]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_API void reset();
-
-  // --------------------------------------------------------------------------
-  // [Members]
-  // --------------------------------------------------------------------------
-
-  //! Used registers.
-  X86RegMask _used;
-
-  //! Passed registers (defined by the calling convention).
-  X86RegMask _passed;
-  //! Preserved registers (defined by the calling convention).
-  X86RegMask _preserved;
-
-  //! Order of registers defined to pass function arguments (Gp).
-  uint8_t _passedOrderGp[8];
-  //! Order of registers defined to pass function arguments (Xmm).
-  uint8_t _passedOrderXmm[8];
-};
 
 // ============================================================================
 // [asmjit::X86FuncNode]
 // ============================================================================
 
 //! X86/X64 function node.
-struct X86FuncNode : public FuncNode {
+class X86FuncNode : public HLFunc {
+ public:
   ASMJIT_NO_COPY(X86FuncNode)
 
   // --------------------------------------------------------------------------
@@ -1242,7 +73,7 @@ struct X86FuncNode : public FuncNode {
   // --------------------------------------------------------------------------
 
   //! Create a new `X86FuncNode` instance.
-  ASMJIT_INLINE X86FuncNode(Compiler* compiler) : FuncNode(compiler) {
+  ASMJIT_INLINE X86FuncNode(Compiler* compiler) noexcept : HLFunc(compiler) {
     _decl = &_x86Decl;
     _saveRestoreRegs.reset();
 
@@ -1254,73 +85,76 @@ struct X86FuncNode : public FuncNode {
 
     _stackFrameRegIndex = kInvalidReg;
     _isStackFrameRegPreserved = false;
-    _stackFrameCopyGpIndex[0] = kInvalidReg;
-    _stackFrameCopyGpIndex[1] = kInvalidReg;
-    _stackFrameCopyGpIndex[2] = kInvalidReg;
-    _stackFrameCopyGpIndex[3] = kInvalidReg;
-    _stackFrameCopyGpIndex[4] = kInvalidReg;
-    _stackFrameCopyGpIndex[5] = kInvalidReg;
+
+    for (uint32_t i = 0; i < ASMJIT_ARRAY_SIZE(_stackFrameCopyGpIndex); i++)
+      _stackFrameCopyGpIndex[i] = static_cast<uint8_t>(kInvalidReg);
   }
 
   //! Destroy the `X86FuncNode` instance.
-  ASMJIT_INLINE ~X86FuncNode() {}
+  ASMJIT_INLINE ~X86FuncNode() noexcept {}
 
   // --------------------------------------------------------------------------
   // [Accessors]
   // --------------------------------------------------------------------------
 
   //! Get function declaration as `X86FuncDecl`.
-  ASMJIT_INLINE X86FuncDecl* getDecl() const {
+  ASMJIT_INLINE X86FuncDecl* getDecl() const noexcept {
     return const_cast<X86FuncDecl*>(&_x86Decl);
   }
 
   //! Get argument.
-  ASMJIT_INLINE VarData* getArg(uint32_t i) const {
-    ASMJIT_ASSERT(i < _x86Decl.getArgCount());
-    return static_cast<VarData*>(_argList[i]);
+  ASMJIT_INLINE VarData* getArg(uint32_t i) const noexcept {
+    ASMJIT_ASSERT(i < _x86Decl.getNumArgs());
+    return static_cast<VarData*>(_args[i]);
   }
 
   //! Get registers which have to be saved in prolog/epilog.
-  ASMJIT_INLINE uint32_t getSaveRestoreRegs(uint32_t c) { return _saveRestoreRegs.get(c); }
+  ASMJIT_INLINE uint32_t getSaveRestoreRegs(uint32_t rc) noexcept { return _saveRestoreRegs.get(rc); }
 
   //! Get stack size needed to align stack back to the nature alignment.
-  ASMJIT_INLINE uint32_t getAlignStackSize() const { return _alignStackSize; }
+  ASMJIT_INLINE uint32_t getAlignStackSize() const noexcept { return _alignStackSize; }
   //! Set stack size needed to align stack back to the nature alignment.
-  ASMJIT_INLINE void setAlignStackSize(uint32_t s) { _alignStackSize = s; }
+  ASMJIT_INLINE void setAlignStackSize(uint32_t s) noexcept { _alignStackSize = s; }
 
   //! Get aligned stack size used by variables and memory allocated on the stack.
-  ASMJIT_INLINE uint32_t getAlignedMemStackSize() const { return _alignedMemStackSize; }
+  ASMJIT_INLINE uint32_t getAlignedMemStackSize() const noexcept { return _alignedMemStackSize; }
 
   //! Get stack size used by push/pop sequences in prolog/epilog.
-  ASMJIT_INLINE uint32_t getPushPopStackSize() const { return _pushPopStackSize; }
+  ASMJIT_INLINE uint32_t getPushPopStackSize() const noexcept { return _pushPopStackSize; }
   //! Set stack size used by push/pop sequences in prolog/epilog.
-  ASMJIT_INLINE void setPushPopStackSize(uint32_t s) { _pushPopStackSize = s; }
+  ASMJIT_INLINE void setPushPopStackSize(uint32_t s) noexcept { _pushPopStackSize = s; }
 
   //! Get stack size used by mov sequences in prolog/epilog.
-  ASMJIT_INLINE uint32_t getMoveStackSize() const { return _moveStackSize; }
+  ASMJIT_INLINE uint32_t getMoveStackSize() const noexcept { return _moveStackSize; }
   //! Set stack size used by mov sequences in prolog/epilog.
-  ASMJIT_INLINE void setMoveStackSize(uint32_t s) { _moveStackSize = s; }
+  ASMJIT_INLINE void setMoveStackSize(uint32_t s) noexcept { _moveStackSize = s; }
 
   //! Get extra stack size.
-  ASMJIT_INLINE uint32_t getExtraStackSize() const { return _extraStackSize; }
+  ASMJIT_INLINE uint32_t getExtraStackSize() const noexcept { return _extraStackSize; }
   //! Set extra stack size.
-  ASMJIT_INLINE void setExtraStackSize(uint32_t s) { _extraStackSize  = s; }
+  ASMJIT_INLINE void setExtraStackSize(uint32_t s) noexcept { _extraStackSize  = s; }
 
-  //! Get whether the function has stack frame register.
+  //! Get whether the function has stack frame register (only when the stack is misaligned).
   //!
-  //! \note Stack frame register can be used for both - aligning purposes or
+  //! NOTE: Stack frame register can be used for both - aligning purposes or
   //! generating standard prolog/epilog sequence.
-  //!
-  //! \note Used only when stack is misaligned.
-  ASMJIT_INLINE bool hasStackFrameReg() const { return _stackFrameRegIndex != kInvalidReg; }
+  ASMJIT_INLINE bool hasStackFrameReg() const noexcept {
+    return _stackFrameRegIndex != kInvalidReg;
+  }
+
   //! Get stack frame register index.
   //!
-  //! \note Used only when stack is misaligned.
-  ASMJIT_INLINE uint32_t getStackFrameRegIndex() const { return _stackFrameRegIndex; }
+  //! NOTE: Used only when stack is misaligned.
+  ASMJIT_INLINE uint32_t getStackFrameRegIndex() const noexcept {
+    return _stackFrameRegIndex;
+  }
+
   //! Get whether the stack frame register is preserved.
   //!
-  //! \note Used only when stack is misaligned.
-  ASMJIT_INLINE bool isStackFrameRegPreserved() const { return static_cast<bool>(_isStackFrameRegPreserved); }
+  //! NOTE: Used only when stack is misaligned.
+  ASMJIT_INLINE bool isStackFrameRegPreserved() const noexcept {
+    return static_cast<bool>(_isStackFrameRegPreserved);
+  }
 
   // --------------------------------------------------------------------------
   // [Members]
@@ -1359,7 +193,8 @@ struct X86FuncNode : public FuncNode {
 // ============================================================================
 
 //! X86/X64 function-call node.
-struct X86CallNode : public CallNode {
+class X86CallNode : public HLCall {
+ public:
   ASMJIT_NO_COPY(X86CallNode)
 
   // --------------------------------------------------------------------------
@@ -1367,20 +202,20 @@ struct X86CallNode : public CallNode {
   // --------------------------------------------------------------------------
 
   //! Create a new `X86CallNode` instance.
-  ASMJIT_INLINE X86CallNode(Compiler* compiler, const Operand& target) : CallNode(compiler, target) {
+  ASMJIT_INLINE X86CallNode(Compiler* compiler, const Operand& target) noexcept : HLCall(compiler, target) {
     _decl = &_x86Decl;
     _usedArgs.reset();
   }
 
   //! Destroy the `X86CallNode` instance.
-  ASMJIT_INLINE ~X86CallNode() {}
+  ASMJIT_INLINE ~X86CallNode() noexcept {}
 
   // --------------------------------------------------------------------------
   // [Accessors]
   // --------------------------------------------------------------------------
 
-  //! Get function prototype.
-  ASMJIT_INLINE X86FuncDecl* getDecl() const {
+  //! Get the function prototype.
+  ASMJIT_INLINE X86FuncDecl* getDecl() const noexcept {
     return const_cast<X86FuncDecl*>(&_x86Decl);
   }
 
@@ -1389,28 +224,30 @@ struct X86CallNode : public CallNode {
   // --------------------------------------------------------------------------
 
   //! Set function prototype.
-  ASMJIT_API Error setPrototype(uint32_t conv, const FuncPrototype& p);
+  ASMJIT_INLINE Error setPrototype(const FuncPrototype& p) noexcept {
+    return _x86Decl.setPrototype(p);
+  }
 
   // --------------------------------------------------------------------------
   // [Arg / Ret]
   // --------------------------------------------------------------------------
 
   //! Set argument at `i` to `op`.
-  ASMJIT_API bool _setArg(uint32_t i, const Operand& op);
+  ASMJIT_API bool _setArg(uint32_t i, const Operand& op) noexcept;
   //! Set return at `i` to `op`.
-  ASMJIT_API bool _setRet(uint32_t i, const Operand& op);
+  ASMJIT_API bool _setRet(uint32_t i, const Operand& op) noexcept;
 
   //! Set argument at `i` to `var`.
-  ASMJIT_INLINE bool setArg(uint32_t i, const Var& var) { return _setArg(i, var); }
+  ASMJIT_INLINE bool setArg(uint32_t i, const Var& var) noexcept { return _setArg(i, var); }
   //! Set argument at `i` to `reg` (FP registers only).
-  ASMJIT_INLINE bool setArg(uint32_t i, const X86FpReg& reg) { return _setArg(i, reg); }
+  ASMJIT_INLINE bool setArg(uint32_t i, const X86FpReg& reg) noexcept { return _setArg(i, reg); }
   //! Set argument at `i` to `imm`.
-  ASMJIT_INLINE bool setArg(uint32_t i, const Imm& imm) { return _setArg(i, imm); }
+  ASMJIT_INLINE bool setArg(uint32_t i, const Imm& imm) noexcept { return _setArg(i, imm); }
 
   //! Set return at `i` to `var`.
-  ASMJIT_INLINE bool setRet(uint32_t i, const Var& var) { return _setRet(i, var); }
+  ASMJIT_INLINE bool setRet(uint32_t i, const Var& var) noexcept { return _setRet(i, var); }
   //! Set return at `i` to `reg` (FP registers only).
-  ASMJIT_INLINE bool setRet(uint32_t i, const X86FpReg& reg) { return _setRet(i, reg); }
+  ASMJIT_INLINE bool setRet(uint32_t i, const X86FpReg& reg) noexcept { return _setRet(i, reg); }
 
   // --------------------------------------------------------------------------
   // [Members]
@@ -1420,24 +257,11 @@ struct X86CallNode : public CallNode {
   X86FuncDecl _x86Decl;
   //! Mask of all registers actually used to pass function arguments.
   //!
-  //! \note This bit-mask is not the same as `X86Func::_passed`. It contains
+  //! NOTE: This bit-mask is not the same as `X86Func::_passed`. It contains
   //! only registers actually used to do the call while `X86Func::_passed`
   //! mask contains all registers for all function prototype combinations.
   X86RegMask _usedArgs;
 };
-
-// ============================================================================
-// [asmjit::X86TypeId / VarMapping]
-// ============================================================================
-
-#if !defined(ASMJIT_DOCGEN)
-ASMJIT_TYPE_ID(X86MmReg, kX86VarTypeMm);
-ASMJIT_TYPE_ID(X86MmVar, kX86VarTypeMm);
-ASMJIT_TYPE_ID(X86XmmReg, kX86VarTypeXmm);
-ASMJIT_TYPE_ID(X86XmmVar, kX86VarTypeXmm);
-ASMJIT_TYPE_ID(X86YmmReg, kX86VarTypeYmm);
-ASMJIT_TYPE_ID(X86YmmVar, kX86VarTypeYmm);
-#endif // !ASMJIT_DOCGEN
 
 // ============================================================================
 // [asmjit::X86Compiler]
@@ -1446,370 +270,277 @@ ASMJIT_TYPE_ID(X86YmmVar, kX86VarTypeYmm);
 //! X86/X64 compiler.
 //!
 //! This class is used to store instruction stream and allows to modify it on
-//! the fly. It uses different concept than `Assembler` class and in fact
+//! the fly. It uses a different concept than `Assembler` class and in fact
 //! `Assembler` is only used as a backend. Compiler never emits machine code
-//! and each instruction you use is stored to instruction array instead. This
-//! allows to modify instruction stream later and for example to reorder
-//! instructions to make better performance.
+//! directly, it stores instructions in a code-stream instead. This allows to
+//! modify the code-stream later or and to apply various transformations to it.
 //!
-//! `X86Compiler` moves code generation to a higher level. Higher level
-//! constructs allows to write more abstract and extensible code that is not
-//! possible with pure `X86Assembler`.
+//! `X86Compiler` moves the code generation to a higher level. Higher level
+//! constructs allow to write more abstract and extensible code that is not
+//! possible with pure `X86Assembler` solution.
 //!
 //! The Story
 //! ---------
 //!
-//! Before telling you how Compiler works I'd like to write a story. I'd like
-//! to cover reasons why this class was created and why I'm recommending to use
-//! it. When I released the first version of AsmJit (0.1) it was a toy. The
-//! first function I wrote was function which is still available as testjit and
-//! which simply returns 1024. The reason why function works for both 32-bit/
-//! 64-bit mode and for Windows/Unix specific calling conventions is luck, no
-//! arguments usage and no registers usage except returning value in EAX/RAX.
+//! The compiler was created as a solution to bring higher level concepts into
+//! a very low-level code generation. It started as an experiment to unify
+//! the code generator for X86 and X86 architectures. These architectures are
+//! built on the same ground, but use some concepts that are radically different
+//! between X86 and X64. Basically the X64 architecture is a good evolution of
+//! X86, because it offers much more registers and it added support for relative
+//! addressing. Both architectures also use different ABI, which means that
+//! function calling conventions are incompatible between each other (not just
+//! between architectures, but also between OSes).
 //!
-//! Then I started a project called BlitJit which was targetted to generating
-//! JIT code for computer graphics. After writing some lines I decided that I
-//! can't join pieces of code together without abstraction, should be
-//! pixels source pointer in ESI/RSI or EDI/RDI or it's completelly
-//! irrellevant? What about destination pointer and SSE2 register for reading
-//! input pixels? The simple answer might be "just pick some one and use it".
+//! This is a pain when it comes to low-level code generation. When AsmJit was
+//! first published the main author's plan was to use it for a 2D pipeline
+//! generation. In this task the main use of AsmJit was to combine several code
+//! sections altogether without worrying about "which register should contain
+//! what". This meant that a pure `X86Assembler` probably won't do the job
+//! itself. Instead of hacking the `X86Assembler` to do more the `X86Compiler`
+//! concept started to provide a layer that will consume instructions the same
+//! way as `X86Assembler`, transform them, and serialize them to `X86Assembler`.
 //!
-//! Another reason for abstraction is function calling-conventions. It's really
-//! not easy to write assembler code for 32-bit and 64-bit platform supporting
-//! three calling conventions (32-bit is similar between Windows and Unix, but
-//! 64-bit calling conventions are different).
+//! The compiler concept evolved rapidly after the initial version and was
+//! rewritten several times before it stabilized into the current form. It is
+//! at the moment still evolving and it used to be the biggest source of bugs
+//! in AsmJit in the past (doing non-trivial transformations has it's down-sides).
 //!
-//! At this time I realized that I can't write code which uses named registers,
-//! I need to abstract it. In most cases you don't need specific register, you
-//! need to emit instruction that does something with 'virtual' register(s),
-//! memory, immediate or label.
-//!
-//! The first version of AsmJit with Compiler was 0.5 (or 0.6?, can't remember).
-//! There was support for 32-bit and 64-bit mode, function calling conventions,
-//! but when emitting instructions the developer needed to decide which
-//! registers are changed, which are only read or completely overwritten. This
-//! model helped a lot when generating code, especially when joining more
-//! code-sections together, but there was also small possibility for mistakes.
-//! Simply the first version of Compiler was great improvement over low-level
-//! Assembler class, but the API design wasn't perfect.
-//!
-//! The second version of Compiler, completelly rewritten and based on
-//! different goals, is part of AsmJit starting at version 1.0. This version
-//! was designed after the first one and it contains serious improvements over
-//! the old one. The first improvement is that you just use instructions with
-//! virtual registers - called variables. When using compiler there is no way
-//! to use native registers, there are variables instead. AsmJit is smarter
-//! than before and it knows which register is needed only for read (r),
-//! read/write (w) or overwrite (x). Supported are also instructions which
-//! are using some registers in implicit way (these registers are not part of
-//! instruction definition in string form). For example to use CPUID instruction
-//! you must give it four variables which will be automatically allocated in
-//! input/output registers (EAX, EBX, ECX, EDX).
-//!
-//! Another improvement is algorithm used by a register allocator. In first
-//! version the registers were allocated when creating instruction stream. In
-//! new version registers are allocated after calling `Compiler::make()`,
-//! thus register allocator has information about scope of all variables and
-//! statistics of their usage. The algorithm to allocate registers is very
-//! simple and it's always called as a 'linear scan register allocator'. When
-//! you get out of registers the all possible variables are scored and the worst
-//! is spilled. Of course algorithm ignores the variables used for current
-//! instruction.
-//!
-//! In addition, because registers are allocated after the code stream is
-//! generated, the state switches between jumps are handled by Compiler too.
-//! You don't need to worry about jumps, compiler always do this dirty work
-//! for you.
-//!
-//! The nearly last thing I'd like to present is calling other functions from
-//! the generated code. AsmJit uses a `FuncPrototype` class to hold function
-//! parameters, their position in stack (or register index) and return value.
-//! This class is used internally, but it can be used to create your own
-//! function calling-convention. All standard function calling conventions are
-//! implemented.
-//!
-//! Please enjoy the new version of Compiler, it was created for writing a
-//! low-level code using high-level API, leaving developer to concentrate on
-//! real problems and not to solving a register puzzle.
+//! The compiler at the moment uses linear-scan register allocation and can
+//! look ahead to see which registers it should use. There are many limitations
+//! at the moment, but if the resulting code doesn't use so much registers at
+//! a same time it's pretty decent. However, please don't expect miracles, it
+//! cannot compete with register allocators used in todays C++ compilers.
 //!
 //! Code Generation
 //! ---------------
 //!
-//! First that is needed to know about compiler is that compiler never emits
-//! machine code. It's used as a middleware between @c asmjit::Assembler and
-//! your code. There is also convenience method @c make() that allows to
-//! generate machine code directly without creating @c asmjit::Assembler
-//! instance.
-//!
-//! Comparison of generating machine code through @c Assembler and directly
-//! by @c Compiler:
-//!
-//! ~~~
-//! // Assembler instance is low level code generation class that emits
-//! // machine code.
-//! Assembler a;
-//!
-//! // Compiler instance is high level code generation class that stores all
-//! // instructions in internal representation.
-//! Compiler c;
-//!
-//! // ... put your code here ...
-//!
-//! // Final step - generate code. asmjit::Compiler::serialize() will send all
-//! // instructions into Assembler and this ensures generating real machine code.
-//! c.serialize(&a);
-//!
-//! // Your function
-//! void* fn = a.make();
-//! ~~~
-//!
-//! Example how to generate machine code using only @c Compiler (preferred):
-//!
-//! ~~~
-//! // Compiler instance is enough.
-//! Compiler c;
-//!
-//! // ... put your code here ...
-//!
-//! // Your function
-//! void* fn = c.make();
-//! ~~~
-//!
-//! You can see that there is @c asmjit::Compiler::serialize() function that
-//! emits instructions into @c asmjit::Assembler(). This layered architecture
-//! means that each class is used for something different and there is no code
-//! duplication. For convenience there is also @c asmjit::Compiler::make()
-//! method that can create your function using @c asmjit::Assembler, but
-//! internally (this is preferred bahavior when using @c asmjit::Compiler).
-//!
-//! The @c make() method allocates memory using `Runtime` instance passed
-//! into the @c Compiler constructor. If code generator is used to create JIT
-//! function then virtual memory allocated by `VMemMgr` is used.
+//! The `X86Compiler` uses `X86Assembler` as a backend. It integrates with it,
+//! which means that labels created by Assembler can be used by Compiler and
+//! vice-versa. The following code shows the preferred and simplest way of
+//! creating a compiler:
 //!
 //! ~~~
 //! JitRuntime runtime;
-//! Compiler c(&runtime);
+//! X86Assembler a(&runtime);
+//! X86Compiler c(&a);
 //!
-//! // ... put your code using Compiler instance ...
+//! // ... use the compiler `c` ...
 //!
-//! // Your function
-//! void* fn = c.make();
-//!
-//! runtime.release(fn);
+//! c.finalize();
 //! ~~~
+//!
+//! After the `finalize()` is called the compiler is detached from the assembler
+//! and reset (cannot be used after finalization). It can be reattached again by
+//! using `c.attach(&a)`, but the Compiler won't remember anything from the
+//! previous code generation execution - it will be like creating a new instance
+//! of `X86Compiler`.
 //!
 //! Functions
 //! ---------
 //!
-//! To build functions with @c Compiler, see @c asmjit::Compiler::addFunc()
-//! method.
+//! See \ref asmjit::Compiler::addFunc().
 //!
 //! Variables
 //! ---------
 //!
-//! Compiler is able to manage variables and function arguments. Function
-//! arguments are moved to variables by using @c setArg() method, where the
-//! first parameter is argument index and second parameter is the variable
-//! instance. To declare variable use @c newGpVar(), @c newMmVar() and @c
-//! newXmmVar() methods. The @c newXXX() methods accept also parameter
-//! describing the variable type. For example the @c newGpVar() method always
-//! creates variable which size matches the target architecture size (for
-//! 32-bit target the 32-bit variable is created, for 64-bit target the
-//! variable size is 64-bit). To override this behavior the variable type
-//! must be specified.
+//! Compiler has a built-in support for variables and assigning function
+//! arguments. Variables are created by using `newXXX()` methods. If the
+//! methods ends with `Var`, like `newXmmVar()` it accepts a variable type
+//! as a first parameter. Variable type defines the layout and size of the
+//! variable. It's the most important for general purpose registers, where
+//! the variable type affects which instructions are generated when used as
+//! operands. For example "mov eax, edx" is different than "mov rax, rdx",
+//! but it's still the same "mov" instruction. Since the variable types are
+//! verbose an alternative form to create variables easier was introduced.
+//!
+//! Instead of using `newGpVar(kVarTypeIntX, ...)` alternative forms like
+//! `newIntX(...)` or `newUIntX(...)` can be used instead. Variables can
+//! have a name so the code that creates a variable usually looks like
+//! `newInt32("a")` or `newIntPtr("pInputBuffer")`, etc...
+//!
+//! Other register types like MMX or XMM have also alternative forms, so
+//! for example `newMm("mmx")`, `newXmm("xmm")`, `newXmmPd("doubles")`, and
+//! other forms can be used to create SIMD variables.
+//!
+//! Function arguments are associated with variables by using `setArg()`, where
+//! the first parameter is argument index and the second parameter is the
+//! variable instance. Function arguments can be a little bit tricky, because
+//! asmjit allows to also define 64-bit arguments on a 32-bit architecture,
+//! where the argument itself is split into two - lower-32 bit and higher 32-bit.
+//! This applies also to a return value.
+//!
+//! The following snippet shows how to create a function and associate function
+//! arguments with variables:
 //!
 //! ~~~
-//! // Compiler and function declaration - void f(int*);
-//! Compiler c;
-//! X86GpVar a0(c, kVarTypeIntPtr);
+//! JitRuntime runtime;
+//! X86Assembler a(&runtime);
+//! X86Compiler c(&a);
 //!
-//! c.addFunc(kFuncConvHost, FuncBuilder1<Void, int*>());
-//! c.setArg(0, a0);
+//! // Function prototype is "int function(int*, int*)" by using the host
+//! // calling convention, which should be __cdecl in our case (if not
+//! // configured to something else).
+//! c.addFunc(FuncBuilder2<int, int*, int*>(kCallConvHost));
 //!
-//! // Create your variables.
-//! X86GpVar x0(c, kVarTypeInt32);
-//! X86GpVar x1(c, kVarTypeInt32);
+//! // Associate function arguments.
+//! X86GpVar pX = c.newIntPtr("pX");
+//! X86GpVar pY = c.newIntPtr("pY");
 //!
-//! // Init your variables.
-//! c.mov(x0, 1);
-//! c.mov(x1, 2);
+//! c.setArg(0, pX);
+//! c.setArg(1, pY);
 //!
-//! // ... your code ...
-//! c.add(x0, x1);
-//! // ... your code ...
+//! // Do something useful :)
+//! X86GpVar x = c.newInt32("x");
+//! X86GpVar y = c.newInt32("y");
 //!
-//! // Store result to a given pointer in first argument
-//! c.mov(dword_ptr(a0), x0);
+//! c.mov(x, dword_ptr(pX));
+//! c.add(y, dword_ptr(pY));
 //!
-//! // End of function body.
+//! // Return `x`.
+//! c.ret(x);
+//!
+//! // End of the function body.
 //! c.endFunc();
 //!
-//! // Make the function.
+//! // Finalize the compiler.
+//! c.finalize();
+//!
+//! // Use the `X86Assembler` to assemble and relocate the function. It returns
+//! // a pointer to the first byte of the code generated, which is the function
+//! // entry point in our case.
 //! typedef void (*MyFunc)(int*);
-//! MyFunc func = asmjit_cast<MyFunc>(c.make());
+//! MyFunc func = asmjit_cast<MyFunc>(a.make());
 //! ~~~
 //!
-//! This code snipped needs to be explained. You can see that there are more
-//! variable types that can be used by `Compiler`. Most useful variables can
-//! be allocated using general purpose registers (`X86GpVar`), MMX registers
-//! (`X86MmVar`) or SSE/SSE2 registers (`X86XmmVar`).
+//! The snippet uses methods to create variables, to associate them with
+//! function arguments, and to use them to return from the generated function.
 //!
-//! X86/X64 variable types:
+//! When a variable is created, the initial state is `kVarStateNone`, when
+//! it's allocated to the register or spilled to a memory it changes its
+//! state to `kVarStateReg` or `kVarStateMem`, respectively. It's usual
+//! during the variable that its state is changed multiple times. To generate
+//! a better code, you can control explicitely the allocation and spilling:
 //!
-//! - `kVarTypeInt8`     - Signed 8-bit integer, mapped to Gpd register (eax, ebx, ...).
-//! - `kVarTypeUInt8`    - Unsigned 8-bit integer, mapped to Gpd register (eax, ebx, ...).
+//!   - `alloc()` - Explicit method to alloc variable into register. It can be
+//!     used to force allocation a variable before a loop for example.
 //!
-//! - `kVarTypeInt16`    - Signed 16-bit integer, mapped to Gpd register (eax, ebx, ...).
-//! - `kVarTypeUInt16`   - Unsigned 16-bit integer, mapped to Gpd register (eax, ebx, ...).
+//!   - `spill()` - Explicit method to spill variable. If variable is in
+//!     register and you call this method, it's moved to its home memory
+//!     location. If the variable is not in register no operation is performed.
 //!
-//! - `kVarTypeInt32`    - Signed 32-bit integer, mapped to Gpd register (eax, ebx, ...).
-//! - `kVarTypeUInt32`   - Unsigned 32-bit integer, mapped to Gpd register (eax, ebx, ...).
+//!   - `unuse()` - Unuse variable (you can use this to end the variable scope
+//!     or sub-scope).
 //!
-//! - `kVarTypeInt64`    - Signed 64-bit integer, mapped to Gpq register (rax, rbx, ...).
-//! - `kVarTypeUInt64`   - Unsigned 64-bit integer, mapped to Gpq register (rax, rbx, ...).
+//! List of X86/X64 variable types:
+//!   - `kVarTypeInt8`     - Signed 8-bit integer, mapped to GPD register (eax, ebx, ...).
+//!   - `kVarTypeUInt8`    - Unsigned 8-bit integer, mapped to GPD register (eax, ebx, ...).
+//!   - `kVarTypeInt16`    - Signed 16-bit integer, mapped to GPD register (eax, ebx, ...).
+//!   - `kVarTypeUInt16`   - Unsigned 16-bit integer, mapped to GPD register (eax, ebx, ...).
+//!   - `kVarTypeInt32`    - Signed 32-bit integer, mapped to GPD register (eax, ebx, ...).
+//!   - `kVarTypeUInt32`   - Unsigned 32-bit integer, mapped to GPD register (eax, ebx, ...).
+//!   - `kVarTypeInt64`    - Signed 64-bit integer, mapped to GPQ register (rax, rbx, ...).
+//!   - `kVarTypeUInt64`   - Unsigned 64-bit integer, mapped to GPQ register (rax, rbx, ...).
+//!   - `kVarTypeIntPtr`   - intptr_t, mapped to GPD/GPQ register; depends on target, not host!
+//!   - `kVarTypeUIntPtr`  - uintptr_t, mapped to GPD/GPQ register; depends on target, not host!
+//!   - `kX86VarTypeMm`    - 64-bit MMX register (MM0, MM1, ...).
+//!   - `kX86VarTypeXmm`   - 128-bit XMM register.
+//!   - `kX86VarTypeXmmSs` - 128-bit XMM register that contains a scalar float.
+//!   - `kX86VarTypeXmmSd` - 128-bit XMM register that contains a scalar double.
+//!   - `kX86VarTypeXmmPs` - 128-bit XMM register that contains 4 packed floats.
+//!   - `kX86VarTypeXmmPd` - 128-bit XMM register that contains 2 packed doubles.
+//!   - `kX86VarTypeYmm`   - 256-bit YMM register.
+//!   - `kX86VarTypeYmmPs` - 256-bit YMM register that contains 8 packed floats.
+//!   - `kX86VarTypeYmmPd` - 256-bit YMM register that contains 4 packed doubles.
+//!   - `kX86VarTypeZmm`   - 512-bit ZMM register.
+//!   - `kX86VarTypeZmmPs` - 512-bit ZMM register that contains 16 packed floats.
+//!   - `kX86VarTypeZmmPd` - 512-bit ZMM register that contains 8 packed doubles.
 //!
-//! - `kVarTypeIntPtr`   - intptr_t, mapped to Gpd/Gpq register; depends on target, not host!
-//! - `kVarTypeUIntPtr`  - uintptr_t, mapped to Gpd/Gpq register; depends on target, not host!
-//!
-//! - `kVarTypeFp32`     - 32-bit floating point register (fp0, fp1, ...).
-//! - `kVarTypeFp64`     - 64-bit floating point register (fp0, fp1, ...).
-//!
-//! - `kX86VarTypeMm`       - 64-bit Mm register (mm0, mm1, ...).
-//!
-//! - `kX86VarTypeXmm`      - 128-bit SSE register.
-//! - `kX86VarTypeXmmSs`    - 128-bit SSE register that contains a scalar 32-bit SP-FP value.
-//! - `kX86VarTypeXmmSd`    - 128-bit SSE register that contains a scalar 64-bit DP-FP value.
-//! - `kX86VarTypeXmmPs`    - 128-bit SSE register that contains 4 packed 32-bit SP-FP values.
-//! - `kX86VarTypeXmmPd`    - 128-bit SSE register that contains 2 packed 64-bit DP-FP values.
-//!
-//! - `kX86VarTypeYmm`      - 256-bit AVX register.
-//! - `kX86VarTypeYmmPs`    - 256-bit AVX register that contains 4 packed 32-bit SP-FP values.
-//! - `kX86VarTypeYmmPd`    - 256-bit AVX register that contains 2 packed 64-bit DP-FP values.
-//!
-//! Variable states:
-//!
-//! - `kVarStateUnused - State that is assigned to newly created variables or
-//!    to not used variables (dereferenced to zero).
-//! - `kVarStateReg - State that means that variable is currently allocated in
-//!    register.
-//! - `kVarStateMem - State that means that variable is currently only in
-//!    memory location.
-//!
-//! When you create new variable, initial state is always `kVarStateUnused`,
-//! allocating it to register or spilling to memory changes this state to
-//! `kVarStateReg` or `kVarStateMem`, respectively. During variable lifetime
-//! it's usual that its state is changed multiple times. To generate better
-//! code, you can control allocating and spilling by using up to four types
-//! of methods that allows it (see next list).
-//!
-//! Explicit variable allocating / spilling methods:
-//!
-//! - `Compiler::alloc()` - Explicit method to alloc variable into register.
-//!    It can be used to force allocation a variable before a loop for example.
-//!
-//! - `Compiler::spill()` - Explicit method to spill variable. If variable
-//!    is in register and you call this method, it's moved to its home memory
-//!    location. If variable is not in register no operation is performed.
-//!
-//! - `Compiler::unuse()` - Unuse variable (you can use this to end the
-//!    variable scope or sub-scope).
-//!
-//! Please see AsmJit tutorials (testcompiler.cpp and testvariables.cpp) for
-//! more complete examples.
+//! List of X86/X64 variable states:
+//!   - `kVarStateNone - State that is assigned to newly created variables or to
+//!      not used variables (dereferenced to zero).
+//!   - `kVarStateReg - State that means that variable is currently allocated in
+//!      register.
+//!   - `kVarStateMem - State that means that variable is currently only in
+//!      memory location.
 //!
 //! Memory Management
 //! -----------------
 //!
 //! Compiler Memory management follows these rules:
 //!
-//! - Everything created by `Compiler` is always freed by `Compiler`.
-//! - To get decent performance, compiler always uses larger memory buffer
-//!   for objects to allocate and when compiler instance is destroyed, this
-//!   buffer is freed. Destructors of active objects are called when
-//!   destroying compiler instance. Destructors of abadonded compiler
-//!   objects are called immediately after abadonding them.
-//! - This type of memory management is called 'zone memory management'.
+//!   - Everything created by `X86Compiler` is always freed by `X86Compiler`.
+//!   - To get a decent performance, compiler always uses large memory buffers
+//!     to allocate objects. When the compiler is destroyed, it invalidates all
+//!     objects that it created.
+//!   - This type of memory management is called 'zone memory management'.
 //!
-//! This means that you can't use any `Compiler` object after destructing it,
-//! it also means that each object like `Label`, `Var` and others are created
-//! and managed by @c Compiler itself. These objects contain ID which is
-//! used internally by Compiler to store additional information about these
-//! objects.
+//! In other words, anything that returns a pointer to something cannot be
+//! used after the compiler was destroyed. However, since compiler integrates
+//! with assembler, labels created by Compiler can be used by Assembler or
+//! another Compiler attached to it.
 //!
 //! Control-Flow and State Management
 //! ---------------------------------
 //!
-//! The `Compiler` automatically manages state of the variables when using
-//! control flow instructions like jumps, conditional jumps and calls. There
-//! is minimal heuristics for choosing the method how state is saved or restored.
+//! The `X86Compiler` automatically manages state of all variables when using
+//! control flow instructions like jumps, conditional jumps and function calls.
 //!
-//! Generally the state can be changed only when using jump or conditional jump
-//! instruction. When using non-conditional jump then state change is embedded
-//! into the instruction stream before the jump. When using conditional jump
-//! the `Compiler` decides whether to restore state before the jump or whether
-//! to use another block where state is restored. The last case is that no-code
-//! have to be emitted and there is no state change (this is of course ideal).
+//! In general the internal state can be changed only when using jump or
+//! conditional jump. When using non-conditional jump the state change is
+//! embedded before the jump itself, so there is basically zero overhead.
+//! However, conditional jumps are more complicated and the compiler can
+//! generate in some cases a block at the end of the function that changes
+//! the state of one branch. Usually the "taken" branch is embedded directly
+//! before the jump, and "not-taken" branch has the separate code block.
 //!
-//! Choosing whether to embed 'restore-state' section before conditional jump
-//! is quite simple. If jump is likely to be 'taken' then code is embedded, if
-//! jump is unlikely to be taken then the small code section for state-switch
-//! will be generated instead.
-//!
-//! Next example is the situation where the extended code block is used to
-//! do state-change:
+//! The next example shows to the extra code block generated for a state change:
 //!
 //! ~~~
-//! Compiler c;
+//! JitRuntime runtime;
+//! X86Assembler a(&runtime);
+//! X86Compiler c(&a);
 //!
-//! c.addFunc(kFuncConvHost, FuncBuilder0<Void>());
+//! c.addFunc(FuncBuilder0<Void>(kCallConvHost));
 //!
-//! // Labels.
-//! Label L0(c);
+//! Label L0 = c.newLabel();
+//! X86GpVar x = c.newInt32("x");
+//! X86GpVar y = c.newInt32("y");
 //!
-//! // Variables.
-//! X86GpVar var0(c, kVarTypeInt32);
-//! X86GpVar var1(c, kVarTypeInt32);
+//! // After these two lines, `x` and `y` will be always stored in registers:
+//! //   x - register.
+//! //   y - register.
+//! c.xor_(x, x);
+//! c.xor_(y, y);
+//! c.cmp(x, y);
 //!
-//! // Cleanup. After these two lines, the var0 and var1 will be always stored
-//! // in registers. Our example is very small, but in larger code the var0 can
-//! // be spilled by xor(var1, var1).
-//! c.xor_(var0, var0);
-//! c.xor_(var1, var1);
-//! c.cmp(var0, var1);
-//! // State:
-//! //   var0 - register.
-//! //   var1 - register.
+//! // Manually spill `x` and `y`:
+//! //   x - memory.
+//! //   y - memory.
+//! c.spill(x);
+//! c.spill(y);
 //!
-//! // We manually spill these variables.
-//! c.spill(var0);
-//! c.spill(var1);
-//! // State:
-//! //   var0 - memory.
-//! //   var1 - memory.
-//!
-//! // Conditional jump to L0. It will be always taken, but compiler thinks that
-//! // it is unlikely taken so it will embed state change code somewhere.
+//! // Conditional jump to L0. It will be always taken, but the compiler thinks
+//! // that it is unlikely to be taken so it will embed the state-change code
+//! // somewhere else.
 //! c.je(L0);
 //!
-//! // Do something. The variables var0 and var1 will be allocated again.
-//! c.add(var0, 1);
-//! c.add(var1, 2);
-//! // State:
-//! //   var0 - register.
-//! //   var1 - register.
+//! // Do something. The variables `x` and `y` will be allocated again.
+//! //   `x` - register.
+//! //   `y` - register.
+//! c.add(x, 1);
+//! c.add(y, 2);
 //!
-//! // Bind label here, the state is not changed.
+//! // Bind a label here, the state is not changed.
+//! //   `x` - register.
+//! //   `y` - register.
 //! c.bind(L0);
-//! // State:
-//! //   var0 - register.
-//! //   var1 - register.
 //!
-//! // We need to use var0 and var1, because if compiler detects that variables
-//! // are out of scope then it optimizes the state-change.
-//! c.sub(var0, var1);
-//! // State:
-//! //   var0 - register.
-//! //   var1 - register.
+//! // Use `x` and `y`, because the compiler knows the life-time and can
+//! // eliminate the state change of dead variables.
+//! //   `x` - register.
+//! //   `y` - register.
+//! c.sub(x, y);
 //!
 //! c.endFunc();
 //! ~~~
@@ -1817,78 +548,75 @@ ASMJIT_TYPE_ID(X86YmmVar, kX86VarTypeYmm);
 //! The output:
 //!
 //! ~~~
-//! xor eax, eax                    ; xor var_0, var_0
-//! xor ecx, ecx                    ; xor var_1, var_1
-//! cmp eax, ecx                    ; cmp var_0, var_1
-//! mov [esp - 24], eax             ; spill var_0
-//! mov [esp - 28], ecx             ; spill var_1
+//! xor eax, eax                    ; xor x, x
+//! xor ecx, ecx                    ; xor y, y
+//! cmp eax, ecx                    ; cmp x, y
+//! mov [esp - 24], eax             ; spill x
+//! mov [esp - 28], ecx             ; spill x
 //! je L0_Switch
-//! mov eax, [esp - 24]             ; alloc var_0
-//! add eax, 1                      ; add var_0, 1
-//! mov ecx, [esp - 28]             ; alloc var_1
-//! add ecx, 2                      ; add var_1, 2
+//! mov eax, [esp - 24]             ; alloc x
+//! add eax, 1                      ; add x, 1
+//! mov ecx, [esp - 28]             ; alloc y
+//! add ecx, 2                      ; add y, 2
 //! L0:
-//! sub eax, ecx                    ; sub var_0, var_1
+//! sub eax, ecx                    ; sub x, y
 //! ret
 //!
 //! ; state-switch begin
 //! L0_Switch0:
-//! mov eax, [esp - 24]             ; alloc var_0
-//! mov ecx, [esp - 28]             ; alloc var_1
+//! mov eax, [esp - 24]             ; alloc x
+//! mov ecx, [esp - 28]             ; alloc y
 //! jmp short L0
 //! ; state-switch end
 //! ~~~
 //!
-//! You can see that the state-switch section was generated (see L0_Switch0).
-//! The compiler is unable to restore state immediately when emitting the
-//! forward jump (the code is generated from first to last instruction and
-//! the target state is simply not known at this time).
+//! As can be seen, the state-switch section was generated (L0_Switch0). The
+//! compiler was unable to restore the state immediately when emitting the
+//! forward jump (the code is generated from the first to last instruction
+//! and the target state is simply not known at this time).
 //!
-//! To tell `Compiler` that you want to embed state-switch code before jump
-//! it's needed to create backward jump (where also processor expects that it
-//! will be taken). To demonstrate the possibility to embed state-switch before
-//! jump we use slightly modified code:
+//! To tell the compiler to embed the state-switch code before the jump it's
+//! needed to create a backward jump (where also processor expects that it
+//! will be taken). A slightly modified code is used to demonstrate the
+//! possibility to embed the state-switch before the jump:
 //!
 //! ~~~
-//! Compiler c;
+//! JitRuntime runtime;
+//! X86Assembler a(&runtime);
+//! Compiler c(&a);
 //!
-//! c.addFunc(kFuncConvHost, FuncBuilder0<Void>());
+//! c.addFunc(FuncBuilder0<Void>(kCallConvHost));
 //!
-//! // Labels.
-//! Label L0(c);
+//! Label L0 = c.newLabel();
+//! X86GpVar x = c.newInt32("x");
+//! X86GpVar y = c.newInt32("y");
 //!
-//! // Variables.
-//! X86GpVar var0(c, kVarTypeInt32);
-//! X86GpVar var1(c, kVarTypeInt32);
+//! // After these two lines, `x` and `y` will be always stored in registers.
+//! //   `x` - register.
+//! //   `y` - register.
+//! c.xor_(x, x);
+//! c.xor_(y, y);
 //!
-//! // Cleanup. After these two lines, the var0 and var1 will be always stored
-//! // in registers. Our example is very small, but in larger code the var0 can
-//! // be spilled by xor(var1, var1).
-//! c.xor_(var0, var0);
-//! c.xor_(var1, var1);
-//! // State:
-//! //   var0 - register.
-//! //   var1 - register.
+//! // Manually spill `x` and `y`.
+//! //   `x` - memory.
+//! //   `y` - memory.
+//! c.spill(x);
+//! c.spill(y);
 //!
-//! // We manually spill these variables.
-//! c.spill(var0);
-//! c.spill(var1);
-//! // State:
-//! //   var0 - memory.
-//! //   var1 - memory.
-//!
-//! // Bind our label here.
+//! // Bind a label here, the state is not changed.
+//! //   `x` - memory.
+//! //   `y` - memory.
 //! c.bind(L0);
 //!
 //! // Do something, the variables will be allocated again.
-//! c.add(var0, 1);
-//! c.add(var1, 2);
+//! c.add(x, 1);
+//! c.add(y, 2);
 //! // State:
-//! //   var0 - register.
-//! //   var1 - register.
+//! //   `x` - register.
+//! //   `y` - register.
 //!
-//! // Backward conditional jump to L0. The default behavior is that it is taken
-//! // so state-change code will be embedded here.
+//! // Backward conditional jump to L0. The default behavior is that it
+//! // will be taken so the state-change code will be embedded here.
 //! c.je(L0);
 //!
 //! c.endFunc();
@@ -1897,129 +625,94 @@ ASMJIT_TYPE_ID(X86YmmVar, kX86VarTypeYmm);
 //! The output:
 //!
 //! ~~~
-//! xor ecx, ecx                    ; xor var_0, var_0
-//! xor edx, edx                    ; xor var_1, var_1
-//! mov [esp - 24], ecx             ; spill var_0
-//! mov [esp - 28], edx             ; spill var_1
+//! xor ecx, ecx                    ; xor x, x
+//! xor edx, edx                    ; xor y, y
+//! mov [esp - 24], ecx             ; spill x
+//! mov [esp - 28], edx             ; spill y
 //! L2:
-//! mov ecx, [esp - 24]             ; alloc var_0
-//! add ecx, 1                      ; add var_0, 1
-//! mov edx, [esp - 28]             ; alloc var_1
-//! add edx, 2                      ; add var_1, 2
+//! mov ecx, [esp - 24]             ; alloc x
+//! add ecx, 1                      ; add x, 1
+//! mov edx, [esp - 28]             ; alloc y
+//! add edx, 2                      ; add y, 2
 //!
 //! ; state-switch begin
-//! mov [esp - 24], ecx             ; spill var_0
-//! mov [esp - 28], edx             ; spill var_1
+//! mov [esp - 24], ecx             ; spill x
+//! mov [esp - 28], edx             ; spill y
 //! ; state-switch end
 //!
 //! je short L2
 //! ret
 //! ~~~
 //!
-//! Please notice where the state-switch section is located. The `Compiler`
-//! decided that jump is likely to be taken so the state change is embedded
-//! before the conditional jump. To change this behavior into the previous
-//! case it's needed to add an option (kInstOptionTaken/kInstOptionNotTaken).
+//! Please note where the state-switch sections are located in both examples.
+//! To inform the compiler which branch is likely to be taken use the following
+//! options:
+//!   - `kInstOptionTaken` - The conditional jump is likely to be taken.
+//!   - `kInstOptionNotTaken` - The conditional jump is unlikely to be taken.
 //!
-//! Replacing the <code>c.je(L0)</code> by <code>c.taken(); c.je(L0)</code>
-//! will generate code like this:
+//! Both options can be used by simply using `taken()` and/or `notTaken()`. The
+//! example above could be changed to `c.taken().je(L0)`, which would generate
+//! the following output:
 //!
 //! ~~~
-//! xor ecx, ecx                    ; xor var_0, var_0
-//! xor edx, edx                    ; xor var_1, var_1
-//! mov [esp - 24], ecx             ; spill var_0
-//! mov [esp - 28], edx             ; spill var_1
+//! xor ecx, ecx                    ; xor x, x
+//! xor edx, edx                    ; xor y, y
+//! mov [esp - 24], ecx             ; spill x
+//! mov [esp - 28], edx             ; spill y
 //! L0:
-//! mov ecx, [esp - 24]             ; alloc var_0
-//! add ecx, 1                      ; add var_0, a
-//! mov edx, [esp - 28]             ; alloc var_1
-//! add edx, 2                      ; add var_1, 2
+//! mov ecx, [esp - 24]             ; alloc x
+//! add ecx, 1                      ; add x, 1
+//! mov edx, [esp - 28]             ; alloc y
+//! add edx, 2                      ; add y, 2
 //! je L0_Switch, 2
 //! ret
 //!
 //! ; state-switch begin
 //! L0_Switch:
-//! mov [esp - 24], ecx             ; spill var_0
-//! mov [esp - 28], edx             ; spill var_1
+//! mov [esp - 24], ecx             ; spill x
+//! mov [esp - 28], edx             ; spill y
 //! jmp short L0
 //! ; state-switch end
 //! ~~~
 //!
-//! This section provided information about how state-change works. The
-//! behavior is deterministic and it can be overridden.
+//! This section provided information of how the state-change works. The
+//! behavior is deterministic and can be overridden manually if needed.
 //!
 //! Advanced Code Generation
 //! ------------------------
 //!
-//! This section describes advanced method of code generation available to
-//! `Compiler` (but also to `Assembler`). When emitting code to instruction
-//! stream the methods like `mov()`, `add()`, `sub()` can be called directly
-//! (advantage is static-type control performed also by C++ compiler) or
-//! indirectly using `emit()` method. The `emit()` method needs only instruction
-//! code and operands.
+//! This section describes an advanced method of code generation available in
+//! assembler and compiler. Every instruction supported by AsmJit has its ID,
+//! which can be used with method `emit()` instead of using compiler's intrinsics.
+//! For example `mov(x, y)` is an equivalent to `emit(kX86InstIdMov, x, y)`.
+//! The later is, however, not type-safe and C++ compiler won't help you to
+//! detect some bugs at compile time. On the other hand the later allows to
+//! generate some code programatically without using if/else constructs.
 //!
-//! Example of code generating by standard type-safe API:
-//!
-//! ~~~
-//! Compiler c;
-//!
-//! X86GpVar var0(c, kVarTypeInt32);
-//! X86GpVar var1(c, kVarTypeInt32);
-//!
-//! ...
-//!
-//! c.mov(var0, 0);
-//! c.add(var0, var1);
-//! c.sub(var0, var1);
-//! ~~~
-//!
-//! The code above can be rewritten as:
+//! There are many use-cases where the unsafe API can be used, for example:
 //!
 //! ~~~
-//! Compiler c;
+//! uint32_t translateOp(const char* op) {
+//!   if (strcmp(op, "add")) return kX86InstIdAddsd;
+//!   if (strcmp(op, "sub")) return kX86InstIdSubsd;
+//!   if (strcmp(op, "mul")) return kX86InstIdMulsd;
+//!   if (strcmp(op, "div")) return kX86InstIdDivsd;
 //!
-//! X86GpVar var0(c, kVarTypeInt32);
-//! X86GpVar var1(c, kVarTypeInt32);
+//!   return kInstIdNone;
+//! }
 //!
-//! ...
-//!
-//! c.emit(kX86InstIdMov, var0, 0);
-//! c.emit(kX86InstIdAdd, var0, var1);
-//! c.emit(kX86InstIdSub, var0, var1);
-//! ~~~
-//!
-//! The advantage of first snippet is very friendly API and type-safe control
-//! that is controlled by the C++ compiler. The advantage of second snippet is
-//! availability to replace or generate instruction code in different places.
-//! See the next example how the `emit()` method can be used to generate abstract
-//! code.
-//!
-//! Use case:
-//!
-//! ~~~
-//! bool emitArithmetic(Compiler& c, X86XmmVar& var0, X86XmmVar& var1, const char* op) {
-//!   uint32_t code = kInstIdNone;
-//!
-//!   if (strcmp(op, "ADD") == 0)
-//!     code = kX86InstIdAddss;
-//!   else if (::strcmp(op, "SUBTRACT") == 0)
-//!     code = kX86InstIdSubss;
-//!   else if (::strcmp(op, "MULTIPLY") == 0)
-//!     code = kX86InstIdMulss;
-//!   else if (::strcmp(op, "DIVIDE") == 0)
-//!     code = kX86InstIdDivss;
-//!   else
-//!     // Invalid parameter?
-//!     return false;
-//!
-//!   c.emit(code, var0, var1);
+//! void emitArith(X86Compiler& c, const char* op, const X86XmmVar& a, const X86XmmVar& b) {
+//!   uint32_t instId = translateOp(op);
+//!   if (instId != kInstIdNone)
+//!     c.emit(instId, a, b);
 //! }
 //! ~~~
 //!
-//! Other use cases are waiting for you! Be sure that instruction you are
-//! emitting is correct and encodable, because if not, Assembler will set
-//! status code to `kErrorUnknownInst`.
-struct ASMJIT_VCLASS X86Compiler : public Compiler {
+//! Other use cases are waiting for you! Be sure that instruction that are
+//! being emitted are correct and encodable, otherwise the Assembler will
+//! fail and set the status code to `kErrorUnknownInst`.
+class ASMJIT_VIRTAPI X86Compiler : public Compiler {
+ public:
   ASMJIT_NO_COPY(X86Compiler)
 
   // --------------------------------------------------------------------------
@@ -2027,213 +720,216 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   // --------------------------------------------------------------------------
 
   //! Create a `X86Compiler` instance.
-  ASMJIT_API X86Compiler(Runtime* runtime, uint32_t arch
-#if defined(ASMJIT_HOST_X86) || defined(ASMJIT_HOST_X64)
-    = kArchHost
-#endif // ASMJIT_HOST_X86 || ASMJIT_HOST_X64
-  );
-
+  ASMJIT_API X86Compiler(X86Assembler* assembler = nullptr) noexcept;
   //! Destroy the `X86Compiler` instance.
-  ASMJIT_API ~X86Compiler();
+  ASMJIT_API ~X86Compiler() noexcept;
+
+  // --------------------------------------------------------------------------
+  // [Attach / Reset]
+  // --------------------------------------------------------------------------
+
+  //! \override
+  ASMJIT_API virtual Error attach(Assembler* assembler) noexcept;
+  //! \override
+  ASMJIT_API virtual void reset(bool releaseMemory) noexcept;
+
+  // -------------------------------------------------------------------------
+  // [Finalize]
+  // -------------------------------------------------------------------------
+
+  ASMJIT_API virtual Error finalize() noexcept;
+
+  // --------------------------------------------------------------------------
+  // [Assembler]
+  // --------------------------------------------------------------------------
+
+  ASMJIT_INLINE X86Assembler* getAssembler() const noexcept {
+    return static_cast<X86Assembler*>(_assembler);
+  }
 
   // --------------------------------------------------------------------------
   // [Arch]
   // --------------------------------------------------------------------------
 
-  //! \internal
-  //!
-  //! Set the architecture to `arch`.
-  ASMJIT_API Error setArch(uint32_t arch);
-
   //! Get count of registers of the current architecture and mode.
-  ASMJIT_INLINE const X86RegCount& getRegCount() const {
-    return _regCount;
-  }
+  ASMJIT_INLINE const X86RegCount& getRegCount() const noexcept { return _regCount; }
 
-  //! Get Gpd or Gpq register depending on the current architecture.
-  ASMJIT_INLINE X86GpReg gpz(uint32_t index) const {
-    return X86GpReg(zax, index);
-  }
+  //! Get GPD or GPQ register depending on the current architecture.
+  ASMJIT_INLINE X86GpReg gpz(uint32_t index) const noexcept { return X86GpReg(zax, index); }
 
   //! Create an architecture dependent intptr_t memory operand.
-  ASMJIT_INLINE X86Mem intptr_ptr(const X86GpReg& base, int32_t disp = 0) const {
-    return x86::ptr(base, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr(const X86GpReg& base, int32_t disp = 0) const noexcept {
+    return x86::ptr(base, disp, zax.getSize());
   }
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr(const X86GpReg& base, const X86GpReg& index, uint32_t shift = 0, int32_t disp = 0) const {
-    return x86::ptr(base, index, shift, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr(const X86GpReg& base, const X86GpReg& index, uint32_t shift = 0, int32_t disp = 0) const noexcept {
+    return x86::ptr(base, index, shift, disp, zax.getSize());
   }
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr(const Label& label, int32_t disp = 0) const {
-    return x86::ptr(label, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr(const Label& label, int32_t disp = 0) const noexcept {
+    return x86::ptr(label, disp, zax.getSize());
   }
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr(const Label& label, const X86GpReg& index, uint32_t shift, int32_t disp = 0) const {
-    return x86::ptr(label, index, shift, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr(const Label& label, const X86GpReg& index, uint32_t shift, int32_t disp = 0) const noexcept {
+    return x86::ptr(label, index, shift, disp, zax.getSize());
   }
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr_abs(Ptr pAbs, int32_t disp = 0) const {
-    return x86::ptr_abs(pAbs, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr(const X86RipReg& rip, int32_t disp = 0) const noexcept {
+    return x86::ptr(rip, disp, zax.getSize());
   }
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr_abs(Ptr pAbs, const X86GpReg& index, uint32_t shift, int32_t disp = 0) const {
-    return x86::ptr_abs(pAbs, index, shift, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr_abs(Ptr pAbs, int32_t disp = 0) const noexcept {
+    return x86::ptr_abs(pAbs, disp, zax.getSize());
+  }
+  //! \overload
+  ASMJIT_INLINE X86Mem intptr_ptr_abs(Ptr pAbs, const X86GpReg& index, uint32_t shift, int32_t disp = 0) const noexcept {
+    return x86::ptr_abs(pAbs, index, shift, disp, zax.getSize());
   }
 
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr(const X86GpVar& base, int32_t disp = 0) {
-    return x86::ptr(base, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr(const X86GpVar& base, int32_t disp = 0) noexcept {
+    return x86::ptr(base, disp, zax.getSize());
   }
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr(const X86GpVar& base, const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) {
-    return x86::ptr(base, index, shift, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr(const X86GpVar& base, const X86GpVar& index, uint32_t shift = 0, int32_t disp = 0) noexcept {
+    return x86::ptr(base, index, shift, disp, zax.getSize());
   }
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr(const Label& label, const X86GpVar& index, uint32_t shift, int32_t disp = 0) {
-    return x86::ptr(label, index, shift, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr(const Label& label, const X86GpVar& index, uint32_t shift, int32_t disp = 0) noexcept {
+    return x86::ptr(label, index, shift, disp, zax.getSize());
   }
   //! \overload
-  ASMJIT_INLINE X86Mem intptr_ptr_abs(Ptr pAbs, const X86GpVar& index, uint32_t shift, int32_t disp = 0) {
-    return x86::ptr_abs(pAbs, index, shift, disp, _regSize);
+  ASMJIT_INLINE X86Mem intptr_ptr_abs(Ptr pAbs, const X86GpVar& index, uint32_t shift, int32_t disp = 0) noexcept {
+    return x86::ptr_abs(pAbs, index, shift, disp, zax.getSize());
   }
 
   // --------------------------------------------------------------------------
   // [Inst / Emit]
   // --------------------------------------------------------------------------
 
-  //! Create a new `InstNode`.
-  ASMJIT_API InstNode* newInst(uint32_t code);
+  //! Create a new `HLInst`.
+  ASMJIT_API HLInst* newInst(uint32_t code) noexcept;
   //! \overload
-  ASMJIT_API InstNode* newInst(uint32_t code, const Operand& o0);
+  ASMJIT_API HLInst* newInst(uint32_t code, const Operand& o0) noexcept;
   //! \overload
-  ASMJIT_API InstNode* newInst(uint32_t code, const Operand& o0, const Operand& o1);
+  ASMJIT_API HLInst* newInst(uint32_t code, const Operand& o0, const Operand& o1) noexcept;
   //! \overload
-  ASMJIT_API InstNode* newInst(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2);
+  ASMJIT_API HLInst* newInst(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2) noexcept;
   //! \overload
-  ASMJIT_API InstNode* newInst(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, const Operand& o3);
+  ASMJIT_API HLInst* newInst(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, const Operand& o3) noexcept;
   //! \overload
-  ASMJIT_API InstNode* newInst(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, const Operand& o3, const Operand& o4);
+  ASMJIT_API HLInst* newInst(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, const Operand& o3, const Operand& o4) noexcept;
 
-  //! Add a new `InstNode`.
-  ASMJIT_API InstNode* emit(uint32_t code);
+  //! Add a new `HLInst`.
+  ASMJIT_API HLInst* emit(uint32_t code) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, const Operand& o1);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, const Operand& o1) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, const Operand& o3);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, const Operand& o3) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, const Operand& o3, const Operand& o4);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, const Operand& o3, const Operand& o4) noexcept;
 
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, int o0);
+  ASMJIT_API HLInst* emit(uint32_t code, int o0) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, uint64_t o0);
+  ASMJIT_API HLInst* emit(uint32_t code, uint64_t o0) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, int o1);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, int o1) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, uint64_t o1);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, uint64_t o1) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, const Operand& o1, int o2);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, const Operand& o1, int o2) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, const Operand& o1, uint64_t o2);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, const Operand& o1, uint64_t o2) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, int o3);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, int o3) noexcept;
   //! \overload
-  ASMJIT_API InstNode* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, uint64_t o3);
+  ASMJIT_API HLInst* emit(uint32_t code, const Operand& o0, const Operand& o1, const Operand& o2, uint64_t o3) noexcept;
 
   // --------------------------------------------------------------------------
   // [Func]
   // --------------------------------------------------------------------------
 
   //! Create a new `X86FuncNode`.
-  ASMJIT_API X86FuncNode* newFunc(uint32_t conv, const FuncPrototype& p);
+  ASMJIT_API X86FuncNode* newFunc(const FuncPrototype& p) noexcept;
+
+  using Compiler::addFunc;
 
   //! Add a new function.
   //!
-  //! \param conv Calling convention to use (see \ref kFuncConv enum)
-  //! \param params Function arguments prototype.
+  //! \param p Function prototype.
   //!
-  //! This method is usually used as a first step when generating functions
-  //! by `Compiler`. First parameter `cconv` specifies function calling
-  //! convention to use. Second parameter `params` specifies function
-  //! arguments. To create function arguments are used templates
-  //! `FuncBuilder0<...>`, `FuncBuilder1<...>`, `FuncBuilder2<...>`, etc...
+  //! This method is usually used as a first step used to generate a dynamic
+  //! function. The prototype `p` contains a function calling convention,
+  //! return value, and parameters. There are some helper classes that simplify
+  //! function prototype building, see `FuncBuilder0<...>`, `FuncBuilder1<...>`,
+  //! `FuncBuilder2<...>`, etc...
   //!
-  //! Templates with FuncBuilder prefix are used to generate argument IDs
-  //! based on real C++ types. See next example how to generate function with
-  //! two 32-bit integer arguments.
+  //! Templates with `FuncBuilder` prefix are used to generate a function
+  //! prototype based on real C++ types. See the next example that shows how
+  //! to generate a function with two 32-bit integer arguments.
   //!
   //! ~~~
-  //! // Building function using asmjit::Compiler example.
+  //! JitRuntime runtime;
+  //! X86Assembler a(&runtime);
+  //! X86Compiler c(&a);
   //!
-  //! // Compiler instance
-  //! Compiler c;
+  //! // Add a function - <return value, arguments>.
+  //! c.addFunc(FuncBuilder2<Void, int, int>(kCallConvHost));
   //!
-  //! // Begin of function, also emits function prolog.
-  //! c.addFunc(
-  //!   // Default calling convention (32-bit cdecl or 64-bit for host OS)
-  //!   kFuncConvHost,
-  //!   // Using function builder to generate arguments list
-  //!   FuncBuilder2<Void, int, int>());
+  //! // ... body ...
   //!
-  //! // End of function, also emits function epilog.
+  //! // End of the function.
   //! c.endFunc();
   //! ~~~
   //!
-  //! You can see that building functions is really easy. Previous code snipped
-  //! will generate code for function with two 32-bit integer arguments. You
-  //! can access arguments by `asmjit::Function::getArg()` method. Arguments
-  //! are indexed from 0 (like everything in C).
+  //! Building functions is really easy! The code snippet above can be used
+  //! to generate a function with two `int32_t` arguments. To assign a variable
+  //! to a function argument use `c.setArg(index, variable)`.
   //!
   //! ~~~
-  //! // Accessing function arguments through asmjit::Function example.
+  //! JitRuntime runtime;
+  //! X86Assembler a(&runtime);
+  //! X86Compiler c(&a);
   //!
-  //! // Compiler instance
-  //! Compiler c;
-  //! X86GpVar a0(c, kVarTypeInt32);
-  //! X86GpVar a1(c, kVarTypeInt32);
+  //! X86GpVar arg0 = c.newInt32("arg0");
+  //! X86GpVar arg1 = c.newInt32("arg1");
   //!
-  //! // Begin of function (also emits function prolog)
-  //! c.addFunc(
-  //!   // Default calling convention (32-bit cdecl or 64-bit for host OS)
-  //!   kFuncConvHost,
-  //!   // Using function builder to generate arguments list
-  //!   FuncBuilder2<Void, int, int>());
+  //! // Add a function - <return value, arguments>.
+  //! c.addFunc(FuncBuilder2<Void, int, int>(kCallConvHost));
   //!
-  //! c.setArg(0, a0);
-  //! c.setArg(1, a1);
+  //! c.setArg(0, arg0);
+  //! c.setArg(1, arg1);
   //!
-  //! // Use them.
-  //! c.add(a0, a1);
+  //! // ... do something ...
+  //! c.add(arg0, arg1);
   //!
-  //! // End of function - emits function epilog and return instruction.
+  //! // End of the function.
   //! c.endFunc();
   //! ~~~
   //!
   //! Arguments are like variables. How to manipulate with variables is
-  //! documented in `Compiler`, variables section.
+  //! documented in a variables section of `X86Compiler` documentation.
   //!
-  //! \note To get current function use `getFunc()` method or save pointer to
-  //! `FuncNode` returned by `Compiler::addFunc<>` method. The recommended way
-  //! is saving the pointer and using it to specify function arguments and
-  //! return value.
+  //! NOTE: To get the current function use `getFunc()` method.
   //!
-  //! \sa FuncBuilder0, FuncBuilder1, FuncBuilder2, ...
-  ASMJIT_API X86FuncNode* addFunc(uint32_t conv, const FuncPrototype& p);
+  //! \sa \ref FuncBuilder0, \ref FuncBuilder1, \ref FuncBuilder2.
+  ASMJIT_API X86FuncNode* addFunc(const FuncPrototype& p) noexcept;
 
-  //! End of current function.
-  ASMJIT_API EndNode* endFunc();
+  //! Emit a sentinel that marks the end of the current function.
+  ASMJIT_API HLSentinel* endFunc() noexcept;
 
-  //! Get current function as `X86FuncNode`.
+  //! Get the current function node casted to `X86FuncNode`.
   //!
   //! This method can be called within `addFunc()` and `endFunc()` block to get
-  //! current function you are working with. It's recommended to store `FuncNode`
+  //! current function you are working with. It's recommended to store `HLFunc`
   //! pointer returned by `addFunc<>` method, because this allows you in future
-  //! implement function sections outside of function itself.
-  ASMJIT_INLINE X86FuncNode* getFunc() const {
+  //! implement function sections outside of the function itself.
+  ASMJIT_INLINE X86FuncNode* getFunc() const noexcept {
     return static_cast<X86FuncNode*>(_func);
   }
 
@@ -2241,77 +937,162 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   // [Ret]
   // --------------------------------------------------------------------------
 
-  //! Create a new `RetNode`.
-  ASMJIT_API RetNode* newRet(const Operand& o0, const Operand& o1);
-  //! Add a new `RetNode`.
-  ASMJIT_API RetNode* addRet(const Operand& o0, const Operand& o1);
+  //! Create a new `HLRet`.
+  ASMJIT_API HLRet* newRet(const Operand& o0, const Operand& o1) noexcept;
+  //! Add a new `HLRet`.
+  ASMJIT_API HLRet* addRet(const Operand& o0, const Operand& o1) noexcept;
 
   // --------------------------------------------------------------------------
   // [Call]
   // --------------------------------------------------------------------------
 
   //! Create a new `X86CallNode`.
-  ASMJIT_API X86CallNode* newCall(const Operand& o0, uint32_t conv, const FuncPrototype& p);
+  ASMJIT_API X86CallNode* newCall(const Operand& o0, const FuncPrototype& p) noexcept;
   //! Add a new `X86CallNode`.
-  ASMJIT_API X86CallNode* addCall(const Operand& o0, uint32_t conv, const FuncPrototype& p);
+  ASMJIT_API X86CallNode* addCall(const Operand& o0, const FuncPrototype& p) noexcept;
+
+  // --------------------------------------------------------------------------
+  // [Args]
+  // --------------------------------------------------------------------------
+
+  //! Set function argument to `var`.
+  ASMJIT_API Error setArg(uint32_t argIndex, const Var& var) noexcept;
 
   // --------------------------------------------------------------------------
   // [Vars]
   // --------------------------------------------------------------------------
 
-  //! Set function argument to `var`.
-  ASMJIT_API Error setArg(uint32_t argIndex, Var& var);
+  ASMJIT_API Error _newVar(Var* var, uint32_t vType, const char* name) noexcept;
+  ASMJIT_API Error _newVar(Var* var, uint32_t vType, const char* fmt, va_list ap) noexcept;
 
-  ASMJIT_API virtual Error _newVar(Var* var, uint32_t type, const char* name);
-
-  //! Create a new Gp variable.
-  ASMJIT_INLINE X86GpVar newGpVar(uint32_t vType = kVarTypeIntPtr, const char* name = NULL) {
-    ASMJIT_ASSERT(vType < kX86VarTypeCount);
-    ASMJIT_ASSERT(IntUtil::inInterval<uint32_t>(vType, _kVarTypeIntStart, _kVarTypeIntEnd));
-
-    X86GpVar var(NoInit);
-    _newVar(&var, vType, name);
-    return var;
+#if !defined(ASMJIT_DISABLE_LOGGER)
+#define ASMJIT_NEW_VAR_TYPE_EX(func, type, typeFirst, typeLast) \
+  ASMJIT_NOINLINE type new##func(uint32_t vType, const char* name, ...) { \
+    ASMJIT_ASSERT(vType < kX86VarTypeCount); \
+    ASMJIT_ASSERT(Utils::inInterval<uint32_t>(vType, typeFirst, typeLast)); \
+    \
+    type var(NoInit); \
+    va_list ap; \
+    va_start(ap, name); \
+    \
+    _newVar(&var, vType, name, ap); \
+    \
+    va_end(ap); \
+    return var; \
   }
-
-  //! Create a new Mm variable.
-  ASMJIT_INLINE X86MmVar newMmVar(uint32_t vType = kX86VarTypeMm, const char* name = NULL) {
-    ASMJIT_ASSERT(vType < kX86VarTypeCount);
-    ASMJIT_ASSERT(IntUtil::inInterval<uint32_t>(vType, _kX86VarTypeMmStart, _kX86VarTypeMmEnd));
-
-    X86MmVar var(NoInit);
-    _newVar(&var, vType, name);
-    return var;
+#define ASMJIT_NEW_VAR_AUTO_EX(func, type, typeId) \
+  ASMJIT_NOINLINE type new##func(const char* name, ...) { \
+    type var(NoInit); \
+    va_list ap; \
+    va_start(ap, name); \
+    \
+    _newVar(&var, typeId, name, ap); \
+    \
+    va_end(ap); \
+    return var; \
   }
-
-  //! Create a new Xmm variable.
-  ASMJIT_INLINE X86XmmVar newXmmVar(uint32_t vType = kX86VarTypeXmm, const char* name = NULL) {
-    ASMJIT_ASSERT(vType < kX86VarTypeCount);
-    ASMJIT_ASSERT(IntUtil::inInterval<uint32_t>(vType, _kX86VarTypeXmmStart, _kX86VarTypeXmmEnd));
-
-    X86XmmVar var(NoInit);
-    _newVar(&var, vType, name);
-    return var;
+#else
+#define ASMJIT_NEW_VAR_TYPE_EX(func, type, typeFirst, typeLast) \
+  ASMJIT_NOINLINE type new##func(uint32_t vType, const char* name, ...) { \
+    ASMJIT_ASSERT(vType < kX86VarTypeCount); \
+    ASMJIT_ASSERT(Utils::inInterval<uint32_t>(vType, typeFirst, typeLast)); \
+    \
+    type var(NoInit); \
+    _newVar(&var, vType, nullptr); \
+    return var; \
   }
-
-  //! Create a new Ymm variable.
-  ASMJIT_INLINE X86YmmVar newYmmVar(uint32_t vType = kX86VarTypeYmm, const char* name = NULL) {
-    ASMJIT_ASSERT(vType < kX86VarTypeCount);
-    ASMJIT_ASSERT(IntUtil::inInterval<uint32_t>(vType, _kX86VarTypeYmmStart, _kX86VarTypeYmmEnd));
-
-    X86YmmVar var(NoInit);
-    _newVar(&var, vType, name);
-    return var;
+#define ASMJIT_NEW_VAR_AUTO_EX(func, type, typeId) \
+  ASMJIT_NOINLINE type new##func(const char* name, ...) { \
+    type var(NoInit); \
+    _newVar(&var, typeId, nullptr); \
+    return var; \
   }
+#endif
+
+#define ASMJIT_REGISTER_VAR_TYPE(func, type, typeFirst, typeLast) \
+  ASMJIT_INLINE type get##func##ById(uint32_t vType, uint32_t id) { \
+    ASMJIT_ASSERT(vType < kX86VarTypeCount); \
+    ASMJIT_ASSERT(Utils::inInterval<uint32_t>(vType, typeFirst, typeLast)); \
+    \
+    type var(NoInit); \
+    \
+    vType = _targetVarMapping[vType]; \
+    const VarInfo& vInfo = _x86VarInfo[vType]; \
+    \
+    var._init_packed_op_sz_w0_id(Operand::kTypeVar, vInfo.getSize(), vInfo.getRegType() << 8, id); \
+    var._vreg.vType = vType; \
+    \
+    return var; \
+  } \
+  \
+  ASMJIT_INLINE type new##func(uint32_t vType) { \
+    ASMJIT_ASSERT(vType < kX86VarTypeCount); \
+    ASMJIT_ASSERT(Utils::inInterval<uint32_t>(vType, typeFirst, typeLast)); \
+    \
+    type var(NoInit); \
+    _newVar(&var, vType, nullptr); \
+    return var; \
+  } \
+  \
+  ASMJIT_NEW_VAR_TYPE_EX(func, type, typeFirst, typeLast)
+
+#define ASMJIT_REGISTER_VAR_AUTO(func, type, typeId) \
+  ASMJIT_INLINE type get##func##ById(uint32_t id) { \
+    type var(NoInit); \
+    \
+    uint32_t vType = _targetVarMapping[typeId]; \
+    const VarInfo& vInfo = _x86VarInfo[vType]; \
+    \
+    var._init_packed_op_sz_w0_id(Operand::kTypeVar, vInfo.getSize(), vInfo.getRegType() << 8, id); \
+    var._vreg.vType = vType; \
+    \
+    return var; \
+  } \
+  \
+  ASMJIT_INLINE type new##func() { \
+    type var(NoInit); \
+    _newVar(&var, typeId, nullptr); \
+    return var; \
+  } \
+  \
+  ASMJIT_NEW_VAR_AUTO_EX(func, type, typeId)
+
+  ASMJIT_REGISTER_VAR_TYPE(GpVar  , X86GpVar , _kVarTypeIntStart   , _kVarTypeIntEnd   )
+  ASMJIT_REGISTER_VAR_TYPE(MmVar  , X86MmVar , _kX86VarTypeMmStart , _kX86VarTypeMmEnd )
+  ASMJIT_REGISTER_VAR_TYPE(XmmVar , X86XmmVar, _kX86VarTypeXmmStart, _kX86VarTypeXmmEnd)
+  ASMJIT_REGISTER_VAR_TYPE(YmmVar , X86YmmVar, _kX86VarTypeYmmStart, _kX86VarTypeYmmEnd)
+
+  ASMJIT_REGISTER_VAR_AUTO(Int8   , X86GpVar , kVarTypeInt8    )
+  ASMJIT_REGISTER_VAR_AUTO(Int16  , X86GpVar , kVarTypeInt16   )
+  ASMJIT_REGISTER_VAR_AUTO(Int32  , X86GpVar , kVarTypeInt32   )
+  ASMJIT_REGISTER_VAR_AUTO(Int64  , X86GpVar , kVarTypeInt64   )
+  ASMJIT_REGISTER_VAR_AUTO(IntPtr , X86GpVar , kVarTypeIntPtr  )
+  ASMJIT_REGISTER_VAR_AUTO(UInt8  , X86GpVar , kVarTypeUInt8   )
+  ASMJIT_REGISTER_VAR_AUTO(UInt16 , X86GpVar , kVarTypeUInt16  )
+  ASMJIT_REGISTER_VAR_AUTO(UInt32 , X86GpVar , kVarTypeUInt32  )
+  ASMJIT_REGISTER_VAR_AUTO(UInt64 , X86GpVar , kVarTypeUInt64  )
+  ASMJIT_REGISTER_VAR_AUTO(UIntPtr, X86GpVar , kVarTypeUIntPtr )
+  ASMJIT_REGISTER_VAR_AUTO(Mm     , X86MmVar , kX86VarTypeMm   )
+  ASMJIT_REGISTER_VAR_AUTO(Xmm    , X86XmmVar, kX86VarTypeXmm  )
+  ASMJIT_REGISTER_VAR_AUTO(XmmSs  , X86XmmVar, kX86VarTypeXmmSs)
+  ASMJIT_REGISTER_VAR_AUTO(XmmSd  , X86XmmVar, kX86VarTypeXmmSd)
+  ASMJIT_REGISTER_VAR_AUTO(XmmPs  , X86XmmVar, kX86VarTypeXmmPs)
+  ASMJIT_REGISTER_VAR_AUTO(XmmPd  , X86XmmVar, kX86VarTypeXmmPd)
+  ASMJIT_REGISTER_VAR_AUTO(Ymm    , X86YmmVar, kX86VarTypeYmm  )
+  ASMJIT_REGISTER_VAR_AUTO(YmmPs  , X86YmmVar, kX86VarTypeYmmPs)
+  ASMJIT_REGISTER_VAR_AUTO(YmmPd  , X86YmmVar, kX86VarTypeYmmPd)
+
+#undef ASMJIT_NEW_VAR_AUTO
+#undef ASMJIT_NEW_VAR_TYPE
 
   // --------------------------------------------------------------------------
   // [Stack]
   // --------------------------------------------------------------------------
 
-  ASMJIT_API virtual Error _newStack(BaseMem* mem, uint32_t size, uint32_t alignment, const char* name);
+  ASMJIT_API virtual Error _newStack(BaseMem* mem, uint32_t size, uint32_t alignment, const char* name) noexcept;
 
   //! Create a new memory chunk allocated on the current function's stack.
-  ASMJIT_INLINE X86Mem newStack(uint32_t size, uint32_t alignment, const char* name = NULL) {
+  ASMJIT_INLINE X86Mem newStack(uint32_t size, uint32_t alignment, const char* name = nullptr) noexcept {
     X86Mem m(NoInit);
     _newStack(&m, size, alignment, name);
     return m;
@@ -2321,121 +1102,115 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   // [Const]
   // --------------------------------------------------------------------------
 
-  ASMJIT_API virtual Error _newConst(BaseMem* mem, uint32_t scope, const void* data, size_t size);
+  ASMJIT_API virtual Error _newConst(BaseMem* mem, uint32_t scope, const void* data, size_t size) noexcept;
 
   //! Put data to a constant-pool and get a memory reference to it.
-  ASMJIT_INLINE X86Mem newConst(uint32_t scope, const void* data, size_t size) {
+  ASMJIT_INLINE X86Mem newConst(uint32_t scope, const void* data, size_t size) noexcept {
     X86Mem m(NoInit);
     _newConst(&m, scope, data, size);
     return m;
   }
 
   //! Put a BYTE `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newByteConst(uint32_t scope, uint8_t val) { return newConst(scope, &val, 1); }
+  ASMJIT_INLINE X86Mem newByteConst(uint32_t scope, uint8_t val) noexcept { return newConst(scope, &val, 1); }
   //! Put a WORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newWordConst(uint32_t scope, uint16_t val) { return newConst(scope, &val, 2); }
+  ASMJIT_INLINE X86Mem newWordConst(uint32_t scope, uint16_t val) noexcept { return newConst(scope, &val, 2); }
   //! Put a DWORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newDWordConst(uint32_t scope, uint32_t val) { return newConst(scope, &val, 4); }
+  ASMJIT_INLINE X86Mem newDWordConst(uint32_t scope, uint32_t val) noexcept { return newConst(scope, &val, 4); }
   //! Put a QWORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newQWordConst(uint32_t scope, uint64_t val) { return newConst(scope, &val, 8); }
+  ASMJIT_INLINE X86Mem newQWordConst(uint32_t scope, uint64_t val) noexcept { return newConst(scope, &val, 8); }
 
   //! Put a WORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newInt16Const(uint32_t scope, int16_t val) { return newConst(scope, &val, 2); }
+  ASMJIT_INLINE X86Mem newInt16Const(uint32_t scope, int16_t val) noexcept { return newConst(scope, &val, 2); }
   //! Put a WORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newUInt16Const(uint32_t scope, uint16_t val) { return newConst(scope, &val, 2); }
+  ASMJIT_INLINE X86Mem newUInt16Const(uint32_t scope, uint16_t val) noexcept { return newConst(scope, &val, 2); }
   //! Put a DWORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newInt32Const(uint32_t scope, int32_t val) { return newConst(scope, &val, 4); }
+  ASMJIT_INLINE X86Mem newInt32Const(uint32_t scope, int32_t val) noexcept { return newConst(scope, &val, 4); }
   //! Put a DWORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newUInt32Const(uint32_t scope, uint32_t val) { return newConst(scope, &val, 4); }
+  ASMJIT_INLINE X86Mem newUInt32Const(uint32_t scope, uint32_t val) noexcept { return newConst(scope, &val, 4); }
   //! Put a QWORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newInt64Const(uint32_t scope, int64_t val) { return newConst(scope, &val, 8); }
+  ASMJIT_INLINE X86Mem newInt64Const(uint32_t scope, int64_t val) noexcept { return newConst(scope, &val, 8); }
   //! Put a QWORD `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newUInt64Const(uint32_t scope, uint64_t val) { return newConst(scope, &val, 8); }
+  ASMJIT_INLINE X86Mem newUInt64Const(uint32_t scope, uint64_t val) noexcept { return newConst(scope, &val, 8); }
 
   //! Put a SP-FP `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newFloatConst(uint32_t scope, float val) { return newConst(scope, &val, 4); }
+  ASMJIT_INLINE X86Mem newFloatConst(uint32_t scope, float val) noexcept { return newConst(scope, &val, 4); }
   //! Put a DP-FP `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newDoubleConst(uint32_t scope, double val) { return newConst(scope, &val, 8); }
+  ASMJIT_INLINE X86Mem newDoubleConst(uint32_t scope, double val) noexcept { return newConst(scope, &val, 8); }
 
   //! Put a MMX `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newMmConst(uint32_t scope, const Vec64& val) { return newConst(scope, &val, 8); }
+  ASMJIT_INLINE X86Mem newMmConst(uint32_t scope, const Vec64& val) noexcept { return newConst(scope, &val, 8); }
   //! Put a XMM `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newXmmConst(uint32_t scope, const Vec128& val) { return newConst(scope, &val, 16); }
+  ASMJIT_INLINE X86Mem newXmmConst(uint32_t scope, const Vec128& val) noexcept { return newConst(scope, &val, 16); }
   //! Put a YMM `val` to a constant-pool.
-  ASMJIT_INLINE X86Mem newYmmConst(uint32_t scope, const Vec256& val) { return newConst(scope, &val, 32); }
+  ASMJIT_INLINE X86Mem newYmmConst(uint32_t scope, const Vec256& val) noexcept { return newConst(scope, &val, 32); }
 
   // --------------------------------------------------------------------------
   // [Embed]
   // --------------------------------------------------------------------------
 
   //! Add 8-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* db(uint8_t x) { return embed(&x, 1); }
+  ASMJIT_INLINE Error db(uint8_t x) noexcept { return embed(&x, 1); }
   //! Add 16-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dw(uint16_t x) { return embed(&x, 2); }
+  ASMJIT_INLINE Error dw(uint16_t x) noexcept { return embed(&x, 2); }
   //! Add 32-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dd(uint32_t x) { return embed(&x, 4); }
+  ASMJIT_INLINE Error dd(uint32_t x) noexcept { return embed(&x, 4); }
   //! Add 64-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dq(uint64_t x) { return embed(&x, 8); }
+  ASMJIT_INLINE Error dq(uint64_t x) noexcept { return embed(&x, 8); }
 
   //! Add 8-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dint8(int8_t x) { return embed(&x, static_cast<uint32_t>(sizeof(int8_t))); }
+  ASMJIT_INLINE Error dint8(int8_t x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(int8_t))); }
   //! Add 8-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* duint8(uint8_t x) { return embed(&x, static_cast<uint32_t>(sizeof(uint8_t))); }
+  ASMJIT_INLINE Error duint8(uint8_t x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(uint8_t))); }
 
   //! Add 16-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dint16(int16_t x) { return embed(&x, static_cast<uint32_t>(sizeof(int16_t))); }
+  ASMJIT_INLINE Error dint16(int16_t x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(int16_t))); }
   //! Add 16-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* duint16(uint16_t x) { return embed(&x, static_cast<uint32_t>(sizeof(uint16_t))); }
+  ASMJIT_INLINE Error duint16(uint16_t x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(uint16_t))); }
 
   //! Add 32-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dint32(int32_t x) { return embed(&x, static_cast<uint32_t>(sizeof(int32_t))); }
+  ASMJIT_INLINE Error dint32(int32_t x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(int32_t))); }
   //! Add 32-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* duint32(uint32_t x) { return embed(&x, static_cast<uint32_t>(sizeof(uint32_t))); }
+  ASMJIT_INLINE Error duint32(uint32_t x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(uint32_t))); }
 
   //! Add 64-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dint64(int64_t x) { return embed(&x, static_cast<uint32_t>(sizeof(int64_t))); }
+  ASMJIT_INLINE Error dint64(int64_t x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(int64_t))); }
   //! Add 64-bit integer data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* duint64(uint64_t x) { return embed(&x, static_cast<uint32_t>(sizeof(uint64_t))); }
+  ASMJIT_INLINE Error duint64(uint64_t x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(uint64_t))); }
 
   //! Add float data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dfloat(float x) { return embed(&x, static_cast<uint32_t>(sizeof(float))); }
+  ASMJIT_INLINE Error dfloat(float x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(float))); }
   //! Add double data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* ddouble(double x) { return embed(&x, static_cast<uint32_t>(sizeof(double))); }
+  ASMJIT_INLINE Error ddouble(double x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(double))); }
 
-  //! Add Mm data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dmm(const Vec64& x) { return embed(&x, static_cast<uint32_t>(sizeof(Vec64))); }
-  //! Add Xmm data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dxmm(const Vec128& x) { return embed(&x, static_cast<uint32_t>(sizeof(Vec128))); }
-  //! Add Ymm data to the instruction stream.
-  ASMJIT_INLINE EmbedNode* dymm(const Vec256& x) { return embed(&x, static_cast<uint32_t>(sizeof(Vec256))); }
+  //! Add MMX data to the instruction stream.
+  ASMJIT_INLINE Error dmm(const Vec64& x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(Vec64))); }
+  //! Add XMM data to the instruction stream.
+  ASMJIT_INLINE Error dxmm(const Vec128& x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(Vec128))); }
+  //! Add YMM data to the instruction stream.
+  ASMJIT_INLINE Error dymm(const Vec256& x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(Vec256))); }
 
   //! Add data in a given structure instance to the instruction stream.
   template<typename T>
-  ASMJIT_INLINE EmbedNode* dstruct(const T& x) { return embed(&x, static_cast<uint32_t>(sizeof(T))); }
-
-  // --------------------------------------------------------------------------
-  // [Make]
-  // --------------------------------------------------------------------------
-
-  ASMJIT_API virtual void* make();
+  ASMJIT_INLINE Error dstruct(const T& x) noexcept { return embed(&x, static_cast<uint32_t>(sizeof(T))); }
 
   // -------------------------------------------------------------------------
-  // [Assembler]
-  // -------------------------------------------------------------------------
-
-  ASMJIT_API virtual Assembler* _newAssembler();
-
-  // -------------------------------------------------------------------------
-  // [Serialize]
-  // -------------------------------------------------------------------------
-
-  ASMJIT_API virtual Error serialize(Assembler* assembler);
-
-  // -------------------------------------------------------------------------
-  // [Options]
+  // [Instruction Options]
   // -------------------------------------------------------------------------
 
   ASMJIT_X86_EMIT_OPTIONS(X86Compiler)
+
+  //! Force the compiler to not follow the conditional or unconditional jump.
+  ASMJIT_INLINE X86Compiler& unfollow() noexcept {
+    _instOptions |= kInstOptionUnfollow;
+    return *this;
+  }
+
+  //! Tell the compiler that the destination variable will be overwritten.
+  ASMJIT_INLINE X86Compiler& overwrite() noexcept {
+    _instOptions |= kInstOptionOverwrite;
+    return *this;
+  }
 
   // --------------------------------------------------------------------------
   // [Members]
@@ -2466,256 +1241,232 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   // --------------------------------------------------------------------------
 
 #define INST_0x(_Inst_, _Code_) \
-  ASMJIT_INLINE InstNode* _Inst_() { \
+  ASMJIT_INLINE HLInst* _Inst_() noexcept { \
     return emit(_Code_); \
   }
 
 #define INST_1x(_Inst_, _Code_, _Op0_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0) { \
-    return emit(_Code_, o0); \
-  }
-
-#define INST_1x_(_Inst_, _Code_, _Op0_, _Cond_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0) { \
-    ASMJIT_ASSERT(_Cond_); \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0) noexcept { \
     return emit(_Code_, o0); \
   }
 
 #define INST_1i(_Inst_, _Code_, _Op0_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0) noexcept { \
     return emit(_Code_, o0); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(int o0) { \
+  ASMJIT_INLINE HLInst* _Inst_(int o0) noexcept { \
     return emit(_Code_, o0); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(unsigned int o0) { \
+  ASMJIT_INLINE HLInst* _Inst_(unsigned int o0) noexcept { \
     return emit(_Code_, static_cast<uint64_t>(o0)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(int64_t o0) { \
+  ASMJIT_INLINE HLInst* _Inst_(int64_t o0) noexcept { \
     return emit(_Code_, static_cast<uint64_t>(o0)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(uint64_t o0) { \
+  ASMJIT_INLINE HLInst* _Inst_(uint64_t o0) noexcept { \
     return emit(_Code_, o0); \
   }
 
 #define INST_1cc(_Inst_, _Code_, _Translate_, _Op0_) \
-  ASMJIT_INLINE InstNode* _Inst_(uint32_t cc, const _Op0_& o0) { \
+  ASMJIT_INLINE HLInst* _Inst_(uint32_t cc, const _Op0_& o0) noexcept { \
     return emit(_Translate_(cc), o0); \
   } \
   \
-  ASMJIT_INLINE InstNode* _Inst_##a(const _Op0_& o0) { return emit(_Code_##a, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##ae(const _Op0_& o0) { return emit(_Code_##ae, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##b(const _Op0_& o0) { return emit(_Code_##b, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##be(const _Op0_& o0) { return emit(_Code_##be, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##c(const _Op0_& o0) { return emit(_Code_##c, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##e(const _Op0_& o0) { return emit(_Code_##e, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##g(const _Op0_& o0) { return emit(_Code_##g, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##ge(const _Op0_& o0) { return emit(_Code_##ge, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##l(const _Op0_& o0) { return emit(_Code_##l, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##le(const _Op0_& o0) { return emit(_Code_##le, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##na(const _Op0_& o0) { return emit(_Code_##na, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##nae(const _Op0_& o0) { return emit(_Code_##nae, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##nb(const _Op0_& o0) { return emit(_Code_##nb, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##nbe(const _Op0_& o0) { return emit(_Code_##nbe, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##nc(const _Op0_& o0) { return emit(_Code_##nc, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##ne(const _Op0_& o0) { return emit(_Code_##ne, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##ng(const _Op0_& o0) { return emit(_Code_##ng, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##nge(const _Op0_& o0) { return emit(_Code_##nge, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##nl(const _Op0_& o0) { return emit(_Code_##nl, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##nle(const _Op0_& o0) { return emit(_Code_##nle, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##no(const _Op0_& o0) { return emit(_Code_##no, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##np(const _Op0_& o0) { return emit(_Code_##np, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##ns(const _Op0_& o0) { return emit(_Code_##ns, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##nz(const _Op0_& o0) { return emit(_Code_##nz, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##o(const _Op0_& o0) { return emit(_Code_##o, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##p(const _Op0_& o0) { return emit(_Code_##p, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##pe(const _Op0_& o0) { return emit(_Code_##pe, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##po(const _Op0_& o0) { return emit(_Code_##po, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##s(const _Op0_& o0) { return emit(_Code_##s, o0); } \
-  ASMJIT_INLINE InstNode* _Inst_##z(const _Op0_& o0) { return emit(_Code_##z, o0); }
+  ASMJIT_INLINE HLInst* _Inst_##a(const _Op0_& o0) noexcept { return emit(_Code_##a, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##ae(const _Op0_& o0) noexcept { return emit(_Code_##ae, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##b(const _Op0_& o0) noexcept { return emit(_Code_##b, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##be(const _Op0_& o0) noexcept { return emit(_Code_##be, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##c(const _Op0_& o0) noexcept { return emit(_Code_##c, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##e(const _Op0_& o0) noexcept { return emit(_Code_##e, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##g(const _Op0_& o0) noexcept { return emit(_Code_##g, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##ge(const _Op0_& o0) noexcept { return emit(_Code_##ge, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##l(const _Op0_& o0) noexcept { return emit(_Code_##l, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##le(const _Op0_& o0) noexcept { return emit(_Code_##le, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##na(const _Op0_& o0) noexcept { return emit(_Code_##na, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##nae(const _Op0_& o0) noexcept { return emit(_Code_##nae, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##nb(const _Op0_& o0) noexcept { return emit(_Code_##nb, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##nbe(const _Op0_& o0) noexcept { return emit(_Code_##nbe, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##nc(const _Op0_& o0) noexcept { return emit(_Code_##nc, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##ne(const _Op0_& o0) noexcept { return emit(_Code_##ne, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##ng(const _Op0_& o0) noexcept { return emit(_Code_##ng, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##nge(const _Op0_& o0) noexcept { return emit(_Code_##nge, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##nl(const _Op0_& o0) noexcept { return emit(_Code_##nl, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##nle(const _Op0_& o0) noexcept { return emit(_Code_##nle, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##no(const _Op0_& o0) noexcept { return emit(_Code_##no, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##np(const _Op0_& o0) noexcept { return emit(_Code_##np, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##ns(const _Op0_& o0) noexcept { return emit(_Code_##ns, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##nz(const _Op0_& o0) noexcept { return emit(_Code_##nz, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##o(const _Op0_& o0) noexcept { return emit(_Code_##o, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##p(const _Op0_& o0) noexcept { return emit(_Code_##p, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##pe(const _Op0_& o0) noexcept { return emit(_Code_##pe, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##po(const _Op0_& o0) noexcept { return emit(_Code_##po, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##s(const _Op0_& o0) noexcept { return emit(_Code_##s, o0); } \
+  ASMJIT_INLINE HLInst* _Inst_##z(const _Op0_& o0) noexcept { return emit(_Code_##z, o0); }
 
 #define INST_2x(_Inst_, _Code_, _Op0_, _Op1_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1) { \
-    return emit(_Code_, o0, o1); \
-  }
-
-#define INST_2x_(_Inst_, _Code_, _Op0_, _Op1_, _Cond_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1) { \
-    ASMJIT_ASSERT(_Cond_); \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1) noexcept { \
     return emit(_Code_, o0, o1); \
   }
 
 #define INST_2i(_Inst_, _Code_, _Op0_, _Op1_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1) noexcept { \
     return emit(_Code_, o0, o1); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, int o1) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, int o1) noexcept { \
     return emit(_Code_, o0, o1); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, unsigned int o1) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, unsigned int o1) noexcept { \
     return emit(_Code_, o0, static_cast<uint64_t>(o1)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, int64_t o1) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, int64_t o1) noexcept { \
     return emit(_Code_, o0, static_cast<uint64_t>(o1)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, uint64_t o1) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, uint64_t o1) noexcept { \
     return emit(_Code_, o0, o1); \
   }
 
 #define INST_2cc(_Inst_, _Code_, _Translate_, _Op0_, _Op1_) \
-  ASMJIT_INLINE InstNode* _Inst_(uint32_t cc, const _Op0_& o0, const _Op1_& o1) { \
+  ASMJIT_INLINE HLInst* _Inst_(uint32_t cc, const _Op0_& o0, const _Op1_& o1) noexcept { \
     return emit(_Translate_(cc), o0, o1); \
   } \
   \
-  ASMJIT_INLINE InstNode* _Inst_##a(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##a, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##ae(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##ae, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##b(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##b, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##be(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##be, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##c(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##c, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##e(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##e, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##g(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##g, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##ge(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##ge, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##l(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##l, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##le(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##le, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##na(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##na, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##nae(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##nae, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##nb(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##nb, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##nbe(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##nbe, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##nc(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##nc, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##ne(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##ne, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##ng(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##ng, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##nge(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##nge, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##nl(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##nl, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##nle(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##nle, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##no(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##no, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##np(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##np, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##ns(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##ns, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##nz(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##nz, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##o(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##o, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##p(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##p, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##pe(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##pe, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##po(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##po, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##s(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##s, o0, o1); } \
-  ASMJIT_INLINE InstNode* _Inst_##z(const _Op0_& o0, const _Op1_& o1) { return emit(_Code_##z, o0, o1); }
+  ASMJIT_INLINE HLInst* _Inst_##a(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##a, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##ae(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##ae, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##b(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##b, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##be(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##be, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##c(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##c, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##e(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##e, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##g(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##g, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##ge(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##ge, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##l(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##l, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##le(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##le, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##na(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##na, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##nae(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##nae, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##nb(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##nb, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##nbe(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##nbe, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##nc(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##nc, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##ne(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##ne, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##ng(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##ng, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##nge(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##nge, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##nl(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##nl, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##nle(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##nle, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##no(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##no, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##np(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##np, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##ns(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##ns, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##nz(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##nz, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##o(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##o, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##p(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##p, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##pe(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##pe, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##po(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##po, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##s(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##s, o0, o1); } \
+  ASMJIT_INLINE HLInst* _Inst_##z(const _Op0_& o0, const _Op1_& o1) noexcept { return emit(_Code_##z, o0, o1); }
 
 #define INST_3x(_Inst_, _Code_, _Op0_, _Op1_, _Op2_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2) { \
-    return emit(_Code_, o0, o1, o2); \
-  }
-
-#define INST_3x_(_Inst_, _Code_, _Op0_, _Op1_, _Op2_, _Cond_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2) { \
-    ASMJIT_ASSERT(_Cond_); \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2) noexcept { \
     return emit(_Code_, o0, o1, o2); \
   }
 
 #define INST_3i(_Inst_, _Code_, _Op0_, _Op1_, _Op2_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2) noexcept { \
     return emit(_Code_, o0, o1, o2); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, int o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, int o2) noexcept { \
     return emit(_Code_, o0, o1, o2); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, unsigned int o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, unsigned int o2) noexcept { \
     return emit(_Code_, o0, o1, static_cast<uint64_t>(o2)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, int64_t o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, int64_t o2) noexcept { \
     return emit(_Code_, o0, o1, static_cast<uint64_t>(o2)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, uint64_t o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, uint64_t o2) noexcept { \
     return emit(_Code_, o0, o1, o2); \
   }
 
 #define INST_3ii(_Inst_, _Code_, _Op0_, _Op1_, _Op2_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2) noexcept { \
     return emit(_Code_, o0, o1, o2); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, int o1, int o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, int o1, int o2) noexcept { \
     Imm o1Imm(o1); \
     return emit(_Code_, o0, o1Imm, o2); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, unsigned int o1, unsigned int o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, unsigned int o1, unsigned int o2) noexcept { \
     Imm o1Imm(o1); \
     return emit(_Code_, o0, o1Imm, static_cast<uint64_t>(o2)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, int64_t o1, int64_t o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, int64_t o1, int64_t o2) noexcept { \
     Imm o1Imm(o1); \
     return emit(_Code_, o0, o1Imm, static_cast<uint64_t>(o2)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, uint64_t o1, uint64_t o2) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, uint64_t o1, uint64_t o2) noexcept { \
     Imm o1Imm(o1); \
     return emit(_Code_, o0, o1Imm, o2); \
   }
 
-#define INST_4x(_Inst_, _Code_, _Op0_, _Op1_, _Op2_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, const _Op3_& o3) { \
+#define INST_4x(_Inst_, _Code_, _Op0_, _Op1_, _Op2_, _Op3_) \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, const _Op3_& o3) noexcept { \
     return emit(_Code_, o0, o1, o2, o3); \
   }
 
-#define INST_4x_(_Inst_, _Code_, _Op0_, _Op1_, _Op2_, _Cond_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, const _Op3_& o3) { \
-    ASMJIT_ASSERT(_Cond_); \
-    return emit(_Code_, o0, o1, o2, o3); \
-  }
-
-#define INST_4i(_Inst_, _Code_, _Op0_, _Op1_, _Op2_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, const _Op3_& o3) { \
+#define INST_4i(_Inst_, _Code_, _Op0_, _Op1_, _Op2_, _Op3_) \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, const _Op3_& o3) noexcept { \
     return emit(_Code_, o0, o1, o2, o3); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, int o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, int o3) noexcept { \
     return emit(_Code_, o0, o1, o2, o3); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, unsigned int o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, unsigned int o3) noexcept { \
     return emit(_Code_, o0, o1, o2, static_cast<uint64_t>(o3)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, int64_t o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, int64_t o3) noexcept { \
     return emit(_Code_, o0, o1, o2, static_cast<uint64_t>(o3)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, uint64_t o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, uint64_t o3) noexcept { \
     return emit(_Code_, o0, o1, o2, o3); \
   }
 
 #define INST_4ii(_Inst_, _Code_, _Op0_, _Op1_, _Op2_, _Op3_) \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, const _Op3_& o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, const _Op2_& o2, const _Op3_& o3) noexcept { \
     return emit(_Code_, o0, o1, o2, o3); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, int o2, int o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, int o2, int o3) noexcept { \
     Imm o2Imm(o2); \
     return emit(_Code_, o0, o1, o2Imm, o3); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, unsigned int o2, unsigned int o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, unsigned int o2, unsigned int o3) noexcept { \
     Imm o2Imm(o2); \
     return emit(_Code_, o0, o1, o2Imm, static_cast<uint64_t>(o3)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, int64_t o2, int64_t o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, int64_t o2, int64_t o3) noexcept { \
     Imm o2Imm(o2); \
     return emit(_Code_, o0, o1, o2Imm, static_cast<uint64_t>(o3)); \
   } \
   /*! \overload */ \
-  ASMJIT_INLINE InstNode* _Inst_(const _Op0_& o0, const _Op1_& o1, uint64_t o2, uint64_t o3) { \
+  ASMJIT_INLINE HLInst* _Inst_(const _Op0_& o0, const _Op1_& o1, uint64_t o2, uint64_t o3) noexcept { \
     Imm o2Imm(o2); \
     return emit(_Code_, o0, o1, o2Imm, o3); \
   }
@@ -2758,17 +1509,17 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_2i(and_, kX86InstIdAnd, X86Mem, Imm)
 
   //! Bit scan forward.
-  INST_2x_(bsf, kX86InstIdBsf, X86GpVar, X86GpVar, !o0.isGpb())
+  INST_2x(bsf, kX86InstIdBsf, X86GpVar, X86GpVar)
   //! \overload
-  INST_2x_(bsf, kX86InstIdBsf, X86GpVar, X86Mem, !o0.isGpb())
+  INST_2x(bsf, kX86InstIdBsf, X86GpVar, X86Mem)
 
   //! Bit scan reverse.
-  INST_2x_(bsr, kX86InstIdBsr, X86GpVar, X86GpVar, !o0.isGpb())
+  INST_2x(bsr, kX86InstIdBsr, X86GpVar, X86GpVar)
   //! \overload
-  INST_2x_(bsr, kX86InstIdBsr, X86GpVar, X86Mem, !o0.isGpb())
+  INST_2x(bsr, kX86InstIdBsr, X86GpVar, X86Mem)
 
   //! Byte swap (32-bit or 64-bit registers only) (i486).
-  INST_1x_(bswap, kX86InstIdBswap, X86GpVar, o0.getSize() >= 4)
+  INST_1x(bswap, kX86InstIdBswap, X86GpVar)
 
   //! Bit test.
   INST_2x(bt, kX86InstIdBt, X86GpVar, X86GpVar)
@@ -2807,24 +1558,24 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_2i(bts, kX86InstIdBts, X86Mem, Imm)
 
   //! Call a function.
-  ASMJIT_INLINE X86CallNode* call(const X86GpVar& dst, uint32_t conv, const FuncPrototype& p) {
-    return addCall(dst, conv, p);
+  ASMJIT_INLINE X86CallNode* call(const X86GpVar& dst, const FuncPrototype& p) {
+    return addCall(dst, p);
   }
   //! \overload
-  ASMJIT_INLINE X86CallNode* call(const X86Mem& dst, uint32_t conv, const FuncPrototype& p) {
-    return addCall(dst, conv, p);
+  ASMJIT_INLINE X86CallNode* call(const X86Mem& dst, const FuncPrototype& p) {
+    return addCall(dst, p);
   }
   //! \overload
-  ASMJIT_INLINE X86CallNode* call(const Label& label, uint32_t conv, const FuncPrototype& p) {
-    return addCall(label, conv, p);
+  ASMJIT_INLINE X86CallNode* call(const Label& label, const FuncPrototype& p) {
+    return addCall(label, p);
   }
   //! \overload
-  ASMJIT_INLINE X86CallNode* call(const Imm& dst, uint32_t conv, const FuncPrototype& p) {
-    return addCall(dst, conv, p);
+  ASMJIT_INLINE X86CallNode* call(const Imm& dst, const FuncPrototype& p) {
+    return addCall(dst, p);
   }
   //! \overload
-  ASMJIT_INLINE X86CallNode* call(Ptr dst, uint32_t conv, const FuncPrototype& p) {
-    return addCall(Imm(dst), conv, p);
+  ASMJIT_INLINE X86CallNode* call(Ptr dst, const FuncPrototype& p) {
+    return addCall(Imm(dst), p);
   }
 
   //! Clear carry flag
@@ -2835,17 +1586,17 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_0x(cmc, kX86InstIdCmc)
 
   //! Convert BYTE to WORD (AX <- Sign Extend AL).
-  INST_1x(cbw, kX86InstIdCbw, X86GpVar  /* al */)
+  INST_1x(cbw, kX86InstIdCbw, X86GpVar  /* AL */)
   //! Convert DWORD to QWORD (EDX:EAX <- Sign Extend EAX).
-  INST_2x(cdq, kX86InstIdCdq, X86GpVar /* edx */, X86GpVar /* eax */)
+  INST_2x(cdq, kX86InstIdCdq, X86GpVar /* EDX */, X86GpVar /* EAX */)
   //! Convert DWORD to QWORD (RAX <- Sign Extend EAX) (X64 Only).
-  INST_1x(cdqe, kX86InstIdCdqe, X86GpVar /* eax */)
-  //! Convert QWORD to OWORD (RDX:RAX <- Sign Extend RAX) (X64 Only).
-  INST_2x(cqo, kX86InstIdCdq, X86GpVar /* rdx */, X86GpVar /* rax */)
+  INST_1x(cdqe, kX86InstIdCdqe, X86GpVar /* EAX */)
+  //! Convert QWORD to DQWORD (RDX:RAX <- Sign Extend RAX) (X64 Only).
+  INST_2x(cqo, kX86InstIdCdq, X86GpVar /* RDX */, X86GpVar /* RAX */)
   //! Convert WORD to DWORD (DX:AX <- Sign Extend AX).
-  INST_2x(cwd, kX86InstIdCwd, X86GpVar  /* dx */, X86GpVar /* ax */)
+  INST_2x(cwd, kX86InstIdCwd, X86GpVar  /* DX */, X86GpVar /* AX */)
   //! Convert WORD to DWORD (EAX <- Sign Extend AX).
-  INST_1x(cwde, kX86InstIdCwde, X86GpVar /* eax */)
+  INST_1x(cwde, kX86InstIdCwde, X86GpVar /* EAX */)
 
   //! Conditional move.
   INST_2cc(cmov, kX86InstIdCmov, X86Util::condToCmovcc, X86GpVar, X86GpVar)
@@ -2873,12 +1624,12 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_2x(cmpsw, kX86InstIdCmpsW, X86GpVar, X86GpVar)
 
   //! Compare and exchange (i486).
-  INST_3x(cmpxchg, kX86InstIdCmpxchg, X86GpVar /* eax */, X86GpVar, X86GpVar)
+  INST_3x(cmpxchg, kX86InstIdCmpxchg, X86GpVar /* EAX */, X86GpVar, X86GpVar)
   //! \overload
-  INST_3x(cmpxchg, kX86InstIdCmpxchg, X86GpVar /* eax */, X86Mem, X86GpVar)
+  INST_3x(cmpxchg, kX86InstIdCmpxchg, X86GpVar /* EAX */, X86Mem, X86GpVar)
 
   //! Compare and exchange 128-bit value in RDX:RAX with `x_mem` (X64 Only).
-  ASMJIT_INLINE InstNode* cmpxchg16b(
+  ASMJIT_INLINE HLInst* cmpxchg16b(
     const X86GpVar& r_edx, const X86GpVar& r_eax,
     const X86GpVar& r_ecx, const X86GpVar& r_ebx,
     const X86Mem& x_mem) {
@@ -2887,7 +1638,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   }
 
   //! Compare and exchange 64-bit value in EDX:EAX with `x_mem` (Pentium).
-  ASMJIT_INLINE InstNode* cmpxchg8b(
+  ASMJIT_INLINE HLInst* cmpxchg8b(
     const X86GpVar& r_edx, const X86GpVar& r_eax,
     const X86GpVar& r_ecx, const X86GpVar& r_ebx,
     const X86Mem& x_mem) {
@@ -2896,17 +1647,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   }
 
   //! CPU identification (i486).
-  ASMJIT_INLINE InstNode* cpuid(
-    const X86GpVar& x_eax,
-    const X86GpVar& w_ebx,
-    const X86GpVar& x_ecx,
-    const X86GpVar& w_edx) {
-
-    // Destination variables must be different.
-    ASMJIT_ASSERT(x_eax.getId() != w_ebx.getId() &&
-                  w_ebx.getId() != x_ecx.getId() &&
-                  x_ecx.getId() != w_edx.getId());
-
+  ASMJIT_INLINE HLInst* cpuid(const X86GpVar& x_eax, const X86GpVar& w_ebx, const X86GpVar& x_ecx, const X86GpVar& w_edx) {
     return emit(kX86InstIdCpuid, x_eax, w_ebx, x_ecx, w_edx);
   }
 
@@ -2923,23 +1664,23 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! Unsigned divide (o0:o1 <- o0:o1 / o2).
   //!
   //! Remainder is stored in `o0`, quotient is stored in `o1`.
-  INST_3x_(div, kX86InstIdDiv, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId())
+  INST_3x(div, kX86InstIdDiv, X86GpVar, X86GpVar, X86GpVar)
   //! \overload
-  INST_3x_(div, kX86InstIdDiv, X86GpVar, X86GpVar, X86Mem, o0.getId() != o1.getId())
+  INST_3x(div, kX86InstIdDiv, X86GpVar, X86GpVar, X86Mem)
 
   //! Signed divide (o0:o1 <- o0:o1 / o2).
   //!
   //! Remainder is stored in `o0`, quotient is stored in `o1`.
-  INST_3x_(idiv, kX86InstIdIdiv, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId())
+  INST_3x(idiv, kX86InstIdIdiv, X86GpVar, X86GpVar, X86GpVar)
   //! \overload
-  INST_3x_(idiv, kX86InstIdIdiv, X86GpVar, X86GpVar, X86Mem, o0.getId() != o1.getId())
+  INST_3x(idiv, kX86InstIdIdiv, X86GpVar, X86GpVar, X86Mem)
 
   //! Signed multiply (o0:o1 <- o1 * o2).
   //!
   //! Hi value is stored in `o0`, lo value is stored in `o1`.
-  INST_3x_(imul, kX86InstIdImul, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId())
+  INST_3x(imul, kX86InstIdImul, X86GpVar, X86GpVar, X86GpVar)
   //! \overload
-  INST_3x_(imul, kX86InstIdImul, X86GpVar, X86GpVar, X86Mem, o0.getId() != o1.getId())
+  INST_3x(imul, kX86InstIdImul, X86GpVar, X86GpVar, X86Mem)
 
   //! Signed multiply.
   INST_2x(imul, kX86InstIdImul, X86GpVar, X86GpVar)
@@ -2961,7 +1702,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! Interrupt.
   INST_1i(int_, kX86InstIdInt, Imm)
   //! Interrupt 3 - trap to debugger.
-  ASMJIT_INLINE InstNode* int3() { return int_(3); }
+  ASMJIT_INLINE HLInst* int3() { return int_(3); }
 
   //! Jump to label `label` if condition `cc` is met.
   INST_1cc(j, kX86InstIdJ, X86Util::condToJcc, Label)
@@ -2978,7 +1719,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_1x(jmp, kX86InstIdJmp, Imm)
   //! \overload
-  ASMJIT_INLINE InstNode* jmp(Ptr dst) { return jmp(Imm(dst)); }
+  ASMJIT_INLINE HLInst* jmp(Ptr dst) { return jmp(Imm(dst)); }
 
   //! Load AH from flags.
   INST_1x(lahf, kX86InstIdLahf, X86GpVar)
@@ -3018,7 +1759,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! Move (AL|AX|EAX|RAX <- absolute address in immediate).
   INST_2x(mov_ptr, kX86InstIdMovPtr, X86GpReg, Imm);
   //! \overload
-  ASMJIT_INLINE InstNode* mov_ptr(const X86GpReg& o0, Ptr o1) {
+  ASMJIT_INLINE HLInst* mov_ptr(const X86GpReg& o0, Ptr o1) {
     ASMJIT_ASSERT(o0.getRegIndex() == 0);
     return emit(kX86InstIdMovPtr, o0, Imm(o1));
   }
@@ -3026,15 +1767,15 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! Move (absolute address in immediate <- AL|AX|EAX|RAX).
   INST_2x(mov_ptr, kX86InstIdMovPtr, Imm, X86GpReg);
   //! \overload
-  ASMJIT_INLINE InstNode* mov_ptr(Ptr o0, const X86GpReg& o1) {
+  ASMJIT_INLINE HLInst* mov_ptr(Ptr o0, const X86GpReg& o1) {
     ASMJIT_ASSERT(o1.getRegIndex() == 0);
     return emit(kX86InstIdMovPtr, Imm(o0), o1);
   }
 
   //! Move data after swapping bytes (SSE3 - Atom).
-  INST_2x_(movbe, kX86InstIdMovbe, X86GpVar, X86Mem, !o0.isGpb());
+  INST_2x(movbe, kX86InstIdMovbe, X86GpVar, X86Mem);
   //! \overload
-  INST_2x_(movbe, kX86InstIdMovbe, X86Mem, X86GpVar, !o1.isGpb());
+  INST_2x(movbe, kX86InstIdMovbe, X86Mem, X86GpVar);
 
   //! Load BYTE from DS:`o1` to ES:`o0`.
   INST_2x(movsb, kX86InstIdMovsB, X86GpVar, X86GpVar)
@@ -3061,9 +1802,9 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_2x(movzx, kX86InstIdMovzx, X86GpVar, X86Mem)
 
   //! Unsigned multiply (o0:o1 <- o1 * o2).
-  INST_3x_(mul, kX86InstIdMul, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId())
+  INST_3x(mul, kX86InstIdMul, X86GpVar, X86GpVar, X86GpVar)
   //! \overload
-  INST_3x_(mul, kX86InstIdMul, X86GpVar, X86GpVar, X86Mem, o0.getId() != o1.getId())
+  INST_3x(mul, kX86InstIdMul, X86GpVar, X86GpVar, X86Mem)
 
   //! Two's complement negation.
   INST_1x(neg, kX86InstIdNeg, X86GpVar)
@@ -3090,17 +1831,17 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_2i(or_, kX86InstIdOr, X86Mem, Imm)
 
   //! Pop a value from the stack.
-  INST_1x_(pop, kX86InstIdPop, X86GpVar, o0.getSize() == 2 || o0.getSize() == _regSize)
+  INST_1x(pop, kX86InstIdPop, X86GpVar)
   //! \overload
-  INST_1x_(pop, kX86InstIdPop, X86Mem, o0.getSize() == 2 || o0.getSize() == _regSize)
+  INST_1x(pop, kX86InstIdPop, X86Mem)
 
   //! Pop stack into EFLAGS Register (32-bit or 64-bit).
   INST_0x(popf, kX86InstIdPopf)
 
   //! Push WORD or DWORD/QWORD on the stack.
-  INST_1x_(push, kX86InstIdPush, X86GpVar, o0.getSize() == 2 || o0.getSize() == _regSize)
+  INST_1x(push, kX86InstIdPush, X86GpVar)
   //! Push WORD or DWORD/QWORD on the stack.
-  INST_1x_(push, kX86InstIdPush, X86Mem,o0.getSize() == 2 || o0.getSize() == _regSize)
+  INST_1x(push, kX86InstIdPush, X86Mem)
   //! Push segment register on the stack.
   INST_1x(push, kX86InstIdPush, X86SegReg)
   //! Push WORD or DWORD/QWORD on the stack.
@@ -3128,83 +1869,83 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_2i(rcr, kX86InstIdRcr, X86Mem, Imm)
 
   //! Read time-stamp counter (Pentium).
-  INST_2x_(rdtsc, kX86InstIdRdtsc, X86GpVar, X86GpVar, o0.getId() != o1.getId())
+  INST_2x(rdtsc, kX86InstIdRdtsc, X86GpVar, X86GpVar)
   //! Read time-stamp counter and processor id (Pentium).
-  INST_3x_(rdtscp, kX86InstIdRdtscp, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rdtscp, kX86InstIdRdtscp, X86GpVar, X86GpVar, X86GpVar)
 
   //! Repeated load ECX/RCX BYTEs from DS:[ESI/RSI] to AL.
-  INST_3x_(rep_lodsb, kX86InstIdRepLodsB, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_lodsb, kX86InstIdRepLodsB, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated load ECX/RCX DWORDs from DS:[ESI/RSI] to AL.
-  INST_3x_(rep_lodsd, kX86InstIdRepLodsD, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_lodsd, kX86InstIdRepLodsD, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated load ECX/RCX QWORDs from DS:[RSI] to RAX (X64 Only).
-  INST_3x_(rep_lodsq, kX86InstIdRepLodsQ, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_lodsq, kX86InstIdRepLodsQ, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated load ECX/RCX WORDs from DS:[ESI/RSI] to AX.
-  INST_3x_(rep_lodsw, kX86InstIdRepLodsW, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_lodsw, kX86InstIdRepLodsW, X86GpVar, X86GpVar, X86GpVar)
 
   //! Repeated move ECX/RCX BYTEs from DS:[ESI/RSI] to ES:[EDI/RDI].
-  INST_3x_(rep_movsb, kX86InstIdRepMovsB, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_movsb, kX86InstIdRepMovsB, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated move ECX/RCX DWORDs from DS:[ESI/RSI] to ES:[EDI/RDI].
-  INST_3x_(rep_movsd, kX86InstIdRepMovsD, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_movsd, kX86InstIdRepMovsD, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated move ECX/RCX QWORDs from DS:[RSI] to ES:[RDI] (X64 Only).
-  INST_3x_(rep_movsq, kX86InstIdRepMovsQ, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_movsq, kX86InstIdRepMovsQ, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated move ECX/RCX DWORDs from DS:[ESI/RSI] to ES:[EDI/RDI].
-  INST_3x_(rep_movsw, kX86InstIdRepMovsW, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_movsw, kX86InstIdRepMovsW, X86GpVar, X86GpVar, X86GpVar)
 
   //! Repeated fill ECX/RCX BYTEs at ES:[EDI/RDI] with AL.
-  INST_3x_(rep_stosb, kX86InstIdRepStosB, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_stosb, kX86InstIdRepStosB, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated fill ECX/RCX DWORDs at ES:[EDI/RDI] with EAX.
-  INST_3x_(rep_stosd, kX86InstIdRepStosD, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_stosd, kX86InstIdRepStosD, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated fill ECX/RCX QWORDs at ES:[RDI] with RAX (X64 Only).
-  INST_3x_(rep_stosq, kX86InstIdRepStosQ, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_stosq, kX86InstIdRepStosQ, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated fill ECX/RCX WORDs at ES:[EDI/RDI] with AX.
-  INST_3x_(rep_stosw, kX86InstIdRepStosW, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(rep_stosw, kX86InstIdRepStosW, X86GpVar, X86GpVar, X86GpVar)
 
   //! Repeated find non-AL BYTEs in ES:[EDI/RDI] and DS:[ESI/RDI].
-  INST_3x_(repe_cmpsb, kX86InstIdRepeCmpsB, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repe_cmpsb, kX86InstIdRepeCmpsB, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find non-EAX DWORDs in ES:[EDI/RDI] and DS:[ESI/RDI].
-  INST_3x_(repe_cmpsd, kX86InstIdRepeCmpsD, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repe_cmpsd, kX86InstIdRepeCmpsD, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find non-RAX QWORDs in ES:[RDI] and DS:[RDI] (X64 Only).
-  INST_3x_(repe_cmpsq, kX86InstIdRepeCmpsQ, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repe_cmpsq, kX86InstIdRepeCmpsQ, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find non-AX WORDs in ES:[EDI/RDI] and DS:[ESI/RDI].
-  INST_3x_(repe_cmpsw, kX86InstIdRepeCmpsW, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repe_cmpsw, kX86InstIdRepeCmpsW, X86GpVar, X86GpVar, X86GpVar)
 
   //! Repeated find non-AL BYTE starting at ES:[EDI/RDI].
-  INST_3x_(repe_scasb, kX86InstIdRepeScasB, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repe_scasb, kX86InstIdRepeScasB, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find non-EAX DWORD starting at ES:[EDI/RDI].
-  INST_3x_(repe_scasd, kX86InstIdRepeScasD, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repe_scasd, kX86InstIdRepeScasD, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find non-RAX QWORD starting at ES:[RDI] (X64 Only).
-  INST_3x_(repe_scasq, kX86InstIdRepeScasQ, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repe_scasq, kX86InstIdRepeScasQ, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find non-AX WORD starting at ES:[EDI/RDI].
-  INST_3x_(repe_scasw, kX86InstIdRepeScasW, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repe_scasw, kX86InstIdRepeScasW, X86GpVar, X86GpVar, X86GpVar)
 
   //! Repeated find AL BYTEs in [RDI] and [RSI].
-  INST_3x_(repne_cmpsb, kX86InstIdRepneCmpsB, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repne_cmpsb, kX86InstIdRepneCmpsB, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find EAX DWORDs in [RDI] and [RSI].
-  INST_3x_(repne_cmpsd, kX86InstIdRepneCmpsD, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repne_cmpsd, kX86InstIdRepneCmpsD, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find RAX QWORDs in [RDI] and [RSI] (X64 Only).
-  INST_3x_(repne_cmpsq, kX86InstIdRepneCmpsQ, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repne_cmpsq, kX86InstIdRepneCmpsQ, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find AX WORDs in [RDI] and [RSI].
-  INST_3x_(repne_cmpsw, kX86InstIdRepneCmpsW, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repne_cmpsw, kX86InstIdRepneCmpsW, X86GpVar, X86GpVar, X86GpVar)
 
   //! Repeated Find AL BYTEs, starting at ES:[EDI/RDI].
-  INST_3x_(repne_scasb, kX86InstIdRepneScasB, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repne_scasb, kX86InstIdRepneScasB, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find EAX DWORDs, starting at ES:[EDI/RDI].
-  INST_3x_(repne_scasd, kX86InstIdRepneScasD, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repne_scasd, kX86InstIdRepneScasD, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find RAX QWORDs, starting at ES:[RDI] (X64 Only).
-  INST_3x_(repne_scasq, kX86InstIdRepneScasQ, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repne_scasq, kX86InstIdRepneScasQ, X86GpVar, X86GpVar, X86GpVar)
   //! Repeated find AX WORDs, starting at ES:[EDI/RDI].
-  INST_3x_(repne_scasw, kX86InstIdRepneScasW, X86GpVar, X86GpVar, X86GpVar, o0.getId() != o1.getId() && o1.getId() != o2.getId())
+  INST_3x(repne_scasw, kX86InstIdRepneScasW, X86GpVar, X86GpVar, X86GpVar)
 
   //! Return.
-  ASMJIT_INLINE RetNode* ret() { return addRet(noOperand, noOperand); }
+  ASMJIT_INLINE HLRet* ret() { return addRet(noOperand, noOperand); }
   //! \overload
-  ASMJIT_INLINE RetNode* ret(const X86GpVar& o0) { return addRet(o0, noOperand); }
+  ASMJIT_INLINE HLRet* ret(const X86GpVar& o0) { return addRet(o0, noOperand); }
   //! \overload
-  ASMJIT_INLINE RetNode* ret(const X86GpVar& o0, const X86GpVar& o1) { return addRet(o0, o1); }
+  ASMJIT_INLINE HLRet* ret(const X86GpVar& o0, const X86GpVar& o1) { return addRet(o0, o1); }
   //! \overload
-  ASMJIT_INLINE RetNode* ret(const X86XmmVar& o0) { return addRet(o0, noOperand); }
+  ASMJIT_INLINE HLRet* ret(const X86XmmVar& o0) { return addRet(o0, noOperand); }
   //! \overload
-  ASMJIT_INLINE RetNode* ret(const X86XmmVar& o0, const X86XmmVar& o1) { return addRet(o0, o1); }
+  ASMJIT_INLINE HLRet* ret(const X86XmmVar& o0, const X86XmmVar& o1) { return addRet(o0, o1); }
 
   //! Rotate bits left.
   INST_2x(rol, kX86InstIdRol, X86GpVar, X86GpVar)
@@ -3376,7 +2117,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_0x(fabs, kX86InstIdFabs)
 
   //! Add `o0 = o0 + o1` (one operand has to be `fp0`) (FPU).
-  INST_2x_(fadd, kX86InstIdFadd, X86FpReg, X86FpReg, o0.getRegIndex() == 0 || o1.getRegIndex() == 0)
+  INST_2x(fadd, kX86InstIdFadd, X86FpReg, X86FpReg)
   //! Add `fp0 = fp0 + float_or_double[o0]` (FPU).
   INST_1x(fadd, kX86InstIdFadd, X86Mem)
   //! Add `o0 = o0 + fp0` and POP (FPU).
@@ -3438,7 +2179,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_0x(fdecstp, kX86InstIdFdecstp)
 
   //! Divide `o0 = o0 / o1` (one has to be `fp0`) (FPU).
-  INST_2x_(fdiv, kX86InstIdFdiv, X86FpReg, X86FpReg, o0.getRegIndex() == 0 || o1.getRegIndex() == 0)
+  INST_2x(fdiv, kX86InstIdFdiv, X86FpReg, X86FpReg)
   //! Divide `fp0 = fp0 / float_or_double[o0]` (FPU).
   INST_1x(fdiv, kX86InstIdFdiv, X86Mem)
   //! Divide `o0 = o0 / fp0` and POP (FPU).
@@ -3447,7 +2188,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_0x(fdivp, kX86InstIdFdivp)
 
   //! Reverse divide `o0 = o1 / o0` (one has to be `fp0`) (FPU).
-  INST_2x_(fdivr, kX86InstIdFdivr, X86FpReg, X86FpReg, o0.getRegIndex() == 0 || o1.getRegIndex() == 0)
+  INST_2x(fdivr, kX86InstIdFdivr, X86FpReg, X86FpReg)
   //! Reverse divide `fp0 = float_or_double[o0] / fp0` (FPU).
   INST_1x(fdivr, kX86InstIdFdivr, X86Mem)
   //! Reverse divide `o0 = fp0 / o0` and POP (FPU).
@@ -3459,20 +2200,20 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_1x(ffree, kX86InstIdFfree, X86FpReg)
 
   //! Add `fp0 = fp0 + short_or_int[o0]` (FPU).
-  INST_1x_(fiadd, kX86InstIdFiadd, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(fiadd, kX86InstIdFiadd, X86Mem)
   //! Compare `fp0` with `short_or_int[o0]` (FPU).
-  INST_1x_(ficom, kX86InstIdFicom, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(ficom, kX86InstIdFicom, X86Mem)
   //! Compare `fp0` with `short_or_int[o0]` and POP (FPU).
-  INST_1x_(ficomp, kX86InstIdFicomp, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(ficomp, kX86InstIdFicomp, X86Mem)
   //! Divide `fp0 = fp0 / short_or_int[o0]` (FPU).
-  INST_1x_(fidiv, kX86InstIdFidiv, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(fidiv, kX86InstIdFidiv, X86Mem)
   //! Reverse divide `fp0 = short_or_int[o0] / fp0` (FPU).
-  INST_1x_(fidivr, kX86InstIdFidivr, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(fidivr, kX86InstIdFidivr, X86Mem)
 
   //! Load `short_or_int_or_long[o0]` and PUSH (FPU).
-  INST_1x_(fild, kX86InstIdFild, X86Mem, o0.getSize() == 2 || o0.getSize() == 4 || o0.getSize() == 8)
+  INST_1x(fild, kX86InstIdFild, X86Mem)
   //! Multiply `fp0 *= short_or_int[o0]` (FPU).
-  INST_1x_(fimul, kX86InstIdFimul, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(fimul, kX86InstIdFimul, X86Mem)
 
   //! Increment FPU stack pointer (FPU).
   INST_0x(fincstp, kX86InstIdFincstp)
@@ -3480,20 +2221,20 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_0x(finit, kX86InstIdFinit)
 
   //! Subtract `fp0 = fp0 - short_or_int[o0]` (FPU).
-  INST_1x_(fisub, kX86InstIdFisub, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(fisub, kX86InstIdFisub, X86Mem)
   //! Reverse subtract `fp0 = short_or_int[o0] - fp0` (FPU).
-  INST_1x_(fisubr, kX86InstIdFisubr, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(fisubr, kX86InstIdFisubr, X86Mem)
 
   //! Initialize FPU without checking for pending unmasked exceptions (FPU).
   INST_0x(fninit, kX86InstIdFninit)
 
   //! Store `fp0` as `short_or_int[o0]` (FPU).
-  INST_1x_(fist, kX86InstIdFist, X86Mem, o0.getSize() == 2 || o0.getSize() == 4)
+  INST_1x(fist, kX86InstIdFist, X86Mem)
   //! Store `fp0` as `short_or_int_or_long[o0]` and POP (FPU).
-  INST_1x_(fistp, kX86InstIdFistp, X86Mem, o0.getSize() == 2 || o0.getSize() == 4 || o0.getSize() == 8)
+  INST_1x(fistp, kX86InstIdFistp, X86Mem)
 
   //! Load `float_or_double_or_extended[o0]` and PUSH (FPU).
-  INST_1x_(fld, kX86InstIdFld, X86Mem, o0.getSize() == 4 || o0.getSize() == 8 || o0.getSize() == 10)
+  INST_1x(fld, kX86InstIdFld, X86Mem)
   //! PUSH `o0` (FPU).
   INST_1x(fld, kX86InstIdFld, X86FpReg)
 
@@ -3518,7 +2259,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_1x(fldenv, kX86InstIdFldenv, X86Mem)
 
   //! Multiply `o0 = o0  * o1` (one has to be `fp0`) (FPU).
-  INST_2x_(fmul, kX86InstIdFmul, X86FpReg, X86FpReg, o0.getRegIndex() == 0 || o1.getRegIndex() == 0)
+  INST_2x(fmul, kX86InstIdFmul, X86FpReg, X86FpReg)
   //! Multiply `fp0 = fp0 * float_or_double[o0]` (FPU).
   INST_1x(fmul, kX86InstIdFmul, X86Mem)
   //! Multiply `o0 = o0 * fp0` and POP (FPU).
@@ -3568,11 +2309,11 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_0x(fsqrt, kX86InstIdFsqrt)
 
   //! Store floating point value to `float_or_double[o0]` (FPU).
-  INST_1x_(fst, kX86InstIdFst, X86Mem, o0.getSize() == 4 || o0.getSize() == 8)
+  INST_1x(fst, kX86InstIdFst, X86Mem)
   //! Copy `o0 = fp0` (FPU).
   INST_1x(fst, kX86InstIdFst, X86FpReg)
   //! Store floating point value to `float_or_double_or_extended[o0]` and POP (FPU).
-  INST_1x_(fstp, kX86InstIdFstp, X86Mem, o0.getSize() == 4 || o0.getSize() == 8 || o0.getSize() == 10)
+  INST_1x(fstp, kX86InstIdFstp, X86Mem)
   //! Copy `o0 = fp0` and POP (FPU).
   INST_1x(fstp, kX86InstIdFstp, X86FpReg)
 
@@ -3586,18 +2327,18 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_1x(fstsw, kX86InstIdFstsw, X86Mem)
 
   //! Subtract `o0 = o0 - o1` (one has to be `fp0`) (FPU).
-  INST_2x_(fsub, kX86InstIdFsub, X86FpReg, X86FpReg, o0.getRegIndex() == 0 || o1.getRegIndex() == 0)
+  INST_2x(fsub, kX86InstIdFsub, X86FpReg, X86FpReg)
   //! Subtract `fp0 = fp0 - float_or_double[o0]` (FPU).
-  INST_1x_(fsub, kX86InstIdFsub, X86Mem, o0.getSize() == 4 || o0.getSize() == 8)
+  INST_1x(fsub, kX86InstIdFsub, X86Mem)
   //! Subtract `o0 = o0 - fp0` and POP (FPU).
   INST_1x(fsubp, kX86InstIdFsubp, X86FpReg)
   //! Subtract `fp1 = fp1 - fp0` and POP (FPU).
   INST_0x(fsubp, kX86InstIdFsubp)
 
   //! Reverse subtract `o0 = o1 - o0` (one has to be `fp0`) (FPU).
-  INST_2x_(fsubr, kX86InstIdFsubr, X86FpReg, X86FpReg, o0.getRegIndex() == 0 || o1.getRegIndex() == 0)
+  INST_2x(fsubr, kX86InstIdFsubr, X86FpReg, X86FpReg)
   //! Reverse subtract `fp0 = fp0 - float_or_double[o0]` (FPU).
-  INST_1x_(fsubr, kX86InstIdFsubr, X86Mem, o0.getSize() == 4 || o0.getSize() == 8)
+  INST_1x(fsubr, kX86InstIdFsubr, X86Mem)
   //! Reverse subtract `o0 = o0 - fp0` and POP (FPU).
   INST_1x(fsubrp, kX86InstIdFsubrp, X86FpReg)
   //! Reverse subtract `fp1 = fp1 - fp0` and POP (FPU).
@@ -3628,10 +2369,6 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! Exchange `fp0` with `o0` (FPU).
   INST_1x(fxch, kX86InstIdFxch, X86FpReg)
 
-  //! Restore FP/MMX/SIMD extension states to `o0` (512 bytes) (FPU, MMX, SSE).
-  INST_1x(fxrstor, kX86InstIdFxrstor, X86Mem)
-  //! Store FP/MMX/SIMD extension states to `o0` (512 bytes) (FPU, MMX, SSE).
-  INST_1x(fxsave, kX86InstIdFxsave, X86Mem)
   //! Extract `fp0 = exponent(fp0)` and PUSH `significant(fp0)` (FPU).
   INST_0x(fxtract, kX86InstIdFxtract)
 
@@ -3639,6 +2376,241 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_0x(fyl2x, kX86InstIdFyl2x)
   //! Compute `fp1 = fp1 * log2(fp0 + 1)` and POP (FPU).
   INST_0x(fyl2xp1, kX86InstIdFyl2xp1)
+
+  // --------------------------------------------------------------------------
+  // [FXSR]
+  // --------------------------------------------------------------------------
+
+  //! Restore FP/MMX/SIMD extension states to `o0` (512 bytes) (FXSR).
+  INST_1x(fxrstor, kX86InstIdFxrstor, X86Mem)
+  //! Restore FP/MMX/SIMD extension states to `o0` (512 bytes) (FXSR & X64).
+  INST_1x(fxrstor64, kX86InstIdFxrstor64, X86Mem)
+  //! Store FP/MMX/SIMD extension states to `o0` (512 bytes) (FXSR).
+  INST_1x(fxsave, kX86InstIdFxsave, X86Mem)
+  //! Store FP/MMX/SIMD extension states to `o0` (512 bytes) (FXSR & X64).
+  INST_1x(fxsave64, kX86InstIdFxsave64, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [XSAVE]
+  // --------------------------------------------------------------------------
+
+  //! Restore Processor Extended States specified by `o1:o2` (XSAVE).
+  INST_3x(xrstor, kX86InstIdXrstor, X86Mem, X86GpVar, X86GpVar)
+  //! Restore Processor Extended States specified by `o1:o2` (XSAVE & X64).
+  INST_3x(xrstor64, kX86InstIdXrstor64, X86Mem, X86GpVar, X86GpVar)
+
+  //! Save Processor Extended States specified by `o1:o2` (XSAVE).
+  INST_3x(xsave, kX86InstIdXsave, X86Mem, X86GpVar, X86GpVar)
+  //! Save Processor Extended States specified by `o1:o2` (XSAVE & X64).
+  INST_3x(xsave64, kX86InstIdXsave64, X86Mem, X86GpVar, X86GpVar)
+
+  //! Save Processor Extended States specified by `o1:o2` (Optimized) (XSAVEOPT).
+  INST_3x(xsaveopt, kX86InstIdXsaveopt, X86Mem, X86GpVar, X86GpVar)
+  //! Save Processor Extended States specified by `o1:o2` (Optimized) (XSAVEOPT & X64).
+  INST_3x(xsaveopt64, kX86InstIdXsaveopt64, X86Mem, X86GpVar, X86GpVar)
+
+  //! Get XCR - `o1:o2 <- XCR[o0]` (`EDX:EAX <- XCR[ECX]`) (XSAVE).
+  INST_3x(xgetbv, kX86InstIdXgetbv, X86GpVar, X86GpVar, X86GpVar)
+  //! Set XCR - `XCR[o0] <- o1:o2` (`XCR[ECX] <- EDX:EAX`) (XSAVE).
+  INST_3x(xsetbv, kX86InstIdXsetbv, X86GpVar, X86GpVar, X86GpVar)
+
+  // --------------------------------------------------------------------------
+  // [POPCNT]
+  // --------------------------------------------------------------------------
+
+  //! Return the count of number of bits set to 1 (POPCNT).
+  INST_2x(popcnt, kX86InstIdPopcnt, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(popcnt, kX86InstIdPopcnt, X86GpVar, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [LZCNT]
+  // --------------------------------------------------------------------------
+
+  //! Count the number of leading zero bits (LZCNT).
+  INST_2x(lzcnt, kX86InstIdLzcnt, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(lzcnt, kX86InstIdLzcnt, X86GpVar, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [BMI]
+  // --------------------------------------------------------------------------
+
+  //! Bitwise and-not (BMI).
+  INST_3x(andn, kX86InstIdAndn, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(andn, kX86InstIdAndn, X86GpVar, X86GpVar, X86Mem)
+
+  //! Bit field extract (BMI).
+  INST_3x(bextr, kX86InstIdBextr, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(bextr, kX86InstIdBextr, X86GpVar, X86Mem, X86GpVar)
+
+  //! Extract lower set isolated bit (BMI).
+  INST_2x(blsi, kX86InstIdBlsi, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blsi, kX86InstIdBlsi, X86GpVar, X86Mem)
+
+  //! Get mask up to lowest set bit (BMI).
+  INST_2x(blsmsk, kX86InstIdBlsmsk, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blsmsk, kX86InstIdBlsmsk, X86GpVar, X86Mem)
+
+  //! Reset lowest set bit (BMI).
+  INST_2x(blsr, kX86InstIdBlsr, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blsr, kX86InstIdBlsr, X86GpVar, X86Mem)
+
+  //! Count the number of trailing zero bits (BMI).
+  INST_2x(tzcnt, kX86InstIdTzcnt, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(tzcnt, kX86InstIdTzcnt, X86GpVar, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [BMI2]
+  // --------------------------------------------------------------------------
+
+  //! Zero high bits starting with specified bit position (BMI2).
+  INST_3x(bzhi, kX86InstIdBzhi, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(bzhi, kX86InstIdBzhi, X86GpVar, X86Mem, X86GpVar)
+
+  //! Unsigned multiply without affecting flags (BMI2).
+  INST_3x(mulx, kX86InstIdMulx, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(mulx, kX86InstIdMulx, X86GpVar, X86GpVar, X86Mem)
+
+  //! Parallel bits deposit (BMI2).
+  INST_3x(pdep, kX86InstIdPdep, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(pdep, kX86InstIdPdep, X86GpVar, X86GpVar, X86Mem)
+
+  //! Parallel bits extract (BMI2).
+  INST_3x(pext, kX86InstIdPext, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(pext, kX86InstIdPext, X86GpVar, X86GpVar, X86Mem)
+
+  //! Rotate right without affecting flags (BMI2).
+  INST_3i(rorx, kX86InstIdRorx, X86GpVar, X86GpVar, Imm)
+  //! \overload
+  INST_3i(rorx, kX86InstIdRorx, X86GpVar, X86Mem, Imm)
+
+  //! Shift arithmetic right without affecting flags (BMI2).
+  INST_3x(sarx, kX86InstIdSarx, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(sarx, kX86InstIdSarx, X86GpVar, X86Mem, X86GpVar)
+
+  //! Shift logical left without affecting flags (BMI2).
+  INST_3x(shlx, kX86InstIdShlx, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(shlx, kX86InstIdShlx, X86GpVar, X86Mem, X86GpVar)
+
+  //! Shift logical right without affecting flags (BMI2).
+  INST_3x(shrx, kX86InstIdShrx, X86GpVar, X86GpVar, X86GpVar)
+  //! \overload
+  INST_3x(shrx, kX86InstIdShrx, X86GpVar, X86Mem, X86GpVar)
+
+  // --------------------------------------------------------------------------
+  // [ADX]
+  // --------------------------------------------------------------------------
+
+  //! Unsigned integer addition of two operands with carry flag (ADX).
+  INST_2x(adcx, kX86InstIdAdcx, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(adcx, kX86InstIdAdcx, X86GpVar, X86Mem)
+
+  //! Unsigned integer addition of two operands with overflow flag (ADX).
+  INST_2x(adox, kX86InstIdAdox, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(adox, kX86InstIdAdox, X86GpVar, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [TBM]
+  // --------------------------------------------------------------------------
+
+  //! Fill from lowest clear bit (TBM).
+  INST_2x(blcfill, kX86InstIdBlcfill, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blcfill, kX86InstIdBlcfill, X86GpVar, X86Mem)
+
+  //! Isolate lowest clear bit (TBM).
+  INST_2x(blci, kX86InstIdBlci, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blci, kX86InstIdBlci, X86GpVar, X86Mem)
+
+  //! Isolate lowest clear bit and complement (TBM).
+  INST_2x(blcic, kX86InstIdBlcic, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blcic, kX86InstIdBlcic, X86GpVar, X86Mem)
+
+  //! Mask from lowest clear bit (TBM).
+  INST_2x(blcmsk, kX86InstIdBlcmsk, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blcmsk, kX86InstIdBlcmsk, X86GpVar, X86Mem)
+
+  //! Set lowest clear bit (TBM).
+  INST_2x(blcs, kX86InstIdBlcs, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blcs, kX86InstIdBlcs, X86GpVar, X86Mem)
+
+  //! Fill from lowest set bit (TBM).
+  INST_2x(blsfill, kX86InstIdBlsfill, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blsfill, kX86InstIdBlsfill, X86GpVar, X86Mem)
+
+  //! Isolate lowest set bit and complement (TBM).
+  INST_2x(blsic, kX86InstIdBlsic, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(blsic, kX86InstIdBlsic, X86GpVar, X86Mem)
+
+  //! Inverse mask from trailing ones (TBM)
+  INST_2x(t1mskc, kX86InstIdT1mskc, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(t1mskc, kX86InstIdT1mskc, X86GpVar, X86Mem)
+
+  //! Mask from trailing zeros (TBM)
+  INST_2x(tzmsk, kX86InstIdTzmsk, X86GpVar, X86GpVar)
+  //! \overload
+  INST_2x(tzmsk, kX86InstIdTzmsk, X86GpVar, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [CLFLUSH / CLFLUSH_OPT]
+  // --------------------------------------------------------------------------
+
+  //! Flush cache line (CLFLUSH).
+  INST_1x(clflush, kX86InstIdClflush, X86Mem)
+
+  //! Flush cache line (CLFLUSH_OPT).
+  INST_1x(clflushopt, kX86InstIdClflushopt, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [PREFETCHW / PREFETCHW1]
+  // --------------------------------------------------------------------------
+
+  //! Prefetch data into caches in anticipation of a write (3DNOW / PREFETCHW).
+  INST_1x(prefetchw, kX86InstIdPrefetchw, X86Mem)
+
+  //! Prefetch vector data into caches with intent to write and T1 hint (PREFETCHWT1).
+  INST_1x(prefetchwt1, kX86InstIdPrefetchwt1, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [RDRAND / RDSEED]
+  // --------------------------------------------------------------------------
+
+  //! Store a pseudo-random number in destination register (crypto-unsafe) (RDRAND).
+  INST_1x(rdrand, kX86InstIdRdrand, X86GpVar)
+
+  //! Store a random seed in destination register (crypto-unsafe) (RDSEED).
+  INST_1x(rdseed, kX86InstIdRdseed, X86GpVar)
+
+  // --------------------------------------------------------------------------
+  // [FSGSBASE]
+  // --------------------------------------------------------------------------
+
+  INST_1x(rdfsbase, kX86InstIdRdfsbase, X86GpVar)
+  INST_1x(rdgsbase, kX86InstIdRdgsbase, X86GpVar)
+  INST_1x(wrfsbase, kX86InstIdWrfsbase, X86GpVar)
+  INST_1x(wrgsbase, kX86InstIdWrgsbase, X86GpVar)
 
   // --------------------------------------------------------------------------
   // [MMX]
@@ -3908,123 +2880,130 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   // [3DNOW]
   // --------------------------------------------------------------------------
 
-  //! Packed SP-FP to DWORD convert (3dNow!).
+  //! Packed unsigned BYTE average (3DNOW).
+  INST_2x(pavgusb, kX86InstIdPavgusb, X86MmVar, X86MmVar)
+  //! \overload
+  INST_2x(pavgusb, kX86InstIdPavgusb, X86MmVar, X86Mem)
+
+  //! Packed SP-FP to DWORD convert (3DNOW).
   INST_2x(pf2id, kX86InstIdPf2id, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pf2id, kX86InstIdPf2id, X86MmVar, X86Mem)
 
-  //!  Packed SP-FP to WORD convert (3dNow!).
+  //!  Packed SP-FP to WORD convert (3DNOW).
   INST_2x(pf2iw, kX86InstIdPf2iw, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pf2iw, kX86InstIdPf2iw, X86MmVar, X86Mem)
 
-  //! Packed SP-FP accumulate (3dNow!).
+  //! Packed SP-FP accumulate (3DNOW).
   INST_2x(pfacc, kX86InstIdPfacc, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfacc, kX86InstIdPfacc, X86MmVar, X86Mem)
 
-  //! Packed SP-FP addition (3dNow!).
+  //! Packed SP-FP addition (3DNOW).
   INST_2x(pfadd, kX86InstIdPfadd, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfadd, kX86InstIdPfadd, X86MmVar, X86Mem)
 
-  //! Packed SP-FP compare - dst == src (3dNow!).
+  //! Packed SP-FP compare - dst == src (3DNOW).
   INST_2x(pfcmpeq, kX86InstIdPfcmpeq, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfcmpeq, kX86InstIdPfcmpeq, X86MmVar, X86Mem)
 
-  //! Packed SP-FP compare - dst >= src (3dNow!).
+  //! Packed SP-FP compare - dst >= src (3DNOW).
   INST_2x(pfcmpge, kX86InstIdPfcmpge, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfcmpge, kX86InstIdPfcmpge, X86MmVar, X86Mem)
 
-  //! Packed SP-FP compare - dst > src (3dNow!).
+  //! Packed SP-FP compare - dst > src (3DNOW).
   INST_2x(pfcmpgt, kX86InstIdPfcmpgt, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfcmpgt, kX86InstIdPfcmpgt, X86MmVar, X86Mem)
 
-  //! Packed SP-FP maximum (3dNow!).
+  //! Packed SP-FP maximum (3DNOW).
   INST_2x(pfmax, kX86InstIdPfmax, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfmax, kX86InstIdPfmax, X86MmVar, X86Mem)
 
-  //! Packed SP-FP minimum (3dNow!).
+  //! Packed SP-FP minimum (3DNOW).
   INST_2x(pfmin, kX86InstIdPfmin, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfmin, kX86InstIdPfmin, X86MmVar, X86Mem)
 
-  //! Packed SP-FP multiply (3dNow!).
+  //! Packed SP-FP multiply (3DNOW).
   INST_2x(pfmul, kX86InstIdPfmul, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfmul, kX86InstIdPfmul, X86MmVar, X86Mem)
 
-  //! Packed SP-FP negative accumulate (3dNow!).
+  //! Packed SP-FP negative accumulate (3DNOW).
   INST_2x(pfnacc, kX86InstIdPfnacc, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfnacc, kX86InstIdPfnacc, X86MmVar, X86Mem)
 
-  //! Packed SP-FP mixed accumulate (3dNow!).
+  //! Packed SP-FP mixed accumulate (3DNOW).
   INST_2x(pfpnacc, kX86InstIdPfpnacc, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfpnacc, kX86InstIdPfpnacc, X86MmVar, X86Mem)
 
-  //! Packed SP-FP reciprocal approximation (3dNow!).
+  //! Packed SP-FP reciprocal approximation (3DNOW).
   INST_2x(pfrcp, kX86InstIdPfrcp, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfrcp, kX86InstIdPfrcp, X86MmVar, X86Mem)
 
-  //! Packed SP-FP reciprocal, first iteration step (3dNow!).
+  //! Packed SP-FP reciprocal, first iteration step (3DNOW).
   INST_2x(pfrcpit1, kX86InstIdPfrcpit1, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfrcpit1, kX86InstIdPfrcpit1, X86MmVar, X86Mem)
 
-  //! Packed SP-FP reciprocal, second iteration step (3dNow!).
+  //! Packed SP-FP reciprocal, second iteration step (3DNOW).
   INST_2x(pfrcpit2, kX86InstIdPfrcpit2, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfrcpit2, kX86InstIdPfrcpit2, X86MmVar, X86Mem)
 
-  //! Packed SP-FP reciprocal square root, first iteration step (3dNow!).
+  //! Packed SP-FP reciprocal square root, first iteration step (3DNOW).
   INST_2x(pfrsqit1, kX86InstIdPfrsqit1, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfrsqit1, kX86InstIdPfrsqit1, X86MmVar, X86Mem)
 
-  //! Packed SP-FP reciprocal square root approximation (3dNow!).
+  //! Packed SP-FP reciprocal square root approximation (3DNOW).
   INST_2x(pfrsqrt, kX86InstIdPfrsqrt, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfrsqrt, kX86InstIdPfrsqrt, X86MmVar, X86Mem)
 
-  //! Packed SP-FP subtract (3dNow!).
+  //! Packed SP-FP subtract (3DNOW).
   INST_2x(pfsub, kX86InstIdPfsub, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfsub, kX86InstIdPfsub, X86MmVar, X86Mem)
 
-  //! Packed SP-FP reverse subtract (3dNow!).
+  //! Packed SP-FP reverse subtract (3DNOW).
   INST_2x(pfsubr, kX86InstIdPfsubr, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pfsubr, kX86InstIdPfsubr, X86MmVar, X86Mem)
 
-  //! Packed DWORDs to SP-FP (3dNow!).
+  //! Packed DWORDs to SP-FP (3DNOW).
   INST_2x(pi2fd, kX86InstIdPi2fd, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pi2fd, kX86InstIdPi2fd, X86MmVar, X86Mem)
 
-  //! Packed WORDs to SP-FP (3dNow!).
+  //! Packed WORDs to SP-FP (3DNOW).
   INST_2x(pi2fw, kX86InstIdPi2fw, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pi2fw, kX86InstIdPi2fw, X86MmVar, X86Mem)
 
-  //! Packed swap DWORDs (3dNow!)
+  //! Packed multiply WORD with rounding (3DNOW).
+  INST_2x(pmulhrw, kX86InstIdPmulhrw, X86MmVar, X86MmVar)
+  //! \overload
+  INST_2x(pmulhrw, kX86InstIdPmulhrw, X86MmVar, X86Mem)
+
+  //! Packed swap DWORDs (3DNOW).
   INST_2x(pswapd, kX86InstIdPswapd, X86MmVar, X86MmVar)
   //! \overload
   INST_2x(pswapd, kX86InstIdPswapd, X86MmVar, X86Mem)
 
-  //! Prefetch (3dNow!).
-  INST_1x(prefetch_3dnow, kX86InstIdPrefetch3dNow, X86Mem)
+  //! Prefetch (3DNOW).
+  INST_1x(prefetch3dnow, kX86InstIdPrefetch3dNow, X86Mem)
 
-  //! Prefetch and set cache to modified (3dNow!).
-  INST_1x(prefetchw_3dnow, kX86InstIdPrefetchw3dNow, X86Mem)
-
-  //! Faster EMMS (3dNow!).
+  //! Faster EMMS (3DNOW).
   INST_0x(femms, kX86InstIdFemms)
 
   // --------------------------------------------------------------------------
@@ -4110,7 +3089,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_1x(ldmxcsr, kX86InstIdLdmxcsr, X86Mem)
 
   //! Byte mask write (SSE).
-  INST_3x(maskmovq, kX86InstIdMaskmovq, X86GpVar /* zdi */, X86MmVar, X86MmVar)
+  INST_3x(maskmovq, kX86InstIdMaskmovq, X86GpVar /* ZDI */, X86MmVar, X86MmVar)
 
   //! Packed SP-FP maximum (SSE).
   INST_2x(maxps, kX86InstIdMaxps, X86XmmVar, X86XmmVar)
@@ -4370,9 +3349,6 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_2x(andpd, kX86InstIdAndpd, X86XmmVar, X86Mem)
 
-  //! Flush cache line (SSE2).
-  INST_1x(clflush, kX86InstIdClflush, X86Mem)
-
   //! Packed DP-FP compare (SSE2).
   INST_3i(cmppd, kX86InstIdCmppd, X86XmmVar, X86XmmVar, Imm)
   //! \overload
@@ -4481,8 +3457,8 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! Load fence (SSE2).
   INST_0x(lfence, kX86InstIdLfence)
 
-  //! Store selected bytes of OWORD (SSE2).
-  INST_3x(maskmovdqu, kX86InstIdMaskmovdqu, X86GpVar /* zdi */, X86XmmVar, X86XmmVar)
+  //! Store selected bytes of DQWORD (SSE2).
+  INST_3x(maskmovdqu, kX86InstIdMaskmovdqu, X86GpVar /* ZDI */, X86XmmVar, X86XmmVar)
 
   //! Packed DP-FP maximum (SSE2).
   INST_2x(maxpd, kX86InstIdMaxpd, X86XmmVar, X86XmmVar)
@@ -4507,14 +3483,14 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_2x(minsd, kX86InstIdMinsd, X86XmmVar, X86Mem)
 
-  //! Move aligned OWORD (SSE2).
+  //! Move aligned DQWORD (SSE2).
   INST_2x(movdqa, kX86InstIdMovdqa, X86XmmVar, X86XmmVar)
   //! \overload
   INST_2x(movdqa, kX86InstIdMovdqa, X86XmmVar, X86Mem)
   //! \overload
   INST_2x(movdqa, kX86InstIdMovdqa, X86Mem, X86XmmVar)
 
-  //! Move unaligned OWORD (SSE2).
+  //! Move unaligned DQWORD (SSE2).
   INST_2x(movdqu, kX86InstIdMovdqu, X86XmmVar, X86XmmVar)
   //! \overload
   INST_2x(movdqu, kX86InstIdMovdqu, X86XmmVar, X86Mem)
@@ -4541,10 +3517,10 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_2x(movapd, kX86InstIdMovapd, X86Mem, X86XmmVar)
 
-  //! Move QWORD from Xmm to Mm register (SSE2).
+  //! Move QWORD from XMM to MMX register (SSE2).
   INST_2x(movdq2q, kX86InstIdMovdq2q, X86MmVar, X86XmmVar)
 
-  //! Move QWORD from Mm to Xmm register (SSE2).
+  //! Move QWORD from MMX to XMM register (SSE2).
   INST_2x(movq2dq, kX86InstIdMovq2dq, X86XmmVar, X86MmVar)
 
   //! Move high packed DP-FP (SSE2).
@@ -4783,7 +3759,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_2i(psllw, kX86InstIdPsllw, X86XmmVar, Imm)
 
-  //! Packed OWORD shift left logical (SSE2).
+  //! Packed DQWORD shift left logical (SSE2).
   INST_2i(pslldq, kX86InstIdPslldq, X86XmmVar, Imm)
 
   //! Packed DWORD shift right arithmetic (SSE2).
@@ -4859,7 +3835,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_2i(psrlq, kX86InstIdPsrlq, X86XmmVar, Imm)
 
-  //! Scalar OWORD shift right logical (SSE2).
+  //! Scalar DQWORD shift right logical (SSE2).
   INST_2i(psrldq, kX86InstIdPsrldq, X86XmmVar, Imm)
 
   //! Packed WORD shift right logical (SSE2).
@@ -4899,7 +3875,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_2x(punpckhdq, kX86InstIdPunpckhdq, X86XmmVar, X86Mem)
 
-  //! Unpack high packed QWORDs to OWORD (SSE2).
+  //! Unpack high packed QWORDs to DQWORD (SSE2).
   INST_2x(punpckhqdq, kX86InstIdPunpckhqdq, X86XmmVar, X86XmmVar)
   //! \overload
   INST_2x(punpckhqdq, kX86InstIdPunpckhqdq, X86XmmVar, X86Mem)
@@ -4919,7 +3895,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_2x(punpckldq, kX86InstIdPunpckldq, X86XmmVar, X86Mem)
 
-  //! Unpack low packed QWORDs to OWORD (SSE2).
+  //! Unpack low packed QWORDs to DQWORD (SSE2).
   INST_2x(punpcklqdq, kX86InstIdPunpcklqdq, X86XmmVar, X86XmmVar)
   //! \overload
   INST_2x(punpcklqdq, kX86InstIdPunpcklqdq, X86XmmVar, X86Mem)
@@ -5219,14 +4195,14 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_3i(blendps, kX86InstIdBlendps, X86XmmVar, X86Mem, Imm)
 
   //! Packed DP-FP variable blend (SSE4.1).
-  INST_3x(blendvpd, kX86InstIdBlendvpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(blendvpd, kX86InstIdBlendvpd, X86XmmVar, X86XmmVar, X86XmmVar  /* XMM0 */)
   //! \overload
-  INST_3x(blendvpd, kX86InstIdBlendvpd, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(blendvpd, kX86InstIdBlendvpd, X86XmmVar, X86Mem, X86XmmVar /* XMM0 */)
 
   //! Packed SP-FP variable blend (SSE4.1).
-  INST_3x(blendvps, kX86InstIdBlendvps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(blendvps, kX86InstIdBlendvps, X86XmmVar, X86XmmVar, X86XmmVar /* XMM0 */)
   //! \overload
-  INST_3x(blendvps, kX86InstIdBlendvps, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(blendvps, kX86InstIdBlendvps, X86XmmVar, X86Mem, X86XmmVar /* XMM0 */)
 
   //! Packed DP-FP dot product (SSE4.1).
   INST_3i(dppd, kX86InstIdDppd, X86XmmVar, X86XmmVar, Imm)
@@ -5248,7 +4224,7 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   //! \overload
   INST_3i(insertps, kX86InstIdInsertps, X86XmmVar, X86Mem, Imm)
 
-  //! Load OWORD aligned using NT hint (SSE4.1).
+  //! Load DQWORD aligned using NT hint (SSE4.1).
   INST_2x(movntdqa, kX86InstIdMovntdqa, X86XmmVar, X86Mem)
 
   //! Packed WORD sums of absolute difference (SSE4.1).
@@ -5262,9 +4238,9 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_2x(packusdw, kX86InstIdPackusdw, X86XmmVar, X86Mem)
 
   //! Packed BYTE variable blend (SSE4.1).
-  INST_3x(pblendvb, kX86InstIdPblendvb, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(pblendvb, kX86InstIdPblendvb, X86XmmVar, X86XmmVar, X86XmmVar /* XMM0 */)
   //! \overload
-  INST_3x(pblendvb, kX86InstIdPblendvb, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(pblendvb, kX86InstIdPblendvb, X86XmmVar, X86Mem, X86XmmVar /* XMM0 */)
 
   //! Packed WORD blend (SSE4.1).
   INST_3i(pblendw, kX86InstIdPblendw, X86XmmVar, X86XmmVar, Imm)
@@ -5453,30 +4429,30 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   // [SSE4.2]
   // --------------------------------------------------------------------------
 
-  //! Accumulate crc32 value (polynomial 0x11EDC6F41) (SSE4.2).
-  INST_2x_(crc32, kX86InstIdCrc32, X86GpVar, X86GpVar, o0.isRegType(kX86RegTypeGpd) || o0.isRegType(kX86RegTypeGpq))
+  //! Accumulate CRC32 value (polynomial 0x11EDC6F41) (SSE4.2).
+  INST_2x(crc32, kX86InstIdCrc32, X86GpVar, X86GpVar)
   //! \overload
-  INST_2x_(crc32, kX86InstIdCrc32, X86GpVar, X86Mem, o0.isRegType(kX86RegTypeGpd) || o0.isRegType(kX86RegTypeGpq))
+  INST_2x(crc32, kX86InstIdCrc32, X86GpVar, X86Mem)
 
-  //! Packed compare explicit length strings, return index (SSE4.2).
-  INST_3i(pcmpestri, kX86InstIdPcmpestri, X86XmmVar, X86XmmVar, Imm)
+  //! Packed compare explicit length strings, return index in ECX (SSE4.2).
+  INST_4i(pcmpestri, kX86InstIdPcmpestri, X86GpVar, X86XmmVar, X86XmmVar, Imm)
   //! \overload
-  INST_3i(pcmpestri, kX86InstIdPcmpestri, X86XmmVar, X86Mem, Imm)
+  INST_4i(pcmpestri, kX86InstIdPcmpestri, X86GpVar, X86XmmVar, X86Mem, Imm)
 
-  //! Packed compare explicit length strings, return mask (SSE4.2).
-  INST_3i(pcmpestrm, kX86InstIdPcmpestrm, X86XmmVar, X86XmmVar, Imm)
+  //! Packed compare explicit length strings, return mask in XMM0 (SSE4.2).
+  INST_4i(pcmpestrm, kX86InstIdPcmpestrm, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
   //! \overload
-  INST_3i(pcmpestrm, kX86InstIdPcmpestrm, X86XmmVar, X86Mem, Imm)
+  INST_4i(pcmpestrm, kX86InstIdPcmpestrm, X86XmmVar, X86XmmVar, X86Mem, Imm)
 
-  //! Packed compare implicit length strings, return index (SSE4.2).
-  INST_3i(pcmpistri, kX86InstIdPcmpistri, X86XmmVar, X86XmmVar, Imm)
+  //! Packed compare implicit length strings, return index in ECX (SSE4.2).
+  INST_4i(pcmpistri, kX86InstIdPcmpistri, X86GpVar, X86XmmVar, X86XmmVar, Imm)
   //! \overload
-  INST_3i(pcmpistri, kX86InstIdPcmpistri, X86XmmVar, X86Mem, Imm)
+  INST_4i(pcmpistri, kX86InstIdPcmpistri, X86GpVar, X86XmmVar, X86Mem, Imm)
 
-  //! Packed compare implicit length strings, return mask (SSE4.2).
-  INST_3i(pcmpistrm, kX86InstIdPcmpistrm, X86XmmVar, X86XmmVar, Imm)
+  //! Packed compare implicit length strings, return mask in XMM0 (SSE4.2).
+  INST_4i(pcmpistrm, kX86InstIdPcmpistrm, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
   //! \overload
-  INST_3i(pcmpistrm, kX86InstIdPcmpistrm, X86XmmVar, X86Mem, Imm)
+  INST_4i(pcmpistrm, kX86InstIdPcmpistrm, X86XmmVar, X86XmmVar, X86Mem, Imm)
 
   //! Packed QWORD compare if greater than (SSE4.2).
   INST_2x(pcmpgtq, kX86InstIdPcmpgtq, X86XmmVar, X86XmmVar)
@@ -5501,24 +4477,6 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_2x(movntsd, kX86InstIdMovntsd, X86Mem, X86XmmVar)
   //! Move Non-Temporal Scalar SP-FP (SSE4a).
   INST_2x(movntss, kX86InstIdMovntss, X86Mem, X86XmmVar)
-
-  // --------------------------------------------------------------------------
-  // [POPCNT]
-  // --------------------------------------------------------------------------
-
-  //! Return the count of number of bits set to 1 (POPCNT).
-  INST_2x_(popcnt, kX86InstIdPopcnt, X86GpVar, X86GpVar, !o0.isGpb() && o0.getSize() == o1.getSize())
-  //! \overload
-  INST_2x_(popcnt, kX86InstIdPopcnt, X86GpVar, X86Mem, !o0.isGpb())
-
-  // --------------------------------------------------------------------------
-  // [LZCNT]
-  // --------------------------------------------------------------------------
-
-  //! Count the number of leading zero bits (LZCNT).
-  INST_2x(lzcnt, kX86InstIdLzcnt, X86GpVar, X86GpVar)
-  //! \overload
-  INST_2x(lzcnt, kX86InstIdLzcnt, X86GpVar, X86Mem)
 
   // --------------------------------------------------------------------------
   // [AESNI]
@@ -5555,37 +4513,2953 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
   INST_3i(aeskeygenassist, kX86InstIdAeskeygenassist, X86XmmVar, X86Mem, Imm)
 
   // --------------------------------------------------------------------------
+  // [SHA]
+  // --------------------------------------------------------------------------
+
+  //! Perform an intermediate calculation for the next four SHA1 message DWORDs (SHA).
+  INST_2x(sha1msg1, kX86InstIdSha1msg1, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(sha1msg1, kX86InstIdSha1msg1, X86XmmVar, X86Mem)
+
+  //! Perform a final calculation for the next four SHA1 message DWORDs (SHA).
+  INST_2x(sha1msg2, kX86InstIdSha1msg2, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(sha1msg2, kX86InstIdSha1msg2, X86XmmVar, X86Mem)
+
+  //! Calculate SHA1 state variable E after four rounds (SHA).
+  INST_2x(sha1nexte, kX86InstIdSha1nexte, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(sha1nexte, kX86InstIdSha1nexte, X86XmmVar, X86Mem)
+
+  //! Perform four rounds of SHA1 operation (SHA).
+  INST_3i(sha1rnds4, kX86InstIdSha1rnds4, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(sha1rnds4, kX86InstIdSha1rnds4, X86XmmVar, X86Mem, Imm)
+
+  //! Perform an intermediate calculation for the next four SHA256 message DWORDs (SHA).
+  INST_2x(sha256msg1, kX86InstIdSha256msg1, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(sha256msg1, kX86InstIdSha256msg1, X86XmmVar, X86Mem)
+
+  //! Perform a final calculation for the next four SHA256 message DWORDs (SHA).
+  INST_2x(sha256msg2, kX86InstIdSha256msg2, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(sha256msg2, kX86InstIdSha256msg2, X86XmmVar, X86Mem)
+
+  //! Perform two rounds of SHA256 operation (SHA).
+  INST_3x(sha256rnds2, kX86InstIdSha256rnds2, X86XmmVar, X86XmmVar, X86XmmVar /* XMM0 */)
+  //! \overload
+  INST_3x(sha256rnds2, kX86InstIdSha256rnds2, X86XmmVar, X86Mem, X86XmmVar /* XMM0 */)
+
+  // --------------------------------------------------------------------------
   // [PCLMULQDQ]
   // --------------------------------------------------------------------------
 
-  //! Packed QWORD to OWORD carry-less multiply (PCLMULQDQ).
+  //! Packed QWORD to DQWORD carry-less multiply (PCLMULQDQ).
   INST_3i(pclmulqdq, kX86InstIdPclmulqdq, X86XmmVar, X86XmmVar, Imm);
   //! \overload
   INST_3i(pclmulqdq, kX86InstIdPclmulqdq, X86XmmVar, X86Mem, Imm);
 
   // --------------------------------------------------------------------------
-  // [XSAVE]
+  // [AVX]
   // --------------------------------------------------------------------------
 
-  //! Restore Processor Extended States specified by `o1:o2` (XSAVE).
-  INST_3x(xrstor, kX86InstIdXrstor, X86Mem, X86GpVar, X86GpVar)
-  //! Restore Processor Extended States specified by `o1:o2` (XSAVE&X64).
-  INST_3x(xrstor64, kX86InstIdXrstor64, X86Mem, X86GpVar, X86GpVar)
+  //! Packed DP-FP add (AVX).
+  INST_3x(vaddpd, kX86InstIdVaddpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaddpd, kX86InstIdVaddpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vaddpd, kX86InstIdVaddpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vaddpd, kX86InstIdVaddpd, X86YmmVar, X86YmmVar, X86Mem)
 
-  //! Save Processor Extended States specified by `o1:o2` (XSAVE).
-  INST_3x(xsave, kX86InstIdXsave, X86Mem, X86GpVar, X86GpVar)
-  //! Save Processor Extended States specified by `o1:o2` (XSAVE&X64).
-  INST_3x(xsave64, kX86InstIdXsave64, X86Mem, X86GpVar, X86GpVar)
+  //! Packed SP-FP add (AVX).
+  INST_3x(vaddps, kX86InstIdVaddps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaddps, kX86InstIdVaddps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vaddps, kX86InstIdVaddps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vaddps, kX86InstIdVaddps, X86YmmVar, X86YmmVar, X86Mem)
 
-  //! Save Processor Extended States specified by `o1:o2` (Optimized) (XSAVEOPT).
-  INST_3x(xsaveopt, kX86InstIdXsave, X86Mem, X86GpVar, X86GpVar)
-  //! Save Processor Extended States specified by `o1:o2` (Optimized) (XSAVEOPT&X64).
-  INST_3x(xsaveopt64, kX86InstIdXsave64, X86Mem, X86GpVar, X86GpVar)
+  //! Scalar DP-FP add (AVX)
+  INST_3x(vaddsd, kX86InstIdVaddsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaddsd, kX86InstIdVaddsd, X86XmmVar, X86XmmVar, X86Mem)
 
-  //! Get XCR - `o1:o2 <- XCR[o0]` (`EDX:EAX <- XCR[ECX]`) (XSAVE).
-  INST_3x(xgetbv, kX86InstIdXgetbv, X86GpVar, X86GpVar, X86GpVar)
-  //! Set XCR - `XCR[o0] <- o1:o2` (`XCR[ECX] <- EDX:EAX`) (XSAVE).
-  INST_3x(xsetbv, kX86InstIdXsetbv, X86GpVar, X86GpVar, X86GpVar)
+  //! Scalar SP-FP add (AVX)
+  INST_3x(vaddss, kX86InstIdVaddss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaddss, kX86InstIdVaddss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DP-FP add/subtract (AVX).
+  INST_3x(vaddsubpd, kX86InstIdVaddsubpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaddsubpd, kX86InstIdVaddsubpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vaddsubpd, kX86InstIdVaddsubpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vaddsubpd, kX86InstIdVaddsubpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP add/subtract (AVX).
+  INST_3x(vaddsubps, kX86InstIdVaddsubps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaddsubps, kX86InstIdVaddsubps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vaddsubps, kX86InstIdVaddsubps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vaddsubps, kX86InstIdVaddsubps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DP-FP bitwise and (AVX).
+  INST_3x(vandpd, kX86InstIdVandpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vandpd, kX86InstIdVandpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vandpd, kX86InstIdVandpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vandpd, kX86InstIdVandpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP bitwise and (AVX).
+  INST_3x(vandps, kX86InstIdVandps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vandps, kX86InstIdVandps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vandps, kX86InstIdVandps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vandps, kX86InstIdVandps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DP-FP bitwise and-not (AVX).
+  INST_3x(vandnpd, kX86InstIdVandnpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vandnpd, kX86InstIdVandnpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vandnpd, kX86InstIdVandnpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vandnpd, kX86InstIdVandnpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP bitwise and-not (AVX).
+  INST_3x(vandnps, kX86InstIdVandnps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vandnps, kX86InstIdVandnps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vandnps, kX86InstIdVandnps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vandnps, kX86InstIdVandnps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DP-FP blend (AVX).
+  INST_4i(vblendpd, kX86InstIdVblendpd, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vblendpd, kX86InstIdVblendpd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_4i(vblendpd, kX86InstIdVblendpd, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vblendpd, kX86InstIdVblendpd, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Packed SP-FP blend (AVX).
+  INST_4i(vblendps, kX86InstIdVblendps, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vblendps, kX86InstIdVblendps, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_4i(vblendps, kX86InstIdVblendps, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vblendps, kX86InstIdVblendps, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Packed DP-FP variable blend (AVX).
+  INST_4x(vblendvpd, kX86InstIdVblendvpd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_4x(vblendvpd, kX86InstIdVblendvpd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  //! \overload
+  INST_4x(vblendvpd, kX86InstIdVblendvpd, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_4x(vblendvpd, kX86InstIdVblendvpd, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+
+  //! Packed SP-FP variable blend (AVX).
+  INST_4x(vblendvps, kX86InstIdVblendvps, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_4x(vblendvps, kX86InstIdVblendvps, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  //! \overload
+  INST_4x(vblendvps, kX86InstIdVblendvps, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_4x(vblendvps, kX86InstIdVblendvps, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+
+  //! Broadcast 128-bits of FP data in `o1` to low and high 128-bits in `o0` (AVX).
+  INST_2x(vbroadcastf128, kX86InstIdVbroadcastf128, X86YmmVar, X86Mem)
+  //! Broadcast DP-FP element in `o1` to four locations in `o0` (AVX).
+  INST_2x(vbroadcastsd, kX86InstIdVbroadcastsd, X86YmmVar, X86Mem)
+  //! Broadcast SP-FP element in `o1` to four locations in `o0` (AVX).
+  INST_2x(vbroadcastss, kX86InstIdVbroadcastss, X86XmmVar, X86Mem)
+  //! Broadcast SP-FP element in `o1` to eight locations in `o0` (AVX).
+  INST_2x(vbroadcastss, kX86InstIdVbroadcastss, X86YmmVar, X86Mem)
+
+  //! Packed DP-FP compare (AVX).
+  INST_4i(vcmppd, kX86InstIdVcmppd, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vcmppd, kX86InstIdVcmppd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_4i(vcmppd, kX86InstIdVcmppd, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vcmppd, kX86InstIdVcmppd, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Packed SP-FP compare (AVX).
+  INST_4i(vcmpps, kX86InstIdVcmpps, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vcmpps, kX86InstIdVcmpps, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_4i(vcmpps, kX86InstIdVcmpps, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vcmpps, kX86InstIdVcmpps, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Scalar DP-FP compare (AVX).
+  INST_4i(vcmpsd, kX86InstIdVcmpsd, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vcmpsd, kX86InstIdVcmpsd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Scalar SP-FP compare (AVX).
+  INST_4i(vcmpss, kX86InstIdVcmpss, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vcmpss, kX86InstIdVcmpss, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Scalar DP-FP ordered compare and set EFLAGS (AVX).
+  INST_2x(vcomisd, kX86InstIdVcomisd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcomisd, kX86InstIdVcomisd, X86XmmVar, X86Mem)
+
+  //! Scalar SP-FP ordered compare and set EFLAGS (AVX).
+  INST_2x(vcomiss, kX86InstIdVcomiss, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcomiss, kX86InstIdVcomiss, X86XmmVar, X86Mem)
+
+  //! Convert packed QWORDs to packed DP-FP (AVX).
+  INST_2x(vcvtdq2pd, kX86InstIdVcvtdq2pd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtdq2pd, kX86InstIdVcvtdq2pd, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vcvtdq2pd, kX86InstIdVcvtdq2pd, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtdq2pd, kX86InstIdVcvtdq2pd, X86YmmVar, X86Mem)
+
+  //! Convert packed QWORDs to packed SP-FP (AVX).
+  INST_2x(vcvtdq2ps, kX86InstIdVcvtdq2ps, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtdq2ps, kX86InstIdVcvtdq2ps, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vcvtdq2ps, kX86InstIdVcvtdq2ps, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vcvtdq2ps, kX86InstIdVcvtdq2ps, X86YmmVar, X86Mem)
+
+  //! Convert packed DP-FP to packed DWORDs (AVX).
+  INST_2x(vcvtpd2dq, kX86InstIdVcvtpd2dq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtpd2dq, kX86InstIdVcvtpd2dq, X86XmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vcvtpd2dq, kX86InstIdVcvtpd2dq, X86XmmVar, X86Mem)
+
+  //! Convert packed DP-FP to packed SP-FP (AVX).
+  INST_2x(vcvtpd2ps, kX86InstIdVcvtpd2ps, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtpd2ps, kX86InstIdVcvtpd2ps, X86XmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vcvtpd2ps, kX86InstIdVcvtpd2ps, X86XmmVar, X86Mem)
+
+  //! Convert packed SP-FP to packed DWORDs (AVX).
+  INST_2x(vcvtps2dq, kX86InstIdVcvtps2dq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtps2dq, kX86InstIdVcvtps2dq, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vcvtps2dq, kX86InstIdVcvtps2dq, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vcvtps2dq, kX86InstIdVcvtps2dq, X86YmmVar, X86Mem)
+
+  //! Convert packed SP-FP to packed DP-FP (AVX).
+  INST_2x(vcvtps2pd, kX86InstIdVcvtps2pd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtps2pd, kX86InstIdVcvtps2pd, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vcvtps2pd, kX86InstIdVcvtps2pd, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtps2pd, kX86InstIdVcvtps2pd, X86YmmVar, X86Mem)
+
+  //! Convert scalar DP-FP to DWORD (AVX).
+  INST_2x(vcvtsd2si, kX86InstIdVcvtsd2si, X86GpVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtsd2si, kX86InstIdVcvtsd2si, X86GpVar, X86Mem)
+
+  //! Convert scalar DP-FP to scalar SP-FP (AVX).
+  INST_3x(vcvtsd2ss, kX86InstIdVcvtsd2ss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vcvtsd2ss, kX86InstIdVcvtsd2ss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Convert DWORD integer to scalar DP-FP (AVX).
+  INST_3x(vcvtsi2sd, kX86InstIdVcvtsi2sd, X86XmmVar, X86XmmVar, X86GpVar)
+  //! \overload
+  INST_3x(vcvtsi2sd, kX86InstIdVcvtsi2sd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Convert scalar INT32 to SP-FP (AVX).
+  INST_3x(vcvtsi2ss, kX86InstIdVcvtsi2ss, X86XmmVar, X86XmmVar, X86GpVar)
+  //! \overload
+  INST_3x(vcvtsi2ss, kX86InstIdVcvtsi2ss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Convert scalar SP-FP to DP-FP (AVX).
+  INST_3x(vcvtss2sd, kX86InstIdVcvtss2sd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vcvtss2sd, kX86InstIdVcvtss2sd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Convert scalar SP-FP to INT32 (AVX).
+  INST_2x(vcvtss2si, kX86InstIdVcvtss2si, X86GpVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtss2si, kX86InstIdVcvtss2si, X86GpVar, X86Mem)
+
+  //! Convert with truncation packed DP-FP to packed DWORDs (AVX).
+  INST_2x(vcvttpd2dq, kX86InstIdVcvttpd2dq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvttpd2dq, kX86InstIdVcvttpd2dq, X86XmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vcvttpd2dq, kX86InstIdVcvttpd2dq, X86XmmVar, X86Mem)
+
+  //! Convert with truncation packed SP-FP to packed DWORDs (AVX).
+  INST_2x(vcvttps2dq, kX86InstIdVcvttps2dq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvttps2dq, kX86InstIdVcvttps2dq, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vcvttps2dq, kX86InstIdVcvttps2dq, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vcvttps2dq, kX86InstIdVcvttps2dq, X86YmmVar, X86Mem)
+
+  //! Convert with truncation scalar DP-FP to INT32 (AVX).
+  INST_2x(vcvttsd2si, kX86InstIdVcvttsd2si, X86GpVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvttsd2si, kX86InstIdVcvttsd2si, X86GpVar, X86Mem)
+
+  //! Convert with truncation scalar SP-FP to INT32 (AVX).
+  INST_2x(vcvttss2si, kX86InstIdVcvttss2si, X86GpVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvttss2si, kX86InstIdVcvttss2si, X86GpVar, X86Mem)
+
+  //! Packed DP-FP divide (AVX).
+  INST_3x(vdivpd, kX86InstIdVdivpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vdivpd, kX86InstIdVdivpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vdivpd, kX86InstIdVdivpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vdivpd, kX86InstIdVdivpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP divide (AVX).
+  INST_3x(vdivps, kX86InstIdVdivps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vdivps, kX86InstIdVdivps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vdivps, kX86InstIdVdivps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vdivps, kX86InstIdVdivps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Scalar DP-FP divide (AVX).
+  INST_3x(vdivsd, kX86InstIdVdivsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vdivsd, kX86InstIdVdivsd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Scalar SP-FP divide (AVX).
+  INST_3x(vdivss, kX86InstIdVdivss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vdivss, kX86InstIdVdivss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DP-FP dot product (AVX).
+  INST_4i(vdppd, kX86InstIdVdppd, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vdppd, kX86InstIdVdppd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Packed SP-FP dot product (AVX).
+  INST_4i(vdpps, kX86InstIdVdpps, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vdpps, kX86InstIdVdpps, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_4i(vdpps, kX86InstIdVdpps, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vdpps, kX86InstIdVdpps, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Extract 128 bits of packed FP data from `o1` and store results in `o0` (AVX).
+  INST_3i(vextractf128, kX86InstIdVextractf128, X86XmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vextractf128, kX86InstIdVextractf128, X86Mem, X86YmmVar, Imm)
+
+  //! Extract SP-FP based on selector (AVX).
+  INST_3i(vextractps, kX86InstIdVextractps, X86GpVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vextractps, kX86InstIdVextractps, X86Mem, X86XmmVar, Imm)
+
+  //! Packed DP-FP horizontal add (AVX).
+  INST_3x(vhaddpd, kX86InstIdVhaddpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vhaddpd, kX86InstIdVhaddpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vhaddpd, kX86InstIdVhaddpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vhaddpd, kX86InstIdVhaddpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP horizontal add (AVX).
+  INST_3x(vhaddps, kX86InstIdVhaddps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vhaddps, kX86InstIdVhaddps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vhaddps, kX86InstIdVhaddps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vhaddps, kX86InstIdVhaddps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DP-FP horizontal subtract (AVX).
+  INST_3x(vhsubpd, kX86InstIdVhsubpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vhsubpd, kX86InstIdVhsubpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vhsubpd, kX86InstIdVhsubpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vhsubpd, kX86InstIdVhsubpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP horizontal subtract (AVX).
+  INST_3x(vhsubps, kX86InstIdVhsubps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vhsubps, kX86InstIdVhsubps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vhsubps, kX86InstIdVhsubps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vhsubps, kX86InstIdVhsubps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Insert 128-bit of packed FP data based on selector (AVX).
+  INST_4i(vinsertf128, kX86InstIdVinsertf128, X86YmmVar, X86YmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vinsertf128, kX86InstIdVinsertf128, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Insert SP-FP based on selector (AVX).
+  INST_4i(vinsertps, kX86InstIdVinsertps, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vinsertps, kX86InstIdVinsertps, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Load 128-bits unaligned (AVX).
+  INST_2x(vlddqu, kX86InstIdVlddqu, X86XmmVar, X86Mem)
+  //! Load 256-bits unaligned (AVX).
+  INST_2x(vlddqu, kX86InstIdVlddqu, X86YmmVar, X86Mem)
+
+  //! Load streaming SIMD extension control/status (AVX).
+  INST_1x(vldmxcsr, kX86InstIdVldmxcsr, X86Mem)
+
+  //! Store selected bytes of DQWORD to DS:EDI/RDI (AVX).
+  INST_3x(vmaskmovdqu, kX86InstIdMaskmovdqu, X86GpVar /* ZDI */, X86XmmVar, X86XmmVar)
+
+  //! Conditionally load packed DP-FP from `o2` using mask in `o1 and store in `o0` (AVX).
+  INST_3x(vmaskmovpd, kX86InstIdVmaskmovpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vmaskmovpd, kX86InstIdVmaskmovpd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vmaskmovpd, kX86InstIdVmaskmovpd, X86Mem, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmaskmovpd, kX86InstIdVmaskmovpd, X86Mem, X86YmmVar, X86YmmVar)
+
+  //! Conditionally load packed SP-FP from `o2` using mask in `o1 and store in `o0` (AVX).
+  INST_3x(vmaskmovps, kX86InstIdVmaskmovps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vmaskmovps, kX86InstIdVmaskmovps, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vmaskmovps, kX86InstIdVmaskmovps, X86Mem, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmaskmovps, kX86InstIdVmaskmovps, X86Mem, X86YmmVar, X86YmmVar)
+
+  //! Packed DP-FP maximum (AVX).
+  INST_3x(vmaxpd, kX86InstIdVmaxpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmaxpd, kX86InstIdVmaxpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vmaxpd, kX86InstIdVmaxpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vmaxpd, kX86InstIdVmaxpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP maximum (AVX).
+  INST_3x(vmaxps, kX86InstIdVmaxps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmaxps, kX86InstIdVmaxps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vmaxps, kX86InstIdVmaxps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vmaxps, kX86InstIdVmaxps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Scalar DP-FP maximum (AVX).
+  INST_3x(vmaxsd, kX86InstIdVmaxsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmaxsd, kX86InstIdVmaxsd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Scalar SP-FP maximum (AVX).
+  INST_3x(vmaxss, kX86InstIdVmaxss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmaxss, kX86InstIdVmaxss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DP-FP minimum (AVX).
+  INST_3x(vminpd, kX86InstIdVminpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vminpd, kX86InstIdVminpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vminpd, kX86InstIdVminpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vminpd, kX86InstIdVminpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP minimum (AVX).
+  INST_3x(vminps, kX86InstIdVminps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vminps, kX86InstIdVminps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vminps, kX86InstIdVminps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vminps, kX86InstIdVminps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Scalar DP-FP minimum (AVX).
+  INST_3x(vminsd, kX86InstIdVminsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vminsd, kX86InstIdVminsd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Scalar SP-FP minimum (AVX).
+  INST_3x(vminss, kX86InstIdVminss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vminss, kX86InstIdVminss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Move 128-bits of aligned packed DP-FP (AVX).
+  INST_2x(vmovapd, kX86InstIdVmovapd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovapd, kX86InstIdVmovapd, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovapd, kX86InstIdVmovapd, X86Mem, X86XmmVar)
+  //! Move 256-bits of aligned packed DP-FP (AVX).
+  INST_2x(vmovapd, kX86InstIdVmovapd, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovapd, kX86InstIdVmovapd, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovapd, kX86InstIdVmovapd, X86Mem, X86YmmVar)
+
+  //! Move 128-bits of aligned packed SP-FP (AVX).
+  INST_2x(vmovaps, kX86InstIdVmovaps, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovaps, kX86InstIdVmovaps, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovaps, kX86InstIdVmovaps, X86Mem, X86XmmVar)
+  //! Move 256-bits of aligned packed SP-FP (AVX).
+  INST_2x(vmovaps, kX86InstIdVmovaps, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovaps, kX86InstIdVmovaps, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovaps, kX86InstIdVmovaps, X86Mem, X86YmmVar)
+
+  //! Move DWORD (AVX).
+  INST_2x(vmovd, kX86InstIdVmovd, X86XmmVar, X86GpVar)
+  //! \overload
+  INST_2x(vmovd, kX86InstIdVmovd, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovd, kX86InstIdVmovd, X86GpVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovd, kX86InstIdVmovd, X86Mem, X86XmmVar)
+
+  //! Move QWORD (AVX).
+  INST_2x(vmovq, kX86InstIdVmovq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovq, kX86InstIdVmovq, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovq, kX86InstIdVmovq, X86Mem, X86XmmVar)
+
+  //! Move QWORD (AVX and X64 Only).
+  INST_2x(vmovq, kX86InstIdVmovq, X86XmmVar, X86GpVar)
+  //! \overload
+  INST_2x(vmovq, kX86InstIdVmovq, X86GpVar, X86XmmVar)
+
+  //! Move one DP-FP and duplicate (AVX).
+  INST_2x(vmovddup, kX86InstIdVmovddup, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovddup, kX86InstIdVmovddup, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovddup, kX86InstIdVmovddup, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovddup, kX86InstIdVmovddup, X86YmmVar, X86Mem)
+
+  //! Move 128-bits aligned (AVX).
+  INST_2x(vmovdqa, kX86InstIdVmovdqa, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovdqa, kX86InstIdVmovdqa, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovdqa, kX86InstIdVmovdqa, X86Mem, X86XmmVar)
+  //! Move 256-bits aligned (AVX).
+  INST_2x(vmovdqa, kX86InstIdVmovdqa, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovdqa, kX86InstIdVmovdqa, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovdqa, kX86InstIdVmovdqa, X86Mem, X86YmmVar)
+
+  //! Move 128-bits unaligned (AVX).
+  INST_2x(vmovdqu, kX86InstIdVmovdqu, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovdqu, kX86InstIdVmovdqu, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovdqu, kX86InstIdVmovdqu, X86Mem, X86XmmVar)
+  //! Move 256-bits unaligned (AVX).
+  INST_2x(vmovdqu, kX86InstIdVmovdqu, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovdqu, kX86InstIdVmovdqu, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovdqu, kX86InstIdVmovdqu, X86Mem, X86YmmVar)
+
+  //! High to low packed SP-FP (AVX).
+  INST_3x(vmovhlps, kX86InstIdVmovhlps, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  //! Move high packed DP-FP (AVX).
+  INST_3x(vmovhpd, kX86InstIdVmovhpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovhpd, kX86InstIdVmovhpd, X86Mem, X86XmmVar)
+
+  //! Move high packed SP-FP (AVX).
+  INST_3x(vmovhps, kX86InstIdVmovhps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovhps, kX86InstIdVmovhps, X86Mem, X86XmmVar)
+
+  //! Move low to high packed SP-FP (AVX).
+  INST_3x(vmovlhps, kX86InstIdVmovlhps, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  //! Move low packed DP-FP (AVX).
+  INST_3x(vmovlpd, kX86InstIdVmovlpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovlpd, kX86InstIdVmovlpd, X86Mem, X86XmmVar)
+
+  //! Move low packed SP-FP (AVX).
+  INST_3x(vmovlps, kX86InstIdVmovlps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovlps, kX86InstIdVmovlps, X86Mem, X86XmmVar)
+
+  //! Extract packed DP-FP sign mask (AVX).
+  INST_2x(vmovmskpd, kX86InstIdVmovmskpd, X86GpVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovmskpd, kX86InstIdVmovmskpd, X86GpVar, X86YmmVar)
+
+  //! Extract packed SP-FP sign mask (AVX).
+  INST_2x(vmovmskps, kX86InstIdVmovmskps, X86GpVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovmskps, kX86InstIdVmovmskps, X86GpVar, X86YmmVar)
+
+  //! Store 128-bits using NT hint (AVX).
+  INST_2x(vmovntdq, kX86InstIdVmovntdq, X86Mem, X86XmmVar)
+  //! Store 256-bits using NT hint (AVX).
+  INST_2x(vmovntdq, kX86InstIdVmovntdq, X86Mem, X86YmmVar)
+
+  //! Store 128-bits aligned using NT hint (AVX).
+  INST_2x(vmovntdqa, kX86InstIdVmovntdqa, X86XmmVar, X86Mem)
+
+  //! Store packed DP-FP (128-bits) using NT hint (AVX).
+  INST_2x(vmovntpd, kX86InstIdVmovntpd, X86Mem, X86XmmVar)
+  //! Store packed DP-FP (256-bits) using NT hint (AVX).
+  INST_2x(vmovntpd, kX86InstIdVmovntpd, X86Mem, X86YmmVar)
+
+  //! Store packed SP-FP (128-bits) using NT hint (AVX).
+  INST_2x(vmovntps, kX86InstIdVmovntps, X86Mem, X86XmmVar)
+  //! Store packed SP-FP (256-bits) using NT hint (AVX).
+  INST_2x(vmovntps, kX86InstIdVmovntps, X86Mem, X86YmmVar)
+
+  //! Move scalar DP-FP (AVX).
+  INST_3x(vmovsd, kX86InstIdVmovsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovsd, kX86InstIdVmovsd, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovsd, kX86InstIdVmovsd, X86Mem, X86XmmVar)
+
+  //! Move packed SP-FP high and duplicate (AVX).
+  INST_2x(vmovshdup, kX86InstIdVmovshdup, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovshdup, kX86InstIdVmovshdup, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovshdup, kX86InstIdVmovshdup, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovshdup, kX86InstIdVmovshdup, X86YmmVar, X86Mem)
+
+  //! Move packed SP-FP low and duplicate (AVX).
+  INST_2x(vmovsldup, kX86InstIdVmovsldup, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovsldup, kX86InstIdVmovsldup, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovsldup, kX86InstIdVmovsldup, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovsldup, kX86InstIdVmovsldup, X86YmmVar, X86Mem)
+
+  //! Move scalar SP-FP (AVX).
+  INST_3x(vmovss, kX86InstIdVmovss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovss, kX86InstIdVmovss, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovss, kX86InstIdVmovss, X86Mem, X86XmmVar)
+
+  //! Move 128-bits of unaligned packed DP-FP (AVX).
+  INST_2x(vmovupd, kX86InstIdVmovupd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovupd, kX86InstIdVmovupd, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovupd, kX86InstIdVmovupd, X86Mem, X86XmmVar)
+  //! Move 256-bits of unaligned packed DP-FP (AVX).
+  INST_2x(vmovupd, kX86InstIdVmovupd, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovupd, kX86InstIdVmovupd, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovupd, kX86InstIdVmovupd, X86Mem, X86YmmVar)
+
+  //! Move 128-bits of unaligned packed SP-FP (AVX).
+  INST_2x(vmovups, kX86InstIdVmovups, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vmovups, kX86InstIdVmovups, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovups, kX86InstIdVmovups, X86Mem, X86XmmVar)
+  //! Move 256-bits of unaligned packed SP-FP (AVX).
+  INST_2x(vmovups, kX86InstIdVmovups, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vmovups, kX86InstIdVmovups, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vmovups, kX86InstIdVmovups, X86Mem, X86YmmVar)
+
+  //! Packed WORD sums of absolute difference (AVX).
+  INST_4i(vmpsadbw, kX86InstIdVmpsadbw, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vmpsadbw, kX86InstIdVmpsadbw, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Packed DP-FP multiply (AVX).
+  INST_3x(vmulpd, kX86InstIdVmulpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmulpd, kX86InstIdVmulpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vmulpd, kX86InstIdVmulpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vmulpd, kX86InstIdVmulpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP multiply (AVX).
+  INST_3x(vmulps, kX86InstIdVmulps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmulps, kX86InstIdVmulps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vmulps, kX86InstIdVmulps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vmulps, kX86InstIdVmulps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP multiply (AVX).
+  INST_3x(vmulsd, kX86InstIdVmulsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmulsd, kX86InstIdVmulsd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Scalar SP-FP multiply (AVX).
+  INST_3x(vmulss, kX86InstIdVmulss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vmulss, kX86InstIdVmulss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DP-FP bitwise or (AVX).
+  INST_3x(vorpd, kX86InstIdVorpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vorpd, kX86InstIdVorpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vorpd, kX86InstIdVorpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vorpd, kX86InstIdVorpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP bitwise or (AVX).
+  INST_3x(vorps, kX86InstIdVorps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vorps, kX86InstIdVorps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vorps, kX86InstIdVorps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vorps, kX86InstIdVorps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed BYTE absolute value (AVX).
+  INST_2x(vpabsb, kX86InstIdVpabsb, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpabsb, kX86InstIdVpabsb, X86XmmVar, X86Mem)
+
+  //! Packed DWORD absolute value (AVX).
+  INST_2x(vpabsd, kX86InstIdVpabsd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpabsd, kX86InstIdVpabsd, X86XmmVar, X86Mem)
+
+  //! Packed WORD absolute value (AVX).
+  INST_2x(vpabsw, kX86InstIdVpabsw, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpabsw, kX86InstIdVpabsw, X86XmmVar, X86Mem)
+
+  //! Pack DWORDs to WORDs with signed saturation (AVX).
+  INST_3x(vpackssdw, kX86InstIdVpackssdw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpackssdw, kX86InstIdVpackssdw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Pack WORDs to BYTEs with signed saturation (AVX).
+  INST_3x(vpacksswb, kX86InstIdVpacksswb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpacksswb, kX86InstIdVpacksswb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Pack DWORDs to WORDs with unsigned saturation (AVX).
+  INST_3x(vpackusdw, kX86InstIdVpackusdw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpackusdw, kX86InstIdVpackusdw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Pack WORDs to BYTEs with unsigned saturation (AVX).
+  INST_3x(vpackuswb, kX86InstIdVpackuswb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpackuswb, kX86InstIdVpackuswb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE add (AVX).
+  INST_3x(vpaddb, kX86InstIdVpaddb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpaddb, kX86InstIdVpaddb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD add (AVX).
+  INST_3x(vpaddd, kX86InstIdVpaddd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpaddd, kX86InstIdVpaddd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed QWORD add (AVX).
+  INST_3x(vpaddq, kX86InstIdVpaddq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpaddq, kX86InstIdVpaddq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD add (AVX).
+  INST_3x(vpaddw, kX86InstIdVpaddw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpaddw, kX86InstIdVpaddw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE add with saturation (AVX).
+  INST_3x(vpaddsb, kX86InstIdVpaddsb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpaddsb, kX86InstIdVpaddsb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD add with saturation (AVX).
+  INST_3x(vpaddsw, kX86InstIdVpaddsw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpaddsw, kX86InstIdVpaddsw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE add with unsigned saturation (AVX).
+  INST_3x(vpaddusb, kX86InstIdVpaddusb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpaddusb, kX86InstIdVpaddusb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD add with unsigned saturation (AVX).
+  INST_3x(vpaddusw, kX86InstIdVpaddusw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpaddusw, kX86InstIdVpaddusw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed align right (AVX).
+  INST_4i(vpalignr, kX86InstIdVpalignr, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vpalignr, kX86InstIdVpalignr, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Packed bitwise and (AVX).
+  INST_3x(vpand, kX86InstIdVpand, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpand, kX86InstIdVpand, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed bitwise and-not (AVX).
+  INST_3x(vpandn, kX86InstIdVpandn, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpandn, kX86InstIdVpandn, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE average (AVX).
+  INST_3x(vpavgb, kX86InstIdVpavgb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpavgb, kX86InstIdVpavgb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD average (AVX).
+  INST_3x(vpavgw, kX86InstIdVpavgw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpavgw, kX86InstIdVpavgw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE variable blend (AVX).
+  INST_4x(vpblendvb, kX86InstIdVpblendvb, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_4x(vpblendvb, kX86InstIdVpblendvb, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+
+  //! Packed WORD blend (AVX).
+  INST_4i(vpblendw, kX86InstIdVpblendw, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vpblendw, kX86InstIdVpblendw, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Packed BYTEs compare for equality (AVX).
+  INST_3x(vpcmpeqb, kX86InstIdVpcmpeqb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpcmpeqb, kX86InstIdVpcmpeqb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORDs compare for equality (AVX).
+  INST_3x(vpcmpeqd, kX86InstIdVpcmpeqd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpcmpeqd, kX86InstIdVpcmpeqd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed QWORDs compare for equality (AVX).
+  INST_3x(vpcmpeqq, kX86InstIdVpcmpeqq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpcmpeqq, kX86InstIdVpcmpeqq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORDs compare for equality (AVX).
+  INST_3x(vpcmpeqw, kX86InstIdVpcmpeqw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpcmpeqw, kX86InstIdVpcmpeqw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTEs compare if greater than (AVX).
+  INST_3x(vpcmpgtb, kX86InstIdVpcmpgtb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpcmpgtb, kX86InstIdVpcmpgtb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORDs compare if greater than (AVX).
+  INST_3x(vpcmpgtd, kX86InstIdVpcmpgtd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpcmpgtd, kX86InstIdVpcmpgtd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed QWORDs compare if greater than (AVX).
+  INST_3x(vpcmpgtq, kX86InstIdVpcmpgtq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpcmpgtq, kX86InstIdVpcmpgtq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORDs compare if greater than (AVX).
+  INST_3x(vpcmpgtw, kX86InstIdVpcmpgtw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpcmpgtw, kX86InstIdVpcmpgtw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed compare explicit length strings, return index in ECX (AVX).
+  INST_3i(vpcmpestri, kX86InstIdVpcmpestri, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpcmpestri, kX86InstIdVpcmpestri, X86XmmVar, X86Mem, Imm)
+
+  //! Packed compare explicit length strings, return mask in XMM0 (AVX).
+  INST_3i(vpcmpestrm, kX86InstIdVpcmpestrm, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpcmpestrm, kX86InstIdVpcmpestrm, X86XmmVar, X86Mem, Imm)
+
+  //! Packed compare implicit length strings, return index in ECX (AVX).
+  INST_4i(vpcmpistri, kX86InstIdVpcmpistri, X86GpVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vpcmpistri, kX86InstIdVpcmpistri, X86GpVar, X86XmmVar, X86Mem, Imm)
+
+  //! Packed compare implicit length strings, return mask in XMM0 (AVX).
+  INST_4i(vpcmpistrm, kX86InstIdVpcmpistrm, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vpcmpistrm, kX86InstIdVpcmpistrm, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Packed DP-FP permute (AVX).
+  INST_3x(vpermilpd, kX86InstIdVpermilpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpermilpd, kX86InstIdVpermilpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpermilpd, kX86InstIdVpermilpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpermilpd, kX86InstIdVpermilpd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpermilpd, kX86InstIdVpermilpd, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpermilpd, kX86InstIdVpermilpd, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_3i(vpermilpd, kX86InstIdVpermilpd, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vpermilpd, kX86InstIdVpermilpd, X86YmmVar, X86Mem, Imm)
+
+  //! Packed SP-FP permute (AVX).
+  INST_3x(vpermilps, kX86InstIdVpermilps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpermilps, kX86InstIdVpermilps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpermilps, kX86InstIdVpermilps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpermilps, kX86InstIdVpermilps, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpermilps, kX86InstIdVpermilps, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpermilps, kX86InstIdVpermilps, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_3i(vpermilps, kX86InstIdVpermilps, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vpermilps, kX86InstIdVpermilps, X86YmmVar, X86Mem, Imm)
+
+  //! Packed 128-bit FP permute (AVX).
+  INST_4i(vperm2f128, kX86InstIdVperm2f128, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vperm2f128, kX86InstIdVperm2f128, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Extract BYTE (AVX).
+  INST_3i(vpextrb, kX86InstIdVpextrb, X86GpVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpextrb, kX86InstIdVpextrb, X86Mem, X86XmmVar, Imm)
+
+  //! Extract DWORD (AVX).
+  INST_3i(vpextrd, kX86InstIdVpextrd, X86GpVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpextrd, kX86InstIdVpextrd, X86Mem, X86XmmVar, Imm)
+
+  //! Extract QWORD (AVX and X64 Only).
+  INST_3i(vpextrq, kX86InstIdVpextrq, X86GpVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpextrq, kX86InstIdVpextrq, X86Mem, X86XmmVar, Imm)
+
+  //! Extract WORD (AVX).
+  INST_3i(vpextrw, kX86InstIdVpextrw, X86GpVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpextrw, kX86InstIdVpextrw, X86Mem, X86XmmVar, Imm)
+
+  //! Packed DWORD horizontal add (AVX).
+  INST_3x(vphaddd, kX86InstIdVphaddd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vphaddd, kX86InstIdVphaddd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD horizontal add with saturation (AVX).
+  INST_3x(vphaddsw, kX86InstIdVphaddsw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vphaddsw, kX86InstIdVphaddsw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD horizontal add (AVX).
+  INST_3x(vphaddw, kX86InstIdVphaddw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vphaddw, kX86InstIdVphaddw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD horizontal minimum (AVX).
+  INST_2x(vphminposuw, kX86InstIdVphminposuw, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vphminposuw, kX86InstIdVphminposuw, X86XmmVar, X86Mem)
+
+  //! Packed DWORD horizontal subtract (AVX).
+  INST_3x(vphsubd, kX86InstIdVphsubd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vphsubd, kX86InstIdVphsubd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD horizontal subtract with saturation (AVX).
+  INST_3x(vphsubsw, kX86InstIdVphsubsw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vphsubsw, kX86InstIdVphsubsw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD horizontal subtract (AVX).
+  INST_3x(vphsubw, kX86InstIdVphsubw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vphsubw, kX86InstIdVphsubw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Insert BYTE based on selector (AVX).
+  INST_4i(vpinsrb, kX86InstIdVpinsrb, X86XmmVar, X86XmmVar, X86GpVar, Imm)
+  //! \overload
+  INST_4i(vpinsrb, kX86InstIdVpinsrb, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Insert DWORD based on selector (AVX).
+  INST_4i(vpinsrd, kX86InstIdVpinsrd, X86XmmVar, X86XmmVar, X86GpVar, Imm)
+  //! \overload
+  INST_4i(vpinsrd, kX86InstIdVpinsrd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Insert QWORD based on selector (AVX and X64 Only).
+  INST_4i(vpinsrq, kX86InstIdVpinsrq, X86XmmVar, X86XmmVar, X86GpVar, Imm)
+  //! \overload
+  INST_4i(vpinsrq, kX86InstIdVpinsrq, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Insert WORD based on selector (AVX).
+  INST_4i(vpinsrw, kX86InstIdVpinsrw, X86XmmVar, X86XmmVar, X86GpVar, Imm)
+  //! \overload
+  INST_4i(vpinsrw, kX86InstIdVpinsrw, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Packed multiply and add signed and unsigned bytes (AVX).
+  INST_3x(vpmaddubsw, kX86InstIdVpmaddubsw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmaddubsw, kX86InstIdVpmaddubsw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD multiply and add to packed DWORD (AVX).
+  INST_3x(vpmaddwd, kX86InstIdVpmaddwd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmaddwd, kX86InstIdVpmaddwd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE maximum (AVX).
+  INST_3x(vpmaxsb, kX86InstIdVpmaxsb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmaxsb, kX86InstIdVpmaxsb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD maximum (AVX).
+  INST_3x(vpmaxsd, kX86InstIdVpmaxsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmaxsd, kX86InstIdVpmaxsd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD maximum (AVX).
+  INST_3x(vpmaxsw, kX86InstIdVpmaxsw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmaxsw, kX86InstIdVpmaxsw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE unsigned maximum (AVX).
+  INST_3x(vpmaxub, kX86InstIdVpmaxub, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmaxub, kX86InstIdVpmaxub, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD unsigned maximum (AVX).
+  INST_3x(vpmaxud, kX86InstIdVpmaxud, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmaxud, kX86InstIdVpmaxud, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD unsigned maximum (AVX).
+  INST_3x(vpmaxuw, kX86InstIdVpmaxuw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmaxuw, kX86InstIdVpmaxuw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE minimum (AVX).
+  INST_3x(vpminsb, kX86InstIdVpminsb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpminsb, kX86InstIdVpminsb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD minimum (AVX).
+  INST_3x(vpminsd, kX86InstIdVpminsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpminsd, kX86InstIdVpminsd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD minimum (AVX).
+  INST_3x(vpminsw, kX86InstIdVpminsw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpminsw, kX86InstIdVpminsw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE unsigned minimum (AVX).
+  INST_3x(vpminub, kX86InstIdVpminub, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpminub, kX86InstIdVpminub, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD unsigned minimum (AVX).
+  INST_3x(vpminud, kX86InstIdVpminud, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpminud, kX86InstIdVpminud, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD unsigned minimum (AVX).
+  INST_3x(vpminuw, kX86InstIdVpminuw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpminuw, kX86InstIdVpminuw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Move Byte mask to integer (AVX).
+  INST_2x(vpmovmskb, kX86InstIdVpmovmskb, X86GpVar, X86XmmVar)
+
+  //! BYTE to DWORD with sign extend (AVX).
+  INST_2x(vpmovsxbd, kX86InstIdVpmovsxbd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovsxbd, kX86InstIdVpmovsxbd, X86XmmVar, X86Mem)
+
+  //! Packed BYTE to QWORD with sign extend (AVX).
+  INST_2x(vpmovsxbq, kX86InstIdVpmovsxbq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovsxbq, kX86InstIdVpmovsxbq, X86XmmVar, X86Mem)
+
+  //! Packed BYTE to WORD with sign extend (AVX).
+  INST_2x(vpmovsxbw, kX86InstIdVpmovsxbw, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovsxbw, kX86InstIdVpmovsxbw, X86XmmVar, X86Mem)
+
+  //! Packed DWORD to QWORD with sign extend (AVX).
+  INST_2x(vpmovsxdq, kX86InstIdVpmovsxdq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovsxdq, kX86InstIdVpmovsxdq, X86XmmVar, X86Mem)
+
+  //! Packed WORD to DWORD with sign extend (AVX).
+  INST_2x(vpmovsxwd, kX86InstIdVpmovsxwd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovsxwd, kX86InstIdVpmovsxwd, X86XmmVar, X86Mem)
+
+  //! Packed WORD to QWORD with sign extend (AVX).
+  INST_2x(vpmovsxwq, kX86InstIdVpmovsxwq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovsxwq, kX86InstIdVpmovsxwq, X86XmmVar, X86Mem)
+
+  //! BYTE to DWORD with zero extend (AVX).
+  INST_2x(vpmovzxbd, kX86InstIdVpmovzxbd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovzxbd, kX86InstIdVpmovzxbd, X86XmmVar, X86Mem)
+
+  //! Packed BYTE to QWORD with zero extend (AVX).
+  INST_2x(vpmovzxbq, kX86InstIdVpmovzxbq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovzxbq, kX86InstIdVpmovzxbq, X86XmmVar, X86Mem)
+
+  //! BYTE to WORD with zero extend (AVX).
+  INST_2x(vpmovzxbw, kX86InstIdVpmovzxbw, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovzxbw, kX86InstIdVpmovzxbw, X86XmmVar, X86Mem)
+
+  //! Packed DWORD to QWORD with zero extend (AVX).
+  INST_2x(vpmovzxdq, kX86InstIdVpmovzxdq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovzxdq, kX86InstIdVpmovzxdq, X86XmmVar, X86Mem)
+
+  //! Packed WORD to DWORD with zero extend (AVX).
+  INST_2x(vpmovzxwd, kX86InstIdVpmovzxwd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovzxwd, kX86InstIdVpmovzxwd, X86XmmVar, X86Mem)
+
+  //! Packed WORD to QWORD with zero extend (AVX).
+  INST_2x(vpmovzxwq, kX86InstIdVpmovzxwq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpmovzxwq, kX86InstIdVpmovzxwq, X86XmmVar, X86Mem)
+
+  //! Packed DWORD to QWORD multiply (AVX).
+  INST_3x(vpmuldq, kX86InstIdVpmuldq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmuldq, kX86InstIdVpmuldq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD multiply high, round and scale (AVX).
+  INST_3x(vpmulhrsw, kX86InstIdVpmulhrsw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmulhrsw, kX86InstIdVpmulhrsw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD unsigned multiply high (AVX).
+  INST_3x(vpmulhuw, kX86InstIdVpmulhuw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmulhuw, kX86InstIdVpmulhuw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD multiply high (AVX).
+  INST_3x(vpmulhw, kX86InstIdVpmulhw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmulhw, kX86InstIdVpmulhw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD multiply low (AVX).
+  INST_3x(vpmulld, kX86InstIdVpmulld, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmulld, kX86InstIdVpmulld, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORDs multiply low (AVX).
+  INST_3x(vpmullw, kX86InstIdVpmullw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmullw, kX86InstIdVpmullw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD multiply to QWORD (AVX).
+  INST_3x(vpmuludq, kX86InstIdVpmuludq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpmuludq, kX86InstIdVpmuludq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed bitwise or (AVX).
+  INST_3x(vpor, kX86InstIdVpor, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpor, kX86InstIdVpor, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD sum of absolute differences (AVX).
+  INST_3x(vpsadbw, kX86InstIdVpsadbw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsadbw, kX86InstIdVpsadbw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE shuffle (AVX).
+  INST_3x(vpshufb, kX86InstIdVpshufb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpshufb, kX86InstIdVpshufb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD shuffle (AVX).
+  INST_3i(vpshufd, kX86InstIdVpshufd, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpshufd, kX86InstIdVpshufd, X86XmmVar, X86Mem, Imm)
+
+  //! Packed WORD shuffle high (AVX).
+  INST_3i(vpshufhw, kX86InstIdVpshufhw, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpshufhw, kX86InstIdVpshufhw, X86XmmVar, X86Mem, Imm)
+
+  //! Packed WORD shuffle low (AVX).
+  INST_3i(vpshuflw, kX86InstIdVpshuflw, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vpshuflw, kX86InstIdVpshuflw, X86XmmVar, X86Mem, Imm)
+
+  //! Packed BYTE sign (AVX).
+  INST_3x(vpsignb, kX86InstIdVpsignb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsignb, kX86InstIdVpsignb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD sign (AVX).
+  INST_3x(vpsignd, kX86InstIdVpsignd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsignd, kX86InstIdVpsignd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD sign (AVX).
+  INST_3x(vpsignw, kX86InstIdVpsignw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsignw, kX86InstIdVpsignw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD shift left logical (AVX).
+  INST_3x(vpslld, kX86InstIdVpslld, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpslld, kX86InstIdVpslld, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpslld, kX86InstIdVpslld, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed DQWORD shift left logical (AVX).
+  INST_3i(vpslldq, kX86InstIdVpslldq, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed QWORD shift left logical (AVX).
+  INST_3x(vpsllq, kX86InstIdVpsllq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsllq, kX86InstIdVpsllq, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpsllq, kX86InstIdVpsllq, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed WORD shift left logical (AVX).
+  INST_3x(vpsllw, kX86InstIdVpsllw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsllw, kX86InstIdVpsllw, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpsllw, kX86InstIdVpsllw, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed DWORD shift right arithmetic (AVX).
+  INST_3x(vpsrad, kX86InstIdVpsrad, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsrad, kX86InstIdVpsrad, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpsrad, kX86InstIdVpsrad, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed WORD shift right arithmetic (AVX).
+  INST_3x(vpsraw, kX86InstIdVpsraw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsraw, kX86InstIdVpsraw, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpsraw, kX86InstIdVpsraw, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed DWORD shift right logical (AVX).
+  INST_3x(vpsrld, kX86InstIdVpsrld, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsrld, kX86InstIdVpsrld, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpsrld, kX86InstIdVpsrld, X86XmmVar, X86XmmVar, Imm)
+
+  //! Scalar DQWORD shift right logical (AVX).
+  INST_3i(vpsrldq, kX86InstIdVpsrldq, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed QWORD shift right logical (AVX).
+  INST_3x(vpsrlq, kX86InstIdVpsrlq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsrlq, kX86InstIdVpsrlq, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpsrlq, kX86InstIdVpsrlq, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed WORD shift right logical (AVX).
+  INST_3x(vpsrlw, kX86InstIdVpsrlw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsrlw, kX86InstIdVpsrlw, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3i(vpsrlw, kX86InstIdVpsrlw, X86XmmVar, X86XmmVar, Imm)
+
+  //! Packed BYTE subtract (AVX).
+  INST_3x(vpsubb, kX86InstIdVpsubb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsubb, kX86InstIdVpsubb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DWORD subtract (AVX).
+  INST_3x(vpsubd, kX86InstIdVpsubd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsubd, kX86InstIdVpsubd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed QWORD subtract (AVX).
+  INST_3x(vpsubq, kX86InstIdVpsubq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsubq, kX86InstIdVpsubq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD subtract (AVX).
+  INST_3x(vpsubw, kX86InstIdVpsubw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsubw, kX86InstIdVpsubw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE subtract with saturation (AVX).
+  INST_3x(vpsubsb, kX86InstIdVpsubsb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsubsb, kX86InstIdVpsubsb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD subtract with saturation (AVX).
+  INST_3x(vpsubsw, kX86InstIdVpsubsw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsubsw, kX86InstIdVpsubsw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed BYTE subtract with unsigned saturation (AVX).
+  INST_3x(vpsubusb, kX86InstIdVpsubusb, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsubusb, kX86InstIdVpsubusb, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed WORD subtract with unsigned saturation (AVX).
+  INST_3x(vpsubusw, kX86InstIdVpsubusw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpsubusw, kX86InstIdVpsubusw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Logical compare (AVX).
+  INST_2x(vptest, kX86InstIdVptest, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vptest, kX86InstIdVptest, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vptest, kX86InstIdVptest, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vptest, kX86InstIdVptest, X86YmmVar, X86Mem)
+
+  //! Unpack high packed BYTEs to WORDs (AVX).
+  INST_3x(vpunpckhbw, kX86InstIdVpunpckhbw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpunpckhbw, kX86InstIdVpunpckhbw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Unpack high packed DWORDs to QWORDs (AVX).
+  INST_3x(vpunpckhdq, kX86InstIdVpunpckhdq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpunpckhdq, kX86InstIdVpunpckhdq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Unpack high packed QWORDs to DQWORD (AVX).
+  INST_3x(vpunpckhqdq, kX86InstIdVpunpckhqdq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpunpckhqdq, kX86InstIdVpunpckhqdq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Unpack high packed WORDs to DWORDs (AVX).
+  INST_3x(vpunpckhwd, kX86InstIdVpunpckhwd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpunpckhwd, kX86InstIdVpunpckhwd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Unpack low packed BYTEs to WORDs (AVX).
+  INST_3x(vpunpcklbw, kX86InstIdVpunpcklbw, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpunpcklbw, kX86InstIdVpunpcklbw, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Unpack low packed DWORDs to QWORDs (AVX).
+  INST_3x(vpunpckldq, kX86InstIdVpunpckldq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpunpckldq, kX86InstIdVpunpckldq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Unpack low packed QWORDs to DQWORD (AVX).
+  INST_3x(vpunpcklqdq, kX86InstIdVpunpcklqdq, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpunpcklqdq, kX86InstIdVpunpcklqdq, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Unpack low packed WORDs to DWORDs (AVX).
+  INST_3x(vpunpcklwd, kX86InstIdVpunpcklwd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpunpcklwd, kX86InstIdVpunpcklwd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed bitwise xor (AVX).
+  INST_3x(vpxor, kX86InstIdVpxor, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vpxor, kX86InstIdVpxor, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed SP-FP reciprocal (AVX).
+  INST_2x(vrcpps, kX86InstIdVrcpps, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vrcpps, kX86InstIdVrcpps, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vrcpps, kX86InstIdVrcpps, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vrcpps, kX86InstIdVrcpps, X86YmmVar, X86Mem)
+
+  //! Scalar SP-FP reciprocal (AVX).
+  INST_3x(vrcpss, kX86InstIdVrcpss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vrcpss, kX86InstIdVrcpss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed SP-FP square root reciprocal (AVX).
+  INST_2x(vrsqrtps, kX86InstIdVrsqrtps, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vrsqrtps, kX86InstIdVrsqrtps, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vrsqrtps, kX86InstIdVrsqrtps, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vrsqrtps, kX86InstIdVrsqrtps, X86YmmVar, X86Mem)
+
+  //! Scalar SP-FP square root reciprocal (AVX).
+  INST_3x(vrsqrtss, kX86InstIdVrsqrtss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vrsqrtss, kX86InstIdVrsqrtss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Packed DP-FP round (AVX).
+  INST_3i(vroundpd, kX86InstIdVroundpd, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vroundpd, kX86InstIdVroundpd, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_3i(vroundpd, kX86InstIdVroundpd, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vroundpd, kX86InstIdVroundpd, X86YmmVar, X86Mem, Imm)
+
+  //! Packed SP-FP round (AVX).
+  INST_3i(vroundps, kX86InstIdVroundps, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vroundps, kX86InstIdVroundps, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_3i(vroundps, kX86InstIdVroundps, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vroundps, kX86InstIdVroundps, X86YmmVar, X86Mem, Imm)
+
+  //! Scalar DP-FP round (AVX).
+  INST_4i(vroundsd, kX86InstIdVroundsd, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vroundsd, kX86InstIdVroundsd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Scalar SP-FP round (AVX).
+  INST_4i(vroundss, kX86InstIdVroundss, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vroundss, kX86InstIdVroundss, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  //! Shuffle DP-FP (AVX).
+  INST_4i(vshufpd, kX86InstIdVshufpd, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vshufpd, kX86InstIdVshufpd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_4i(vshufpd, kX86InstIdVshufpd, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vshufpd, kX86InstIdVshufpd, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Shuffle SP-FP (AVX).
+  INST_4i(vshufps, kX86InstIdVshufps, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vshufps, kX86InstIdVshufps, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_4i(vshufps, kX86InstIdVshufps, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vshufps, kX86InstIdVshufps, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Packed DP-FP square root (AVX).
+  INST_2x(vsqrtpd, kX86InstIdVsqrtpd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vsqrtpd, kX86InstIdVsqrtpd, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vsqrtpd, kX86InstIdVsqrtpd, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vsqrtpd, kX86InstIdVsqrtpd, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP square root (AVX).
+  INST_2x(vsqrtps, kX86InstIdVsqrtps, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vsqrtps, kX86InstIdVsqrtps, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vsqrtps, kX86InstIdVsqrtps, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vsqrtps, kX86InstIdVsqrtps, X86YmmVar, X86Mem)
+
+  //! Scalar DP-FP square root (AVX).
+  INST_3x(vsqrtsd, kX86InstIdVsqrtsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vsqrtsd, kX86InstIdVsqrtsd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Scalar SP-FP square root (AVX).
+  INST_3x(vsqrtss, kX86InstIdVsqrtss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vsqrtss, kX86InstIdVsqrtss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Store streaming SIMD extension control/status (AVX).
+  INST_1x(vstmxcsr, kX86InstIdVstmxcsr, X86Mem)
+
+  //! Packed DP-FP subtract (AVX).
+  INST_3x(vsubpd, kX86InstIdVsubpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vsubpd, kX86InstIdVsubpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vsubpd, kX86InstIdVsubpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vsubpd, kX86InstIdVsubpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP subtract (AVX).
+  INST_3x(vsubps, kX86InstIdVsubps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vsubps, kX86InstIdVsubps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vsubps, kX86InstIdVsubps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vsubps, kX86InstIdVsubps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Scalar DP-FP subtract (AVX).
+  INST_3x(vsubsd, kX86InstIdVsubsd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vsubsd, kX86InstIdVsubsd, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Scalar SP-FP subtract (AVX).
+  INST_3x(vsubss, kX86InstIdVsubss, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vsubss, kX86InstIdVsubss, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Logical compare DP-FP (AVX).
+  INST_2x(vtestpd, kX86InstIdVtestpd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vtestpd, kX86InstIdVtestpd, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vtestpd, kX86InstIdVtestpd, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vtestpd, kX86InstIdVtestpd, X86YmmVar, X86Mem)
+
+  //! Logical compare SP-FP (AVX).
+  INST_2x(vtestps, kX86InstIdVtestps, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vtestps, kX86InstIdVtestps, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vtestps, kX86InstIdVtestps, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vtestps, kX86InstIdVtestps, X86YmmVar, X86Mem)
+
+  //! Scalar DP-FP unordered compare and set EFLAGS (AVX).
+  INST_2x(vucomisd, kX86InstIdVucomisd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vucomisd, kX86InstIdVucomisd, X86XmmVar, X86Mem)
+
+  //! Unordered scalar SP-FP compare and set EFLAGS (AVX).
+  INST_2x(vucomiss, kX86InstIdVucomiss, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vucomiss, kX86InstIdVucomiss, X86XmmVar, X86Mem)
+
+  //! Unpack and interleave high packed DP-FP (AVX).
+  INST_3x(vunpckhpd, kX86InstIdVunpckhpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vunpckhpd, kX86InstIdVunpckhpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vunpckhpd, kX86InstIdVunpckhpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vunpckhpd, kX86InstIdVunpckhpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Unpack high packed SP-FP data (AVX).
+  INST_3x(vunpckhps, kX86InstIdVunpckhps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vunpckhps, kX86InstIdVunpckhps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vunpckhps, kX86InstIdVunpckhps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vunpckhps, kX86InstIdVunpckhps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Unpack and interleave low packed DP-FP (AVX).
+  INST_3x(vunpcklpd, kX86InstIdVunpcklpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vunpcklpd, kX86InstIdVunpcklpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vunpcklpd, kX86InstIdVunpcklpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vunpcklpd, kX86InstIdVunpcklpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Unpack low packed SP-FP data (AVX).
+  INST_3x(vunpcklps, kX86InstIdVunpcklps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vunpcklps, kX86InstIdVunpcklps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vunpcklps, kX86InstIdVunpcklps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vunpcklps, kX86InstIdVunpcklps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DP-FP bitwise xor (AVX).
+  INST_3x(vxorpd, kX86InstIdVxorpd, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vxorpd, kX86InstIdVxorpd, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vxorpd, kX86InstIdVxorpd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vxorpd, kX86InstIdVxorpd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed SP-FP bitwise xor (AVX).
+  INST_3x(vxorps, kX86InstIdVxorps, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vxorps, kX86InstIdVxorps, X86XmmVar, X86XmmVar, X86Mem)
+  //! \overload
+  INST_3x(vxorps, kX86InstIdVxorps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vxorps, kX86InstIdVxorps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Zero all YMM registers.
+  INST_0x(vzeroall, kX86InstIdVzeroall)
+  //! Zero upper 128-bits of all YMM registers.
+  INST_0x(vzeroupper, kX86InstIdVzeroupper)
+
+  // --------------------------------------------------------------------------
+  // [AVX+AESNI]
+  // --------------------------------------------------------------------------
+
+  //! Perform a single round of the AES decryption flow (AVX+AESNI).
+  INST_3x(vaesdec, kX86InstIdVaesdec, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaesdec, kX86InstIdVaesdec, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Perform the last round of the AES decryption flow (AVX+AESNI).
+  INST_3x(vaesdeclast, kX86InstIdVaesdeclast, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaesdeclast, kX86InstIdVaesdeclast, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Perform a single round of the AES encryption flow (AVX+AESNI).
+  INST_3x(vaesenc, kX86InstIdVaesenc, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaesenc, kX86InstIdVaesenc, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Perform the last round of the AES encryption flow (AVX+AESNI).
+  INST_3x(vaesenclast, kX86InstIdVaesenclast, X86XmmVar, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_3x(vaesenclast, kX86InstIdVaesenclast, X86XmmVar, X86XmmVar, X86Mem)
+
+  //! Perform the InvMixColumns transformation (AVX+AESNI).
+  INST_2x(vaesimc, kX86InstIdVaesimc, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vaesimc, kX86InstIdVaesimc, X86XmmVar, X86Mem)
+
+  //! Assist in expanding the AES cipher key (AVX+AESNI).
+  INST_3i(vaeskeygenassist, kX86InstIdVaeskeygenassist, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vaeskeygenassist, kX86InstIdVaeskeygenassist, X86XmmVar, X86Mem, Imm)
+
+  // --------------------------------------------------------------------------
+  // [AVX+PCLMULQDQ]
+  // --------------------------------------------------------------------------
+
+  //! Carry-less multiplication QWORD (AVX+PCLMULQDQ).
+  INST_4i(vpclmulqdq, kX86InstIdVpclmulqdq, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vpclmulqdq, kX86InstIdVpclmulqdq, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  // --------------------------------------------------------------------------
+  // [AVX2]
+  // --------------------------------------------------------------------------
+
+  //! Broadcast low 128-bit element in `o1` to `o0` (AVX2).
+  INST_2x(vbroadcasti128, kX86InstIdVbroadcasti128, X86YmmVar, X86Mem)
+  //! Broadcast low DP-FP element in `o1` to `o0` (AVX2).
+  INST_2x(vbroadcastsd, kX86InstIdVbroadcastsd, X86YmmVar, X86XmmVar)
+  //! Broadcast low SP-FP element in `o1` to `o0` (AVX2).
+  INST_2x(vbroadcastss, kX86InstIdVbroadcastss, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vbroadcastss, kX86InstIdVbroadcastss, X86YmmVar, X86XmmVar)
+
+  //! Extract 128-bit element from `o1` to `o0` based on selector (AVX2).
+  INST_3i(vextracti128, kX86InstIdVextracti128, X86XmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vextracti128, kX86InstIdVextracti128, X86Mem, X86YmmVar, Imm)
+
+  //! Gather DP-FP from DWORD indexes specified in `o1`s VSIB (AVX2).
+  INST_3x(vgatherdpd, kX86InstIdVgatherdpd, X86XmmVar, X86Mem, X86XmmVar)
+  //! \overload
+  INST_3x(vgatherdpd, kX86InstIdVgatherdpd, X86YmmVar, X86Mem, X86YmmVar)
+
+  //! Gather SP-FP from DWORD indexes specified in `o1`s VSIB (AVX2).
+  INST_3x(vgatherdps, kX86InstIdVgatherdps, X86XmmVar, X86Mem, X86XmmVar)
+  //! \overload
+  INST_3x(vgatherdps, kX86InstIdVgatherdps, X86YmmVar, X86Mem, X86YmmVar)
+
+  //! Gather DP-FP from QWORD indexes specified in `o1`s VSIB (AVX2).
+  INST_3x(vgatherqpd, kX86InstIdVgatherqpd, X86XmmVar, X86Mem, X86XmmVar)
+  //! \overload
+  INST_3x(vgatherqpd, kX86InstIdVgatherqpd, X86YmmVar, X86Mem, X86YmmVar)
+
+  //! Gather SP-FP from QWORD indexes specified in `o1`s VSIB (AVX2).
+  INST_3x(vgatherqps, kX86InstIdVgatherqps, X86XmmVar, X86Mem, X86XmmVar)
+
+  //! Insert 128-bit of packed data based on selector (AVX2).
+  INST_4i(vinserti128, kX86InstIdVinserti128, X86YmmVar, X86YmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vinserti128, kX86InstIdVinserti128, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Load 256-bits aligned using NT hint (AVX2).
+  INST_2x(vmovntdqa, kX86InstIdVmovntdqa, X86YmmVar, X86Mem)
+
+  //! Packed WORD sums of absolute difference (AVX2).
+  INST_4i(vmpsadbw, kX86InstIdVmpsadbw, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vmpsadbw, kX86InstIdVmpsadbw, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Packed BYTE absolute value (AVX2).
+  INST_2x(vpabsb, kX86InstIdVpabsb, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vpabsb, kX86InstIdVpabsb, X86YmmVar, X86Mem)
+
+  //! Packed DWORD absolute value (AVX2).
+  INST_2x(vpabsd, kX86InstIdVpabsd, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vpabsd, kX86InstIdVpabsd, X86YmmVar, X86Mem)
+
+  //! Packed WORD absolute value (AVX2).
+  INST_2x(vpabsw, kX86InstIdVpabsw, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_2x(vpabsw, kX86InstIdVpabsw, X86YmmVar, X86Mem)
+
+  //! Pack DWORDs to WORDs with signed saturation (AVX2).
+  INST_3x(vpackssdw, kX86InstIdVpackssdw, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpackssdw, kX86InstIdVpackssdw, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Pack WORDs to BYTEs with signed saturation (AVX2).
+  INST_3x(vpacksswb, kX86InstIdVpacksswb, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpacksswb, kX86InstIdVpacksswb, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Pack DWORDs to WORDs with unsigned saturation (AVX2).
+  INST_3x(vpackusdw, kX86InstIdVpackusdw, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpackusdw, kX86InstIdVpackusdw, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Pack WORDs to BYTEs with unsigned saturation (AVX2).
+  INST_3x(vpackuswb, kX86InstIdVpackuswb, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpackuswb, kX86InstIdVpackuswb, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed BYTE add (AVX2).
+  INST_3x(vpaddb, kX86InstIdVpaddb, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpaddb, kX86InstIdVpaddb, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DWORD add (AVX2).
+  INST_3x(vpaddd, kX86InstIdVpaddd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpaddd, kX86InstIdVpaddd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed QDWORD add (AVX2).
+  INST_3x(vpaddq, kX86InstIdVpaddq, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpaddq, kX86InstIdVpaddq, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed WORD add (AVX2).
+  INST_3x(vpaddw, kX86InstIdVpaddw, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpaddw, kX86InstIdVpaddw, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed BYTE add with saturation (AVX2).
+  INST_3x(vpaddsb, kX86InstIdVpaddsb, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpaddsb, kX86InstIdVpaddsb, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed WORD add with saturation (AVX2).
+  INST_3x(vpaddsw, kX86InstIdVpaddsw, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpaddsw, kX86InstIdVpaddsw, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed BYTE add with unsigned saturation (AVX2).
+  INST_3x(vpaddusb, kX86InstIdVpaddusb, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpaddusb, kX86InstIdVpaddusb, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed WORD add with unsigned saturation (AVX2).
+  INST_3x(vpaddusw, kX86InstIdVpaddusw, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpaddusw, kX86InstIdVpaddusw, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed align right (AVX2).
+  INST_4i(vpalignr, kX86InstIdVpalignr, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vpalignr, kX86InstIdVpalignr, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Packed bitwise and (AVX2).
+  INST_3x(vpand, kX86InstIdVpand, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpand, kX86InstIdVpand, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed bitwise and-not (AVX2).
+  INST_3x(vpandn, kX86InstIdVpandn, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpandn, kX86InstIdVpandn, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed BYTE average (AVX2).
+  INST_3x(vpavgb, kX86InstIdVpavgb, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpavgb, kX86InstIdVpavgb, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed WORD average (AVX2).
+  INST_3x(vpavgw, kX86InstIdVpavgw, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpavgw, kX86InstIdVpavgw, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DWORD blend (AVX2).
+  INST_4i(vpblendd, kX86InstIdVpblendd, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_4i(vpblendd, kX86InstIdVpblendd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  //! \overload
+  INST_4i(vpblendd, kX86InstIdVpblendd, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vpblendd, kX86InstIdVpblendd, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Packed DWORD variable blend (AVX2).
+  INST_4x(vpblendvb, kX86InstIdVpblendvb, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_4x(vpblendvb, kX86InstIdVpblendvb, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+
+  //! Packed WORD blend (AVX2).
+  INST_4i(vpblendw, kX86InstIdVpblendw, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vpblendw, kX86InstIdVpblendw, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Broadcast BYTE from `o1` to 128-bits in `o0` (AVX2).
+  INST_2x(vpbroadcastb, kX86InstIdVpbroadcastb, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpbroadcastb, kX86InstIdVpbroadcastb, X86XmmVar, X86Mem)
+  //! Broadcast BYTE from `o1` to 256-bits in `o0` (AVX2).
+  INST_2x(vpbroadcastb, kX86InstIdVpbroadcastb, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpbroadcastb, kX86InstIdVpbroadcastb, X86YmmVar, X86Mem)
+
+  //! Broadcast DWORD from `o1` to 128-bits in `o0` (AVX2).
+  INST_2x(vpbroadcastd, kX86InstIdVpbroadcastd, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpbroadcastd, kX86InstIdVpbroadcastd, X86XmmVar, X86Mem)
+  //! Broadcast DWORD from `o1` to 256-bits in `o0` (AVX2).
+  INST_2x(vpbroadcastd, kX86InstIdVpbroadcastd, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpbroadcastd, kX86InstIdVpbroadcastd, X86YmmVar, X86Mem)
+
+  //! Broadcast QWORD from `o1` to 128-bits in `o0` (AVX2).
+  INST_2x(vpbroadcastq, kX86InstIdVpbroadcastq, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpbroadcastq, kX86InstIdVpbroadcastq, X86XmmVar, X86Mem)
+  //! Broadcast QWORD from `o1` to 256-bits in `o0` (AVX2).
+  INST_2x(vpbroadcastq, kX86InstIdVpbroadcastq, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpbroadcastq, kX86InstIdVpbroadcastq, X86YmmVar, X86Mem)
+
+  //! Broadcast WORD from `o1` to 128-bits in `o0` (AVX2).
+  INST_2x(vpbroadcastw, kX86InstIdVpbroadcastw, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpbroadcastw, kX86InstIdVpbroadcastw, X86XmmVar, X86Mem)
+  //! Broadcast WORD from `o1` to 256-bits in `o0` (AVX2).
+  INST_2x(vpbroadcastw, kX86InstIdVpbroadcastw, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vpbroadcastw, kX86InstIdVpbroadcastw, X86YmmVar, X86Mem)
+
+  //! Packed BYTEs compare for equality (AVX2).
+  INST_3x(vpcmpeqb, kX86InstIdVpcmpeqb, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpcmpeqb, kX86InstIdVpcmpeqb, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DWORDs compare for equality (AVX2).
+  INST_3x(vpcmpeqd, kX86InstIdVpcmpeqd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpcmpeqd, kX86InstIdVpcmpeqd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed QWORDs compare for equality (AVX2).
+  INST_3x(vpcmpeqq, kX86InstIdVpcmpeqq, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpcmpeqq, kX86InstIdVpcmpeqq, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed WORDs compare for equality (AVX2).
+  INST_3x(vpcmpeqw, kX86InstIdVpcmpeqw, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpcmpeqw, kX86InstIdVpcmpeqw, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed BYTEs compare if greater than (AVX2).
+  INST_3x(vpcmpgtb, kX86InstIdVpcmpgtb, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpcmpgtb, kX86InstIdVpcmpgtb, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DWORDs compare if greater than (AVX2).
+  INST_3x(vpcmpgtd, kX86InstIdVpcmpgtd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpcmpgtd, kX86InstIdVpcmpgtd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed QWORDs compare if greater than (AVX2).
+  INST_3x(vpcmpgtq, kX86InstIdVpcmpgtq, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpcmpgtq, kX86InstIdVpcmpgtq, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed WORDs compare if greater than (AVX2).
+  INST_3x(vpcmpgtw, kX86InstIdVpcmpgtw, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpcmpgtw, kX86InstIdVpcmpgtw, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DQWORD permute (AVX2).
+  INST_4i(vperm2i128, kX86InstIdVperm2i128, X86YmmVar, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_4i(vperm2i128, kX86InstIdVperm2i128, X86YmmVar, X86YmmVar, X86Mem, Imm)
+
+  //! Packed DWORD permute (AVX2).
+  INST_3x(vpermd, kX86InstIdVpermd, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpermd, kX86InstIdVpermd, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed DP-FP permute (AVX2).
+  INST_3i(vpermpd, kX86InstIdVpermpd, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vpermpd, kX86InstIdVpermpd, X86YmmVar, X86Mem, Imm)
+
+  //! Packed SP-FP permute (AVX2).
+  INST_3x(vpermps, kX86InstIdVpermps, X86YmmVar, X86YmmVar, X86YmmVar)
+  //! \overload
+  INST_3x(vpermps, kX86InstIdVpermps, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed QWORD permute (AVX2).
+  INST_3i(vpermq, kX86InstIdVpermq, X86YmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vpermq, kX86InstIdVpermq, X86YmmVar, X86Mem, Imm)
+
+  INST_3x(vpgatherdd, kX86InstIdVpgatherdd, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpgatherdd, kX86InstIdVpgatherdd, X86YmmVar, X86Mem, X86YmmVar)
+
+  INST_3x(vpgatherdq, kX86InstIdVpgatherdq, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpgatherdq, kX86InstIdVpgatherdq, X86YmmVar, X86Mem, X86YmmVar)
+
+  INST_3x(vpgatherqd, kX86InstIdVpgatherqd, X86XmmVar, X86Mem, X86XmmVar)
+
+  INST_3x(vpgatherqq, kX86InstIdVpgatherqq, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpgatherqq, kX86InstIdVpgatherqq, X86YmmVar, X86Mem, X86YmmVar)
+
+  //! Packed DWORD horizontal add (AVX2).
+  INST_3x(vphaddd, kX86InstIdVphaddd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vphaddd, kX86InstIdVphaddd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD horizontal add with saturation (AVX2).
+  INST_3x(vphaddsw, kX86InstIdVphaddsw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vphaddsw, kX86InstIdVphaddsw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD horizontal add (AVX2).
+  INST_3x(vphaddw, kX86InstIdVphaddw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vphaddw, kX86InstIdVphaddw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD horizontal subtract (AVX2).
+  INST_3x(vphsubd, kX86InstIdVphsubd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vphsubd, kX86InstIdVphsubd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD horizontal subtract with saturation (AVX2).
+  INST_3x(vphsubsw, kX86InstIdVphsubsw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vphsubsw, kX86InstIdVphsubsw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD horizontal subtract (AVX2).
+  INST_3x(vphsubw, kX86InstIdVphsubw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vphsubw, kX86InstIdVphsubw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Move Byte mask to integer (AVX2).
+  INST_2x(vpmovmskb, kX86InstIdVpmovmskb, X86GpVar, X86YmmVar)
+
+  //! BYTE to DWORD with sign extend (AVX).
+  INST_2x(vpmovsxbd, kX86InstIdVpmovsxbd, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovsxbd, kX86InstIdVpmovsxbd, X86YmmVar, X86XmmVar)
+
+  //! Packed BYTE to QWORD with sign extend (AVX2).
+  INST_2x(vpmovsxbq, kX86InstIdVpmovsxbq, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovsxbq, kX86InstIdVpmovsxbq, X86YmmVar, X86XmmVar)
+
+  //! Packed BYTE to WORD with sign extend (AVX2).
+  INST_2x(vpmovsxbw, kX86InstIdVpmovsxbw, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovsxbw, kX86InstIdVpmovsxbw, X86YmmVar, X86XmmVar)
+
+  //! Packed DWORD to QWORD with sign extend (AVX2).
+  INST_2x(vpmovsxdq, kX86InstIdVpmovsxdq, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovsxdq, kX86InstIdVpmovsxdq, X86YmmVar, X86XmmVar)
+
+  //! Packed WORD to DWORD with sign extend (AVX2).
+  INST_2x(vpmovsxwd, kX86InstIdVpmovsxwd, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovsxwd, kX86InstIdVpmovsxwd, X86YmmVar, X86XmmVar)
+
+  //! Packed WORD to QWORD with sign extend (AVX2).
+  INST_2x(vpmovsxwq, kX86InstIdVpmovsxwq, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovsxwq, kX86InstIdVpmovsxwq, X86YmmVar, X86XmmVar)
+
+  //! BYTE to DWORD with zero extend (AVX2).
+  INST_2x(vpmovzxbd, kX86InstIdVpmovzxbd, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovzxbd, kX86InstIdVpmovzxbd, X86YmmVar, X86XmmVar)
+
+  //! Packed BYTE to QWORD with zero extend (AVX2).
+  INST_2x(vpmovzxbq, kX86InstIdVpmovzxbq, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovzxbq, kX86InstIdVpmovzxbq, X86YmmVar, X86XmmVar)
+
+  //! BYTE to WORD with zero extend (AVX2).
+  INST_2x(vpmovzxbw, kX86InstIdVpmovzxbw, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovzxbw, kX86InstIdVpmovzxbw, X86YmmVar, X86XmmVar)
+
+  //! Packed DWORD to QWORD with zero extend (AVX2).
+  INST_2x(vpmovzxdq, kX86InstIdVpmovzxdq, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovzxdq, kX86InstIdVpmovzxdq, X86YmmVar, X86XmmVar)
+
+  //! Packed WORD to DWORD with zero extend (AVX2).
+  INST_2x(vpmovzxwd, kX86InstIdVpmovzxwd, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovzxwd, kX86InstIdVpmovzxwd, X86YmmVar, X86XmmVar)
+
+  //! Packed WORD to QWORD with zero extend (AVX2).
+  INST_2x(vpmovzxwq, kX86InstIdVpmovzxwq, X86YmmVar, X86Mem)
+  //! \overload
+  INST_2x(vpmovzxwq, kX86InstIdVpmovzxwq, X86YmmVar, X86XmmVar)
+
+  //! Packed multiply and add signed and unsigned bytes (AVX2).
+  INST_3x(vpmaddubsw, kX86InstIdVpmaddubsw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmaddubsw, kX86InstIdVpmaddubsw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD multiply and add to packed DWORD (AVX2).
+  INST_3x(vpmaddwd, kX86InstIdVpmaddwd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmaddwd, kX86InstIdVpmaddwd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vpmaskmovd, kX86InstIdVpmaskmovd, X86Mem, X86XmmVar, X86XmmVar)
+  INST_3x(vpmaskmovd, kX86InstIdVpmaskmovd, X86Mem, X86YmmVar, X86YmmVar)
+  INST_3x(vpmaskmovd, kX86InstIdVpmaskmovd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vpmaskmovd, kX86InstIdVpmaskmovd, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_3x(vpmaskmovq, kX86InstIdVpmaskmovq, X86Mem, X86XmmVar, X86XmmVar)
+  INST_3x(vpmaskmovq, kX86InstIdVpmaskmovq, X86Mem, X86YmmVar, X86YmmVar)
+  INST_3x(vpmaskmovq, kX86InstIdVpmaskmovq, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vpmaskmovq, kX86InstIdVpmaskmovq, X86YmmVar, X86YmmVar, X86Mem)
+
+  //! Packed BYTE maximum (AVX2).
+  INST_3x(vpmaxsb, kX86InstIdVpmaxsb, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmaxsb, kX86InstIdVpmaxsb, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD maximum (AVX2).
+  INST_3x(vpmaxsd, kX86InstIdVpmaxsd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmaxsd, kX86InstIdVpmaxsd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD maximum (AVX2).
+  INST_3x(vpmaxsw, kX86InstIdVpmaxsw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmaxsw, kX86InstIdVpmaxsw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed BYTE unsigned maximum (AVX2).
+  INST_3x(vpmaxub, kX86InstIdVpmaxub, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmaxub, kX86InstIdVpmaxub, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD unsigned maximum (AVX2).
+  INST_3x(vpmaxud, kX86InstIdVpmaxud, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmaxud, kX86InstIdVpmaxud, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD unsigned maximum (AVX2).
+  INST_3x(vpmaxuw, kX86InstIdVpmaxuw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmaxuw, kX86InstIdVpmaxuw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed BYTE minimum (AVX2).
+  INST_3x(vpminsb, kX86InstIdVpminsb, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpminsb, kX86InstIdVpminsb, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD minimum (AVX2).
+  INST_3x(vpminsd, kX86InstIdVpminsd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpminsd, kX86InstIdVpminsd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD minimum (AVX2).
+  INST_3x(vpminsw, kX86InstIdVpminsw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpminsw, kX86InstIdVpminsw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed BYTE unsigned minimum (AVX2).
+  INST_3x(vpminub, kX86InstIdVpminub, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpminub, kX86InstIdVpminub, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD unsigned minimum (AVX2).
+  INST_3x(vpminud, kX86InstIdVpminud, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpminud, kX86InstIdVpminud, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD unsigned minimum (AVX2).
+  INST_3x(vpminuw, kX86InstIdVpminuw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpminuw, kX86InstIdVpminuw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD to QWORD multiply (AVX2).
+  INST_3x(vpmuldq, kX86InstIdVpmuldq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmuldq, kX86InstIdVpmuldq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD multiply high, round and scale (AVX2).
+  INST_3x(vpmulhrsw, kX86InstIdVpmulhrsw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmulhrsw, kX86InstIdVpmulhrsw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD unsigned multiply high (AVX2).
+  INST_3x(vpmulhuw, kX86InstIdVpmulhuw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmulhuw, kX86InstIdVpmulhuw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD multiply high (AVX2).
+  INST_3x(vpmulhw, kX86InstIdVpmulhw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmulhw, kX86InstIdVpmulhw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD multiply low (AVX2).
+  INST_3x(vpmulld, kX86InstIdVpmulld, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmulld, kX86InstIdVpmulld, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORDs multiply low (AVX2).
+  INST_3x(vpmullw, kX86InstIdVpmullw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmullw, kX86InstIdVpmullw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD multiply to QWORD (AVX2).
+  INST_3x(vpmuludq, kX86InstIdVpmuludq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpmuludq, kX86InstIdVpmuludq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed bitwise or (AVX2).
+  INST_3x(vpor, kX86InstIdVpor, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpor, kX86InstIdVpor, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD sum of absolute differences (AVX2).
+  INST_3x(vpsadbw, kX86InstIdVpsadbw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsadbw, kX86InstIdVpsadbw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed BYTE shuffle (AVX2).
+  INST_3x(vpshufb, kX86InstIdVpshufb, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpshufb, kX86InstIdVpshufb, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD shuffle (AVX2).
+  INST_3i(vpshufd, kX86InstIdVpshufd, X86YmmVar, X86Mem, Imm)
+  //! \overload
+  INST_3i(vpshufd, kX86InstIdVpshufd, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed WORD shuffle high (AVX2).
+  INST_3i(vpshufhw, kX86InstIdVpshufhw, X86YmmVar, X86Mem, Imm)
+  //! \overload
+  INST_3i(vpshufhw, kX86InstIdVpshufhw, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed WORD shuffle low (AVX2).
+  INST_3i(vpshuflw, kX86InstIdVpshuflw, X86YmmVar, X86Mem, Imm)
+  //! \overload
+  INST_3i(vpshuflw, kX86InstIdVpshuflw, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed BYTE sign (AVX2).
+  INST_3x(vpsignb, kX86InstIdVpsignb, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsignb, kX86InstIdVpsignb, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD sign (AVX2).
+  INST_3x(vpsignd, kX86InstIdVpsignd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsignd, kX86InstIdVpsignd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD sign (AVX2).
+  INST_3x(vpsignw, kX86InstIdVpsignw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsignw, kX86InstIdVpsignw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD shift left logical (AVX2).
+  INST_3x(vpslld, kX86InstIdVpslld, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpslld, kX86InstIdVpslld, X86YmmVar, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_3i(vpslld, kX86InstIdVpslld, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed DQWORD shift left logical (AVX2).
+  INST_3i(vpslldq, kX86InstIdVpslldq, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed QWORD shift left logical (AVX2).
+  INST_3x(vpsllq, kX86InstIdVpsllq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsllq, kX86InstIdVpsllq, X86YmmVar, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_3i(vpsllq, kX86InstIdVpsllq, X86YmmVar, X86YmmVar, Imm)
+
+  INST_3x(vpsllvd, kX86InstIdVpsllvd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vpsllvd, kX86InstIdVpsllvd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpsllvd, kX86InstIdVpsllvd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vpsllvd, kX86InstIdVpsllvd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vpsllvq, kX86InstIdVpsllvq, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vpsllvq, kX86InstIdVpsllvq, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpsllvq, kX86InstIdVpsllvq, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vpsllvq, kX86InstIdVpsllvq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD shift left logical (AVX2).
+  INST_3x(vpsllw, kX86InstIdVpsllw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsllw, kX86InstIdVpsllw, X86YmmVar, X86YmmVar, X86XmmVar)
+  //! Packed WORD shift left logical (AVX2).
+  INST_3i(vpsllw, kX86InstIdVpsllw, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed DWORD shift right arithmetic (AVX2).
+  INST_3x(vpsrad, kX86InstIdVpsrad, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsrad, kX86InstIdVpsrad, X86YmmVar, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_3i(vpsrad, kX86InstIdVpsrad, X86YmmVar, X86YmmVar, Imm)
+
+  INST_3x(vpsravd, kX86InstIdVpsravd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vpsravd, kX86InstIdVpsravd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpsravd, kX86InstIdVpsravd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vpsravd, kX86InstIdVpsravd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD shift right arithmetic (AVX2).
+  INST_3x(vpsraw, kX86InstIdVpsraw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsraw, kX86InstIdVpsraw, X86YmmVar, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_3i(vpsraw, kX86InstIdVpsraw, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed DWORD shift right logical (AVX2).
+  INST_3x(vpsrld, kX86InstIdVpsrld, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsrld, kX86InstIdVpsrld, X86YmmVar, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_3i(vpsrld, kX86InstIdVpsrld, X86YmmVar, X86YmmVar, Imm)
+
+  //! Scalar DQWORD shift right logical (AVX2).
+  INST_3i(vpsrldq, kX86InstIdVpsrldq, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed QWORD shift right logical (AVX2).
+  INST_3x(vpsrlq, kX86InstIdVpsrlq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsrlq, kX86InstIdVpsrlq, X86YmmVar, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_3i(vpsrlq, kX86InstIdVpsrlq, X86YmmVar, X86YmmVar, Imm)
+
+  INST_3x(vpsrlvd, kX86InstIdVpsrlvd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vpsrlvd, kX86InstIdVpsrlvd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpsrlvd, kX86InstIdVpsrlvd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vpsrlvd, kX86InstIdVpsrlvd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vpsrlvq, kX86InstIdVpsrlvq, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vpsrlvq, kX86InstIdVpsrlvq, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpsrlvq, kX86InstIdVpsrlvq, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vpsrlvq, kX86InstIdVpsrlvq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD shift right logical (AVX2).
+  INST_3x(vpsrlw, kX86InstIdVpsrlw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsrlw, kX86InstIdVpsrlw, X86YmmVar, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_3i(vpsrlw, kX86InstIdVpsrlw, X86YmmVar, X86YmmVar, Imm)
+
+  //! Packed BYTE subtract (AVX2).
+  INST_3x(vpsubb, kX86InstIdVpsubb, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vpsubb, kX86InstIdVpsubb, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed DWORD subtract (AVX2).
+  INST_3x(vpsubd, kX86InstIdVpsubd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsubd, kX86InstIdVpsubd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed QWORD subtract (AVX2).
+  INST_3x(vpsubq, kX86InstIdVpsubq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsubq, kX86InstIdVpsubq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed BYTE subtract with saturation (AVX2).
+  INST_3x(vpsubsb, kX86InstIdVpsubsb, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsubsb, kX86InstIdVpsubsb, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD subtract with saturation (AVX2).
+  INST_3x(vpsubsw, kX86InstIdVpsubsw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsubsw, kX86InstIdVpsubsw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed BYTE subtract with unsigned saturation (AVX2).
+  INST_3x(vpsubusb, kX86InstIdVpsubusb, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsubusb, kX86InstIdVpsubusb, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD subtract with unsigned saturation (AVX2).
+  INST_3x(vpsubusw, kX86InstIdVpsubusw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsubusw, kX86InstIdVpsubusw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed WORD subtract (AVX2).
+  INST_3x(vpsubw, kX86InstIdVpsubw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpsubw, kX86InstIdVpsubw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Unpack high packed BYTEs to WORDs (AVX2).
+  INST_3x(vpunpckhbw, kX86InstIdVpunpckhbw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpunpckhbw, kX86InstIdVpunpckhbw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Unpack high packed DWORDs to QWORDs (AVX2).
+  INST_3x(vpunpckhdq, kX86InstIdVpunpckhdq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpunpckhdq, kX86InstIdVpunpckhdq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Unpack high packed QWORDs to DQWORD (AVX2).
+  INST_3x(vpunpckhqdq, kX86InstIdVpunpckhqdq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpunpckhqdq, kX86InstIdVpunpckhqdq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Unpack high packed WORDs to DWORDs (AVX2).
+  INST_3x(vpunpckhwd, kX86InstIdVpunpckhwd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpunpckhwd, kX86InstIdVpunpckhwd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Unpack low packed BYTEs to WORDs (AVX2).
+  INST_3x(vpunpcklbw, kX86InstIdVpunpcklbw, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpunpcklbw, kX86InstIdVpunpcklbw, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Unpack low packed DWORDs to QWORDs (AVX2).
+  INST_3x(vpunpckldq, kX86InstIdVpunpckldq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpunpckldq, kX86InstIdVpunpckldq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Unpack low packed QWORDs to DQWORD (AVX2).
+  INST_3x(vpunpcklqdq, kX86InstIdVpunpcklqdq, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpunpcklqdq, kX86InstIdVpunpcklqdq, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Unpack low packed WORDs to DWORDs (AVX2).
+  INST_3x(vpunpcklwd, kX86InstIdVpunpcklwd, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpunpcklwd, kX86InstIdVpunpcklwd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  //! Packed bitwise xor (AVX2).
+  INST_3x(vpxor, kX86InstIdVpxor, X86YmmVar, X86YmmVar, X86Mem)
+  //! \overload
+  INST_3x(vpxor, kX86InstIdVpxor, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  // --------------------------------------------------------------------------
+  // [FMA3]
+  // --------------------------------------------------------------------------
+
+  INST_3x(vfmadd132pd, kX86InstIdVfmadd132pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd132pd, kX86InstIdVfmadd132pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmadd132pd, kX86InstIdVfmadd132pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmadd132pd, kX86InstIdVfmadd132pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmadd132ps, kX86InstIdVfmadd132ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd132ps, kX86InstIdVfmadd132ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmadd132ps, kX86InstIdVfmadd132ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmadd132ps, kX86InstIdVfmadd132ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmadd132sd, kX86InstIdVfmadd132sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd132sd, kX86InstIdVfmadd132sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmadd132ss, kX86InstIdVfmadd132ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd132ss, kX86InstIdVfmadd132ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmadd213pd, kX86InstIdVfmadd213pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd213pd, kX86InstIdVfmadd213pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmadd213pd, kX86InstIdVfmadd213pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmadd213pd, kX86InstIdVfmadd213pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmadd213ps, kX86InstIdVfmadd213ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd213ps, kX86InstIdVfmadd213ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmadd213ps, kX86InstIdVfmadd213ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmadd213ps, kX86InstIdVfmadd213ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmadd213sd, kX86InstIdVfmadd213sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd213sd, kX86InstIdVfmadd213sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmadd213ss, kX86InstIdVfmadd213ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd213ss, kX86InstIdVfmadd213ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmadd231pd, kX86InstIdVfmadd231pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd231pd, kX86InstIdVfmadd231pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmadd231pd, kX86InstIdVfmadd231pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmadd231pd, kX86InstIdVfmadd231pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmadd231ps, kX86InstIdVfmadd231ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd231ps, kX86InstIdVfmadd231ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmadd231ps, kX86InstIdVfmadd231ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmadd231ps, kX86InstIdVfmadd231ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmadd231sd, kX86InstIdVfmadd231sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd231sd, kX86InstIdVfmadd231sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmadd231ss, kX86InstIdVfmadd231ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmadd231ss, kX86InstIdVfmadd231ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmaddsub132pd, kX86InstIdVfmaddsub132pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmaddsub132pd, kX86InstIdVfmaddsub132pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmaddsub132pd, kX86InstIdVfmaddsub132pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmaddsub132pd, kX86InstIdVfmaddsub132pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmaddsub132ps, kX86InstIdVfmaddsub132ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmaddsub132ps, kX86InstIdVfmaddsub132ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmaddsub132ps, kX86InstIdVfmaddsub132ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmaddsub132ps, kX86InstIdVfmaddsub132ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmaddsub213pd, kX86InstIdVfmaddsub213pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmaddsub213pd, kX86InstIdVfmaddsub213pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmaddsub213pd, kX86InstIdVfmaddsub213pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmaddsub213pd, kX86InstIdVfmaddsub213pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmaddsub213ps, kX86InstIdVfmaddsub213ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmaddsub213ps, kX86InstIdVfmaddsub213ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmaddsub213ps, kX86InstIdVfmaddsub213ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmaddsub213ps, kX86InstIdVfmaddsub213ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmaddsub231pd, kX86InstIdVfmaddsub231pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmaddsub231pd, kX86InstIdVfmaddsub231pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmaddsub231pd, kX86InstIdVfmaddsub231pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmaddsub231pd, kX86InstIdVfmaddsub231pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmaddsub231ps, kX86InstIdVfmaddsub231ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmaddsub231ps, kX86InstIdVfmaddsub231ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmaddsub231ps, kX86InstIdVfmaddsub231ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmaddsub231ps, kX86InstIdVfmaddsub231ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsub132pd, kX86InstIdVfmsub132pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub132pd, kX86InstIdVfmsub132pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsub132pd, kX86InstIdVfmsub132pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsub132pd, kX86InstIdVfmsub132pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsub132ps, kX86InstIdVfmsub132ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub132ps, kX86InstIdVfmsub132ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsub132ps, kX86InstIdVfmsub132ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsub132ps, kX86InstIdVfmsub132ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsub132sd, kX86InstIdVfmsub132sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub132sd, kX86InstIdVfmsub132sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmsub132ss, kX86InstIdVfmsub132ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub132ss, kX86InstIdVfmsub132ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmsub213pd, kX86InstIdVfmsub213pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub213pd, kX86InstIdVfmsub213pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsub213pd, kX86InstIdVfmsub213pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsub213pd, kX86InstIdVfmsub213pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsub213ps, kX86InstIdVfmsub213ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub213ps, kX86InstIdVfmsub213ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsub213ps, kX86InstIdVfmsub213ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsub213ps, kX86InstIdVfmsub213ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsub213sd, kX86InstIdVfmsub213sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub213sd, kX86InstIdVfmsub213sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmsub213ss, kX86InstIdVfmsub213ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub213ss, kX86InstIdVfmsub213ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmsub231pd, kX86InstIdVfmsub231pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub231pd, kX86InstIdVfmsub231pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsub231pd, kX86InstIdVfmsub231pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsub231pd, kX86InstIdVfmsub231pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsub231ps, kX86InstIdVfmsub231ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub231ps, kX86InstIdVfmsub231ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsub231ps, kX86InstIdVfmsub231ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsub231ps, kX86InstIdVfmsub231ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsub231sd, kX86InstIdVfmsub231sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub231sd, kX86InstIdVfmsub231sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmsub231ss, kX86InstIdVfmsub231ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsub231ss, kX86InstIdVfmsub231ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfmsubadd132pd, kX86InstIdVfmsubadd132pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsubadd132pd, kX86InstIdVfmsubadd132pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsubadd132pd, kX86InstIdVfmsubadd132pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsubadd132pd, kX86InstIdVfmsubadd132pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsubadd132ps, kX86InstIdVfmsubadd132ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsubadd132ps, kX86InstIdVfmsubadd132ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsubadd132ps, kX86InstIdVfmsubadd132ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsubadd132ps, kX86InstIdVfmsubadd132ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsubadd213pd, kX86InstIdVfmsubadd213pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsubadd213pd, kX86InstIdVfmsubadd213pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsubadd213pd, kX86InstIdVfmsubadd213pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsubadd213pd, kX86InstIdVfmsubadd213pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsubadd213ps, kX86InstIdVfmsubadd213ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsubadd213ps, kX86InstIdVfmsubadd213ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsubadd213ps, kX86InstIdVfmsubadd213ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsubadd213ps, kX86InstIdVfmsubadd213ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsubadd231pd, kX86InstIdVfmsubadd231pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsubadd231pd, kX86InstIdVfmsubadd231pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsubadd231pd, kX86InstIdVfmsubadd231pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsubadd231pd, kX86InstIdVfmsubadd231pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfmsubadd231ps, kX86InstIdVfmsubadd231ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfmsubadd231ps, kX86InstIdVfmsubadd231ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfmsubadd231ps, kX86InstIdVfmsubadd231ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfmsubadd231ps, kX86InstIdVfmsubadd231ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmadd132pd, kX86InstIdVfnmadd132pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd132pd, kX86InstIdVfnmadd132pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmadd132pd, kX86InstIdVfnmadd132pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmadd132pd, kX86InstIdVfnmadd132pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmadd132ps, kX86InstIdVfnmadd132ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd132ps, kX86InstIdVfnmadd132ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmadd132ps, kX86InstIdVfnmadd132ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmadd132ps, kX86InstIdVfnmadd132ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmadd132sd, kX86InstIdVfnmadd132sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd132sd, kX86InstIdVfnmadd132sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmadd132ss, kX86InstIdVfnmadd132ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd132ss, kX86InstIdVfnmadd132ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmadd213pd, kX86InstIdVfnmadd213pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd213pd, kX86InstIdVfnmadd213pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmadd213pd, kX86InstIdVfnmadd213pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmadd213pd, kX86InstIdVfnmadd213pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmadd213ps, kX86InstIdVfnmadd213ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd213ps, kX86InstIdVfnmadd213ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmadd213ps, kX86InstIdVfnmadd213ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmadd213ps, kX86InstIdVfnmadd213ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmadd213sd, kX86InstIdVfnmadd213sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd213sd, kX86InstIdVfnmadd213sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmadd213ss, kX86InstIdVfnmadd213ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd213ss, kX86InstIdVfnmadd213ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmadd231pd, kX86InstIdVfnmadd231pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd231pd, kX86InstIdVfnmadd231pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmadd231pd, kX86InstIdVfnmadd231pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmadd231pd, kX86InstIdVfnmadd231pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmadd231ps, kX86InstIdVfnmadd231ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd231ps, kX86InstIdVfnmadd231ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmadd231ps, kX86InstIdVfnmadd231ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmadd231ps, kX86InstIdVfnmadd231ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmadd231sd, kX86InstIdVfnmadd231sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd231sd, kX86InstIdVfnmadd231sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmadd231ss, kX86InstIdVfnmadd231ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmadd231ss, kX86InstIdVfnmadd231ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmsub132pd, kX86InstIdVfnmsub132pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub132pd, kX86InstIdVfnmsub132pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmsub132pd, kX86InstIdVfnmsub132pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmsub132pd, kX86InstIdVfnmsub132pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmsub132ps, kX86InstIdVfnmsub132ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub132ps, kX86InstIdVfnmsub132ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmsub132ps, kX86InstIdVfnmsub132ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmsub132ps, kX86InstIdVfnmsub132ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmsub132sd, kX86InstIdVfnmsub132sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub132sd, kX86InstIdVfnmsub132sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmsub132ss, kX86InstIdVfnmsub132ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub132ss, kX86InstIdVfnmsub132ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmsub213pd, kX86InstIdVfnmsub213pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub213pd, kX86InstIdVfnmsub213pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmsub213pd, kX86InstIdVfnmsub213pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmsub213pd, kX86InstIdVfnmsub213pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmsub213ps, kX86InstIdVfnmsub213ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub213ps, kX86InstIdVfnmsub213ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmsub213ps, kX86InstIdVfnmsub213ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmsub213ps, kX86InstIdVfnmsub213ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmsub213sd, kX86InstIdVfnmsub213sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub213sd, kX86InstIdVfnmsub213sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmsub213ss, kX86InstIdVfnmsub213ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub213ss, kX86InstIdVfnmsub213ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmsub231pd, kX86InstIdVfnmsub231pd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub231pd, kX86InstIdVfnmsub231pd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmsub231pd, kX86InstIdVfnmsub231pd, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmsub231pd, kX86InstIdVfnmsub231pd, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmsub231ps, kX86InstIdVfnmsub231ps, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub231ps, kX86InstIdVfnmsub231ps, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vfnmsub231ps, kX86InstIdVfnmsub231ps, X86YmmVar, X86YmmVar, X86Mem)
+  INST_3x(vfnmsub231ps, kX86InstIdVfnmsub231ps, X86YmmVar, X86YmmVar, X86YmmVar)
+
+  INST_3x(vfnmsub231sd, kX86InstIdVfnmsub231sd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub231sd, kX86InstIdVfnmsub231sd, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  INST_3x(vfnmsub231ss, kX86InstIdVfnmsub231ss, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3x(vfnmsub231ss, kX86InstIdVfnmsub231ss, X86XmmVar, X86XmmVar, X86XmmVar)
+
+  // --------------------------------------------------------------------------
+  // [FMA4]
+  // --------------------------------------------------------------------------
+
+  INST_4x(vfmaddpd, kX86InstIdVfmaddpd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmaddpd, kX86InstIdVfmaddpd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmaddpd, kX86InstIdVfmaddpd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfmaddpd, kX86InstIdVfmaddpd, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfmaddpd, kX86InstIdVfmaddpd, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfmaddpd, kX86InstIdVfmaddpd, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfmaddps, kX86InstIdVfmaddps, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmaddps, kX86InstIdVfmaddps, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmaddps, kX86InstIdVfmaddps, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfmaddps, kX86InstIdVfmaddps, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfmaddps, kX86InstIdVfmaddps, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfmaddps, kX86InstIdVfmaddps, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfmaddsd, kX86InstIdVfmaddsd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmaddsd, kX86InstIdVfmaddsd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmaddsd, kX86InstIdVfmaddsd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_4x(vfmaddss, kX86InstIdVfmaddss, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmaddss, kX86InstIdVfmaddss, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmaddss, kX86InstIdVfmaddss, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_4x(vfmaddsubpd, kX86InstIdVfmaddsubpd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmaddsubpd, kX86InstIdVfmaddsubpd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmaddsubpd, kX86InstIdVfmaddsubpd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfmaddsubpd, kX86InstIdVfmaddsubpd, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfmaddsubpd, kX86InstIdVfmaddsubpd, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfmaddsubpd, kX86InstIdVfmaddsubpd, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfmaddsubps, kX86InstIdVfmaddsubps, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmaddsubps, kX86InstIdVfmaddsubps, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmaddsubps, kX86InstIdVfmaddsubps, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfmaddsubps, kX86InstIdVfmaddsubps, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfmaddsubps, kX86InstIdVfmaddsubps, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfmaddsubps, kX86InstIdVfmaddsubps, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfmsubaddpd, kX86InstIdVfmsubaddpd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmsubaddpd, kX86InstIdVfmsubaddpd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmsubaddpd, kX86InstIdVfmsubaddpd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfmsubaddpd, kX86InstIdVfmsubaddpd, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfmsubaddpd, kX86InstIdVfmsubaddpd, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfmsubaddpd, kX86InstIdVfmsubaddpd, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfmsubaddps, kX86InstIdVfmsubaddps, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmsubaddps, kX86InstIdVfmsubaddps, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmsubaddps, kX86InstIdVfmsubaddps, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfmsubaddps, kX86InstIdVfmsubaddps, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfmsubaddps, kX86InstIdVfmsubaddps, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfmsubaddps, kX86InstIdVfmsubaddps, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfmsubpd, kX86InstIdVfmsubpd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmsubpd, kX86InstIdVfmsubpd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmsubpd, kX86InstIdVfmsubpd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfmsubpd, kX86InstIdVfmsubpd, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfmsubpd, kX86InstIdVfmsubpd, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfmsubpd, kX86InstIdVfmsubpd, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfmsubps, kX86InstIdVfmsubps, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmsubps, kX86InstIdVfmsubps, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmsubps, kX86InstIdVfmsubps, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfmsubps, kX86InstIdVfmsubps, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfmsubps, kX86InstIdVfmsubps, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfmsubps, kX86InstIdVfmsubps, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfmsubsd, kX86InstIdVfmsubsd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmsubsd, kX86InstIdVfmsubsd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmsubsd, kX86InstIdVfmsubsd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_4x(vfmsubss, kX86InstIdVfmsubss, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfmsubss, kX86InstIdVfmsubss, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfmsubss, kX86InstIdVfmsubss, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_4x(vfnmaddpd, kX86InstIdVfnmaddpd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfnmaddpd, kX86InstIdVfnmaddpd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfnmaddpd, kX86InstIdVfnmaddpd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfnmaddpd, kX86InstIdVfnmaddpd, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfnmaddpd, kX86InstIdVfnmaddpd, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfnmaddpd, kX86InstIdVfnmaddpd, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfnmaddps, kX86InstIdVfnmaddps, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfnmaddps, kX86InstIdVfnmaddps, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfnmaddps, kX86InstIdVfnmaddps, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfnmaddps, kX86InstIdVfnmaddps, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfnmaddps, kX86InstIdVfnmaddps, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfnmaddps, kX86InstIdVfnmaddps, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfnmaddsd, kX86InstIdVfnmaddsd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfnmaddsd, kX86InstIdVfnmaddsd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfnmaddsd, kX86InstIdVfnmaddsd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_4x(vfnmaddss, kX86InstIdVfnmaddss, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfnmaddss, kX86InstIdVfnmaddss, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfnmaddss, kX86InstIdVfnmaddss, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_4x(vfnmsubpd, kX86InstIdVfnmsubpd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfnmsubpd, kX86InstIdVfnmsubpd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfnmsubpd, kX86InstIdVfnmsubpd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfnmsubpd, kX86InstIdVfnmsubpd, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfnmsubpd, kX86InstIdVfnmsubpd, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfnmsubpd, kX86InstIdVfnmsubpd, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfnmsubps, kX86InstIdVfnmsubps, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfnmsubps, kX86InstIdVfnmsubps, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfnmsubps, kX86InstIdVfnmsubps, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vfnmsubps, kX86InstIdVfnmsubps, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vfnmsubps, kX86InstIdVfnmsubps, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vfnmsubps, kX86InstIdVfnmsubps, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vfnmsubsd, kX86InstIdVfnmsubsd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfnmsubsd, kX86InstIdVfnmsubsd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfnmsubsd, kX86InstIdVfnmsubsd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_4x(vfnmsubss, kX86InstIdVfnmsubss, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vfnmsubss, kX86InstIdVfnmsubss, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vfnmsubss, kX86InstIdVfnmsubss, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [XOP]
+  // --------------------------------------------------------------------------
+
+  INST_2x(vfrczpd, kX86InstIdVfrczpd, X86XmmVar, X86XmmVar)
+  INST_2x(vfrczpd, kX86InstIdVfrczpd, X86XmmVar, X86Mem)
+  INST_2x(vfrczpd, kX86InstIdVfrczpd, X86YmmVar, X86YmmVar)
+  INST_2x(vfrczpd, kX86InstIdVfrczpd, X86YmmVar, X86Mem)
+
+  INST_2x(vfrczps, kX86InstIdVfrczps, X86XmmVar, X86XmmVar)
+  INST_2x(vfrczps, kX86InstIdVfrczps, X86XmmVar, X86Mem)
+  INST_2x(vfrczps, kX86InstIdVfrczps, X86YmmVar, X86YmmVar)
+  INST_2x(vfrczps, kX86InstIdVfrczps, X86YmmVar, X86Mem)
+
+  INST_2x(vfrczsd, kX86InstIdVfrczsd, X86XmmVar, X86XmmVar)
+  INST_2x(vfrczsd, kX86InstIdVfrczsd, X86XmmVar, X86Mem)
+
+  INST_2x(vfrczss, kX86InstIdVfrczss, X86XmmVar, X86XmmVar)
+  INST_2x(vfrczss, kX86InstIdVfrczss, X86XmmVar, X86Mem)
+
+  INST_4x(vpcmov, kX86InstIdVpcmov, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpcmov, kX86InstIdVpcmov, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpcmov, kX86InstIdVpcmov, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vpcmov, kX86InstIdVpcmov, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vpcmov, kX86InstIdVpcmov, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vpcmov, kX86InstIdVpcmov, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4i(vpcomb, kX86InstIdVpcomb, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  INST_4i(vpcomb, kX86InstIdVpcomb, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  INST_4i(vpcomd, kX86InstIdVpcomd, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  INST_4i(vpcomd, kX86InstIdVpcomd, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  INST_4i(vpcomq, kX86InstIdVpcomq, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  INST_4i(vpcomq, kX86InstIdVpcomq, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  INST_4i(vpcomw, kX86InstIdVpcomw, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  INST_4i(vpcomw, kX86InstIdVpcomw, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  INST_4i(vpcomub, kX86InstIdVpcomub, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  INST_4i(vpcomub, kX86InstIdVpcomub, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  INST_4i(vpcomud, kX86InstIdVpcomud, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  INST_4i(vpcomud, kX86InstIdVpcomud, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  INST_4i(vpcomuq, kX86InstIdVpcomuq, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  INST_4i(vpcomuq, kX86InstIdVpcomuq, X86XmmVar, X86XmmVar, X86Mem, Imm)
+  INST_4i(vpcomuw, kX86InstIdVpcomuw, X86XmmVar, X86XmmVar, X86XmmVar, Imm)
+  INST_4i(vpcomuw, kX86InstIdVpcomuw, X86XmmVar, X86XmmVar, X86Mem, Imm)
+
+  INST_4x(vpermil2pd, kX86InstIdVpermil2pd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpermil2pd, kX86InstIdVpermil2pd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpermil2pd, kX86InstIdVpermil2pd, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vpermil2pd, kX86InstIdVpermil2pd, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vpermil2pd, kX86InstIdVpermil2pd, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vpermil2pd, kX86InstIdVpermil2pd, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_4x(vpermil2ps, kX86InstIdVpermil2ps, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpermil2ps, kX86InstIdVpermil2ps, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpermil2ps, kX86InstIdVpermil2ps, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+  INST_4x(vpermil2ps, kX86InstIdVpermil2ps, X86YmmVar, X86YmmVar, X86YmmVar, X86YmmVar)
+  INST_4x(vpermil2ps, kX86InstIdVpermil2ps, X86YmmVar, X86YmmVar, X86Mem, X86YmmVar)
+  INST_4x(vpermil2ps, kX86InstIdVpermil2ps, X86YmmVar, X86YmmVar, X86YmmVar, X86Mem)
+
+  INST_2x(vphaddbd, kX86InstIdVphaddbd, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddbd, kX86InstIdVphaddbd, X86XmmVar, X86Mem)
+  INST_2x(vphaddbq, kX86InstIdVphaddbq, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddbq, kX86InstIdVphaddbq, X86XmmVar, X86Mem)
+  INST_2x(vphaddbw, kX86InstIdVphaddbw, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddbw, kX86InstIdVphaddbw, X86XmmVar, X86Mem)
+  INST_2x(vphadddq, kX86InstIdVphadddq, X86XmmVar, X86XmmVar)
+  INST_2x(vphadddq, kX86InstIdVphadddq, X86XmmVar, X86Mem)
+  INST_2x(vphaddwd, kX86InstIdVphaddwd, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddwd, kX86InstIdVphaddwd, X86XmmVar, X86Mem)
+  INST_2x(vphaddwq, kX86InstIdVphaddwq, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddwq, kX86InstIdVphaddwq, X86XmmVar, X86Mem)
+
+  INST_2x(vphaddubd, kX86InstIdVphaddubd, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddubd, kX86InstIdVphaddubd, X86XmmVar, X86Mem)
+  INST_2x(vphaddubq, kX86InstIdVphaddubq, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddubq, kX86InstIdVphaddubq, X86XmmVar, X86Mem)
+  INST_2x(vphaddubw, kX86InstIdVphaddubw, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddubw, kX86InstIdVphaddubw, X86XmmVar, X86Mem)
+  INST_2x(vphaddudq, kX86InstIdVphaddudq, X86XmmVar, X86XmmVar)
+  INST_2x(vphaddudq, kX86InstIdVphaddudq, X86XmmVar, X86Mem)
+  INST_2x(vphadduwd, kX86InstIdVphadduwd, X86XmmVar, X86XmmVar)
+  INST_2x(vphadduwd, kX86InstIdVphadduwd, X86XmmVar, X86Mem)
+  INST_2x(vphadduwq, kX86InstIdVphadduwq, X86XmmVar, X86XmmVar)
+  INST_2x(vphadduwq, kX86InstIdVphadduwq, X86XmmVar, X86Mem)
+
+  INST_2x(vphsubbw, kX86InstIdVphsubbw, X86XmmVar, X86XmmVar)
+  INST_2x(vphsubbw, kX86InstIdVphsubbw, X86XmmVar, X86Mem)
+  INST_2x(vphsubdq, kX86InstIdVphsubdq, X86XmmVar, X86XmmVar)
+  INST_2x(vphsubdq, kX86InstIdVphsubdq, X86XmmVar, X86Mem)
+  INST_2x(vphsubwd, kX86InstIdVphsubwd, X86XmmVar, X86XmmVar)
+  INST_2x(vphsubwd, kX86InstIdVphsubwd, X86XmmVar, X86Mem)
+
+  INST_4x(vpmacsdd, kX86InstIdVpmacsdd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacsdd, kX86InstIdVpmacsdd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpmacsdqh, kX86InstIdVpmacsdqh, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacsdqh, kX86InstIdVpmacsdqh, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpmacsdql, kX86InstIdVpmacsdql, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacsdql, kX86InstIdVpmacsdql, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpmacswd, kX86InstIdVpmacswd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacswd, kX86InstIdVpmacswd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpmacsww, kX86InstIdVpmacsww, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacsww, kX86InstIdVpmacsww, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+
+  INST_4x(vpmacssdd, kX86InstIdVpmacssdd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacssdd, kX86InstIdVpmacssdd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpmacssdqh, kX86InstIdVpmacssdqh, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacssdqh, kX86InstIdVpmacssdqh, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpmacssdql, kX86InstIdVpmacssdql, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacssdql, kX86InstIdVpmacssdql, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpmacsswd, kX86InstIdVpmacsswd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacsswd, kX86InstIdVpmacsswd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpmacssww, kX86InstIdVpmacssww, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmacssww, kX86InstIdVpmacssww, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+
+  INST_4x(vpmadcsswd, kX86InstIdVpmadcsswd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmadcsswd, kX86InstIdVpmadcsswd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+
+  INST_4x(vpmadcswd, kX86InstIdVpmadcswd, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpmadcswd, kX86InstIdVpmadcswd, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+
+  INST_4x(vpperm, kX86InstIdVpperm, X86XmmVar, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_4x(vpperm, kX86InstIdVpperm, X86XmmVar, X86XmmVar, X86Mem, X86XmmVar)
+  INST_4x(vpperm, kX86InstIdVpperm, X86XmmVar, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_3x(vprotb, kX86InstIdVprotb, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vprotb, kX86InstIdVprotb, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vprotb, kX86InstIdVprotb, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3i(vprotb, kX86InstIdVprotb, X86XmmVar, X86XmmVar, Imm)
+  INST_3i(vprotb, kX86InstIdVprotb, X86XmmVar, X86Mem, Imm)
+
+  INST_3x(vprotd, kX86InstIdVprotd, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vprotd, kX86InstIdVprotd, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vprotd, kX86InstIdVprotd, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3i(vprotd, kX86InstIdVprotd, X86XmmVar, X86XmmVar, Imm)
+  INST_3i(vprotd, kX86InstIdVprotd, X86XmmVar, X86Mem, Imm)
+
+  INST_3x(vprotq, kX86InstIdVprotq, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vprotq, kX86InstIdVprotq, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vprotq, kX86InstIdVprotq, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3i(vprotq, kX86InstIdVprotq, X86XmmVar, X86XmmVar, Imm)
+  INST_3i(vprotq, kX86InstIdVprotq, X86XmmVar, X86Mem, Imm)
+
+  INST_3x(vprotw, kX86InstIdVprotw, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vprotw, kX86InstIdVprotw, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vprotw, kX86InstIdVprotw, X86XmmVar, X86XmmVar, X86Mem)
+  INST_3i(vprotw, kX86InstIdVprotw, X86XmmVar, X86XmmVar, Imm)
+  INST_3i(vprotw, kX86InstIdVprotw, X86XmmVar, X86Mem, Imm)
+
+  INST_3x(vpshab, kX86InstIdVpshab, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpshab, kX86InstIdVpshab, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpshab, kX86InstIdVpshab, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_3x(vpshad, kX86InstIdVpshad, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpshad, kX86InstIdVpshad, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpshad, kX86InstIdVpshad, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_3x(vpshaq, kX86InstIdVpshaq, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpshaq, kX86InstIdVpshaq, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpshaq, kX86InstIdVpshaq, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_3x(vpshaw, kX86InstIdVpshaw, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpshaw, kX86InstIdVpshaw, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpshaw, kX86InstIdVpshaw, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_3x(vpshlb, kX86InstIdVpshlb, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpshlb, kX86InstIdVpshlb, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpshlb, kX86InstIdVpshlb, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_3x(vpshld, kX86InstIdVpshld, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpshld, kX86InstIdVpshld, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpshld, kX86InstIdVpshld, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_3x(vpshlq, kX86InstIdVpshlq, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpshlq, kX86InstIdVpshlq, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpshlq, kX86InstIdVpshlq, X86XmmVar, X86XmmVar, X86Mem)
+
+  INST_3x(vpshlw, kX86InstIdVpshlw, X86XmmVar, X86XmmVar, X86XmmVar)
+  INST_3x(vpshlw, kX86InstIdVpshlw, X86XmmVar, X86Mem, X86XmmVar)
+  INST_3x(vpshlw, kX86InstIdVpshlw, X86XmmVar, X86XmmVar, X86Mem)
+
+  // --------------------------------------------------------------------------
+  // [F16C]
+  // --------------------------------------------------------------------------
+
+  //! Convert packed HP-FP to SP-FP.
+  INST_2x(vcvtph2ps, kX86InstIdVcvtph2ps, X86XmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtph2ps, kX86InstIdVcvtph2ps, X86XmmVar, X86Mem)
+  //! \overload
+  INST_2x(vcvtph2ps, kX86InstIdVcvtph2ps, X86YmmVar, X86XmmVar)
+  //! \overload
+  INST_2x(vcvtph2ps, kX86InstIdVcvtph2ps, X86YmmVar, X86Mem)
+
+  //! Convert packed SP-FP to HP-FP.
+  INST_3i(vcvtps2ph, kX86InstIdVcvtps2ph, X86XmmVar, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vcvtps2ph, kX86InstIdVcvtps2ph, X86Mem, X86XmmVar, Imm)
+  //! \overload
+  INST_3i(vcvtps2ph, kX86InstIdVcvtps2ph, X86XmmVar, X86YmmVar, Imm)
+  //! \overload
+  INST_3i(vcvtps2ph, kX86InstIdVcvtps2ph, X86Mem, X86YmmVar, Imm)
 
   // --------------------------------------------------------------------------
   // [Cleanup]
@@ -5594,22 +7468,18 @@ struct ASMJIT_VCLASS X86Compiler : public Compiler {
 #undef INST_0x
 
 #undef INST_1x
-#undef INST_1x_
 #undef INST_1i
 #undef INST_1cc
 
 #undef INST_2x
-#undef INST_2x_
 #undef INST_2i
 #undef INST_2cc
 
 #undef INST_3x
-#undef INST_3x_
 #undef INST_3i
 #undef INST_3ii
 
 #undef INST_4x
-#undef INST_4x_
 #undef INST_4i
 #undef INST_4ii
 };

@@ -1,4 +1,5 @@
 #include <dlfcn.h>
+#include <cmath>
 #include "../../../../include/mathvm.h"
 #include "../../../../vm/parser.h"
 #include "BytecodeRFTranslator.h"
@@ -376,8 +377,16 @@ void mathvm::BytecodeRfVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 
 void mathvm::BytecodeRfVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
     Bytecode *bc = currentSd->containedFunction->bytecode();
-    bc->add(BC_DLOAD);
-    bc->addDouble(node->literal());
+    if (fabs(node->literal()) < 1E-10) {
+        bc->add(BC_DLOAD0);
+    } else if (fabs(node->literal() - 1) < 1E-10) {
+        bc->add(BC_DLOAD1);
+    } else if (fabs(node->literal() + 1) < 1E-10) {
+        bc->add(BC_DLOADM1);
+    } else {
+        bc->add(BC_DLOAD);
+        bc->addDouble(node->literal());
+    }
     currentSd->topType = VT_DOUBLE;
 }
 
@@ -446,8 +455,20 @@ void mathvm::BytecodeRfVisitor::visitWhileNode(WhileNode *node) {
 
 void mathvm::BytecodeRfVisitor::visitIntLiteralNode(IntLiteralNode *node) {
     Bytecode *bc = currentSd->containedFunction->bytecode();
-    bc->add(BC_ILOAD);
-    bc->addInt64(node->literal());
+    switch (node->literal()) {
+        case 1LL:
+            bc->add(BC_ILOAD1);
+            break;
+        case 0LL:
+            bc->add(BC_ILOAD0);
+            break;
+        case -1LL:
+            bc->add(BC_ILOADM1);
+            break;
+        default:
+            bc->add(BC_ILOAD);
+            bc->addInt64(node->literal());
+    }
     currentSd->topType = VT_INT;
 }
 
@@ -461,9 +482,7 @@ void mathvm::BytecodeRfVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 
     switch (node->kind()) {
         case tNOT:
-            if (type != VT_INT) {
-                throw new VmException("unexpected type for not operator", node->position());
-            }
+            prepareTopType(VT_INT);
             bc->add(BC_ILOAD0);
             bc->addBranch(BC_IFICMPNE, failLabel);
             bc->add(BC_ILOAD1);
@@ -500,6 +519,13 @@ void mathvm::BytecodeRfVisitor::visitNativeCallNode(NativeCallNode *node) {
 
     uint16_t nativeId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), exportedFunction);
     Bytecode *bc = currentSd->containedFunction->bytecode();
+
+    for (uint32_t i = node->nativeSignature().size(); i >= 2; i--) {
+        const VariableRF *variableInfo = currentSd->lookupVariableInfo(
+                currentSd->containedFunction->parameterName(i - 2));
+        loadVariableByInfo(variableInfo, currentSd->containedFunction->parameterType(i - 2));
+        prepareTopType(node->nativeSignature().operator[](i - 1).first);
+    }
 
     bc->add(BC_CALLNATIVE);
     bc->addUInt16(nativeId);
@@ -611,20 +637,25 @@ void mathvm::BytecodeRfVisitor::translateFunction(AstFunction *function) {
 
 void mathvm::BytecodeRfVisitor::storeVariable(const AstVar *var) {
     Instruction localScopeInstruction;
+    Instruction fastScopeInstruction;
     Instruction totalScopeInstruction;
+
 
     switch (var->type()) {
         case VT_DOUBLE:
             localScopeInstruction = BC_STOREDVAR;
             totalScopeInstruction = BC_STORECTXDVAR;
+            fastScopeInstruction = BC_STOREDVAR0;
             break;
         case VT_INT:
             localScopeInstruction = BC_STOREIVAR;
             totalScopeInstruction = BC_STORECTXIVAR;
+            fastScopeInstruction = BC_STOREIVAR0;
             break;
         case VT_STRING:
             localScopeInstruction = BC_STORESVAR;
             totalScopeInstruction = BC_STORECTXSVAR;
+            fastScopeInstruction = BC_STORESVAR0;
             break;
         case VT_VOID:
         case VT_INVALID:
@@ -639,32 +670,45 @@ void mathvm::BytecodeRfVisitor::storeVariable(const AstVar *var) {
 
     Bytecode *bc = currentSd->containedFunction->bytecode();
     if (currentSd->scope_id == variableInfo->variable_scope) {
-        bc->add(localScopeInstruction);
+        if (variableInfo->variable_id <= 3) {
+            bc->add(fastScopeInstruction + variableInfo->variable_id);
+        } else {
+            bc->add(localScopeInstruction);
+            bc->addUInt16(variableInfo->variable_id);
+        }
     } else {
         bc->add(totalScopeInstruction);
         bc->addUInt16(variableInfo->variable_scope);
+        bc->addUInt16(variableInfo->variable_id);
     }
-    bc->addUInt16(variableInfo->variable_id);
     currentSd->topType = VT_VOID;
 }
 
 
 void mathvm::BytecodeRfVisitor::loadVariable(AstVar const *var) {
-    Instruction localScopeInstruction;
-    Instruction totalScopeInstruction;
+    const VariableRF *variableInfo = currentSd->lookupVariableInfo(var->name());
+    loadVariableByInfo(variableInfo, var->type());
+}
 
-    switch (var->type()) {
+void mathvm::BytecodeRfVisitor::loadVariableByInfo(const VariableRF *variableInfo, VarType type) {
+    Instruction localScopeInstruction;
+    Instruction fastScopeInstruction;
+    Instruction totalScopeInstruction;
+    switch (type) {
         case VT_DOUBLE:
             localScopeInstruction = BC_LOADDVAR;
             totalScopeInstruction = BC_LOADCTXDVAR;
+            fastScopeInstruction = BC_LOADDVAR0;
             break;
         case VT_INT:
             localScopeInstruction = BC_LOADIVAR;
             totalScopeInstruction = BC_LOADCTXIVAR;
+            fastScopeInstruction = BC_LOADIVAR0;
             break;
         case VT_STRING:
             localScopeInstruction = BC_LOADSVAR;
             totalScopeInstruction = BC_LOADCTXSVAR;
+            fastScopeInstruction = BC_LOADSVAR0;
             break;
         case VT_VOID:
         case VT_INVALID:
@@ -672,17 +716,21 @@ void mathvm::BytecodeRfVisitor::loadVariable(AstVar const *var) {
             throw new std::logic_error("unexpected type");
     }
 
-    const VariableRF *variableInfo = currentSd->lookupVariableInfo(var->name());
 
     Bytecode *bc = currentSd->containedFunction->bytecode();
     if (currentSd->scope_id == variableInfo->variable_scope) {
-        bc->add(localScopeInstruction);
+        if (variableInfo->variable_id <= 3) {
+            bc->add(fastScopeInstruction + variableInfo->variable_id);
+        } else {
+            bc->add(localScopeInstruction);
+            bc->addUInt16(variableInfo->variable_id);
+        }
     } else {
         bc->add(totalScopeInstruction);
         bc->addUInt16(variableInfo->variable_scope);
+        bc->addUInt16(variableInfo->variable_id);
     }
-    bc->addUInt16(variableInfo->variable_id);
-    currentSd->topType = var->type();
+    currentSd->topType = type;
 }
 
 void mathvm::BytecodeRfVisitor::scopeEvaluator(Scope *scope) {
@@ -734,8 +782,14 @@ void mathvm::BytecodeRfVisitor::prepareTopType(VarType param) {
             }
             break;
         case VT_STRING:
-            if (currentSd->topType != VT_STRING) {
-                throw new std::logic_error("incorrect cast to string");
+            switch (param) {
+                case VT_STRING:
+                    break;
+                case VT_INT:
+                    currentSd->containedFunction->bytecode()->add(BC_S2I);
+                    break;
+                default:
+                    throw new std::logic_error("incorrect cast to string");
             }
             break;
         default:

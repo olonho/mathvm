@@ -237,6 +237,10 @@ bool InterpreterCodeImpl::execute(Instruction insn) {
             scope_ = new InterpreterScope(function, scope_);
             break;
         };
+        case BC_CALLNATIVE: {
+            scope_->getUInt16();
+            throw InterpreterException("Native calls not implemented");
+        };
         case BC_RETURN: {
             InterpreterScope* innerScope = scope_;
             scope_ = scope_->getParent();

@@ -13,18 +13,23 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/ast_printer$(OBJ_SUFF)
+   $(OBJ)/ast_printer$(OBJ_SUFF)\
+   $(OBJ)/translator$(OBJ_SUFF) \
+   $(OBJ)/interpreter_impl$(OBJ_SUFF)\
+   $(OBJ)/bytecode_translator$(OBJ_SUFF)
+
 
 include $(VM_ROOT)/common.mk
 
 INCLUDE += -I$(ROOT)/include
+INCLUDE += -I$(ROOT)/vm
 
 MATHVM = $(BIN)/mvm
 
 all: $(MATHVM)
 
 debug: all
-	gdb -tui --args $(BIN)/mvm -p $(VM_ROOT)/tests/astprint/dummyTest.mvm
+	./$(BIN)/mvm $(VM_ROOT)/tests/astprint/dummyTest.mvm -t $(VM_ROOT)/tests/own/dummyTest.out
 
 $(MATHVM): $(OUT) $(USER_OBJ) $(MATHVM_OBJ)
 	$(CXX) -o $@ $(USER_OBJ) $(MATHVM_OBJ) $(LIBS)

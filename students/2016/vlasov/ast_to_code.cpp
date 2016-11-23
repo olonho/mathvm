@@ -3,7 +3,6 @@
 //
 
 #include "ast_to_code.h"
-#include "mathvm.h"
 
 namespace mathvm {
 
@@ -123,7 +122,7 @@ void AstToCode::visitBlockNode(BlockNode *node) {
         result << line() << line();
     }
 
-    for(int i = 0; i < node->nodes(); ++i) {
+    for(uint32_t i = 0; i < node->nodes(); ++i) {
         AstNode* child = node->nodeAt(i);
         result << indent();
         child->visit(this);
@@ -173,7 +172,7 @@ void AstToCode::visitReturnNode(ReturnNode *node) {
 
 void AstToCode::visitFunctionNode(FunctionNode *node) {
     result << "function" << space() << typeToName(node->returnType()) << space() << node->name() << lpar();
-    for(int i = 0; i < node->parametersNumber(); ++i) {
+    for(uint32_t i = 0; i < node->parametersNumber(); ++i) {
         if(i) result << com() << space();
         result << typeToName(node->parameterType(i)) << space() << node->parameterName(i);
     }
@@ -183,7 +182,7 @@ void AstToCode::visitFunctionNode(FunctionNode *node) {
 
 void AstToCode::visitCallNode(CallNode *node) {
     result << node->name() << lpar();
-    for(int i = 0; i < node->parametersNumber(); ++i) {
+    for(uint32_t i = 0; i < node->parametersNumber(); ++i) {
         if(i) result << com() << space();
         AstNode* par = node->parameterAt(i);
         par->visit(this);
@@ -193,7 +192,7 @@ void AstToCode::visitCallNode(CallNode *node) {
 
 void AstToCode::visitPrintNode(PrintNode *node) {
     result << "print" << lpar();
-    for(int i = 0; i < node->operands(); ++i) {
+    for(uint32_t i = 0; i < node->operands(); ++i) {
         if(i) result << com() << space();
         AstNode* op = node->operandAt(i);
         op->visit(this);

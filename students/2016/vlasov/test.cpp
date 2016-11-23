@@ -36,7 +36,7 @@ public:
     Status* compare(AstNode* left, AstNode* right) {
         comparable = right;
         try {
-
+            left->visit(this);
         } catch (Status* status) {
             return status;
         }
@@ -213,7 +213,7 @@ int main(int argc, char** argv) {
     const std::string test_dir = argv[1];
 
     bool verbose = argc > 2 && argv[2] == std::string("-v");
-    
+
     std::vector<std::string> files;
     getdir(test_dir, files);
 
@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
     }
 
     int failed = 0;
-    
+
     for(int i = 0; i < files.size(); ++i) {
         std::string filename(files[i]);
         std::cout << "Starting Test #" << i + 1<< ". (" << filename << ")" << std::endl;
@@ -246,7 +246,6 @@ int main(int argc, char** argv) {
             failed += 1;
             continue;
         }
-        
         std::stringstream result;
         mathvm::AstToCode astToCode(result);
         astToCode.dumpCode(parser.top()->node()->asFunctionNode()->body());
@@ -280,3 +279,4 @@ int main(int argc, char** argv) {
     }
     std::cout << "Failed: " << failed << ", Passed: " << (files.size() - failed) << std::endl;
 }
+
