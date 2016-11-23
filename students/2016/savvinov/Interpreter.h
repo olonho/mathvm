@@ -95,20 +95,12 @@ public:
     }
 };
 
-class StackFrame {
-    std::unordered_map<int16_t, Data> localById;
-public:
-    Data getLocal(int16_t id);
-    template <class T>
-    void setLocal(T value, int16_t id);
-    int16_t returnAddress;
-};
-
 class Interpreter {
+    vector < vector < vector <Data> > > storage;
     BytecodeCode * code;
     vector<Var*> & vars;
-    vector<StackFrame> frames;
     std::stack<Data> stack;
+    std::stack<uint16_t> callStack;
 
     int dbg = 0;
 public:
@@ -159,6 +151,22 @@ public:
     void pop() {
         stack.pop();
     }
+
+    Data getLocalData(uint16_t varID);
+
+    Data getData(uint16_t ctxID, uint16_t varID);
+
+    template <class T>
+    void setLocalData(T value, uint16_t varID);
+
+    template <class T>
+    void setData(T value, uint16_t ctxID, uint16_t varID);
+
+    void enterFunction(BytecodeFunction *id);
+
+    void exitFunction();
+
+    void loadCtxVar(Instruction param, Bytecode *pBytecode);
 };
 
 }

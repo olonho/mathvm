@@ -4,19 +4,19 @@
 
 #include <ast.h>
 #include "Interpreter.h"
-#include "TranslationException.h"
 
 namespace mathvm {
 
 Status * Interpreter::executeProgram() {
     BytecodeFunction * topFunction = (BytecodeFunction *) code->functionByName(AstFunction::top_name);
-    frames.push_back(StackFrame());
+    // TODO: get passed vars
     executeFunction(topFunction);
     return Status::Ok();
 }
 
 void Interpreter::executeFunction(BytecodeFunction * function) {
     Bytecode * bc = function->bytecode();
+    enterFunction(function);
     uint32_t i = 0;
     while (i < bc->length()) {
         Instruction insn = bc->getInsn(i);
@@ -255,154 +255,154 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
                 ++i;
                 break;
             case BC_LOADDVAR0:
-                push(frames.back().getLocal(0).getDouble());
+                push(getLocalData(0).getDouble());
                 ++i;
                 break;
             case BC_LOADDVAR1:
-                push(frames.back().getLocal(1).getDouble());
+                push(getLocalData(1).getDouble());
                 ++i;
                 break;
             case BC_LOADDVAR2:
-                push(frames.back().getLocal(2).getDouble());
+                push(getLocalData(2).getDouble());
                 ++i;
                 break;
             case BC_LOADDVAR3:
-                push(frames.back().getLocal(3).getDouble());
+                push(getLocalData(3).getDouble());
                 ++i;
                 break;
             case BC_LOADIVAR0:
-                push(frames.back().getLocal(0).getInt());
+                push(getLocalData(0).getInt());
                 ++i;
                 break;
             case BC_LOADIVAR1:
-                push(frames.back().getLocal(1).getInt());
+                push(getLocalData(1).getInt());
                 ++i;
                 break;
             case BC_LOADIVAR2:
-                push(frames.back().getLocal(2).getInt());
+                push(getLocalData(2).getInt());
                 ++i;
                 break;
             case BC_LOADIVAR3:
-                push(frames.back().getLocal(3).getInt());
+                push(getLocalData(3).getInt());
                 ++i;
                 break;
             case BC_LOADSVAR0:
-                push(*frames.back().getLocal(0).getString());
+                push(*getLocalData(0).getString());
                 ++i;
                 break;
             case BC_LOADSVAR1:
-                push(*frames.back().getLocal(1).getString());
+                push(*getLocalData(1).getString());
                 ++i;
                 break;
             case BC_LOADSVAR2:
-                push(*frames.back().getLocal(2).getString());
+                push(*getLocalData(2).getString());
                 ++i;
                 break;
             case BC_LOADSVAR3:
-                push(*frames.back().getLocal(3).getString());
+                push(*getLocalData(3).getString());
                 ++i;
                 break;
             case BC_STOREDVAR0: {
                 double up = topDouble();
-                frames.back().setLocal(up, 0);
+                setLocalData(up, 0);
                 pop();
                 ++i;
                 break;
             }
             case BC_STOREDVAR1: {
                 double up = topDouble();
-                frames.back().setLocal(up, 1);
+                setLocalData(up, 1);
                 pop();
                 ++i;
                 break;
             }
             case BC_STOREDVAR2: {
                 double up = topDouble();
-                frames.back().setLocal(up, 2);
+                setLocalData(up, 2);
                 pop();
                 ++i;
                 break;
             }
             case BC_STOREDVAR3: {
                 double up = topDouble();
-                frames.back().setLocal(up, 3);
+                setLocalData(up, 3);
                 pop();
                 ++i;
                 break;
             }
             case BC_STOREIVAR0: {
                 int64_t up = topInt();
-                frames.back().setLocal(up, 0);
+                setLocalData(up, 0);
                 pop();
                 ++i;
                 break;
             }
             case BC_STOREIVAR1:{
                 int64_t up = topInt();
-                frames.back().setLocal(up, 1);
+                setLocalData(up, 1);
                 pop();
                 ++i;
                 break;
             }
             case BC_STOREIVAR2:{
                 int64_t up = topInt();
-                frames.back().setLocal(up, 2);
+                setLocalData(up, 2);
                 pop();
                 ++i;
                 break;
             }
             case BC_STOREIVAR3:{
                 int64_t up = topInt();
-                frames.back().setLocal(up, 3);
+                setLocalData(up, 3);
                 pop();
                 ++i;
                 break;
             }
             case BC_STORESVAR0: {
                 string * up = topString();
-                frames.back().setLocal(*up, 0);
+                setLocalData(*up, 0);
                 pop();
                 ++i;
                 break;
             }
             case BC_STORESVAR1:{
                 string * up = topString();
-                frames.back().setLocal(*up, 1);
+                setLocalData(*up, 1);
                 pop();
                 ++i;
                 break;
             }
             case BC_STORESVAR2:{
                 string * up = topString();
-                frames.back().setLocal(*up, 2);
+                setLocalData(*up, 2);
                 pop();
                 ++i;
                 break;
             }
             case BC_STORESVAR3:{
                 string * up = topString();
-                frames.back().setLocal(*up, 3);
+                setLocalData(*up, 3);
                 pop();
                 ++i;
                 break;
             }
             case BC_LOADDVAR: {
-                int16_t id = bc->getInt16(++i);
-                const Data &data = frames.back().getLocal(id);
+                uint16_t id = bc->getUInt16(++i);
+                const Data &data = getLocalData(id);
                 push(*data.doubleValue);
                 i += 2;
                 break;
             }
             case BC_LOADIVAR: {
-                int16_t id = bc->getInt16(++i);
-                const Data &data = frames.back().getLocal(id);
+                uint16_t id = bc->getUInt16(++i);
+                const Data &data = getLocalData(id);
                 push(*data.intValue);
                 i += 2;
                 break;
             }
             case BC_LOADSVAR: {
-                int16_t id = bc->getInt16(++i);
-                const Data &data = frames.back().getLocal(id);
+                uint16_t id = bc->getUInt16(++i);
+                const Data &data = getLocalData(id);
                 push(*data.stringValue);
                 i += 2;
                 break;
@@ -410,34 +410,93 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
             case BC_STOREDVAR: {
                 double up = topDouble();
                 pop();
-                int16_t id = bc->getInt16(++i);
-                frames.back().setLocal(up, id);
+                uint16_t id = bc->getUInt16(++i);
+                setLocalData(up, id);
                 i += 2;
                 break;
             }
             case BC_STOREIVAR: {
                 int64_t up = topInt();
                 pop();
-                int16_t id = bc->getInt16(++i);
-                frames.back().setLocal(up, id);
+                uint16_t id = bc->getUInt16(++i);
+                setLocalData(up, id);
                 i += 2;
                 break;
             }
             case BC_STORESVAR: {
                 string * up = topString();
-                int16_t  id = bc->getInt16(++i);
-                frames.back().setLocal(*up, id);
+                uint16_t  id = bc->getUInt16(++i);
+                setLocalData(*up, id);
                 pop();
                 i += 2;
                 break;
             }
-            case BC_LOADCTXDVAR:
-            case BC_LOADCTXIVAR:
-            case BC_LOADCTXSVAR:
-            case BC_STORECTXDVAR:
-            case BC_STORECTXIVAR:
-            case BC_STORECTXSVAR:
-                throw ExecutionException("ctx stores not implemented yet");
+            case BC_LOADCTXDVAR: {
+                ++i;
+                uint16_t ctxID = bc->getUInt16(i);
+                i += 2;
+                uint16_t varID = bc->getUInt16(i);
+                i += 2;
+
+                Data data = getData(ctxID, varID);
+                push(data.getDouble());
+                break;
+            }
+            case BC_LOADCTXIVAR: {
+                ++i;
+                uint16_t ctxID = bc->getUInt16(i);
+                i += 2;
+                uint16_t varID = bc->getUInt16(i);
+                i += 2;
+
+                Data data = getData(ctxID, varID);
+                push(data.getInt());
+                break;
+            }
+            case BC_LOADCTXSVAR: {
+                ++i;
+                uint16_t ctxID = bc->getUInt16(i);
+                i += 2;
+                uint16_t varID = bc->getUInt16(i);
+                i += 2;
+
+                Data data = getData(ctxID, varID);
+                push(*data.getString());
+                break;
+            }
+            case BC_STORECTXDVAR: {
+                ++i;
+                uint16_t ctxID = bc->getUInt16(i);
+                i += 2;
+                uint16_t varID = bc->getUInt16(i);
+                i += 2;
+
+                double top = topDouble();
+                setData(top, ctxID, varID);
+                break;
+            }
+            case BC_STORECTXIVAR: {
+                ++i;
+                uint16_t ctxID = bc->getUInt16(i);
+                i += 2;
+                uint16_t varID = bc->getUInt16(i);
+                i += 2;
+
+                int64_t top = topInt();
+                setData(top, ctxID, varID);
+                break;
+            }
+            case BC_STORECTXSVAR: {
+                ++i;
+                uint16_t ctxID = bc->getUInt16(i);
+                i += 2;
+                uint16_t varID = bc->getUInt16(i);
+                i += 2;
+
+                string *top = topString();
+                setData(*top, ctxID, varID);
+                break;
+            }
             case BC_DCMP: {
                 double up = topDouble();
                 pop();
@@ -472,7 +531,7 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
             }
             case BC_JA: {
                 int16_t offset = bc->getInt16(++i);
-                i += (uint32_t) offset;
+                i += offset;
                 break;
             }
             case BC_IFICMPNE: {
@@ -482,7 +541,7 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
                 pop();
                 int16_t offset = bc->getInt16(++i);
                 if (up != low) {
-                    i += (uint32_t) offset;
+                    i += offset;
                 } else {
                     i += 2;
                 }
@@ -495,7 +554,7 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
                 pop();
                 int16_t offset = bc->getInt16(++i);
                 if (up == low) {
-                    i += (uint32_t) offset;
+                    i += offset;
                 } else {
                     i += 2;
                 }
@@ -508,7 +567,7 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
                 pop();
                 int16_t offset = bc->getInt16(++i);
                 if (up > low) {
-                    i += (uint32_t) offset;
+                    i += offset;
                 } else {
                     i += 2;
                 }
@@ -521,7 +580,7 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
                 pop();
                 int16_t offset = bc->getInt16(++i);
                 if (up >= low) {
-                    i += (uint32_t) offset;
+                    i += offset;
                 } else {
                     i += 2;
                 }
@@ -534,7 +593,7 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
                 pop();
                 int16_t offset = bc->getInt16(++i);
                 if (up < low) {
-                    i += (uint32_t) offset;
+                    i += offset;
                 } else {
                     i += 2;
                 }
@@ -547,7 +606,7 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
                 pop();
                 int16_t offset = bc->getInt16(++i);
                 if (up <= low) {
-                    i += (uint32_t) offset;
+                    i += offset;
                 } else {
                     i += 2;
                 }
@@ -555,18 +614,10 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
             }
             case BC_DUMP:
                 throw ExecutionException("bc_dump not implemented yet");
-            case BC_STOP: {
+            case BC_STOP:
                 return;
-            }
             case BC_CALL: {
                 int16_t id = bc->getInt16(++i);
-                frames.push_back(StackFrame());
-                frames.back().returnAddress = (int16_t) i;
-//                if (dbg < topInt()) {
-//                    dbg = topInt();
-//                    std::cout << "Calling with arg = " << dbg << std::endl;
-//                }
-
                 executeFunction((BytecodeFunction *) code->functionById((uint16_t) id));
                 i += 2;
                 break;
@@ -575,26 +626,49 @@ void Interpreter::executeFunction(BytecodeFunction * function) {
                 throw ExecutionException("call native not implemented yet");
             }
             case BC_RETURN: {
-                frames.pop_back();
+                exitFunction();
                 return;
             };
             case BC_BREAK:
                 throw ExecutionException("bc_break not implemented yet");
             case BC_LAST:
-                throw ExecutionException("bc_last not implemented yet");
+                throw ExecutionException("BC_LAST found");
         }
     }
+    exitFunction();
 }
 
-Data StackFrame::getLocal(int16_t id) {
-    if (localById.find(id) == localById.end()) {
-        throw ExecutionException("Local not found!");
-    }
-    return localById[id];
+Data Interpreter::getData(uint16_t ctxID, uint16_t varID) {
+    return storage[ctxID].back()[varID];
+}
+
+Data Interpreter::getLocalData(uint16_t varID) {
+    return getData(callStack.top(), varID);
 }
 
 template<class T>
-void StackFrame::setLocal(T value, int16_t id) {
-    localById[id] = Data(value);
+void Interpreter::setLocalData(T value, uint16_t varID) {
+    setData(value, callStack.top(), varID);
 }
+
+template <class T>
+void Interpreter::setData(T value, uint16_t ctxID, uint16_t varID) {
+    storage[ctxID].back()[varID] = Data(value);
+}
+
+void Interpreter::enterFunction(BytecodeFunction * function) {
+    if (function->id() >= storage.size()) {
+        storage.resize(function->id() + 1);
+    }
+    callStack.push(function->id());
+    storage[function->id()].push_back(vector <Data> (function->localsNumber()));
+}
+
+void Interpreter::exitFunction() {
+    uint16_t curFuncID = callStack.top();
+    storage[curFuncID].pop_back();
+    callStack.pop();
+}
+
+
 }
