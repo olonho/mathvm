@@ -38,6 +38,5 @@ int main(int argc, char **argv) {
     }
     delete translateStatus;
     delete translator;
-
     return 0;
 }
