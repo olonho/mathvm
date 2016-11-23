@@ -1,2 +1,0 @@
-/home/golovanov/repo/git/mathvm/students/2016/golovanov/translator/main.cpp:1:20: fatal error: mathvm.h: Нет такого файла или каталога
-compilation terminated.
