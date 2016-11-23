@@ -402,7 +402,6 @@ void ast_bytecode_generator::visitForNode(ForNode *node) {
     store_entry(VT_INT, entry);
     bc->addBranch(BC_JA, l1);
     bc->bind(l2);
-    bc->addInsn(BC_POP);
     storage.pop_type();
 }
 

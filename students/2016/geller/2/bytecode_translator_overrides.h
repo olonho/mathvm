@@ -16,23 +16,9 @@
 namespace mathvm{
     class InterpreterCodeImpl: public Code{
     public:
-        virtual Status *execute(vector<Var *> &vars) override {
-            return nullptr;
-        }
+        virtual Status *execute(vector<Var *> &vars) override;
     };
 
-
-    Status* BytecodeTranslatorImpl::translate(const string &program, Code **code) {
-        Parser parser;
-        Status* status = parser.parseProgram(program);
-        if(status->isError()){
-            return status;
-        }
-        *code = new InterpreterCodeImpl();
-        ast_bytecode_generator(parser.top(), *code).execute();
-        return Status::Ok();
-
-    }
 }
 
 

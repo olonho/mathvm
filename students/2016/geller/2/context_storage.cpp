@@ -8,7 +8,7 @@
 void mathvm::context_storage::enter_function(mathvm::BytecodeFunction *function) {
     functions.push(function);
     assert(contexts.size() < UINT16_MAX);
-    contexts.push_back(context((uint16_t) contexts.size()));
+    contexts.push_back(context(function->id()));
 }
 
 void mathvm::context_storage::exit_function() {
