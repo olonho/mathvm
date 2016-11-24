@@ -48,10 +48,8 @@ int main(int argc, char **argv) {
     }
 
     // Для выключения интерпретатора, использовать эту строчку.
-    // К текущему дедлайну гарантируется работа только транслятора, однако интерпретатор тоже должен работать.
     //Code *code = new EmptyInterpreter();
     // Для запуска интерпретатора заменить на нижнюю строчку
-    // В интерператоре не поддерживаются только native-call. Если он обязателен, то он появится к следующему milestone
     Code *code = new BytecodeRFInterpreterCode();
 
     Status *translateStatus = translator->translate(expr, &code);

@@ -5,6 +5,7 @@
 #include "BytecodeRFTranslator.h"
 #include "ScopeData.h"
 #include "VmException.h"
+#include "RFUtils.h"
 
 mathvm::BytecodeRFTranslator::~BytecodeRFTranslator() {}
 
@@ -517,7 +518,7 @@ void mathvm::BytecodeRfVisitor::visitNativeCallNode(NativeCallNode *node) {
         throw new VmException(("cannot find native call for " + node->nativeName()).c_str(), node->position());
     }
 
-    uint16_t nativeId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), exportedFunction);
+    uint16_t nativeId = _code->makeNativeFunction(node->nativeName() + mathvm::manglingName(node->nativeSignature()), node->nativeSignature(), exportedFunction);
     Bytecode *bc = currentSd->containedFunction->bytecode();
 
     for (uint32_t i = node->nativeSignature().size(); i >= 2; i--) {
@@ -598,6 +599,8 @@ mathvm::Status *mathvm::BytecodeRfVisitor::runTranslate(Code *code, AstFunction 
         currentSd->addFunction(currentFunction);
 
         translateFunction(function);
+
+        delete currentSd;
     }
     catch (mathvm::VmException *ex) {
         return Status::Error(ex->what(), ex->getPosition());
@@ -799,7 +802,7 @@ void mathvm::BytecodeRfVisitor::prepareTopType(VarType param) {
 }
 
 void mathvm::BytecodeRfVisitor::dumpByteCode(ostream &out) {
-    _code->disassemble(out);
+   _code->disassemble(out);
 }
 
 

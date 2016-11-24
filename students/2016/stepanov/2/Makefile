@@ -20,6 +20,7 @@ USER_OBJ = \
    $(OBJ)/EmptyInterpreter$(OBJ_SUFF)  \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translator$(OBJ_SUFF) \
+   $(OBJ)/RFUtils$(OBJ_SUFF)  \
    $(OBJ)/translator_create$(OBJ_SUFF)
 
 

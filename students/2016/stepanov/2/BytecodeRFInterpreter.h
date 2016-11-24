@@ -5,8 +5,11 @@
 #ifndef VM_BYTECODE_PRINTER_INTERPRETER_H
 #define VM_BYTECODE_PRINTER_INTERPRETER_H
 
+#include <cstring>
 #include "../../../../include/mathvm.h"
 #include "../../../../include/visitors.h"
+#include <set>
+#include <stack>
 
 namespace mathvm {
     class StackItem {
@@ -34,20 +37,24 @@ namespace mathvm {
     };
 
     static StackItem STACK_EMPTY = StackItem((int64_t)0);
+    extern std::vector<StackItem> variables;
+
+    extern std::stack<size_t> scopeOffsets[UINT16_MAX];
 
     class InterScope {
     private:
-        Status *status = Status::Ok();
         Bytecode *bytecode;
         BytecodeFunction *bf;
     public:
-        uint32_t IP = 0;
         //[TODO] REWRITE
-        std::vector<StackItem> variables;
+        Status *status = nullptr;
+        uint32_t IP = 0;
+        size_t variableOffset;
         InterScope * parent;
-        Status *getStatus() const;
 
         InterScope(BytecodeFunction *bf, InterScope * parent = nullptr);
+
+        ~InterScope();
 
         Instruction next();
 
@@ -63,33 +70,43 @@ namespace mathvm {
 
         StackItem* variableLookup(uint16_t scope, uint16_t variable){
             if (bf->scopeId() == scope){
-                return &(variables[variable]);
+                return &(variables[variableOffset + variable]);
             }
-            else if (parent != nullptr){
-                return parent->variableLookup(scope, variable);
+            else {
+                return &(variables[scopeOffsets[scope].top() + variable]);
             }
-            return nullptr;
         }
    };
 
+    typedef int64_t (*nativePtr)(int64_t *);
+    typedef double (*nativeDoublePtr)(int64_t *);
+    typedef double (*nativeVoidPtr)(int64_t *);
+
+    extern int64_t nativeLinks[UINT16_MAX];
+    extern nativePtr nativeFunctions[UINT16_MAX];
+
     class BytecodeRFInterpreterCode : public Code {
     private:
-        std::vector<StackItem>* variablesPtr;
+        size_t variablesOffset;
         std::vector<StackItem> stack;
-        InterScope *is;
+        InterScope *is = nullptr;
 
         bool evaluateThis(Instruction instr);
         uint16_t emptyString();
-
     public:
+        ~BytecodeRFInterpreterCode() {
+            delete(is);
+        }
         BytecodeRFInterpreterCode() {
             stack.reserve(100);
+            memset(nativeLinks, 0, sizeof (int64_t)*UINT16_MAX);
+            memset(nativeFunctions, 0, sizeof (nativePtr)*UINT16_MAX);
         }
 
         virtual Status *execute(vector<Var *> &vars) override {
             BytecodeFunction *topFunction = (BytecodeFunction *) functionByName(AstFunction::top_name);
             is = new InterScope(topFunction);
-            variablesPtr = &(is->variables);
+            variablesOffset = is->variableOffset;
 
             Instruction nextInstruction;
             while ((nextInstruction = is->next()) != BC_STOP) {
@@ -97,8 +114,12 @@ namespace mathvm {
                     break;
                 }
             }
-            return is ? is->getStatus() : Status::Ok();
+            return is ? is->status : Status::Ok();
         }
+
+        int64_t getStringConstantPtrById(uint16_t id);
+
+        void registerStringConstantPtrById(uint16_t id, int64_t ptr);
     };
 }
 

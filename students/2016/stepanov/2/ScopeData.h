@@ -104,6 +104,7 @@ namespace mathvm {
         }
 
     };
+
 }
 
 #endif //VM_SCOPEDATA_H

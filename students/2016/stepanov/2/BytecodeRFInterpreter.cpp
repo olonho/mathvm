@@ -1,84 +1,100 @@
-/*  [Attention]
- * В интерператоре не поддерживаются только native-call. Если он обязателен, то он появится к следующему milestone.
- */
-
-
 #include <cinttypes>
 #include <cmath>
 #include "BytecodeRFInterpreter.h"
 #include "../../../../libs/asmjit/asmjit.h"
+#include <stack>
 
 using namespace asmjit;
 using namespace asmjit::x86;
 
+
 namespace mathvm {
+    std::stack<size_t> scopeOffsets[UINT16_MAX];
     const int MAX_RARGS = 6;
     const int MAX_XMM = 8;
 
-    inline int countRegisterArguments(const Signature &signature) {
-        int rArgs = 0, xmm = 0;
+    inline int countRegisterArguments(const Signature &signature, int &rArgsCnt, int &xmmCnt) {
         for (size_t i = 1; i < signature.size(); ++i) {
-            rArgs += signature[i].first != VT_DOUBLE;
-            xmm += signature[i].first == VT_DOUBLE;
+            rArgsCnt += signature[i].first != VT_DOUBLE;
+            xmmCnt += signature[i].first == VT_DOUBLE;
         }
-        return std::min(rArgs, MAX_RARGS) + std::min(xmm, MAX_XMM);
+        rArgsCnt = std::min(rArgsCnt, MAX_RARGS);
+        xmmCnt = std::min(xmmCnt, MAX_XMM);
+        return rArgsCnt + xmmCnt;
     }
 
     X86GpReg rRegisters[] = {rdi, rsi, rdx, rcx, r8, r9};
     X86XmmReg xmmRegisters[] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
 
-    typedef int64_t (*nativePtr)(int64_t *);
-
     JitRuntime runtime;
-    X86Assembler assembler(&runtime);
 
-    //[TODO] save
     nativePtr buildNativeFunction(const Signature &signature, const void *call) {
+        X86Assembler assembler(&runtime);
         //FileLogger logger(stdout);
         //assembler.setLogger(&logger);
-
-        const int registersSize = countRegisterArguments(signature);
+        int rArgsCnt = 0, xmmCnt = 0;
+        const int registersSize = countRegisterArguments(signature, rArgsCnt, xmmCnt);
         size_t stackSize = signature.size() - registersSize - 1;
-
+        assembler.push(rbp);
+        assembler.mov(rbp, rsp);
+        assembler.push(r12);
         assembler.mov(rax, rdi); // we can clean
 
         int indexRarg = 0;
         int indexXmm = 0;
 
-        for (uint64_t i = signature.size(); i >= 2; i--) {
-            if ((signature[i - 1].first == VT_DOUBLE) && (indexXmm < MAX_XMM)) {
-                assembler.movq(xmmRegisters[indexXmm], ptr(rax));
-            } else if ((signature[i - 1].first != VT_DOUBLE) && (indexXmm < MAX_RARGS)) {
-                assembler.mov(rRegisters[indexRarg], ptr(rax));
-            } else {
-                assembler.mov(rsp, ptr(rax));
-                assembler.sub(rsp, 8);
-            }
-            assembler.add(rax, 8);
-        }
         if (stackSize & 1LL) {
-            assembler.sub(rsp, 8); // Stack aligned on 16 bytes boundary.
-        }
-        assembler.mov(rax, imm_ptr((void *) call));
-        assembler.call(rax);
-        if (signature.operator[](0).first == VT_DOUBLE) {
-            assembler.movq(rax, xmm0); //speed up for if;
-        }
-        if (stackSize & 1LL) {
-            assembler.add(rsp, 8 * (stackSize + 1));
+            assembler.sub(rsp, 8 * (stackSize));
         } else {
-            assembler.add(rsp, 8 * stackSize);
+            assembler.sub(rsp, 8 * (stackSize + 1)); // Stack aligned on 16 bytes boundary.
         }
+        assembler.lea(r10, ptr(rsp));
+
+        for (uint64_t i = 2; i <= signature.size(); ++i) {
+            if ((signature[i - 1].first == VT_DOUBLE)) {
+                if (indexXmm < MAX_XMM) {
+                    assembler.movsd(xmmRegisters[indexXmm], ptr(rax));
+                    if ((indexXmm == 0) && (xmmCnt >= 8)) {
+                        assembler.mov(r11, rax);
+                    }
+                    ++indexXmm;
+                } else {
+                    assembler.movsd(xmm0, ptr(rax));
+                    assembler.movsd(ptr(r10), xmm0);
+                    assembler.add(r10, 8);
+                }
+            } else if ((signature[i - 1].first != VT_DOUBLE) && (indexRarg < MAX_RARGS)) {
+                assembler.mov(rRegisters[indexRarg], ptr(rax));
+                ++indexRarg;
+            } else {
+                assembler.mov(r12, ptr(rax));
+                assembler.mov(ptr(r10), r12);
+                assembler.add(r10, 8);
+            }
+            assembler.sub(rax, 8);
+        }
+
+        if (xmmCnt >= 8) {
+            assembler.movsd(xmm0, ptr(r11));
+        }
+        assembler.mov(r11, imm_ptr((void *) call));
+        assembler.mov(rax, xmmCnt);
+        assembler.call(r11);
+        if (stackSize & 1LL) {
+            assembler.add(rsp, 8 * (stackSize));
+        } else {
+            assembler.add(rsp, 8 * (stackSize + 1));
+        }
+
+        assembler.pop(r12);
+        assembler.leave();
         assembler.ret();
         return reinterpret_cast<int64_t (*)(int64_t *)>(assembler.make());
     }
 
 }
 
-
-mathvm::Status *mathvm::InterScope::getStatus() const {
-    return status;
-}
+std::vector<mathvm::StackItem> mathvm::variables;
 
 mathvm::Instruction mathvm::InterScope::next() {
     return bytecode->getInsn(IP++);
@@ -87,7 +103,9 @@ mathvm::Instruction mathvm::InterScope::next() {
 mathvm::InterScope::InterScope(mathvm::BytecodeFunction *bf, InterScope *parent) {
     this->bf = bf;
     this->parent = parent;
-    variables.resize(bf->localsNumber(), STACK_EMPTY);
+    variableOffset = variables.size();
+    variables.resize(variableOffset + bf->localsNumber(), STACK_EMPTY);
+    scopeOffsets[bf->scopeId()].push(variableOffset);
     bytecode = bf->bytecode();
 }
 
@@ -118,6 +136,11 @@ void mathvm::InterScope::skipUint16t() {
     IP += sizeof(uint16_t);
 }
 
+mathvm::InterScope::~InterScope() {
+    variables.resize(variableOffset);
+    scopeOffsets[bf->scopeId()].pop();
+    delete(status);
+}
 
 bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) {
     static StackItem top((int64_t) 0);
@@ -126,6 +149,7 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
     static InterScope *oldScope;
     static uint16_t scopeId;
     static uint16_t itemId;
+    int64_t *ptr;
     static const Signature *signature;
     static const string *name;
     static const void *call;
@@ -239,7 +263,7 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             break;
         case BC_SPRINT:
             //printf("%s", constantById(stack.back().getStringId()).c_str());
-            std::cout << constantById(stack.back().value.stringIdValue).c_str();
+            std::cout << (char *) getStringConstantPtrById(stack.back().value.stringIdValue);
             stack.pop_back();
             break;
         case BC_I2D:
@@ -260,60 +284,59 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
         case BC_LOADDVAR0:
         case BC_LOADIVAR0:
         case BC_LOADSVAR0:
-            stack.push_back(is->variables.front());
+            stack.push_back(variables[variablesOffset]);
             break;
         case BC_LOADDVAR1:
         case BC_LOADIVAR1:
         case BC_LOADSVAR1:
             // .at() very slow =)
-            stack.push_back(variablesPtr->operator[](1));
+            stack.push_back(variables[variablesOffset + 1]);
             break;
         case BC_LOADDVAR2:
         case BC_LOADIVAR2:
         case BC_LOADSVAR2:
-            stack.push_back(variablesPtr->operator[](2));
+            stack.push_back(variables[variablesOffset + 2]);
             break;
         case BC_LOADDVAR3:
         case BC_LOADIVAR3:
         case BC_LOADSVAR3:
-            stack.push_back(variablesPtr->operator[](3));
+            stack.push_back(variables[variablesOffset + 3]);
             break;
         case BC_STOREIVAR0:
         case BC_STORESVAR0:
         case BC_STOREDVAR0:
-            variablesPtr->front() = stack.back();
+            variables[variablesOffset] = stack.back();
             stack.pop_back();
             break;
         case BC_STOREDVAR1:
         case BC_STOREIVAR1:
         case BC_STORESVAR1:
-            variablesPtr->operator[](1) = stack.back();
+            variables[variablesOffset + 1] = stack.back();
             stack.pop_back();
             break;
         case BC_STORESVAR2:
         case BC_STOREDVAR2:
         case BC_STOREIVAR2:
-            variablesPtr->operator[](2) = stack.back();
-            variablesPtr->at(2) = stack.back();
+            variables[variablesOffset + 2] = stack.back();
             stack.pop_back();
             break;
         case BC_STOREDVAR3:
         case BC_STOREIVAR3:
         case BC_STORESVAR3:
-            variablesPtr->operator[](3) = stack.back();
+            variables[variablesOffset + 3] = stack.back();
             stack.pop_back();
             break;
         case BC_LOADDVAR:
         case BC_LOADIVAR:
         case BC_LOADSVAR:
             itemId = is->nextUint16t();
-            stack.push_back(variablesPtr->operator[](itemId));
+            stack.push_back(variables[variablesOffset + itemId]);
             break;
         case BC_STOREDVAR:
         case BC_STOREIVAR:
         case BC_STORESVAR:
             itemId = is->nextUint16t();
-            variablesPtr->operator[](itemId) = stack.back();
+            variables[variablesOffset + itemId] = stack.back();
             stack.pop_back();
             break;
         case BC_LOADCTXDVAR:
@@ -441,44 +464,59 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
         case BC_CALL:
             itemId = is->nextUint16t();
             is = new InterScope((BytecodeFunction *) functionById(itemId), is);
-            variablesPtr = &(is->variables);
+            variablesOffset = is->variableOffset;
             break;
         case BC_CALLNATIVE:
             itemId = is->nextUint16t();
             call = nativeById(itemId, &signature, &name);
 
-            target = buildNativeFunction(*signature, (void *) call);
+            if (nativeFunctions[itemId] == 0) {
+                nativeFunctions[itemId] = buildNativeFunction(*signature, (void *) call);
+            }
 
-            itemId = 1;
-            for (uint64_t i = signature->size(); i >= 2; i--) {
-                if (signature->operator[](i - 1).first == VT_STRING) {
-                    stack[stack.size() - itemId].value.intValue = (int64_t) &(constantById(
-                            stack[stack.size() - itemId].value.stringIdValue)[0]);
+            target = nativeFunctions[itemId];
+
+            for (uint64_t i = 1; i < signature->size(); ++i) {
+                if (signature->operator[](i).first == VT_STRING) {
+                    stack[stack.size() - i].value.intValue = getStringConstantPtrById(
+                            stack[stack.size() - i].value.stringIdValue);
                 }
                 ++itemId;
             }
 
-            top.value.intValue = target(&(stack[stack.size() - signature->size() + 1].value.intValue));
+            ptr = &(stack.back().value.intValue);
 
-            if (signature->operator[](0).first == VT_STRING) {
-                top.value.stringIdValue = makeStringConstant((char *) top.value.intValue);
+            switch (signature->operator[](0).first) {
+                case VT_VOID:
+                    reinterpret_cast<nativeVoidPtr >(target)(ptr);
+                    break;
+                case VT_DOUBLE:
+                    top.value.doubleValue = reinterpret_cast<nativeDoublePtr>(target)(ptr);
+                    break;
+                case VT_INT:
+                    top.value.intValue = target(ptr);
+                    break;
+                case VT_STRING:
+                    top.value.intValue = target(ptr);
+                    second.value.intValue = top.value.intValue;
+                    top.value.stringIdValue = makeStringConstant((char *) top.value.intValue);
+                    registerStringConstantPtrById(top.value.stringIdValue, second.value.intValue);
+                    break;
+                case VT_INVALID:
+                    break;
             }
 
             stack.resize(stack.size() - signature->size() + 1);
             stack.push_back(top);
-
-            std::cerr << ("native calls in the interpreter are partially supported");
-
-            //assert(false);
             break;
         case BC_RETURN:
             oldScope = is;
             is = is->parent;
-            variablesPtr = &(is->variables);
             delete (oldScope);
             if (is == nullptr) {
                 return false;
             }
+            variablesOffset = is->variableOffset;
             break;
         case BC_BREAK:
         case BC_LAST:
@@ -495,3 +533,17 @@ uint16_t mathvm::BytecodeRFInterpreterCode::emptyString() {
     return emptyStringId;
 }
 
+int64_t mathvm::nativeLinks[UINT16_MAX];
+mathvm::nativePtr mathvm::nativeFunctions[UINT16_MAX];
+
+int64_t mathvm::BytecodeRFInterpreterCode::getStringConstantPtrById(uint16_t id) {
+    if (nativeLinks[id] != 0) {
+        return nativeLinks[id];
+    } else {
+        return (int64_t) &(constantById(id)[0]);
+    }
+}
+
+void mathvm::BytecodeRFInterpreterCode::registerStringConstantPtrById(uint16_t id, int64_t ptr) {
+    nativeLinks[id] = ptr;
+}
