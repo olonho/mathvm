@@ -492,22 +492,22 @@ Status* InterpreterCodeImpl::execute(vector<Var *> &vars) {
                 break;
             }
             case BC_RETURN: {
-                if (currentFunction->id() == 0) { // toplevel can have return <why not>, we just finish execution
-                    goto FINISH;
-                }
-
-                currentIndex = return_address.top();
-                return_address.pop();
-                nextChildToVisitInScope.pop();
-
                 // pop all the nested scope variables
                 BytecodeScope* rootScope = _info.funcToScope.at(currentFunction->id());
                 while (currentScope != rootScope) {
                     currentScope->exit();
                     currentScope = currentScope->parent;
                 }
+
+                if (currentFunction->id() == 0) { // toplevel can have return <why not>, we just finish execution
+                    goto FINISH;
+                }
                 rootScope->exit();
 
+                currentIndex = return_address.top();
+                return_address.pop();
+                nextChildToVisitInScope.pop();
+                
                 currentFunction = callStack.top();
                 callStack.pop();
                 currentScope = _info.funcToScope.at(currentFunction->id());
