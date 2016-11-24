@@ -1,8 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-
-#include "mathvm.h"
+#include "my_interpreter.h"
 
 using namespace mathvm;
 
@@ -48,6 +47,9 @@ int main(int argc, char** argv) {
   } else {
     code->disassemble(std::cout);
   }
+
+  std::vector<Var*> no_vars{};
+  dynamic_cast<InterpreterCodeImpl*>(code)->execute(no_vars);
 
   return 0;
 }

@@ -40,7 +40,7 @@ Status* BytecodeTranslatorImpl::translate(const std::string& program, Code** cod
   }
 
   if (*code == nullptr) {
-    *code = new InterpreterCodeImpl{};
+    *code = new InterpreterCodeImpl{std::cout};
   }
 
 
@@ -170,7 +170,7 @@ void MathVmTranslator::visitIntLiteralNode(IntLiteralNode* node) {
     bytecode->addInt64(value);
   }
 
-  _typeOfTopOfStack = VT_DOUBLE;
+  _typeOfTopOfStack = VT_INT;
 }
 
 void MathVmTranslator::visitLoadNode(LoadNode* node) {
@@ -456,7 +456,6 @@ void MathVmTranslator::handleArithmeticOperation(BinaryOpNode* node) {
   TokenKind kind = node->kind();
 
   visitNodeWithResult(node->left());
-  node->left()->visit(this);
 
   VarType leftType = _typeOfTopOfStack;
 
@@ -478,6 +477,10 @@ void MathVmTranslator::handleArithmeticOperation(BinaryOpNode* node) {
                     std::string("unsupported arithmetical operation: ") + typeToName(leftType) +
                     " " + tokenStr(kind) + " " + typeToName(rightType), node->position());
 
+  if (kind == tSUB || kind == tDIV) {
+    bytecode->addInsn(BC_SWAP);
+  }
+
   bytecode->addInsn(instruction);
 
   _typeOfTopOfStack = commonType;
@@ -494,13 +497,10 @@ void MathVmTranslator::handleLogicalOperation(BinaryOpNode* node) {
     visitNodeWithResult(node->left());
     convertTopOfStackTo(VT_INT);
     bytecode->addBranch(BC_IFICMPE, setFalse);
-    bytecode->addInsn(BC_POP);
 
     visitNodeWithResult(node->right());
     convertTopOfStackTo(VT_INT);
     bytecode->addBranch(BC_IFICMPE, setFalse);
-    bytecode->addInsn(BC_POP);
-    bytecode->addInsn(BC_POP);
     bytecode->addInsn(BC_ILOAD1);
     bytecode->addBranch(BC_JA, exit);
 
@@ -547,7 +547,8 @@ void MathVmTranslator::handleBitwiseOperation(BinaryOpNode* node) {
 
   TokenKind kind = node->kind();
   Instruction instruction = getBitwiseBinaryInstruction(kind);
-  translationAssert(false, std::string("unsupported bitwise operation: ") + " " + tokenStr(kind), node->position());
+  translationAssert(instruction != BC_INVALID, std::string("unsupported bitwise operation: ") + " " + tokenStr(kind),
+                    node->position());
 
   getBytecode()->addInsn(instruction);
 }
