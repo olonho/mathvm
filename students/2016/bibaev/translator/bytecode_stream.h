@@ -8,8 +8,6 @@ public:
 
   mathvm::Instruction readInstruction();
 
-  void skip(uint32_t count);
-
   uint16_t readUInt16();
 
   double readDouble();
@@ -21,6 +19,10 @@ public:
   bool hasNext();
 
   uint32_t length() const;
+
+  int16_t readInt16();
+
+  void jump(int16_t offset);
 
 private:
   mathvm::Bytecode* _bytecode;

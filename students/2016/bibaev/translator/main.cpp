@@ -43,9 +43,9 @@ int main(int argc, char** argv) {
       return 4;
     }
 
-    code->disassemble(filestream);
+//    code->disassemble(filestream);
   } else {
-    code->disassemble(std::cout);
+//    code->disassemble(std::cout);
   }
 
   std::vector<Var*> no_vars{};

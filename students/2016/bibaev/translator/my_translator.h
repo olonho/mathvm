@@ -54,6 +54,8 @@ private:
 
   void swap();
 
+  void pop(size_t count = 1);
+
   inline Context* currentContext() const {
     return _context;
   }

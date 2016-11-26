@@ -8,12 +8,12 @@
 using namespace mathvm;
 
 template<typename T>
-static int64_t comparePrimitive(T left, T right) {
-  if (left == right) {
+static int64_t comparePrimitive(T upper, T lower) {
+  if (upper == lower) {
     return 0;
   }
 
-  return left < right ? -1 : 1;
+  return upper > lower ? 1 : -1;
 }
 
 struct BytecodeEvaluator {
@@ -34,7 +34,8 @@ struct BytecodeEvaluator {
 
     BytecodeStream bytecodeStream(function->bytecode());
     while (bytecodeStream.hasNext()) {
-      switch (bytecodeStream.readInstruction()) {
+      Instruction instruction = bytecodeStream.readInstruction();
+      switch (instruction) {
         case BC_INVALID:
           throw std::runtime_error("invalid instruction found");
         case BC_DLOAD:
@@ -74,15 +75,15 @@ struct BytecodeEvaluator {
           _stack.pushInt(_stack.popInt() + _stack.popInt());
           break;
         case BC_DSUB: {
-          double left = _stack.popDouble();
-          double right = _stack.popDouble();
-          _stack.pushDouble(left - right);
+          double upper = _stack.popDouble();
+          double lower = _stack.popDouble();
+          _stack.pushDouble(upper - lower);
         }
           break;
         case BC_ISUB: {
-          int64_t left = _stack.popInt();
-          int64_t right = _stack.popInt();
-          _stack.pushInt(left - right);
+          int64_t upper = _stack.popInt();
+          int64_t lower = _stack.popInt();
+          _stack.pushInt(upper - lower);
         }
           break;
         case BC_DMUL:
@@ -92,23 +93,23 @@ struct BytecodeEvaluator {
           _stack.pushInt(_stack.popInt() * _stack.popInt());
           break;
         case BC_DDIV: {
-          double left = _stack.popDouble();
-          double right = _stack.popDouble();
-          _stack.pushDouble(left / right);
-        }
+          double upper = _stack.popDouble();
+          double lower = _stack.popDouble();
+          _stack.pushDouble(upper / lower);
           break;
+        }
         case BC_IDIV: {
           int64_t upper = _stack.popInt();
           int64_t lower = _stack.popInt();
           _stack.pushInt(upper / lower);
-        }
           break;
+        }
         case BC_IMOD: {
-          int64_t left = _stack.popInt();
-          int64_t right = _stack.popInt();
-          _stack.pushInt(left % right);
-        }
+          int64_t upper = _stack.popInt();
+          int64_t lower = _stack.popInt();
+          _stack.pushInt(upper % lower);
           break;
+        }
         case BC_DNEG:
           _stack.pushDouble(-_stack.popDouble());
           break;
@@ -264,39 +265,30 @@ struct BytecodeEvaluator {
           _stack.pushInt(comparePrimitive(_stack.popInt(), _stack.popInt()));
           break;
         case BC_JA: {
-          bytecodeStream.skip(bytecodeStream.readUInt16());
+          int16_t signedOffset = bytecodeStream.readInt16() - sizeof(int16_t);
+          bytecodeStream.jump(signedOffset);
           break;
         }
-        case BC_IFICMPNE:
-          if (comparePrimitive(_stack.popInt(), _stack.popInt()) != 0) {
-            bytecodeStream.skip(bytecodeStream.readUInt16());
-          }
-          break;
-        case BC_IFICMPE:
-          if (comparePrimitive(_stack.popInt(), _stack.popInt()) == 0) {
-            bytecodeStream.skip(bytecodeStream.readUInt16());
-          }
-          break;
-        case BC_IFICMPG:
-          if (comparePrimitive(_stack.popInt(), _stack.popInt()) > 0) {
-            bytecodeStream.skip(bytecodeStream.readUInt16());
-          }
-          break;
-        case BC_IFICMPGE:
-          if (comparePrimitive(_stack.popInt(), _stack.popInt()) >= 0) {
-            bytecodeStream.skip(bytecodeStream.readUInt16());
-          }
-          break;
-        case BC_IFICMPL:
-          if (comparePrimitive(_stack.popInt(), _stack.popInt()) < 0) {
-            bytecodeStream.skip(bytecodeStream.readUInt16());
-          }
-          break;
-        case BC_IFICMPLE:
-          if (comparePrimitive(_stack.popInt(), _stack.popInt()) <= 0) {
-            bytecodeStream.skip(bytecodeStream.readUInt16());
-          }
-          break;
+
+#define CMP_INT(op) {\
+          int64_t upper = _stack.popInt(); \
+          int64_t lower = _stack.popInt(); \
+          uint16_t signedOffset = bytecodeStream.readUInt16(); \
+          if (comparePrimitive(upper, lower) op 0) { \
+            bytecodeStream.jump(signedOffset - sizeof(uint16_t)); \
+          } \
+          _stack.pushInt(lower); \
+          _stack.pushInt(upper);\
+          break; \
+      }
+
+        case BC_IFICMPNE: CMP_INT(!=)
+        case BC_IFICMPE: CMP_INT(==)
+        case BC_IFICMPG: CMP_INT(>)
+        case BC_IFICMPGE: CMP_INT(>=)
+        case BC_IFICMPL: CMP_INT(<)
+        case BC_IFICMPLE: CMP_INT(<=)
+#undef CMP_INT
         case BC_DUMP: {
           switch (_stack.topOfStackType()) {
             case mathvm::VT_DOUBLE: {
@@ -404,10 +396,14 @@ private:
 };
 
 Status* InterpreterCodeImpl::execute(std::vector<Var*>& vars) {
-  std::cerr << "TODO: Implement interpreter!." << std::endl;
   BytecodeFunction* topLevelFunction = functionByName(AstFunction::top_name);
   BytecodeEvaluator evaluator(_out, this);
 
-  evaluator.evaluate(topLevelFunction);
-  return Status::Error("Not implemented. It is next homework");
+  try {
+    evaluator.evaluate(topLevelFunction);
+  } catch (std::exception const& e) {
+    return Status::Error(e.what());
+  }
+
+  return Status::Ok();
 }

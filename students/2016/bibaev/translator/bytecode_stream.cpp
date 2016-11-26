@@ -10,10 +10,6 @@ Instruction BytecodeStream::readInstruction() {
   return _bytecode->getInsn(_pointer++);
 }
 
-void BytecodeStream::skip(uint32_t count) {
-  _pointer += count;
-}
-
 uint16_t BytecodeStream::readUInt16() {
   uint16_t result = _bytecode->getUInt16(_pointer);
   _pointer += sizeof(uint16_t);
@@ -42,4 +38,14 @@ bool BytecodeStream::hasNext() {
 
 uint32_t BytecodeStream::length() const {
   return _bytecode->length();
+}
+
+int16_t BytecodeStream::readInt16() {
+  int16_t result = _bytecode->getInt16(_pointer);
+  _pointer += sizeof(int16_t);
+  return result;
+}
+
+void BytecodeStream::jump(int16_t offset) {
+  _pointer += offset;
 }
