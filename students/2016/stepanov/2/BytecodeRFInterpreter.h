@@ -144,6 +144,25 @@ namespace mathvm {
                     break;
                 }
             }
+
+            for (size_t i = 0; i < vars.size(); ++i) {
+                auto it = topLevelVariables.find(vars[i]->name());
+                if (it != topLevelVariables.end()) {
+                    switch (vars[i]->type()) {
+                        case VT_DOUBLE:
+                            vars[i]->setDoubleValue(variables[variablesOffset + it->second].value.doubleValue);
+                            break;
+                        case VT_INT:
+                            vars[i]->setIntValue(variables[variablesOffset + it->second].value.intValue);
+                            break;
+                        case VT_STRING:
+                            vars[i]->setStringValue((char *)getStringConstantPtrById(variables[variablesOffset + it->second].value.stringIdValue));
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
             return is ? is->status : Status::Ok();
         }
 
