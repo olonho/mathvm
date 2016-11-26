@@ -1,7 +1,7 @@
 #ifndef MATHVM_BYTECODE_INTERPRETER_H
 #define MATHVM_BYTECODE_INTERPRETER_H
 
-#include "../../../include/mathvm.h"
+#include "../../../../include/mathvm.h"
 
 #include <deque>
 #include <stack>

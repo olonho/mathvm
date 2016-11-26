@@ -7,9 +7,9 @@
 
 #include <sstream>
 
-#include "../../../include/ast.h"
-#include "../../../include/mathvm.h"
-#include "../../../include/visitors.h"
+#include "../../../../include/ast.h"
+#include "../../../../include/mathvm.h"
+#include "../../../../include/visitors.h"
 
 using namespace std;
 

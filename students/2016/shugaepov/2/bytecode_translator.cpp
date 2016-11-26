@@ -1,5 +1,5 @@
-#include "../../../include/mathvm.h"
-#include "../../../vm/parser.h"
+#include "../../../../include/mathvm.h"
+#include "../../../../vm/parser.h"
 
 #include "ast_to_bytecode.h"
 

@@ -1,9 +1,9 @@
 #ifndef MATHVM_AST_TO_BYTECODE_H
 #define MATHVM_AST_TO_BYTECODE_H
 
-#include "../../../include/ast.h"
-#include "../../../include/mathvm.h"
-#include "../../../include/visitors.h"
+#include "../../../../include/ast.h"
+#include "../../../../include/mathvm.h"
+#include "../../../../include/visitors.h"
 
 #include "context.h"
 #include <deque>

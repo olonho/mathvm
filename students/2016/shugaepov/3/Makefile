@@ -1,5 +1,5 @@
 ROOT   = .
-VM_ROOT = ../../..
+VM_ROOT = ../../../..
 TEST_ROOT = $(VM_ROOT)/tests
 
 USER_CFLAGS = -std=c++11 -ggdb
@@ -13,7 +13,6 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/transformer$(OBJ_SUFF) \
    $(OBJ)/ast_to_bytecode$(OBJ_SUFF) \
    $(OBJ)/bytecode_translator$(OBJ_SUFF) \
    $(OBJ)/bytecode_interpreter$(OBJ_SUFF) \

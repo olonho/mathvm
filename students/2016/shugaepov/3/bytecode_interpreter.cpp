@@ -15,9 +15,9 @@ namespace mathvm
         {
             Instruction insn = _ctx.front().next();
 
-            size_t length;
-            const char *name = bytecodeName(insn, &length);
-            cout << name << endl;
+//            size_t length;
+//            const char *name = bytecodeName(insn, &length);
+//            cout << name << endl;
 
             execute(insn);
         }
@@ -273,8 +273,7 @@ namespace mathvm
             };
             case BC_CALLNATIVE:
             {
-
-                break;
+                throw ;
             }
             case BC_RETURN:
             {

@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <string>
 
-#include "../../../include/mathvm.h"
+#include "../../../../include/mathvm.h"
 
 namespace mathvm {
 
