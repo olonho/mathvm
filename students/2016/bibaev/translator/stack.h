@@ -9,31 +9,34 @@ class TypedStack {
 public:
   inline double popDouble() {
     assert(_types.top() == mathvm::VT_DOUBLE);
-    return pop<double>();
+    _types.pop();
+    return popVal().floating;
   }
 
   inline int64_t popInt() {
     assert(_types.top() == mathvm::VT_INT);
-    return pop<int64_t>();
+    _types.pop();
+    return popVal().integer;
   }
 
   inline uint16_t popUInt16() {
     assert(_types.top() == mathvm::VT_STRING);
-    return pop<uint16_t>();
+    _types.pop();
+    return popVal().string;
   }
 
   inline void pushDouble(double val) {
-    push(val);
+    _stack.push(ValueUnion(val));
     _types.push(mathvm::VT_DOUBLE);
   }
 
   inline void pushInt(int64_t val) {
-    push(val);
+    _stack.push(ValueUnion(val));
     _types.push(mathvm::VT_INT);
   }
 
   inline void pushUInt16(uint16_t val) {
-    push(val);
+    _stack.push(ValueUnion(val));
     _types.push(mathvm::VT_STRING);
   }
 
@@ -47,18 +50,24 @@ public:
 
 private:
 
-  template<typename T>
-  void swapInternal(mathvm::VarType lowerType);
+  union ValueUnion {
+    int64_t integer;
+    double floating;
+    uint16_t string;
 
-  template<typename UPPER_TYPE, typename LOWER_TYPE>
-  void swapTyped();
+    ValueUnion(int64_t value) : integer(value) {};
 
-  template<typename T>
-  T pop();
+    ValueUnion(double value) : floating(value) {};
 
-  template<typename T>
-  void push(T value);
+    ValueUnion(uint16_t value) : string(value) {};
+  };
 
-  std::stack<uint8_t> _stack;
+  inline ValueUnion popVal() {
+    ValueUnion val = _stack.top();
+    _stack.pop();
+    return val;
+  }
+
+  std::stack<ValueUnion> _stack;
   std::stack<mathvm::VarType> _types;
 };
