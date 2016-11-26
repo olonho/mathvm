@@ -19,6 +19,7 @@ namespace mathvm {
             double doubleValue;
             uint16_t stringIdValue;
         } value;
+
         StackItem() {
             value.intValue = 0;
         }
@@ -36,7 +37,7 @@ namespace mathvm {
         }
     };
 
-    static StackItem STACK_EMPTY = StackItem((int64_t)0);
+    static StackItem STACK_EMPTY = StackItem((int64_t) 0);
     extern std::vector<StackItem> variables;
 
     extern std::stack<size_t> scopeOffsets[UINT16_MAX];
@@ -50,9 +51,9 @@ namespace mathvm {
         Status *status = nullptr;
         uint32_t IP = 0;
         size_t variableOffset;
-        InterScope * parent;
+        InterScope *parent;
 
-        InterScope(BytecodeFunction *bf, InterScope * parent = nullptr);
+        InterScope(BytecodeFunction *bf, InterScope *parent = nullptr);
 
         ~InterScope();
 
@@ -68,18 +69,20 @@ namespace mathvm {
 
         inline void jump();
 
-        StackItem* variableLookup(uint16_t scope, uint16_t variable){
-            if (bf->scopeId() == scope){
+        StackItem *variableLookup(uint16_t scope, uint16_t variable) {
+            if (bf->scopeId() == scope) {
                 return &(variables[variableOffset + variable]);
             }
             else {
                 return &(variables[scopeOffsets[scope].top() + variable]);
             }
         }
-   };
+    };
 
     typedef int64_t (*nativePtr)(int64_t *);
+
     typedef double (*nativeDoublePtr)(int64_t *);
+
     typedef double (*nativeVoidPtr)(int64_t *);
 
     extern int64_t nativeLinks[UINT16_MAX];
@@ -90,23 +93,50 @@ namespace mathvm {
         size_t variablesOffset;
         std::vector<StackItem> stack;
         InterScope *is = nullptr;
+        std::map<std::string, uint16_t> topLevelVariables;
 
         bool evaluateThis(Instruction instr);
+
         uint16_t emptyString();
+
     public:
         ~BytecodeRFInterpreterCode() {
-            delete(is);
+            delete (is);
         }
+
         BytecodeRFInterpreterCode() {
             stack.reserve(100);
-            memset(nativeLinks, 0, sizeof (int64_t)*UINT16_MAX);
-            memset(nativeFunctions, 0, sizeof (nativePtr)*UINT16_MAX);
+            memset(nativeLinks, 0, sizeof(int64_t) * UINT16_MAX);
+            memset(nativeFunctions, 0, sizeof(nativePtr) * UINT16_MAX);
+        }
+
+        void saveVariablesNamesForOuterExecution(std::map<std::string, uint16_t> &topScopeVariables) {
+            topLevelVariables = topScopeVariables;
         }
 
         virtual Status *execute(vector<Var *> &vars) override {
             BytecodeFunction *topFunction = (BytecodeFunction *) functionByName(AstFunction::top_name);
             is = new InterScope(topFunction);
             variablesOffset = is->variableOffset;
+
+            for (size_t i = 0; i < vars.size(); ++i) {
+                auto it = topLevelVariables.find(vars[i]->name());
+                if (it != topLevelVariables.end()) {
+                    switch (vars[i]->type()) {
+                        case VT_DOUBLE:
+                            variables[variablesOffset + it->second] = vars[i]->getDoubleValue();
+                            break;
+                        case VT_INT:
+                            variables[variablesOffset + it->second] = vars[i]->getIntValue();
+                            break;
+                        case VT_STRING:
+                            variables[variablesOffset + it->second] = makeStringConstant(vars[i]->getStringValue());
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
 
             Instruction nextInstruction;
             while ((nextInstruction = is->next()) != BC_STOP) {

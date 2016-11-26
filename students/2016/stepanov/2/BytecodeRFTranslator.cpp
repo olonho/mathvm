@@ -6,8 +6,9 @@
 #include "ScopeData.h"
 #include "VmException.h"
 #include "RFUtils.h"
+#include "BytecodeRFInterpreter.h"
 
-mathvm::BytecodeRFTranslator::~BytecodeRFTranslator() {}
+mathvm::BytecodeRFTranslator::~BytecodeRFTranslator() { }
 
 mathvm::Status *mathvm::BytecodeRFTranslator::translate(const string &program, mathvm::Code **code) {
     if (code == nullptr) {
@@ -518,7 +519,8 @@ void mathvm::BytecodeRfVisitor::visitNativeCallNode(NativeCallNode *node) {
         throw new VmException(("cannot find native call for " + node->nativeName()).c_str(), node->position());
     }
 
-    uint16_t nativeId = _code->makeNativeFunction(node->nativeName() + mathvm::manglingName(node->nativeSignature()), node->nativeSignature(), exportedFunction);
+    uint16_t nativeId = _code->makeNativeFunction(node->nativeName() + mathvm::manglingName(node->nativeSignature()),
+                                                  node->nativeSignature(), exportedFunction);
     Bytecode *bc = currentSd->containedFunction->bytecode();
 
     for (uint32_t i = node->nativeSignature().size(); i >= 2; i--) {
@@ -542,9 +544,19 @@ void mathvm::BytecodeRfVisitor::visitBlockNode(BlockNode *node) {
     }
     old_sd->updateNestedStack(currentSd->getCountVariablesInScope());
     old_sd->topType = currentSd->topType;
+    ///dirt =(
+    //But if we really really want have variables....
+    if (currentSd->scope_id == 1) {
+        //it is very strange, I think
+        if (BytecodeRFInterpreterCode *v = dynamic_cast<BytecodeRFInterpreterCode *>(_code)) {
+            // code was safely casted to NewType
+            v->saveVariablesNamesForOuterExecution(currentSd->variables);
+        }
+    }
     delete currentSd;
     currentSd = old_sd;
 }
+
 
 void mathvm::BytecodeRfVisitor::visitFunctionNode(FunctionNode *node) {
     node->body()->visit(this);
@@ -802,7 +814,7 @@ void mathvm::BytecodeRfVisitor::prepareTopType(VarType param) {
 }
 
 void mathvm::BytecodeRfVisitor::dumpByteCode(ostream &out) {
-   _code->disassemble(out);
+    _code->disassemble(out);
 }
 
 
