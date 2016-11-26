@@ -1,50 +1,55 @@
+#include <dlfcn.h>
 #include "vm.h"
+#include <unordered_map>
+
 
 namespace mathvm {
 
+#define DBG_ADDR(label, addr) \
+cout << endl << label << " 0x" << hex << reinterpret_cast<uint64_t>(addr) << endl;
+
 #define D_BINOP(op) \
-    double left = stack_.back().double_value; stack_.pop_back(); \
-    double right = stack_.back().double_value; stack_.pop_back(); \
-    stack_.push_back(StackUnit(static_cast<double>(left op right)));
+double left = stack_.back().double_value; stack_.pop_back(); \
+double right = stack_.back().double_value; stack_.pop_back(); \
+stack_.push_back(StackUnit(static_cast<double>(left op right)));
 
 #define I_BINOP(op) \
-    int64_t left = stack_.back().int_value; stack_.pop_back(); \
-    int64_t right = stack_.back().int_value; stack_.pop_back(); \
-    stack_.push_back(StackUnit(static_cast<int64_t>(left op right)));
+int64_t left = stack_.back().int_value; stack_.pop_back(); \
+int64_t right = stack_.back().int_value; stack_.pop_back(); \
+stack_.push_back(StackUnit(static_cast<int64_t>(left op right)));
 
 #define v64(val) StackUnit(static_cast<int64_t>(val))
-#define v16(val) StackUnit(static_cast<uint16_t>(val))
 
 #define READPOP(type) \
-    stack_.back().type; stack_.pop_back()
+stack_.back().type; stack_.pop_back()
 
 #define GETLOCAL(id) \
-    locals_.top().locals[id]
+locals_.top().locals[id]
 
 #define STORELOCAL(id) \
-    locals_.top().locals[id] = stack_.back(); \
-    stack_.pop_back();
+locals_.top().locals[id] = stack_.back(); \
+stack_.pop_back();
 
 #define CCMP(a, b) ((a == b) ? 0L : (a > b ? 1L : -1L))
 
 #define IIFCMP(sign) \
-    int64_t left = READPOP(int_value); \
-    int64_t right = READPOP(int_value); \
-    int16_t label = bytecode().getInt16(ip_ + 1); \
-    if (left sign right) { \
-        ip_offset = 0; \
-        ip_ += 1 + label; \
-    }
+int64_t left = READPOP(int_value); \
+int64_t right = READPOP(int_value); \
+int16_t label = bytecode().getInt16(ip + 1); \
+if (left sign right) { \
+    ip_offset = 0; \
+    ip += 1 + label; \
+}
 
 static const struct {
-    const char *name;
-    Instruction insn;
-    uint8_t length;
-} names[] = {
+        const char *name;
+        Instruction insn;
+        uint8_t length;
+    } names[] = {
 #define BC_NAME(b, d, l) {#b, BC_##b, l},
-        FOR_BYTECODES(BC_NAME)};
+            FOR_BYTECODES(BC_NAME)};
 
-vm::vm(mathvm::Code& code, ostream& output)
+vm::vm(mathvm::Code &code, ostream &output)
         : code_(code), output_(output) {
     stack_.reserve(STACK_SIZE);
 
@@ -59,41 +64,39 @@ vm::vm(mathvm::Code& code, ostream& output)
     contexts_.resize(functions_count);
 }
 
-void vm::run() {
+int vm::run() {
     function_stack_.push(dynamic_cast<BytecodeFunction *>(code_.functionById(0)));
     uint32_t locals_number = function_stack_.top()->localsNumber();
-
-    ip_ = 0;
     locals_.push(details::Context(locals_number));
     contexts_[0].push(&locals_.top());
     call_stack_.push(0);
 
-    repl();
+    return repl();
 }
 
-void vm::repl() {
+int vm::repl() {
     using namespace details;
+    uint32_t ip = 0;
     while (true) {
-        Instruction instruction = bytecode().getInsn(ip_);
+        Instruction instruction = bytecode().getInsn(ip);
         int32_t ip_offset = names[instruction].length;
         switch (instruction) {
             case BC_DLOAD:
-                stack_.push_back(bytecode().getDouble(ip_ + 1));
+                stack_.push_back(bytecode().getDouble(ip + 1));
                 break;
             case BC_ILOAD:
-                stack_.push_back(bytecode().getInt64(ip_ + 1));
+                stack_.push_back(bytecode().getInt64(ip + 1));
                 break;
             case BC_SLOAD:
-                stack_.push_back(bytecode().getUInt16(ip_ + 1));
+                stack_.push_back(
+                        reinterpret_cast<int64_t>(code_.constantById(bytecode().getUInt16(ip + 1)).c_str()));
                 break;
             case BC_DLOAD0:
                 stack_.push_back(0.0);
                 break;
             case BC_ILOAD0:
-                stack_.push_back(v64(0));
-                break;
             case BC_SLOAD0:
-                stack_.push_back(v16(0));
+                stack_.push_back(v64(0));
                 break;
             case BC_DLOAD1:
                 stack_.push_back(1.0);
@@ -172,8 +175,9 @@ void vm::repl() {
                 break;
             }
             case BC_SPRINT: {
-                uint16_t id = READPOP(id);
-                output_ << code_.constantById(id);
+                int64_t value = READPOP(int_value);
+                char const *str = reinterpret_cast<char const *>(value);
+                output_ << str;
                 break;
             }
             case BC_I2D: {
@@ -184,13 +188,12 @@ void vm::repl() {
             case BC_D2I: {
                 double value = READPOP(double_value);
                 int64_t result = static_cast<int64_t>(value);
-                stack_.push_back(result);
+                stack_.push_back(v64(result));
                 break;
             }
             case BC_S2I: {
-                uint16_t id = READPOP(id);
-                int64_t result = reinterpret_cast<int64_t>(&code_.constantById(id));
-                stack_.push_back(result);
+                int64_t result = READPOP(int_value);
+                stack_.push_back(v64(result));
                 break;
             }
             case BC_SWAP: {
@@ -246,14 +249,14 @@ void vm::repl() {
             case BC_LOADSVAR:
             case BC_LOADIVAR:
             case BC_LOADDVAR: {
-                uint16_t id = bytecode().getUInt16(ip_ + 1);
+                uint16_t id = bytecode().getUInt16(ip + 1);
                 stack_.push_back(locals_.top().locals[id]);
                 break;
             }
             case BC_STORESVAR:
             case BC_STOREIVAR:
             case BC_STOREDVAR: {
-                uint16_t id = bytecode().getUInt16(ip_ + 1);
+                uint16_t id = bytecode().getUInt16(ip + 1);
                 locals_.top().locals[id] = stack_.back();
                 stack_.pop_back();
                 break;
@@ -261,16 +264,16 @@ void vm::repl() {
             case BC_LOADCTXSVAR:
             case BC_LOADCTXIVAR:
             case BC_LOADCTXDVAR: {
-                uint16_t ctx = bytecode().getUInt16(ip_ + 1);
-                uint16_t id = bytecode().getUInt16(ip_ + 3);
+                uint16_t ctx = bytecode().getUInt16(ip + 1);
+                uint16_t id = bytecode().getUInt16(ip + 3);
                 stack_.push_back(contexts_[ctx].top()->locals[id]);
                 break;
             }
             case BC_STORECTXSVAR:
             case BC_STORECTXIVAR:
             case BC_STORECTXDVAR: {
-                uint16_t ctx = bytecode().getUInt16(ip_ + 1);
-                uint16_t id = bytecode().getUInt16(ip_ + 3);
+                uint16_t ctx = bytecode().getUInt16(ip + 1);
+                uint16_t id = bytecode().getUInt16(ip + 3);
                 contexts_[ctx].top()->locals[id] = stack_.back();
                 stack_.pop_back();
                 break;
@@ -290,7 +293,7 @@ void vm::repl() {
                 break;
             }
             case BC_JA: {
-                ip_ += 1 + bytecode().getInt16(ip_ + 1);
+                ip += 1 + bytecode().getInt16(ip + 1);
                 ip_offset = 0;
                 break;
             }
@@ -323,11 +326,11 @@ void vm::repl() {
                 break;
             }
             case BC_STOP: {
-                output_ << std::endl << "Execution stopeed" << std::endl;
-                std::exit(0);
+                output_ << endl << "Execution stopeed" << endl;
+                exit(0);
             }
             case BC_CALL: {
-                uint16_t id = bytecode().getUInt16(ip_ + 1);
+                uint16_t id = bytecode().getUInt16(ip + 1);
                 BytecodeFunction *function = dynamic_cast<BytecodeFunction *>(code_.functionById(id));
 
                 locals_.push(function->localsNumber());
@@ -338,24 +341,39 @@ void vm::repl() {
                 }
 
                 stack_frames_.push(stack_.size());
-                call_stack_.push(ip_ + names[instruction].length);
-                ip_ = 0;
+                call_stack_.push(ip + names[instruction].length);
+                ip = 0;
                 ip_offset = 0;
 
                 function_stack_.push(function);
                 break;
             }
             case BC_CALLNATIVE: {
-//                uint16_t id = bytecode().getUInt16(ip_ + 1);
-//                std::string const *name;
-//                Signature const *signature;
-//                void const* ptr = code_.nativeById(id, &signature, &name);
-                // TODO : make call
+                uint16_t id = bytecode().getUInt16(ip + 1);
+
+                string const* name;
+                Signature const* signature;
+                native_handler handler = reinterpret_cast<native_handler>(code_.nativeById(id, &signature, &name));
+
+                size_t args_count = signature->size() - 1;
+                StackUnit *args_ptr = 0;
+                if (args_count > 0) {
+                    args_ptr = &stack_[stack_.size() - args_count];
+                }
+
+                void const *result = handler(args_ptr);
+                for (size_t i = 0; i < args_count; ++i) {
+                    stack_.pop_back();
+                }
+
+                if (signature->at(0).first != VT_VOID) {
+                    stack_.push_back(StackUnit(reinterpret_cast<int64_t>(result)));
+                }
                 break;
             }
             case BC_RETURN: {
                 if (function_stack_.size() == 1) {
-                    return;
+                    return 0;
                 }
 
                 uint16_t current_id = function_stack_.top()->id();
@@ -370,29 +388,24 @@ void vm::repl() {
                 locals_.pop();
 
                 contexts_[current_id].pop();
-                ip_ = call_stack_.top();
+                ip = call_stack_.top();
                 call_stack_.pop();
                 ip_offset = 0;
                 break;
             }
-            case BC_BREAK:
-                // TBD
-                break;
-            case BC_INVALID:
-                assert(false);
-                break;
             case BC_LAST:
-                assert(false);
+            case BC_INVALID:
+                return -1;
+            default:
                 break;
         }
 
-        ip_ += ip_offset;
+        ip += ip_offset;
     }
 }
 
-Bytecode& vm::bytecode() {
+Bytecode &vm::bytecode() {
     return *function_stack_.top()->bytecode();
 }
-
 
 }

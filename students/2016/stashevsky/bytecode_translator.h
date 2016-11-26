@@ -8,8 +8,6 @@
 #include <unordered_map>
 
 namespace mathvm {
-
-
 namespace details {
 
 struct VarLocation {
@@ -31,11 +29,11 @@ struct TranslatorVisitor : public AstBaseVisitor {
 
 private:
     InterpreterCodeImpl &code_;
-    std::stack<BytecodeFunction*> function_scope_;
-    std::stack<Scope*> scopes_;
-    std::stack<VarType> stack_types_;
-    std::map<std::string, std::stack<VarLocation>> locals_;
-    std::stack<uint32_t> stack_size_;
+    stack<BytecodeFunction*> function_scope_;
+    stack<Scope*> scopes_;
+    stack<VarType> stack_types_;
+    unordered_map<string, stack<VarLocation>> locals_;
+    stack<uint32_t> stack_size_;
 
     void translateFunction(AstFunction &function);
     VarType eval(AstNode &node);
@@ -60,5 +58,4 @@ private:
 };
 
 }
-
 }

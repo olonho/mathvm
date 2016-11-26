@@ -3,7 +3,13 @@
 namespace mathvm {
 
 Status *InterpreterCodeImpl::execute(vector<Var *> &vars) {
-    return nullptr;
+    vm executor(*this, cout);
+
+    if (executor.run() < 0) {
+        return Status::Error("");
+    }
+
+    return Status::Ok();
 }
 
 }

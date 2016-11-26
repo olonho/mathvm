@@ -1,6 +1,8 @@
 #pragma once
 
+#include <ast.h>
 #include "mathvm.h"
+#include "vm.h"
 
 namespace mathvm {
 
@@ -9,7 +11,7 @@ public:
     InterpreterCodeImpl() {}
     virtual ~InterpreterCodeImpl() {}
 
-    Status* execute(vector<Var*>& vars);
+    virtual Status* execute(vector<Var*>& vars);
 private:
 };
 

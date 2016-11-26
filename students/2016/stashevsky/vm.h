@@ -5,18 +5,18 @@
 #include <iostream>
 #include <vector>
 #include <stack>
+#include <ast.h>
+
+#include "asmjit/asmjit.h"
 
 namespace mathvm {
-
 namespace details {
 
 union StackUnit {
-    StackUnit() : id(0) {}
+    StackUnit() : int_value(0) {}
     StackUnit(double v) : double_value(v) {}
     StackUnit(int64_t v) : int_value(v) {}
-    StackUnit(uint16_t v) : id(v) {}
 
-    uint16_t id;
     double double_value;
     int64_t int_value;
 };
@@ -26,9 +26,8 @@ struct Context {
         locals.resize(locals_number);
     }
 
-    std::vector<StackUnit> locals;
+    vector<StackUnit> locals;
 };
-
 
 }
 
@@ -37,25 +36,28 @@ struct vm
     vm(Code &code, ostream& output);
     ~vm() {}
 
-    void run();
+    int run();
 
 private:
+    typedef void* (*native_handler)(void const*);
+
     uint32_t STACK_SIZE = 1024 * 1024;
 
     Code &code_;
     ostream& output_;
 
-    uint32_t ip_ = 0;
+    vector<details::StackUnit> stack_;
+    stack<uint32_t> call_stack_;
+    stack<BytecodeFunction*> function_stack_;
+    stack<uint64_t> stack_frames_;
 
-    std::vector<details::StackUnit> stack_;
-    std::stack<uint32_t> call_stack_;
-    std::stack<BytecodeFunction*> function_stack_;
-    std::stack<uint64_t> stack_frames_;
+    stack<details::Context> locals_;
+    vector<stack<details::Context*>> contexts_;
 
-    std::stack<details::Context> locals_;
-    std::vector<std::stack<details::Context*>> contexts_;
+    asmjit::JitRuntime runtime_;
 
-    void repl();
+    int repl();
+
     Bytecode& bytecode();
 };
 
