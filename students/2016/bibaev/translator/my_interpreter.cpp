@@ -68,62 +68,44 @@ struct BytecodeEvaluator {
         case BC_ILOADM1:
           _stack.pushInt(-1);
           break;
-        case BC_DADD:
-          _stack.pushDouble(_stack.popDouble() + _stack.popDouble());
-          break;
-        case BC_IADD:
-          _stack.pushInt(_stack.popInt() + _stack.popInt());
-          break;
-        case BC_DSUB: {
-          double upper = _stack.popDouble();
-          double lower = _stack.popDouble();
-          _stack.pushDouble(upper - lower);
-        }
-          break;
-        case BC_ISUB: {
-          int64_t upper = _stack.popInt();
-          int64_t lower = _stack.popInt();
-          _stack.pushInt(upper - lower);
-        }
-          break;
-        case BC_DMUL:
-          _stack.pushDouble(_stack.popDouble() * _stack.popDouble());
-          break;
-        case BC_IMUL:
-          _stack.pushInt(_stack.popInt() * _stack.popInt());
-          break;
-        case BC_DDIV: {
-          double upper = _stack.popDouble();
-          double lower = _stack.popDouble();
-          _stack.pushDouble(upper / lower);
-          break;
-        }
-        case BC_IDIV: {
-          int64_t upper = _stack.popInt();
-          int64_t lower = _stack.popInt();
-          _stack.pushInt(upper / lower);
-          break;
-        }
-        case BC_IMOD: {
-          int64_t upper = _stack.popInt();
-          int64_t lower = _stack.popInt();
-          _stack.pushInt(upper % lower);
-          break;
-        }
+
+#define BIN_OP_DOUBLE(op) {\
+          double upper = _stack.popDouble();\
+          double lower = _stack.popDouble();\
+          _stack.pushDouble(upper op lower);\
+          break;\
+      }
+
+        case BC_DADD: BIN_OP_DOUBLE(+)
+        case BC_DSUB: BIN_OP_DOUBLE(-)
+        case BC_DMUL: BIN_OP_DOUBLE(*)
+        case BC_DDIV: BIN_OP_DOUBLE(/)
+
+#undef BIN_OP_DOUBLE
+
+#define BIN_OP_INT(op) {\
+          int64_t upper = _stack.popInt();\
+          int64_t lower = _stack.popInt();\
+          _stack.pushInt(upper op lower);\
+          break;\
+      }
+
+        case BC_IADD: BIN_OP_INT(+)
+        case BC_ISUB: BIN_OP_INT(-)
+        case BC_IMUL: BIN_OP_INT(*)
+        case BC_IDIV: BIN_OP_INT(/)
+        case BC_IMOD: BIN_OP_INT(%)
+        case BC_IAOR: BIN_OP_INT(|)
+        case BC_IAAND: BIN_OP_INT(&)
+        case BC_IAXOR: BIN_OP_INT(^)
+
+#undef BIN_OP_INT
+
         case BC_DNEG:
           _stack.pushDouble(-_stack.popDouble());
           break;
         case BC_INEG:
           _stack.pushInt(-_stack.popInt());
-          break;
-        case BC_IAOR:
-          _stack.pushInt(_stack.popInt() | _stack.popInt());
-          break;
-        case BC_IAAND:
-          _stack.pushInt(_stack.popInt() & _stack.popInt());
-          break;
-        case BC_IAXOR:
-          _stack.pushInt(_stack.popInt() ^ _stack.popInt());
           break;
         case BC_IPRINT:
           _out << _stack.popInt();
@@ -221,49 +203,96 @@ struct BytecodeEvaluator {
         case BC_STORESVAR3:
           _stringRegister[3] = _stack.popUInt16();
           break;
-        case BC_LOADDVAR:
-          // TODO: Do not run read action in function arguments
-          _stack.pushDouble(loadDoubleVariable(_currentContextId, bytecodeStream.readUInt16()));
+        case BC_LOADDVAR: {
+          uint16_t contextId = _currentContextId;
+          uint16_t variableId = bytecodeStream.readUInt16();
+          _stack.pushDouble(getDoubleVariable(contextId, variableId));
           break;
-        case BC_LOADIVAR:
-          _stack.pushInt(loadIntVariable(_currentContextId, bytecodeStream.readUInt16()));
+        }
+        case BC_LOADIVAR: {
+          uint16_t contextId = _currentContextId;
+          uint16_t variableId = bytecodeStream.readUInt16();
+          _stack.pushInt(getIntVariable(contextId, variableId));
           break;
-        case BC_LOADSVAR:
-          _stack.pushUInt16(loadUIntVariable(_currentContextId, bytecodeStream.readUInt16()));
+        }
+        case BC_LOADSVAR: {
+          uint16_t contextId = _currentContextId;
+          uint16_t variableId = bytecodeStream.readUInt16();
+          _stack.pushUInt16(getUIntVariable(contextId, variableId));
           break;
-        case BC_STOREDVAR:
-          storeDoubleVariable(_currentContextId, bytecodeStream.readUInt16(), _stack.popDouble());
+        }
+        case BC_STOREDVAR: {
+          uint16_t contextId = _currentContextId;
+          uint16_t variableId = bytecodeStream.readUInt16();
+          double value = _stack.popDouble();
+          putDoubleVariable(contextId, variableId, value);
           break;
-        case BC_STOREIVAR:
-          storeIntVariable(_currentContextId, bytecodeStream.readUInt16(), _stack.popInt());
+        }
+        case BC_STOREIVAR: {
+          uint16_t contextId = _currentContextId;
+          uint16_t variableId = bytecodeStream.readUInt16();
+          int64_t value = _stack.popInt();
+          putIntVariable(contextId, variableId, value);
           break;
-        case BC_STORESVAR:
-          storeStringVariable(_currentContextId, bytecodeStream.readUInt16(), _stack.popUInt16());
+        }
+        case BC_STORESVAR: {
+          uint16_t contextId = _currentContextId;
+          uint16_t variableId = bytecodeStream.readUInt16();
+          uint16_t value = _stack.popUInt16();
+          putStringVariable(contextId, variableId, value);
           break;
-        case BC_LOADCTXDVAR:
-          _stack.pushDouble(loadDoubleVariable(bytecodeStream.readUInt16(), bytecodeStream.readUInt16()));
+        }
+        case BC_LOADCTXDVAR: {
+          uint16_t contextId = bytecodeStream.readUInt16();
+          uint16_t variableId = bytecodeStream.readUInt16();
+          _stack.pushDouble(getDoubleVariable(contextId, variableId));
           break;
-        case BC_LOADCTXIVAR:
-          _stack.pushInt(loadIntVariable(bytecodeStream.readUInt16(), bytecodeStream.readUInt16()));
+        }
+        case BC_LOADCTXIVAR: {
+          uint16_t contextId = bytecodeStream.readUInt16();
+          uint16_t variableId = bytecodeStream.readUInt16();
+          _stack.pushInt(getIntVariable(contextId, variableId));
           break;
-        case BC_LOADCTXSVAR:
-          _stack.pushUInt16(loadUIntVariable(bytecodeStream.readUInt16(), bytecodeStream.readUInt16()));
+        }
+        case BC_LOADCTXSVAR: {
+          uint16_t contextId = bytecodeStream.readUInt16();
+          uint16_t variableId = bytecodeStream.readUInt16();
+          _stack.pushUInt16(getUIntVariable(contextId, variableId));
           break;
-        case BC_STORECTXDVAR:
-          storeDoubleVariable(bytecodeStream.readUInt16(), bytecodeStream.readUInt16(), _stack.popDouble());
+        }
+        case BC_STORECTXDVAR: {
+          uint16_t contextId = bytecodeStream.readUInt16();
+          uint16_t variableId = bytecodeStream.readUInt16();
+          double value = _stack.popDouble();
+          putDoubleVariable(contextId, variableId, value);
           break;
-        case BC_STORECTXIVAR:
-          storeIntVariable(bytecodeStream.readUInt16(), bytecodeStream.readUInt16(), _stack.popInt());
+        }
+        case BC_STORECTXIVAR: {
+          uint16_t contextId = bytecodeStream.readUInt16();
+          uint16_t variableId = bytecodeStream.readUInt16();
+          int64_t value = _stack.popInt();
+          putIntVariable(contextId, variableId, value);
           break;
-        case BC_STORECTXSVAR:
-          storeStringVariable(bytecodeStream.readUInt16(), bytecodeStream.readUInt16(), _stack.popUInt16());
+        }
+        case BC_STORECTXSVAR: {
+          uint16_t contextId = bytecodeStream.readUInt16();
+          uint16_t variableId = bytecodeStream.readUInt16();
+          uint16_t value = _stack.popUInt16();
+          putStringVariable(contextId, variableId, value);
           break;
-        case BC_DCMP:
-          _stack.pushInt(comparePrimitive(_stack.popDouble(), _stack.popDouble()));
+        }
+        case BC_DCMP: {
+          double upper = _stack.popDouble();
+          double lower = _stack.popDouble();
+          _stack.pushInt(comparePrimitive(upper, lower));
           break;
-        case BC_ICMP:
-          _stack.pushInt(comparePrimitive(_stack.popInt(), _stack.popInt()));
+        }
+        case BC_ICMP: {
+          int64_t upper = _stack.popInt();
+          int64_t lower = _stack.popInt();
+          _stack.pushInt(comparePrimitive(upper, lower));
           break;
+        }
         case BC_JA: {
           int16_t signedOffset = bytecodeStream.readInt16() - sizeof(int16_t);
           bytecodeStream.jump(signedOffset);
@@ -335,7 +364,7 @@ struct BytecodeEvaluator {
 
 private:
 
-  double loadDoubleVariable(uint16_t contextId, uint16_t variableId) {
+  double getDoubleVariable(uint16_t contextId, uint16_t variableId) {
     if (contextId == _currentContextId && variableId < 4) {
       return _doubleRegister[variableId];
     }
@@ -344,7 +373,7 @@ private:
     return _context2VariableId2Value[contextId][variableId].floatingPointValue;
   }
 
-  int64_t loadIntVariable(uint16_t contextId, uint16_t variableId) {
+  int64_t getIntVariable(uint16_t contextId, uint16_t variableId) {
     if (contextId == _currentContextId && variableId < 4) {
       return _intRegister[variableId];
     }
@@ -353,7 +382,7 @@ private:
     return _context2VariableId2Value[contextId][variableId].integerValue;
   }
 
-  uint16_t loadUIntVariable(uint16_t contextId, uint16_t variableId) {
+  uint16_t getUIntVariable(uint16_t contextId, uint16_t variableId) {
     if (contextId == _currentContextId && variableId < 4) {
       return _stringRegister[variableId];
     }
@@ -362,21 +391,21 @@ private:
     return _context2VariableId2Value[contextId][variableId].stringId;
   }
 
-  void storeDoubleVariable(uint16_t contextId, uint16_t variableId, double val) {
+  void putDoubleVariable(uint16_t contextId, uint16_t variableId, double val) {
     ValueUnion value;
     value.floatingPointValue = val;
     _context2VariableId2Value[contextId][variableId] = value;
     _context2VariableId2Type[contextId][variableId] = VT_DOUBLE;
   }
 
-  void storeIntVariable(uint16_t contextId, uint16_t variableId, int64_t val) {
+  void putIntVariable(uint16_t contextId, uint16_t variableId, int64_t val) {
     ValueUnion value;
     value.integerValue = val;
     _context2VariableId2Value[contextId][variableId] = value;
     _context2VariableId2Type[contextId][variableId] = VT_INT;
   }
 
-  void storeStringVariable(uint16_t contextId, uint16_t variableId, uint16_t val) {
+  void putStringVariable(uint16_t contextId, uint16_t variableId, uint16_t val) {
     ValueUnion value;
     value.stringId = val;
     _context2VariableId2Value[contextId][variableId] = value;
