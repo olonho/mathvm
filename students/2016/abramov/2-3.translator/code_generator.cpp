@@ -1,4 +1,6 @@
 #include <stdexcept>
+#include <dlfcn.h>
+#include <cmath>
 
 #include "code_generator.h"
 #include "helpers.h"
@@ -93,54 +95,141 @@ void CodeGenerator::visitIntLiteralNode(IntLiteralNode* node)
 
 void CodeGenerator::visitLoadNode(LoadNode* node)
 {
-    const std::string& name = node->var()->name();
-    const VarType varType = node->var()->type();
-    
-    const Context::VarInfo info = _context->getVariable(name);
-    if (info._contextId == _context->getContextId()) 
-    {
-        const auto localInst = getLocalLoadInstruction(varType);
-        getBytecode()->addInsn(localInst);
-    } 
-    else 
-    {
-        const auto scopeInst = getContextLoadInstruction(varType);
-        getBytecode()->addInsn(scopeInst);
-        getBytecode()->addUInt16(info._contextId);
-    }
-
-    _tosType = varType;
-    getBytecode()->addUInt16(info._varId);
+    loadVariable(node->var());
 }
 
 void CodeGenerator::visitStoreNode(StoreNode* node)
 {
-    // TODO
+    node->value()->visit(this);
+    const VarType varType = node->var()->type();
+    castTypeTOS(varType);
+    
+    if (node->op() == tINCRSET || node->op() == tDECRSET)
+    {
+        loadVariable(node->var());
+        handleOnEqOp(node->op(), varType);
+    }
+    storeVariable(node->var());
 }
 
 void CodeGenerator::visitForNode(ForNode* node)
-{
-    // TODO
+{        
+    BinaryOpNode* expr = node->inExpr()->asBinaryOpNode();
+    expr->left()->visit(this);
+    castTypeTOS(VT_INT); // TODO: check
+    storeVariable(node->var());
+    Label start = Label(getBytecode());
+    getBytecode()->bind(start);
+    
+    expr->right()->visit(this);
+    castTypeTOS(VT_INT);
+    loadVariable(node->var());
+    Label end = Label(getBytecode());
+    getBytecode()->addBranch(BC_IFICMPG, end);
+    
+    // body
+    node->body()->visit(this);
+    
+    // counter
+    loadVariable(node->var());
+    getBytecode()->addInsn(BC_ILOAD1);
+    getBytecode()->addInsn(BC_IADD);
+    storeVariable(node->var());
+    
+    // next iteration
+    getBytecode()->addBranch(BC_JA, start);
+    // out
+    getBytecode()->bind(end);
+
+    _tosType = VT_VOID;   
 }
 
 void CodeGenerator::visitWhileNode(WhileNode* node)
 {
-    // TODO
+    Label start(getBytecode()->currentLabel());
+    node->whileExpr()->visit(this);
+
+    // checks condition
+    Label end(getBytecode());
+    getBytecode()->addInsn(BC_ILOAD0);
+    getBytecode()->addBranch(BC_IFICMPE, end);
+
+    // visits body
+    node->loopBlock()->visit(this);
+    getBytecode()->addBranch(BC_JA, start);
+    // out
+    getBytecode()->bind(end);
 }
 
 void CodeGenerator::visitIfNode(IfNode* node)
 {
-    // TODO
+    Label elseBlock(getBytecode());
+    // checks condition
+    node->ifExpr()->visit(this);
+    getBytecode()->addInsn(BC_ILOAD0);
+    // gets "false"
+    getBytecode()->addBranch(BC_IFICMPE, elseBlock);
+    
+    node->thenBlock()->visit(this);
+    if (node->elseBlock()) 
+    {
+        Label presentElse(getBytecode());
+        getBytecode()->addBranch(BC_JA, presentElse);
+        getBytecode()->bind(elseBlock);
+        node->elseBlock()->visit(this);
+        getBytecode()->bind(presentElse);
+    }
+    else
+    {
+        getBytecode()->bind(elseBlock);
+    }
 }
 
 void CodeGenerator::visitBlockNode(BlockNode* node)
 {
-    // TODO
+    Scope* scope = node->scope();
+    for (Scope::VarIterator varIterator(scope); varIterator.hasNext(); )
+    {
+        _context->addVariable(varIterator.next());
+    }
+
+    for (Scope::FunctionIterator functionIterator(scope); functionIterator.hasNext(); ) 
+    {
+        AstFunction* astFunction = functionIterator.next();
+        const string& funcitonName = astFunction->name();
+        if (!_code->functionByName(funcitonName)) 
+        {
+            _code->addFunction(new BytecodeFunction(astFunction));
+        } 
+    }
+
+    for (Scope::FunctionIterator functionIterator = Scope::FunctionIterator(node->scope()); functionIterator.hasNext(); ) 
+    {
+        AstFunction* astFunction = functionIterator.next();
+        BytecodeFunction* bytecodeFunction = (BytecodeFunction*) _code->functionByName(astFunction->name());
+        processFunction(astFunction,  bytecodeFunction);
+    }
+
+    for (size_t i = 0; i < node->nodes(); ++i) 
+    {
+        node->nodeAt(i)->visit(this);
+    }
+    
+    _tosType = VT_VOID;
 }
 
 void CodeGenerator::visitFunctionNode(FunctionNode* node)
 {
-    // TODO
+    if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode()) 
+    {
+        node->body()->nodeAt(0)->visit(this);
+    } 
+    else 
+    {
+        node->body()->visit(this);
+    }
+    
+    _tosType = node->returnType();
 }
 
 void CodeGenerator::visitReturnNode(ReturnNode* node)
@@ -158,12 +247,37 @@ void CodeGenerator::visitReturnNode(ReturnNode* node)
 
 void CodeGenerator::visitCallNode(CallNode* node)
 {
-    // TODO
+    BytecodeFunction* function = (BytecodeFunction*) _code->functionByName(node->name());
+    if (!function || node->parametersNumber() != function->parametersNumber()) 
+    {
+        throw GeneratorException("Function is not found: " + node->name());
+    }
+    for (int i = node->parametersNumber() - 1; i >= 0; --i) 
+    {
+        uint32_t index = std::abs(i);
+        node->parameterAt(index)->visit(this);
+        castTypeTOS(function->parameterType(index));
+    }
+    
+    getBytecode()->addInsn(BC_CALL);
+    getBytecode()->addUInt16(function->id());
+    
+    _tosType = function->returnType();
 }
 
 void CodeGenerator::visitNativeCallNode(NativeCallNode* node)
 {
-    // TODO
+    void* nativeCode = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+    if (!nativeCode) 
+    {
+        throw GeneratorException("Wrong native function: " + node->nativeName());
+    }
+    
+    uint16_t functionId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), nativeCode);
+    getBytecode()->addInsn(BC_CALLNATIVE);
+    getBytecode()->addUInt16(functionId);
+
+    _tosType = node->nativeSignature()[0].first;
 }
 
 void CodeGenerator::visitPrintNode(PrintNode* node)
@@ -177,8 +291,12 @@ void CodeGenerator::visitPrintNode(PrintNode* node)
     }
 }
 
-Status* CodeGenerator::addFunction(AstFunction* function) 
+Status* CodeGenerator::handleFunction(AstFunction* functionStart) 
 {
+    BytecodeFunction* bytecodeStart = new BytecodeFunction(functionStart);
+    _code->addFunction(bytecodeStart);
+    processFunction(functionStart, bytecodeStart);
+    
     return Status::Ok();
 }
 
@@ -317,6 +435,89 @@ void CodeGenerator::handleNotOp(UnaryOpNode* node)
     _tosType = VT_INT;
 }
 
+void CodeGenerator::handleOnEqOp(TokenKind kind, VarType type) 
+{
+    if (kind == tINCRSET)
+    {
+        const Instruction addInstuction = (type == VT_INT) ? BC_IADD : BC_DADD;
+        getBytecode()->addInsn(addInstuction);
+        return;
+    }
+    
+    if (kind == tDECRSET)
+    {
+        const Instruction subInstuction = (type == VT_INT) ? BC_ISUB : BC_DSUB;
+        getBytecode()->addInsn(subInstuction);
+        return;
+    }
+}
+
+void CodeGenerator::loadVariable(const AstVar* variable) 
+{
+    const std::string& name = variable->name();
+    const VarType varType = variable->type();
+    
+    const Context::VarInfo info = _context->getVariable(name);
+    if (info._contextId == _context->getContextId()) 
+    {
+        const auto localInst = getLocalLoadInstruction(varType);
+        getBytecode()->addInsn(localInst);
+    } 
+    else 
+    {
+        const auto scopeInst = getContextLoadInstruction(varType);
+        getBytecode()->addInsn(scopeInst);
+        getBytecode()->addUInt16(info._contextId);
+    }
+
+    _tosType = varType;
+    getBytecode()->addUInt16(info._varId);
+}
+
+void CodeGenerator::storeVariable(const AstVar* variable) 
+{
+    const std::string& name = variable->name();
+    const VarType varType = variable->type();
+    
+    const Context::VarInfo info = _context->getVariable(name);
+    if (info._contextId == _context->getContextId()) 
+    {
+        const auto localInst = getLocalStoreInstruction(varType);
+        getBytecode()->addInsn(localInst);
+    } 
+    else 
+    {
+        const auto scopeInst = getContexStoreInstruction(varType);
+        getBytecode()->addInsn(scopeInst);
+        getBytecode()->addUInt16(info._contextId);
+    }
+
+    _tosType = varType;
+    getBytecode()->addUInt16(info._varId);
+}
+
+void CodeGenerator::processFunction(AstFunction* astFunc, BytecodeFunction* bytecodeFunc) 
+{
+    Context* newContext = new Context(bytecodeFunc, astFunc->scope(), _context);
+    _context = newContext;
+
+    for (size_t i = 0; i < astFunc->parametersNumber(); ++i) 
+    {
+        const std::string& parameterName = astFunc->parameterName(i);
+        AstVar* var = astFunc->scope()->lookupVariable(parameterName, false);
+        storeVariable(var);
+    }
+    
+    astFunc->node()->visit(this);
+    
+    bytecodeFunc->setLocalsNumber(_context->getVarsSize());
+    bytecodeFunc->setScopeId(_context->getContextId());
+    _context = newContext->getParentContext();
+    
+    // free created context
+    delete newContext;
+}
+
 void CodeGenerator::castTypeTOS(VarType target) 
 {    
     if (_tosType == VT_INT && target == VT_DOUBLE) {
@@ -361,14 +562,3 @@ Bytecode* CodeGenerator::getBytecode()
 {
     return _context->getBytecodeFunction()->bytecode();
 }
-
-
-
-
-
-
-
-
-
-
-

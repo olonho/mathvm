@@ -14,7 +14,7 @@ Status* TranslatorImpl::translate(const string& program, Code** code)
         return status;
     }
     CodeGenerator code_generator(*code);
-    return code_generator.addFunction(parser.top());
+    return code_generator.handleFunction(parser.top());
 }
 
 Translator* Translator::create(const string& impl) 

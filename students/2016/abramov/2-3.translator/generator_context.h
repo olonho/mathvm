@@ -3,6 +3,7 @@
 #include <map>
 #include <cstdint>
 
+#include "ast.h"
 #include "mathvm.h"
 #include "generator_exception.h"
 
@@ -13,20 +14,25 @@ namespace mathvm
         struct VarInfo;
 
     public:
-        Context();
-        Context(const Context& orig);
+        Context(BytecodeFunction* bytecodeFunc, Scope* scope, Context* parentContext = nullptr);
+        Context(const Context& other);
         virtual ~Context();
 
+        // Getters
         BytecodeFunction* getBytecodeFunction();
         Context* getParentContext();
         uint16_t getContextId() const;
+        uint16_t getVarsSize() const;
         Context::VarInfo getVariable(const std::string& name) const;
+        
+        // 
+        void addVariable(const AstVar* variable);
 
     private:
-        Context* _parentContext;
         BytecodeFunction* _byteCodeFunc;
-        std::map<std::string, uint16_t> _vars;
         uint16_t _contextId;
+        Context* _parentContext;
+        std::map<std::string, uint16_t> _vars;
     };
 
     struct Context::VarInfo

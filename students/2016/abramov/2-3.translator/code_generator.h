@@ -3,7 +3,7 @@
 
 #include "ast.h"
 #include "visitors.h"
-#include "context.h"
+#include "generator_context.h"
 #include "generator_exception.h"
 
 namespace mathvm
@@ -22,7 +22,7 @@ namespace mathvm
     #undef VISITOR_FUNCTION
     
     public:
-        Status* addFunction(AstFunction* function);
+        Status* handleFunction(AstFunction* function);
     
     private:
         // Binary operation handlers
@@ -35,6 +35,13 @@ namespace mathvm
         // Unary operation handlers
         void handleNegOp(UnaryOpNode* node);
         void handleNotOp(UnaryOpNode* node);
+        void handleOnEqOp(TokenKind kind, VarType type);
+        
+        // Load/Store methods
+        void storeVariable(const AstVar* variable);
+        void loadVariable(const AstVar* variable);
+        
+        void processFunction(AstFunction* astFunc, BytecodeFunction* bytecodeFunc);
         
         // Cast methods
         void castTypeTOS(VarType target);
