@@ -295,38 +295,38 @@ void BytecodeGeneratorVisitor::declareFunction(AstFunction * fn)
 
 void BytecodeGeneratorVisitor::generateIfElse(IfNode * node)
 {
-//    node->ifExpr()->visit(this);
-//    generateCast(VT_INT);
+   node->ifExpr()->visit(this);
+   generateCast(VT_INT);
 
-//    Label elseBranch(bytecode());
-//    Label ifElseEnd(bytecode());
+   Label elseBranch(bytecode());
+   Label ifElseEnd(bytecode());
 
-//    bytecode()->addInsn(BC_ILOAD1);
-//    bytecode()->addBranch(BC_IFICMPNE, elseBranch);
-//    node->thenBlock()->visit(this);
-//    bytecode()->addBranch(BC_JA, ifElseEnd);
+   bytecode()->addInsn(BC_ILOAD1);
+   bytecode()->addBranch(BC_IFICMPNE, elseBranch);
+   node->thenBlock()->visit(this);
+   bytecode()->addBranch(BC_JA, ifElseEnd);
 
-//    bytecode()->bind(elseBranch);
-//    if (node->elseBlock())
-//        node->elseBlock()->visit(this);
-//    bytecode()->bind(ifElseEnd);
+   bytecode()->bind(elseBranch);
+   if (node->elseBlock())
+       node->elseBlock()->visit(this);
+   bytecode()->bind(ifElseEnd);
 
-    Label unlessLabel(bytecode());
-    node->ifExpr()->visit(this);
-    bytecode()->addInsn(BC_ILOAD0);
-    bytecode()->addBranch(BC_IFICMPE, unlessLabel);
+    // Label unlessLabel(bytecode());
+    // node->ifExpr()->visit(this);
+    // bytecode()->addInsn(BC_ILOAD0);
+    // bytecode()->addBranch(BC_IFICMPE, unlessLabel);
 
-    node->thenBlock()->visit(this);
+    // node->thenBlock()->visit(this);
 
-    if (node->elseBlock() != 0) {
-        Label afterElse(bytecode());
-        bytecode()->addBranch(BC_JA, afterElse);
-        bytecode()->bind(unlessLabel);
-        node->elseBlock()->visit(this);
-        bytecode()->bind(afterElse);
-    } else {
-        bytecode()->bind(unlessLabel);
-    }
+    // if (node->elseBlock() != 0) {
+    //     Label afterElse(bytecode());
+    //     bytecode()->addBranch(BC_JA, afterElse);
+    //     bytecode()->bind(unlessLabel);
+    //     node->elseBlock()->visit(this);
+    //     bytecode()->bind(afterElse);
+    // } else {
+    //     bytecode()->bind(unlessLabel);
+    // }
 }
 
 void BytecodeGeneratorVisitor::generateWhile(WhileNode * node)
