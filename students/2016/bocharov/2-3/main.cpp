@@ -37,9 +37,8 @@ int main(int argc, char** argv) {
                "error '%s'\n",
                line, offset,
                translateStatus->getErrorCstr());
-    }
-
-    code->disassemble(std::cout);
+    } else
+        code->disassemble(std::cout);
 
     return 0;
 }
