@@ -81,10 +81,11 @@ namespace mathvm {
     void ToBytecodeVisitor::visitCallNode(CallNode *node) {
         for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
             node->parameterAt(i)->visit(this);
+            castToType(code->functionByName(node->name())->parameterType(i));
         }
         bytecode->addInsn(BC_CALL);
         bytecode->addUInt16(code->functionByName(node->name())->id());
-
+        topType = code->functionByName(node->name())->returnType();
     }
 
     void ToBytecodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
@@ -146,7 +147,15 @@ namespace mathvm {
         node->left()->visit(this);
         VarType leftType = topType;
         node->right()->visit(this);
-        castToType(leftType);
+
+        if (leftType == VT_INT && topType == VT_DOUBLE) {
+            bytecode->addInsn(BC_SWAP);
+            bytecode->addInsn(BC_I2D);
+            bytecode->addInsn(BC_SWAP);
+            leftType = VT_DOUBLE;
+        } else {
+            castToType(leftType);
+        }
 
         switch (node->kind()) {
             case tADD:
@@ -211,6 +220,7 @@ namespace mathvm {
     void ToBytecodeVisitor::visitReturnNode(ReturnNode *node) {
         if (node->returnExpr()) {
             node->returnExpr()->visit(this);
+            castToType(curFunction->returnType());
         }
         bytecode->addInsn(BC_RETURN);
     }
@@ -219,17 +229,20 @@ namespace mathvm {
         uint16_t oldLocalCount = localCount;
         Bytecode *oldBytecode = bytecode;
         TranslatedFunction *oldFunction = curFunction;
-        map<string, uint16_t> oldLocals = curLocals;
+        Scope *oldScope = curScope;
 
         localCount = 0;
         curFunction = code->functionByName(node->name());
         bytecode = ((BytecodeFunction *) curFunction)->bytecode();
-        curLocals = map<string, uint16_t>{};
+        curScope = node->body()->scope()->parent();
         for (uint32_t i = node->parametersNumber(); i > 0; --i) {
-            addName(node->parameterName(i - 1));
+            node->body()->scope()->parent()
+                    ->lookupVariable(node->parameterName(i - 1), false)
+                    ->setInfo(new VarInfo(curFunction->id(), localCount++));
             topType = node->parameterType(i - 1);
             storeVarValue(node->parameterName(i - 1), node->parameterType(i - 1));
         }
+
 
         node->body()->visit(this);
         curFunction->setLocalsNumber(localCount);
@@ -237,48 +250,95 @@ namespace mathvm {
         localCount = oldLocalCount;
         curFunction = oldFunction;
         bytecode = oldBytecode;
-        curLocals = oldLocals;
+        curScope = oldScope;
     }
 
-
     void ToBytecodeVisitor::visitBlockNode(BlockNode *node) {
+        auto oldScope = curScope;
+        curScope = node->scope();
         Scope::VarIterator varIterator(node->scope());
         while (varIterator.hasNext()) {
             auto nextVar = varIterator.next();
-            addName(nextVar->name());
+            nextVar->setInfo(new VarInfo(curFunction->id(), localCount++));
+        }
+        {
+            Scope::FunctionIterator functionIterator(node->scope());
+            while (functionIterator.hasNext()) {
+                auto function = functionIterator.next();
+                BytecodeFunction *tFunction = new BytecodeFunction(function);
+                code->addFunction(tFunction);
+            }
+        }
+        {
+            Scope::FunctionIterator functionIterator(node->scope());
+            while (functionIterator.hasNext()) {
+                auto function = functionIterator.next();
+                function->node()->visit(this);
+            }
         }
 
-        Scope::FunctionIterator functionIterator(node->scope());
-        while (functionIterator.hasNext()) {
-            auto function = functionIterator.next();
-            BytecodeFunction *tFunction = new BytecodeFunction(function);
-            code->addFunction(tFunction);
-            function->node()->visit(this);
-        }
 
         node->visitChildren(this);
+        curScope = oldScope;
+    }
+
+    void ToBytecodeVisitor::loadVarValue(const std::string &name, VarType varType) {
+        uint16_t id;
+        uint16_t funcId;
+        resolveName(name, funcId, id);
+
+        bool isLocal = curFunction->id() == funcId;
+
+        switch (varType) {
+            case VT_INT:
+                bytecode->addInsn(isLocal ? BC_LOADIVAR : BC_LOADCTXIVAR);
+                break;
+            case VT_DOUBLE:
+                bytecode->addInsn(isLocal ? BC_LOADDVAR : BC_LOADCTXDVAR);
+                break;
+            case VT_STRING:
+                bytecode->addInsn(isLocal ? BC_LOADSVAR : BC_LOADCTXSVAR);
+                break;
+            default:
+                throw TranslationException{"Not valid type for load"};
+        }
+        if (!isLocal) {
+            bytecode->addUInt16(funcId);
+        }
+
+        bytecode->addUInt16(id);
+        topType = varType;
     }
 
 
     void ToBytecodeVisitor::storeVarValue(const std::string &name, VarType varType) {
-        uint16_t id = resolveName(name);
+        uint16_t id;
+        uint16_t funcId;
+        resolveName(name, funcId, id);
+
+        bool isLocal = curFunction->id() == funcId;
+
         if (topType != varType)
             throw TranslationException{
                     "Var type and top stack type is incompatible " + string(typeToName(varType)) + " " +
                     typeToName(topType)};
         switch (topType) {
             case VT_INT:
-                bytecode->addInsn(BC_STOREIVAR);
+                bytecode->addInsn(isLocal ? BC_STOREIVAR : BC_STORECTXIVAR);
                 break;
             case VT_DOUBLE:
-                bytecode->addInsn(BC_STOREDVAR);
+                bytecode->addInsn(isLocal ? BC_STOREDVAR : BC_STORECTXDVAR);
                 break;
             case VT_STRING:
-                bytecode->addInsn(BC_STORESVAR);
+                bytecode->addInsn(isLocal ? BC_STORESVAR : BC_STORECTXSVAR);
                 break;
             default:
                 throw TranslationException{"No such type for store variable: " + string(typeToName(topType))};
         }
+        if (!isLocal) {
+            bytecode->addUInt16(funcId);
+        }
+
         bytecode->addUInt16(id);
         topType = VT_VOID;
     }
@@ -299,25 +359,6 @@ namespace mathvm {
                 throw TranslationException{"Not valid type for print"};
         }
         topType = VT_VOID;
-    }
-
-    void ToBytecodeVisitor::loadVarValue(const std::string &name, VarType varType) {
-        uint16_t id = resolveName(name);
-        switch (varType) {
-            case VT_INT:
-                bytecode->addInsn(BC_LOADIVAR);
-                break;
-            case VT_DOUBLE:
-                bytecode->addInsn(BC_LOADDVAR);
-                break;
-            case VT_STRING:
-                bytecode->addInsn(BC_LOADSVAR);
-                break;
-            default:
-                throw TranslationException{"Not valid type for load"};
-        }
-        bytecode->addUInt16(id);
-        topType = varType;
     }
 
     void ToBytecodeVisitor::castToType(VarType type) {
@@ -371,21 +412,14 @@ namespace mathvm {
 
     }
 
-    uint16_t ToBytecodeVisitor::addName(const string &name) {
-        auto it = curLocals.find(name);
-        if (it == curLocals.end()) {
-            curLocals.insert(make_pair(name, localCount++));
-            return (uint16_t) (localCount - 1);
-        }
-        return (*it).second;
-    }
-
-    uint16_t ToBytecodeVisitor::resolveName(const std::string &name) {
-        auto it = curLocals.find(name);
-        if (it == curLocals.end()) {
+    void ToBytecodeVisitor::resolveName(const std::string &name, uint16_t &funcId, uint16_t &varId) {
+        auto it = curScope->lookupVariable(name, true);
+        if (it == nullptr) {
             throw TranslationException{"No such variable"};
         }
-        return (*it).second;
+        VarInfo *varInfo = (VarInfo *) it->info();
+        funcId = varInfo->funcId;
+        varId = varInfo->varId;
     }
 
     void ToBytecodeVisitor::performArithmeticOperation(VarType type, TokenKind operation) {

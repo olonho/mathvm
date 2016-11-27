@@ -18,18 +18,15 @@ namespace mathvm {
     };
 
     class BytecodeInterpreter : public Code {
-        vector<generalValue> locals;
-        vector<uint16_t> offsets;
+        map<uint16_t, vector<generalValue>> localsMap;
         vector<uint8_t> _stack;
         stack<pair<uint16_t, uint16_t>> callStack;
 
         ostream &out;
 
         uint16_t currentFunctionId;
-        uint16_t localsOffset;
-        uint16_t index;
+        uint32_t index;
         Bytecode *bytecode;
-        uint16_t localsCount;
 
         generalValue var1;
         generalValue var2;
@@ -71,6 +68,10 @@ namespace mathvm {
         void putLocalStringId(uint16_t index, uint16_t value);
 
         void putContextStringId(uint16_t contextId, uint16_t index, uint16_t value);
+
+        uint16_t localOffset();
+
+        uint16_t offsetOf(const uint16_t funcId);
 
     public:
         BytecodeInterpreter(ostream &out);
