@@ -24,7 +24,7 @@ struct BytecodeEvaluator {
   } ValueUnion;
 
   BytecodeEvaluator(std::ostream& out, InterpreterCodeImpl* code) :
-      _out(out), _code(code) {
+      _code(code), _out(out) {
   }
 
   void evaluate(BytecodeFunction* function) {
@@ -345,8 +345,6 @@ struct BytecodeEvaluator {
         case BC_CALL: {
           uint16_t functionId = bytecodeStream.readUInt16();
           BytecodeFunction* calledFunction = _code->functionById(functionId);
-          uint16_t argCount = calledFunction->parametersNumber();
-          uint16_t contextId = calledFunction->id();
           uint16_t oldContextId = _currentContextId;
           evaluate(calledFunction);
           _currentContextId = oldContextId;
@@ -413,7 +411,7 @@ private:
     ValueUnion value;
     value.stringId = val;
     _context2VariableId2Value[contextId][variableId] = value;
-    _context2VariableId2Type[contextId].[variableId] = VT_STRING;
+    _context2VariableId2Type[contextId][variableId] = VT_STRING;
   }
 
   std::unordered_map<uint16_t, std::unordered_map<uint16_t, ValueUnion>> _context2VariableId2Value;
