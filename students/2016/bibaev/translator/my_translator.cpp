@@ -190,7 +190,6 @@ void MathVmTranslator::visitStoreNode(StoreNode* node) {
       storeTopOfStackToVariable(variable);
       break;
     case tINCRSET:
-
       loadVariableToStack(variable);
 
       instruction = getSumInstruction(variable->type());
@@ -365,17 +364,16 @@ void MathVmTranslator::visitCallNode(CallNode* node) {
                              std::to_string(node->parametersNumber()), node->position());
   }
 
-  if (function->parametersNumber() > 0) {
-    for (uint32_t i = function->parametersNumber() - 1u; i != 0; --i) {
-      visitNodeWithResult(node->parameterAt(i));
-      convertTopOfStackTo(function->parameterType(i));
-    }
+  for (int32_t i = function->parametersNumber() - 1u; i >= 0; --i) {
+    uint32_t ix = static_cast<uint32_t>(i);
+    visitNodeWithResult(node->parameterAt(ix));
+    convertTopOfStackTo(function->parameterType(ix));
   }
 
   Bytecode* bytecode = getBytecode();
 
   bytecode->addInsn(BC_CALL);
-  bytecode->addInt16(function->id());
+  bytecode->addUInt16(function->id());
 
   VarType returnType = function->returnType();
   if (returnType != VT_VOID) {
