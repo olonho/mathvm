@@ -488,6 +488,18 @@ void MathVmTranslator::handleArithmeticOperation(BinaryOpNode* node) {
                     std::string("unsupported arithmetical operation: ") + typeToName(leftType) +
                     " " + tokenStr(kind) + " " + typeToName(rightType), node->position());
 
+  if (rightType != commonType) {
+    convertTopOfStackTo(commonType);
+  }
+
+  if (leftType != commonType) {
+    swap();
+    _typeOfTopOfStack = leftType;
+    convertTopOfStackTo(commonType);
+    swap();
+    _typeOfTopOfStack = commonType;
+  }
+
   if (kind == tSUB || kind == tDIV) {
     bytecode->addInsn(BC_SWAP);
   }
