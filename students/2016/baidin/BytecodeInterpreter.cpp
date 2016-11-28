@@ -3,20 +3,22 @@
 #include "mathvm.h"
 
 namespace mathvm {
-    BytecodeInterpreter::BytecodeInterpreter(ostream &out) : locals(256 * 256, generalValue{}), out(out),
-                                                             currentFunctionId(0), localsOffset(0), index(0),
-                                                             localsCount(0) {}
+    BytecodeInterpreter::BytecodeInterpreter(ostream &out) : out(out),
+                                                             currentFunctionId(0), index(0) {}
 
     Status *BytecodeInterpreter::execute(vector<Var *> &vars) {
         BytecodeFunction *function = (BytecodeFunction *) functionByName(AstFunction::top_name);
         bytecode = function->bytecode();
-        localsCount = (uint16_t) function->localsNumber();
+        currentFunctionId = function->id();
 //        Code::FunctionIterator functionIterator{this};
 //        while (functionIterator.hasNext()) {
 //            auto *f = functionIterator.next();
 //            cout << f->name() << endl;
 //            f->disassemble(cout);
 //        }
+
+        localsMap.insert(make_pair(currentFunctionId,
+                                   vector<generalValue>{(uint16_t) function->localsNumber(), generalValue{}}));
 
 
         for (index = 0; index < bytecode->length();) {
@@ -28,6 +30,9 @@ namespace mathvm {
 
     void BytecodeInterpreter::executeInstruction() {
         Instruction instruction = bytecode->getInsn(index++);
+//        size_t length;
+//        const char *name = bytecodeName(instruction, &length);
+//        cout << name;
         generalValue a;
         generalValue b;
         switch (instruction) {
@@ -274,13 +279,16 @@ namespace mathvm {
             case BC_STORECTXDVAR:
                 putContextDouble(bytecode->getUInt16(index), bytecode->getUInt16(index + 2),
                                  popTypedFromStack<double>());
+                index += 4;
                 break;
             case BC_STORECTXIVAR:
                 putContextInt(bytecode->getUInt16(index), bytecode->getUInt16(index + 2), popTypedFromStack<int64_t>());
+                index += 4;
                 break;
             case BC_STORECTXSVAR:
                 putContextStringId(bytecode->getUInt16(index), bytecode->getUInt16(index + 2),
                                    popTypedFromStack<uint16_t>());
+                index += 4;
                 break;
 
             case BC_CALL:
@@ -370,13 +378,18 @@ namespace mathvm {
         index = 0;
         currentFunctionId = id;
 
-        offsets.push_back(localsOffset);
+        if (localsMap.find(id) == localsMap.end()) {
+            localsMap.insert(make_pair(id, vector<generalValue>{}));
+        }
 
-        localsOffset += localsCount;
-        localsCount = (uint16_t) function->localsNumber();
+        for (uint16_t i = 0; i < (uint16_t) function->localsNumber(); ++i) {
+            localsMap.at(id).push_back(generalValue{});
+        }
     }
 
     void BytecodeInterpreter::returnFromFunction() {
+        localsMap.at(currentFunctionId).resize(localOffset());
+
         pair<uint16_t, uint16_t> p = callStack.top();
         callStack.pop();
         index = p.second;
@@ -385,11 +398,6 @@ namespace mathvm {
         BytecodeFunction *function = (BytecodeFunction *) functionById(currentFunctionId);
 
         bytecode = function->bytecode();
-
-        offsets.pop_back();
-
-        localsCount = (uint16_t) function->localsNumber();
-        localsOffset -= localsCount;
     }
 
     template<class T>
@@ -418,51 +426,63 @@ namespace mathvm {
     }
 
     int64_t BytecodeInterpreter::getLocalInt(uint16_t index) {
-        return locals.at(localsOffset + index).intValue;
+        return localsMap.at(currentFunctionId).at(localOffset() + index).intValue;
     }
 
     void BytecodeInterpreter::putLocalInt(uint16_t index, int64_t value) {
-        locals.at(localsOffset + index).intValue = value;
+        localsMap.at(currentFunctionId).at(localOffset() + index).intValue = value;
     }
 
     double BytecodeInterpreter::getLocalDouble(uint16_t index) {
-        return locals.at(localsOffset + index).doubleValue;
+        return localsMap.at(currentFunctionId).at(localOffset() + index).doubleValue;
     }
 
     void BytecodeInterpreter::putLocalDouble(uint16_t index, double value) {
-        locals.at(localsOffset + index).doubleValue = value;
+        localsMap.at(currentFunctionId).at(localOffset() + index).doubleValue = value;
     }
 
     uint16_t BytecodeInterpreter::getLocalStringId(uint16_t index) {
-        return locals.at(localsOffset + index).stringIdValue;
+        return localsMap.at(currentFunctionId).at(localOffset() + index).stringIdValue;
     }
 
     void BytecodeInterpreter::putLocalStringId(uint16_t index, uint16_t value) {
-        locals.at(localsOffset + index).stringIdValue = value;
+        localsMap.at(currentFunctionId).at(localOffset() + index).stringIdValue = value;
     }
 
     int64_t BytecodeInterpreter::getContextInt(uint16_t contextId, uint16_t index) {
-        return locals.at(offsets.at(contextId) + index).intValue;
+        return localsMap.at(contextId).at(offsetOf(contextId) + index).intValue;
     }
 
     double BytecodeInterpreter::getContextDouble(uint16_t contextId, uint16_t index) {
-        return locals.at(offsets.at(contextId) + index).doubleValue;
+        return localsMap.at(contextId).at(offsetOf(contextId) + index).doubleValue;
     }
 
     uint16_t BytecodeInterpreter::getContextStringId(uint16_t contextId, uint16_t index) {
-        return locals.at(offsets.at(contextId) + index).stringIdValue;
+        return localsMap.at(contextId).at(offsetOf(contextId) + index).stringIdValue;
     }
 
     void BytecodeInterpreter::putContextInt(uint16_t contextId, uint16_t index, int64_t value) {
-        locals.at(offsets.at(contextId) + index).intValue = value;
+        localsMap.at(contextId).at(offsetOf(contextId) + index).intValue = value;
     }
 
     void BytecodeInterpreter::putContextDouble(uint16_t contextId, uint16_t index, double value) {
-        locals.at(offsets.at(contextId) + index).doubleValue = value;
+        localsMap.at(contextId).at(offsetOf(contextId) + index).doubleValue = value;
     }
 
     void BytecodeInterpreter::putContextStringId(uint16_t contextId, uint16_t index, uint16_t value) {
-        locals.at(offsets.at(contextId) + index).stringIdValue = value;
+        localsMap.at(contextId).at(offsetOf(contextId) + index).stringIdValue = value;
+    }
+
+    uint16_t BytecodeInterpreter::localOffset() {
+        return offsetOf(currentFunctionId);
+    }
+
+    uint16_t BytecodeInterpreter::offsetOf(const uint16_t funcId) {
+        int32_t res = (int32_t) localsMap.at(funcId).size() - functionById(funcId)->localsNumber();
+        if (res < 0) {
+            return 0;
+        }
+        return (uint16_t) res;
     }
 
     InterpreterException::InterpreterException(const string &__arg) : runtime_error(__arg) {}

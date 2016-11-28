@@ -7,27 +7,33 @@
 namespace mathvm {
 
 
-    class TranslationException: public runtime_error {
+    class TranslationException : public runtime_error {
     public:
         TranslationException(const string &__arg);
 
     };
 
+    class VarInfo {
+    public:
+        const uint16_t funcId;
+        const uint16_t varId;
+
+        VarInfo(const uint16_t _funcId, const uint16_t _varId) : funcId(_funcId), varId(_varId) {}
+    };
+
     class ToBytecodeVisitor : public AstVisitor {
         Code *code;
         Bytecode *bytecode;
-        TranslatedFunction* curFunction;
+        TranslatedFunction *curFunction;
 
         VarType topType;
 
-        map<string, uint16_t> curLocals;
         uint16_t localCount;
-
+        Scope *curScope;
     private:
 
-        uint16_t addName(const string &name);
 
-        uint16_t resolveName(const std::string &name);
+        void resolveName(const std::string &name, uint16_t &funcId, uint16_t &varId);
 
         void loadVarValue(const std::string &name, VarType varType);
 

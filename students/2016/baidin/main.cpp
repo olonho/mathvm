@@ -109,8 +109,12 @@ int main(int argc, char **argv) {
 
     //test mode
     if (string(argv[1]) == "-t") {
-        vector<string> tests = {"ackermann", "add", "assign", "bitwise", "div", "expr", "for", "function", "if", "literal", "mul",
-                                "sub", "while"};
+//        vector<string> tests = {"ackermann_closure", "add", "assign", "bitwise", "casts", "complex", "complex2", "div", "expr", "for", "function", "if", "literal", "mul",
+//                                "sub", "while", "vars"};
+        vector<string> tests = {"add", "assign", "bitwise", "casts", "div", "expr", "for", "function", "function-call", "function-cast", "if", "literal", "mul",
+                                "sub", "while", "vars"};
+
+//        vector<string> tests = {"ackermann_closure"};
         for (auto it = tests.begin(); it != tests.end(); ++it) {
             stringstream stream;
             Translator *translator = new ToBytecodeTranslator{stream};

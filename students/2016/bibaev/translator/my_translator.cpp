@@ -40,7 +40,7 @@ Status* BytecodeTranslatorImpl::translate(const std::string& program, Code** cod
   }
 
   if (*code == nullptr) {
-    *code = new InterpreterCodeImpl{};
+    *code = new InterpreterCodeImpl{std::cout};
   }
 
 
@@ -104,17 +104,15 @@ void MathVmTranslator::visitUnaryOpNode(UnaryOpNode* node) {
       break;
     case tNOT: {
       convertTopOfStackTo(VT_INT);
-
+      bytecode->addInsn(BC_ILOAD0);
       Label setTrue(bytecode);
       bytecode->addBranch(BC_IFICMPE, setTrue);
-      bytecode->addInsn(BC_POP);
+      pop();
       bytecode->addInsn(BC_ILOAD0);
-
       Label exit(bytecode);
       bytecode->addBranch(BC_JA, exit);
-
       bytecode->bind(setTrue);
-      bytecode->addInsn(BC_POP);
+      pop();
       bytecode->addInsn(BC_ILOAD1);
       bytecode->bind(exit);
       break;
@@ -170,7 +168,7 @@ void MathVmTranslator::visitIntLiteralNode(IntLiteralNode* node) {
     bytecode->addInt64(value);
   }
 
-  _typeOfTopOfStack = VT_DOUBLE;
+  _typeOfTopOfStack = VT_INT;
 }
 
 void MathVmTranslator::visitLoadNode(LoadNode* node) {
@@ -203,7 +201,6 @@ void MathVmTranslator::visitStoreNode(StoreNode* node) {
       break;
     case tDECRSET:
       loadVariableToStack(variable);
-      swap();
 
       instruction = getSubInstruction(variable->type());
       translationAssert(instruction != BC_INVALID,
@@ -238,38 +235,47 @@ void MathVmTranslator::visitForNode(ForNode* node) {
   translationAssert(_typeOfTopOfStack == VT_DOUBLE || _typeOfTopOfStack == VT_INT,
                     "right bound in for expression must presents int or double value", rangeNode->right()->position());
 
-  convertTopOfStackTo(VT_INT);
 
   Bytecode* bytecode = getBytecode();
-  Label startingLabel = Label(bytecode);
-  Label endingLabel = Label(bytecode);
+  Label startingLabel(bytecode);
+  Label endingLabel(bytecode);
 
   bytecode->bind(startingLabel);
+
+  convertTopOfStackTo(VT_INT);
   loadVariableToStack(loopVariable);
 
-  bytecode->addBranch(BC_IFICMPL, endingLabel);
+  bytecode->addBranch(BC_IFICMPG, endingLabel);
 
+  pop();
   node->body()->visit(this);
 
   bytecode->addInsn(BC_ILOAD1);
+  loadVariableToStack(loopVariable);
+  bytecode->addInsn(BC_IADD);
+  storeTopOfStackToVariable(loopVariable);
 
   bytecode->addBranch(BC_JA, startingLabel);
   bytecode->bind(endingLabel);
+  pop(2);
 }
 
 void MathVmTranslator::visitWhileNode(WhileNode* node) {
   Bytecode* bytecode = getBytecode();
-  Label beginningLabel = Label(bytecode);
-  Label endingLabel = Label(bytecode);
+  Label beginningLabel(bytecode);
+  Label endingLabel(bytecode);
 
   bytecode->bind(beginningLabel);
   node->whileExpr()->visit(this);
   convertTopOfStackTo(VT_INT);
   bytecode->addInsn(BC_ILOAD0);
   bytecode->addBranch(BC_IFICMPE, endingLabel);
+  pop(2);
+
   node->loopBlock()->visit(this);
   bytecode->addBranch(BC_JA, beginningLabel);
   bytecode->bind(endingLabel);
+  pop(2);
 }
 
 void MathVmTranslator::visitIfNode(IfNode* node) {
@@ -277,22 +283,28 @@ void MathVmTranslator::visitIfNode(IfNode* node) {
   convertTopOfStackTo(VT_INT);
 
   Bytecode* bytecode = getBytecode();
-  Label elseLabel = Label(bytecode);
-  Label exit = Label(bytecode);
+  Label elseLabel(bytecode);
+  Label exit(bytecode);
 
   bytecode->addInsn(BC_ILOAD0);
   _typeOfTopOfStack = VT_INT;
   bytecode->addBranch(BC_IFICMPE, elseLabel);
+  pop(2);
+
   node->thenBlock()->visit(this);
   bytecode->addBranch(BC_JA, exit);
 
   bytecode->bind(elseLabel);
+  pop(2);
+
   BlockNode* elseBlock = node->elseBlock();
   if (elseBlock) {
     elseBlock->visit(this);
   }
 
   bytecode->bind(exit);
+
+
 }
 
 void MathVmTranslator::visitBlockNode(BlockNode* node) {
@@ -352,17 +364,16 @@ void MathVmTranslator::visitCallNode(CallNode* node) {
                              std::to_string(node->parametersNumber()), node->position());
   }
 
-  if (function->parametersNumber() > 0) {
-    for (uint32_t i = function->parametersNumber() - 1u; i != 0; --i) {
-      visitNodeWithResult(node->parameterAt(i));
-      convertTopOfStackTo(function->parameterType(i));
-    }
+  for (int32_t i = function->parametersNumber() - 1u; i >= 0; --i) {
+    uint32_t ix = static_cast<uint32_t>(i);
+    visitNodeWithResult(node->parameterAt(ix));
+    convertTopOfStackTo(function->parameterType(ix));
   }
 
   Bytecode* bytecode = getBytecode();
 
   bytecode->addInsn(BC_CALL);
-  bytecode->addInt16(function->id());
+  bytecode->addUInt16(function->id());
 
   VarType returnType = function->returnType();
   if (returnType != VT_VOID) {
@@ -456,7 +467,6 @@ void MathVmTranslator::handleArithmeticOperation(BinaryOpNode* node) {
   TokenKind kind = node->kind();
 
   visitNodeWithResult(node->left());
-  node->left()->visit(this);
 
   VarType leftType = _typeOfTopOfStack;
 
@@ -478,6 +488,10 @@ void MathVmTranslator::handleArithmeticOperation(BinaryOpNode* node) {
                     std::string("unsupported arithmetical operation: ") + typeToName(leftType) +
                     " " + tokenStr(kind) + " " + typeToName(rightType), node->position());
 
+  if (kind == tSUB || kind == tDIV) {
+    bytecode->addInsn(BC_SWAP);
+  }
+
   bytecode->addInsn(instruction);
 
   _typeOfTopOfStack = commonType;
@@ -494,18 +508,23 @@ void MathVmTranslator::handleLogicalOperation(BinaryOpNode* node) {
     visitNodeWithResult(node->left());
     convertTopOfStackTo(VT_INT);
     bytecode->addBranch(BC_IFICMPE, setFalse);
-    bytecode->addInsn(BC_POP);
+    pop(2);
 
     visitNodeWithResult(node->right());
     convertTopOfStackTo(VT_INT);
+    bytecode->addInsn(BC_ILOAD0);
     bytecode->addBranch(BC_IFICMPE, setFalse);
-    bytecode->addInsn(BC_POP);
-    bytecode->addInsn(BC_POP);
+    pop(2);
+
+
     bytecode->addInsn(BC_ILOAD1);
     bytecode->addBranch(BC_JA, exit);
 
     bytecode->bind(setFalse);
-    bytecode->addInsn(BC_POP);
+    pop(2);
+
+
+    bytecode->addInsn(BC_ILOAD0);
     bytecode->bind(exit);
     _typeOfTopOfStack = VT_INT;
     return;
@@ -518,17 +537,19 @@ void MathVmTranslator::handleLogicalOperation(BinaryOpNode* node) {
     visitNodeWithResult(node->left());
     convertTopOfStackTo(VT_INT);
     bytecode->addBranch(BC_IFICMPNE, setTrue);
-    bytecode->addInsn(BC_POP);
+    pop(2);
 
     visitNodeWithResult(node->right());
     convertTopOfStackTo(VT_INT);
+    bytecode->addInsn(BC_ILOAD0);
     bytecode->addBranch(BC_IFICMPNE, setTrue);
-    bytecode->addInsn(BC_POP);
-    bytecode->addBranch(BC_JA, exit);
+    pop(2);
 
+    bytecode->addInsn(BC_ILOAD0);
+    bytecode->addBranch(BC_JA, exit);
     bytecode->bind(setTrue);
-    bytecode->addInsn(BC_POP);
-    bytecode->addInsn(BC_POP);
+    pop(2);
+
     bytecode->addInsn(BC_ILOAD1);
 
     bytecode->bind(exit);
@@ -547,7 +568,8 @@ void MathVmTranslator::handleBitwiseOperation(BinaryOpNode* node) {
 
   TokenKind kind = node->kind();
   Instruction instruction = getBitwiseBinaryInstruction(kind);
-  translationAssert(false, std::string("unsupported bitwise operation: ") + " " + tokenStr(kind), node->position());
+  translationAssert(instruction != BC_INVALID, std::string("unsupported bitwise operation: ") + " " + tokenStr(kind),
+                    node->position());
 
   getBytecode()->addInsn(instruction);
 }
@@ -566,16 +588,16 @@ void MathVmTranslator::handleComparisonOperation(BinaryOpNode* node) {
   Label trueLabel(bytecode);
   Label exit(bytecode);
 
+  bytecode->addInsn(BC_SWAP);
   bytecode->addBranch(instruction, trueLabel);
+  pop(2);
   bytecode->addInsn(BC_ILOAD0);
   bytecode->addBranch(BC_JA, exit);
 
   bytecode->bind(trueLabel);
+  pop(2);
   bytecode->addInsn(BC_ILOAD1);
   bytecode->bind(exit);
-
-  bytecode->addInsn(BC_POP);
-  bytecode->addInsn(BC_POP);
 }
 
 void MathVmTranslator::handleFunction(AstFunction* astFunction) {
@@ -681,4 +703,11 @@ void MathVmTranslator::visitNodeWithResult(AstNode* node) {
 void MathVmTranslator::swap() {
   getBytecode()->addInsn(BC_SWAP);
   _typeOfTopOfStack = VT_VOID;
+}
+
+void MathVmTranslator::pop(size_t count) {
+  Bytecode* bytecode = getBytecode();
+  for (size_t i = 0; i < count; ++i) {
+    bytecode->addInsn(BC_POP);
+  }
 }
