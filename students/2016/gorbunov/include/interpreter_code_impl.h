@@ -2,6 +2,7 @@
 #define PROJECT_INTERPRETER_CODE_IMPL_H
 
 #include <mathvm.h>
+#include <ast.h>
 
 namespace mathvm
 {
@@ -9,8 +10,12 @@ namespace mathvm
     class InterpreterCodeImpl: public Code
     {
     public:
-        Status *execute(vector<Var *> &);
+        InterpreterCodeImpl(Scope* topScope): _top_scope(topScope) {
+        }
+        Status *execute(vector<Var*> &);
+        uint16_t registerNativeFunction(BytecodeFunction* bf);
     private:
+        Scope* _top_scope;
     };
 
 }

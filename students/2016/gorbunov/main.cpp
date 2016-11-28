@@ -6,8 +6,10 @@ using namespace mathvm;
 using namespace std;
 
 int main(int argc, char **argv) {
-    string impl = "";
+    string impl = "translator";
     const char *script = NULL;
+    bool print_program = false;
+    bool print_bytecode = false;
     for (int32_t i = 1; i < argc; i++) {
         if (string(argv[i]) == "-j") {
             impl = "jit";
@@ -15,6 +17,10 @@ int main(int argc, char **argv) {
             impl = "printer";
         } else if (string(argv[i]) == "-t") {
             impl = "translator";
+        } else if (string(argv[i]) == "--print-program") {
+            print_program = true;
+        } else if (string(argv[i]) == "--bytecode") {
+            print_bytecode = true;
         } else {
             script = argv[i];
         }
@@ -42,6 +48,12 @@ int main(int argc, char **argv) {
 
     Code *code = 0;
 
+    if (print_program) {
+        auto p = Translator::create("printer");
+        p->translate(expr, nullptr);
+        delete p;
+    }
+
     Status *translateStatus = translator->translate(expr, &code);
     if (translateStatus->isError()) {
         uint32_t position = translateStatus->getPosition();
@@ -52,9 +64,10 @@ int main(int argc, char **argv) {
                line, offset,
                translateStatus->getErrorCstr());
     } else {
-        if (impl == "translator") {
+        if (impl == "translator" && print_bytecode) {
             code->disassemble();
-        } else if (impl != "printer") {
+        }
+        if (impl != "printer") {
             assert(code != 0);
             vector<Var *> vars;
 

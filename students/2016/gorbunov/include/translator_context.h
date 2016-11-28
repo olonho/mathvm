@@ -3,7 +3,7 @@
 
 #include "mathvm.h"
 #include "ast.h"
-#include "TranslatorError.h"
+#include "mathvm_error.h"
 
 #include <stack>
 #include <map>
@@ -23,18 +23,16 @@ namespace mathvm
 
     class TranslatorContext {
     public:
-        TranslatorContext(): _cur_scope(nullptr), returnPos(-1) {
-            _context_ids.push(0);
-            _locals_counts.push(0);
+        TranslatorContext(): _cur_scope(nullptr), return_pos(-1) {
         }
 
         /**
          * @param scope scope to enter (push)
-         * @param functions functions defined withtn scope paired with ther context ids (function ids)
+         * @param functions functions defined within scope paired with flag if function is native
          *        so this functions names are checked during pushScope on that they are truly exists
          *        with FunctionIterator for this scope
          */
-        void pushScope(Scope* scope, std::map<string, BytecodeFunction*> functions);
+        void pushScope(Scope* scope, std::map<string, std::pair<BytecodeFunction*, bool>> functions);
 
         void pushFunctionScope(Scope* scope, BytecodeFunction* f);
 
@@ -42,7 +40,7 @@ namespace mathvm
 
         VarData getVarByName(const std::string& var_name);
 
-        BytecodeFunction* getFunByName(const std::string& fun_name);
+        std::pair<BytecodeFunction*, bool> getFunByName(const std::string& fun_name);
 
         uint16_t currentContextId() {
             assert(!_context_ids.empty());
@@ -60,26 +58,26 @@ namespace mathvm
         }
 
         void pushType(VarType t) {
-            typeStack.push_back(t);
+            type_stack.push_back(t);
         }
 
         void popType() {
-            assert(!typeStack.empty());
-            typeStack.pop_back();
+            assert(!type_stack.empty());
+            type_stack.pop_back();
         }
 
         VarType tosType() {
-            if (typeStack.empty()) {
+            if (type_stack.empty()) {
                 throw TranslatorError("Type stack is empty...no tos type available!");
             }
-            return typeStack.back();
+            return type_stack.back();
         }
 
         VarType prevTosType() {
-            if (typeStack.size() < 2) {
+            if (type_stack.size() < 2) {
                 throw TranslatorError("Type stack size not big enough");
             }
-            return typeStack[typeStack.size() - 2];
+            return type_stack[type_stack.size() - 2];
         }
 
         /**
@@ -93,11 +91,11 @@ namespace mathvm
         }
 
         void setReturnedPos(int32_t pos) {
-            returnPos = pos;
+            return_pos = pos;
         }
 
         int32_t getReturnedPos() {
-            return returnPos;
+            return return_pos;
         }
 
         std::string curFunctionName() {
@@ -117,11 +115,14 @@ namespace mathvm
         // scope of current function)
         std::stack<uint16_t> _locals_counts;
         // all variables visible from current scope
-        std::map<std::string, VarData> _vars;
-        std::map<std::string, BytecodeFunction*> _funs;
+        // name in this map points to array -- stack of variables visible from
+        // current scope, so top of the stack is used if code refers variable name
+        // (top of the vars stack shadows other vars)
+        std::map<std::string, std::vector<VarData>> _vars;
+        std::map<std::string, std::pair<BytecodeFunction*, bool>> _funs;
         // stack with types
-        std::vector<VarType> typeStack;
-        int32_t returnPos;
+        std::vector<VarType> type_stack;
+        int32_t return_pos;
 
 
         void setCurScope(Scope* scope) {
