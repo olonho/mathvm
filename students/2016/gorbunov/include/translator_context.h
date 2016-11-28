@@ -80,6 +80,15 @@ namespace mathvm
             return type_stack[type_stack.size() - 2];
         }
 
+        void swapTopTosTypes() {
+            if (type_stack.size() < 2) {
+                throw TranslatorError("Type stack size not big enough");
+            }
+            auto tmp = type_stack.back();
+            type_stack.back() = type_stack[type_stack.size() - 2];
+            type_stack[type_stack.size() - 2] = tmp;
+        }
+
         /**
          * @return return type of current function we are in
          */

@@ -1,3 +1,4 @@
+#include <limits>
 #include "translator_context.h"
 
 using namespace mathvm;
@@ -73,6 +74,9 @@ VarData TranslatorContext::getVarByName(const std::string &var_name) {
 
 void TranslatorContext::addVarsFromScope(Scope *scope) {
     Scope::VarIterator varIt(scope);
+    if (scope->variablesCount() > std::numeric_limits<int16_t>::max()) {
+        throw TranslatorError("Too much variables in one scope!");
+    }
     while (varIt.hasNext()) {
         auto var = varIt.next();
         VarData var_data = {var->type(), currentContextId(), (uint16_t) _locals_counts.top(), var->name()};

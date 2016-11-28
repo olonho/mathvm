@@ -84,7 +84,6 @@ endif
 MATHVM_OBJ = \
         $(ASMJIT_OBJ) \
         $(OBJ)/ast$(OBJ_SUFF) \
-        $(OBJ)/interpreter$(OBJ_SUFF) \
         $(OBJ)/mathvm$(OBJ_SUFF) \
         $(OBJ)/parser$(OBJ_SUFF) \
         $(OBJ)/scanner$(OBJ_SUFF) \

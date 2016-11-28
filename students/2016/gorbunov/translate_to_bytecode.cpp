@@ -446,11 +446,12 @@ VarType BytecodeGenVisitor::castBinOpOperands(uint32_t position) {
     if (ctx.tosType() != op_type) {
         castTos(op_type, position);
     }
-
     if (ctx.prevTosType() != op_type) {
         ctx.bytecode()->addInsn(BC_SWAP);
+        ctx.swapTopTosTypes();
         castTos(op_type, position);
         ctx.bytecode()->addInsn(BC_SWAP);
+        ctx.swapTopTosTypes(); // not necessary
     }
     return op_type;
 }

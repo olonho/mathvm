@@ -13,12 +13,17 @@ Status *InterpreterCodeImpl::execute(vector<Var*> &vars) {
     vector<int32_t> var_ids(vars.size(), -1);
     int32_t id = 0;
     while (var_it.hasNext()) {
+        bool changed = false;
         auto ast_var = var_it.next();
         for (uint32_t i = 0; i < vars.size(); ++i) {
             if (vars[i]->name() == ast_var->name()) {
+                changed = true;
                 var_ids[i] = id;
                 break;
             }
+        }
+        if (!changed) {
+            break;
         }
         id += 1;
     }
