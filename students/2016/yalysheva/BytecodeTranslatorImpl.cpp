@@ -701,13 +701,13 @@ Status *BytecodeTranslatorImpl::translateBytecode(const string &program, Interpr
     *code = new InterpreterCodeImpl();
     TranslatorVisitor visitor(*code, parser.top());
 
-    Code::FunctionIterator functionIterator(*code);
-    while(functionIterator.hasNext()){
-        BytecodeFunction *bcfun = (BytecodeFunction*)functionIterator.next();
-        cout << "function: " << bcfun->name() << ", idx: " << bcfun->id() << endl;
-        bcfun->bytecode()->dump(cout);
-        cout << endl;
-    }
+//    Code::FunctionIterator functionIterator(*code);
+//    while(functionIterator.hasNext()){
+//        BytecodeFunction *bcfun = (BytecodeFunction*)functionIterator.next();
+//        cout << "function: " << bcfun->name() << ", idx: " << bcfun->id() << endl;
+//        bcfun->bytecode()->dump(cout);
+//        cout << endl;
+//    }
     return pStatus;
 }
 
