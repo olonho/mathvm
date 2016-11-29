@@ -12,11 +12,10 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/mathvm_translator$(OBJ_SUFF)
+   $(OBJ)/mathvm_translator$(OBJ_SUFF) \
+   $(OBJ)/mathvm_interpreter$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
-
-INCLUDE += -I$(ROOT)/include
 
 MATHVM = $(BIN)/mvm
 

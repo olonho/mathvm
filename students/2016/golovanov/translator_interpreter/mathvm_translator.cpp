@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include <cassert>
-#include <dlfcn.h>
+#include <memory>
+
 #include "parser.h"
 #include "translator_exception.h"
 #include "mathvm_translator.h"
@@ -10,21 +11,39 @@ namespace mathvm
 
 // Context class
 ///////////////////////////////////////////////////////////////////////////
-translator_context* translator_context::up(BytecodeFunction* func)
+BytecodeFunction* translator_context::function()
 {
-    return static_cast<translator_context*>(context::up(func));
+    return function_;
 }
 
-translator_context* translator_context::down()
+Bytecode* translator_context::bc()
 {
-    return static_cast<translator_context*>(context::down());
+    return function_->bytecode();
+}
+
+uint16_t translator_context::id()
+{
+    return id_;
 }
 
 translator_context* translator_context::parent()
 {
-    return static_cast<translator_context*>(context::parent());
+    return parent_;
 }
 
+translator_context* translator_context::up(BytecodeFunction* func = nullptr)
+{
+    if (func == nullptr)
+        func = function();
+
+    return new translator_context(id() + 1, func, this);
+}
+
+translator_context* translator_context::down()
+{
+    std::unique_ptr<translator_context> bye_bye(this);
+    return parent();
+}
 bool translator_context::contains(const std::string& var_name)
 {
     return local_vars_.find(var_name) != local_vars_.end() ||
@@ -424,8 +443,7 @@ void BytecodeVisitor::visitIntLiteralNode(IntLiteralNode* node)
 
 void BytecodeVisitor::load_var(const AstVar* var)
 {
-    if (!context_->contains(var->name()))
-        throw translator_exception(var->name() + " is not found");
+    assert(context_->contains(var->name()));
 
     auto var_id = context_->get_var_id(var->name());
     if (var_id.first == context_->id())
@@ -471,8 +489,7 @@ void BytecodeVisitor::load_var(const AstVar* var)
 
 void BytecodeVisitor::store_var(const AstVar* var)
 {
-    if (!context_->contains(var->name()))
-        throw translator_exception(var->name() + " is not found");
+    assert(context_->contains(var->name()));
 
     auto var_id = context_->get_var_id(var->name());
     if (var_id.first == context_->id())
@@ -626,16 +643,10 @@ void BytecodeVisitor::visitBlockNode(BlockNode* node)
 
 void BytecodeVisitor::visitFunctionNode(FunctionNode* node)
 {
-    if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode())
+    for (std::size_t i = 0; i < node->parametersNumber(); ++i)
     {
-        node->body()->nodeAt(0)->visit(this);
-        return;
-    }
-
-    for (std::size_t i = node->parametersNumber(); i > 0; --i)
-    {
-        context_->add_var(node->parameterName(i - 1));
-        switch(node->parameterType(i - 1))
+        context_->add_var(node->parameterName(i));
+        switch(node->parameterType(i))
         {
             case VT_INT:
                 context_->bc()->addInsn(BC_STOREIVAR);
@@ -650,11 +661,18 @@ void BytecodeVisitor::visitFunctionNode(FunctionNode* node)
                 throw translator_exception("Invalid parameter type in function " + node->name());
         }
 
-        std::pair<uint16_t, uint16_t> var_id = context_->get_var_id(node->parameterName(i - 1));
+        std::pair<uint16_t, uint16_t> var_id = context_->get_var_id(node->parameterName(i));
         context_->bc()->addInt16(var_id.second);
     }
 
+    if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode())
+    {
+        node->body()->nodeAt(0)->visit(this);
+    }
+    else
+    {
     node->body()->visit(this);
+    }
 }
 
 void BytecodeVisitor::visitReturnNode(ReturnNode* node)
@@ -689,15 +707,7 @@ void BytecodeVisitor::visitCallNode(CallNode* node)
 
 void BytecodeVisitor::visitNativeCallNode(NativeCallNode* node)
 {
-    void *code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
-    if (!code)
-        throw translator_exception("Native function " + node->nativeName() + " is not found");
-
-    uint16_t id = code_->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
-    context_->bc()->addInsn(BC_CALLNATIVE);
-    context_->bc()->addUInt16(id);
-
-    set_tos_type(node->nativeSignature()[0].first);
+    throw translator_exception("Native call is unsupported operation");
 }
 
 void BytecodeVisitor::visitPrintNode(PrintNode* node)

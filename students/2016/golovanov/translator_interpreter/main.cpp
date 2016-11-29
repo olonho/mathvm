@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "mathvm_translator.h"
+#include "mathvm_interpreter.h"
 
 using namespace mathvm;
 
