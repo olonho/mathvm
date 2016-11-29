@@ -1,4 +1,5 @@
-#include <math.h>
+#include <dlfcn.h>
+#include <cmath>
 
 #include "interpreter_context.h"
 #include "interpreter_exception.h"
@@ -86,14 +87,51 @@ uint32_t InterpreterContext::getPosition() const
     return _pos;
 }
 
+double InterpreterContext::getDouble() 
+{
+    double output = getBytecode()->getDouble(_pos);
+    _pos += sizeof(output);
+    
+    return output;
+}
+
+int64_t InterpreterContext::getInt64() 
+{
+    int64_t output = getBytecode()->getInt64(_pos);
+    _pos += sizeof(output);
+    
+    return output;
+}
+
+uint16_t InterpreterContext::getUInt16() 
+{
+    uint16_t output = getBytecode()->getUInt16(_pos);
+    _pos += sizeof(output);
+    
+    return output;
+}
+
 Instruction InterpreterContext::getInstruction()
 {
     return getBytecode()->getInsn(_pos++);
 }
 
+StackElement InterpreterContext::getVariableById(uint16_t index) const 
+{
+    checkAccess(index);
+    return _vars[index];
+}
+
+
 bool InterpreterContext::hasNextInstruction() 
 {
     return _pos < getBytecode()->length();
+}
+
+void InterpreterContext::checkAccess(uint16_t index) const
+{
+    if (_vars.size() < index) 
+        throw InterpreterException("Index is out of context bound!");
 }
 
 

@@ -40,8 +40,15 @@ namespace mathvm
     public:
         Bytecode* getBytecode();
         uint32_t getPosition() const;
+        double getDouble();
+        int64_t getInt64();
+        uint16_t getUInt16();
         Instruction getInstruction();
+        StackElement getVariableById(uint16_t index) const;
         bool hasNextInstruction();
+        
+    private:
+        void checkAccess(uint16_t index) const;
     
     private:
         BytecodeFunction* _func;
