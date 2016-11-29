@@ -15,6 +15,8 @@ namespace mathvm
     Instruction getPrintInstruction(VarType type);
     Instruction getLocalLoadInstruction(VarType type);
     Instruction getContextLoadInstruction(VarType type);
+    Instruction getLocalStoreInstruction(VarType type);
+    Instruction getContexStoreInstruction(VarType type);
 
     Instruction getBitInstruction(TokenKind bitToken)  
     {
@@ -148,6 +150,36 @@ namespace mathvm
                 throw GeneratorException("Wrong type for Global Load");
         }
         
+    }
+    
+    Instruction getLocalStoreInstruction(VarType type)
+    {
+        switch (type)
+        {
+            case VT_INT:
+                return BC_STOREIVAR;
+            case VT_DOUBLE:
+                return BC_STOREDVAR;
+            case VT_STRING:
+                return BC_STORESVAR;
+            default:
+                throw GeneratorException("Wrong type for Local Store");
+        }
+    }
+    
+    Instruction getContexStoreInstruction(VarType type)
+    {
+        switch (type)
+        {
+            case VT_INT:
+                return BC_STORECTXIVAR;
+            case VT_DOUBLE:
+                return BC_STORECTXDVAR;
+            case VT_STRING:
+                return BC_STORECTXSVAR;
+            default:
+                throw GeneratorException("Wrong type for Global Store");
+        }
     }
 }
 

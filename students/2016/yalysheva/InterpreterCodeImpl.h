@@ -10,9 +10,6 @@ namespace mathvm {
 
 class InterpreterCodeImpl : public Code {
 public:
-    virtual Status *execute(vector<Var *> &vars)
-    {
-        return Status::Ok();
-    }
+    virtual Status *execute(vector<Var *> &vars);
 };
 }

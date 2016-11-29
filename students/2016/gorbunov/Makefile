@@ -17,7 +17,8 @@ USER_OBJ = \
    $(OBJ)/pretty_print$(OBJ_SUFF) \
    $(OBJ)/translator_context$(OBJ_SUFF) \
    $(OBJ)/translate_to_bytecode$(OBJ_SUFF) \
-   $(OBJ)/interpreter_code_impl$(OBJ_SUFF)
+   $(OBJ)/interpreter_code_impl$(OBJ_SUFF) \
+   $(OBJ)/bytecode_interpreter$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 

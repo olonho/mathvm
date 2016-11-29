@@ -1,3 +1,4 @@
+#include <pretty_print.h>
 #include "translate_to_bytecode.h"
 
 #include "parser.h"
@@ -130,12 +131,12 @@ void BytecodeGenVisitor::visitIntLiteralNode(IntLiteralNode* node) {
 }
 
 void BytecodeGenVisitor::visitLoadNode(LoadNode* node) {
-    auto varData = ctx.getVarByName(node->var()->name());
-    loadVar(varData, node->position());
+    auto var_data = ctx.getVarByName(node->var()->name());
+    loadVar(var_data, node->position());
 }
 
 void BytecodeGenVisitor::visitStoreNode(StoreNode* node) {
-    auto varData = ctx.getVarByName(node->var()->name());
+    auto var_data = ctx.getVarByName(node->var()->name());
 
     node->value()->visit(this);
 
@@ -143,19 +144,19 @@ void BytecodeGenVisitor::visitStoreNode(StoreNode* node) {
         case tASSIGN:
             break;
         case tINCRSET:
-            loadVar(varData, node->position());
+            loadVar(var_data, node->position());
             doIDBinOp(getBinOpType(node->position()) == VT_INT ? BC_IADD : BC_DADD, node->position());
             break;
         case tDECRSET:
-            loadVar(varData, node->position());
+            loadVar(var_data, node->position());
             doIDBinOp(getBinOpType(node->position()) == VT_INT ? BC_ISUB : BC_DSUB, node->position());
             break;
         default:
             throw TranslatorError("Bad store node operation", node->position());
     }
 
-    storeVar(varData, node->position());
-    loadVar(varData, node->position()); // store node return is just stored value
+    storeVar(var_data, node->position());
+    loadVar(var_data, node->position()); // store node return is just stored value
 }
 
 void BytecodeGenVisitor::visitBlockNode(BlockNode* node) {
@@ -164,26 +165,32 @@ void BytecodeGenVisitor::visitBlockNode(BlockNode* node) {
     // 3) translate block commands
 
     // registering functions
-    std::map<std::string, BytecodeFunction*> functions;
-    Scope::FunctionIterator funIt(node->scope());
-    while (funIt.hasNext()) {
-        auto fun = funIt.next();
+    std::map<std::string, std::pair<BytecodeFunction*, bool>> functions;
+    Scope::FunctionIterator fun_it(node->scope());
+    bool is_native = false;
+    while (fun_it.hasNext()) {
+        auto fun = fun_it.next();
         auto bf = new BytecodeFunction(fun);
-        code->addFunction(bf);
-        functions[fun->name()] = bf;
+        if (fun->node()->body()->nodes() > 0 && fun->node()->body()->nodeAt(0)->isNativeCallNode()) {
+            code->registerNativeFunction(bf);
+            is_native = true;
+        } else {
+            code->addFunction(bf);
+        }
+        functions[fun->name()] = std::make_pair(bf, is_native);
     }
 
     // pushing block scope
     ctx.pushScope(node->scope(), functions);
 
     // translating functions
-    funIt = Scope::FunctionIterator(node->scope());
-    while (funIt.hasNext()) {
-        translateFunction(funIt.next());
+    fun_it = Scope::FunctionIterator(node->scope());
+    while (fun_it.hasNext()) {
+        translateFunction(fun_it.next());
     }
 
 //    PPrintVisitor pp = PPrintVisitor(std::cout);
-    // translating block statements
+//    translating block statements
     for (uint32_t i = 0; i < node->nodes(); ++i) {
         auto s = node->nodeAt(i);
         s->visit(this);
@@ -195,32 +202,35 @@ void BytecodeGenVisitor::visitBlockNode(BlockNode* node) {
             // statements, which do not leave not useful values on the stack
             continue;
         }
+        if (s->isCallNode() && code->functionByName(s->asCallNode()->name())->returnType() == VT_VOID) {
+            // call function with void return type
+            continue;
+        }
         ctx.bytecode()->addInsn(BC_POP);
         ctx.popType();
     }
-
     ctx.popScope();
 }
 
 void BytecodeGenVisitor::visitNativeCallNode(NativeCallNode *node) {
-    // TODO
+    throw TranslatorError("Unexpected native call node", node->position());
 }
 
 void BytecodeGenVisitor::visitForNode(ForNode* node) {
-    auto varData = ctx.getVarByName(node->var()->name());
-    if (varData.type != VT_INT || !node->inExpr()->isBinaryOpNode()
+    auto var_data = ctx.getVarByName(node->var()->name());
+    if (var_data.type != VT_INT || !node->inExpr()->isBinaryOpNode()
         || node->inExpr()->asBinaryOpNode()->kind() != tRANGE) {
         throw TranslatorError("Bad for loop", node->position());
     }
-    auto inExpr = node->inExpr()->asBinaryOpNode();
+    auto in_expr = node->inExpr()->asBinaryOpNode();
 
-    inExpr->left()->visit(this);
-    storeVar(varData, node->position()); // init loop var
+    in_expr->left()->visit(this);
+    storeVar(var_data, node->position()); // init loop var
 
     Label loop = ctx.bytecode()->currentLabel();
     // put range right bound on stack
-    inExpr->right()->visit(this);
-    loadVar(varData, node->position());
+    in_expr->right()->visit(this);
+    loadVar(var_data, node->position());
 
     Label exit(ctx.bytecode());
     ctx.bytecode()->addBranch(BC_IFICMPG, exit);
@@ -228,10 +238,10 @@ void BytecodeGenVisitor::visitForNode(ForNode* node) {
     node->body()->visit(this);
 
     // inc loop var
-    loadVar(varData, node->position());
+    loadVar(var_data, node->position());
     ctx.bytecode()->addInsn(BC_ILOAD1);
     ctx.bytecode()->addInsn(BC_IADD);
-    storeVar(varData, node->position());
+    storeVar(var_data, node->position());
 
     ctx.bytecode()->addBranch(BC_JA, loop);
     ctx.bytecode()->bind(exit);
@@ -303,13 +313,20 @@ void BytecodeGenVisitor::visitFunctionNode(FunctionNode* node) {
 
 
 void BytecodeGenVisitor::visitCallNode(CallNode* node) {
-    BytecodeFunction* fun = ctx.getFunByName(node->name());
+    auto fun_info = ctx.getFunByName(node->name());
+    auto fun = fun_info.first;
+    auto is_native = fun_info.second;
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
         auto expectedType = fun->parameterType(i);
         castTos(expectedType, node->parameterAt(i)->position()); // pushes type on type stack
     }
-    ctx.bytecode()->addInsn(BC_CALL);
+
+    if (is_native) {
+        ctx.bytecode()->addInsn(BC_CALLNATIVE);
+    } else {
+        ctx.bytecode()->addInsn(BC_CALL);
+    }
     ctx.bytecode()->addInt16(fun->id());
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
         ctx.popType(); // pop parameter types from stack
@@ -335,24 +352,28 @@ void BytecodeGenVisitor::visitPrintNode(PrintNode* node) {
 }
 
 void BytecodeGenVisitor::translateFunction(AstFunction *f) {
+    if (f->node()->body()->nodes() > 0 && f->node()->body()->nodeAt(0)->isNativeCallNode()) {
+        return;
+    }
+
     BytecodeFunction* fun = dynamic_cast<BytecodeFunction*>(code->functionByName(f->name()));
     if (fun == nullptr) {
         throw TranslatorError("Function not registered [" + f->name() + "]", f->node()->position());
     }
     ctx.pushFunctionScope(f->scope(), fun);
     // storing parameter variables
-    for (uint32_t i = 0; i < f->parametersNumber(); ++i) {
-        auto varInfo = ctx.getVarByName(f->parameterName(i));
+    for (int32_t i = f->parametersNumber() - 1; i >= 0; i--) {
+        auto varInfo = ctx.getVarByName(f->parameterName((uint32_t) i));
         genStoreVarBytecode(varInfo, f->node()->position());
     }
     f->node()->visit(this);
     fun->setLocalsNumber(ctx.getLocalsNumber());
-    ctx.popScope();
     fun->setScopeId(ctx.currentContextId());
+    ctx.popScope();
 }
 
-void BytecodeGenVisitor::loadVar(VarData varData, uint32_t position) {
-    switch (varData.type) {
+void BytecodeGenVisitor::loadVar(VarData var_data, uint32_t position) {
+    switch (var_data.type) {
         case VT_DOUBLE:
             ctx.bytecode()->addInsn(BC_LOADCTXDVAR);
             break;
@@ -365,19 +386,19 @@ void BytecodeGenVisitor::loadVar(VarData varData, uint32_t position) {
         default:
             throw TranslatorError("Bad var type to load.", position);
     }
-    ctx.bytecode()->addInt16(varData.context);
-    ctx.bytecode()->addInt16(varData.id);
-    ctx.pushType(varData.type);
+    ctx.bytecode()->addInt16(var_data.context);
+    ctx.bytecode()->addInt16(var_data.id);
+    ctx.pushType(var_data.type);
 }
 
-void BytecodeGenVisitor::storeVar(VarData varData, uint32_t position) {
-    castTos(varData.type, position);
-    genStoreVarBytecode(varData, position);
+void BytecodeGenVisitor::storeVar(VarData var_data, uint32_t position) {
+    castTos(var_data.type, position);
+    genStoreVarBytecode(var_data, position);
     ctx.popType();
 }
 
-void BytecodeGenVisitor::genStoreVarBytecode(VarData varData, uint32_t position) {
-    switch (varData.type) {
+void BytecodeGenVisitor::genStoreVarBytecode(VarData var_data, uint32_t position) {
+    switch (var_data.type) {
         case VT_DOUBLE:
             ctx.bytecode()->addInsn(BC_STORECTXDVAR);
             break;
@@ -388,10 +409,10 @@ void BytecodeGenVisitor::genStoreVarBytecode(VarData varData, uint32_t position)
             ctx.bytecode()->addInsn(BC_STORECTXSVAR);
             break;
         default:
-            throw TranslatorError("Unknown type to store into var: " + varData.name, position);
+            throw TranslatorError("Unknown type to store into var: " + var_data.name, position);
     }
-    ctx.bytecode()->addInt16(varData.context);
-    ctx.bytecode()->addInt16(varData.id);
+    ctx.bytecode()->addInt16(var_data.context);
+    ctx.bytecode()->addInt16(var_data.id);
 }
 
 void BytecodeGenVisitor::castTos(VarType to, uint32_t position) {
@@ -421,17 +442,18 @@ VarType BytecodeGenVisitor::getBinOpType(uint32_t position) {
 }
 
 VarType BytecodeGenVisitor::castBinOpOperands(uint32_t position) {
-    VarType opType = getBinOpType(position);
-    if (ctx.tosType() != opType) {
-        castTos(opType, position);
+    VarType op_type = getBinOpType(position);
+    if (ctx.tosType() != op_type) {
+        castTos(op_type, position);
     }
-
-    if (ctx.prevTosType() != opType) {
+    if (ctx.prevTosType() != op_type) {
         ctx.bytecode()->addInsn(BC_SWAP);
-        castTos(opType, position);
+        ctx.swapTopTosTypes();
+        castTos(op_type, position);
         ctx.bytecode()->addInsn(BC_SWAP);
+        ctx.swapTopTosTypes(); // not necessary
     }
-    return opType;
+    return op_type;
 }
 
 
@@ -440,18 +462,18 @@ VarType BytecodeGenVisitor::castBinOpOperands(uint32_t position) {
  * Without casts.
  *
  */
-void BytecodeGenVisitor::doIDBinOp(Instruction binOp, uint32_t position) {
-    VarType resType;
+void BytecodeGenVisitor::doIDBinOp(Instruction bin_op, uint32_t position) {
+    VarType res_type;
 
-    switch (binOp) {
+    switch (bin_op) {
         case BC_DADD:
         case BC_DSUB:
         case BC_DMUL:
         case BC_DDIV:
-            resType = VT_DOUBLE;
+            res_type = VT_DOUBLE;
             break;
         case BC_DCMP:
-            resType = VT_INT;
+            res_type = VT_INT;
             break;
         case BC_IADD:
         case BC_ISUB:
@@ -462,7 +484,7 @@ void BytecodeGenVisitor::doIDBinOp(Instruction binOp, uint32_t position) {
         case BC_IAAND:
         case BC_IAXOR:
         case BC_ICMP:
-            resType = VT_INT;
+            res_type = VT_INT;
             break;
         default:
             throw TranslatorError("Bad bin op!", position);
@@ -470,10 +492,10 @@ void BytecodeGenVisitor::doIDBinOp(Instruction binOp, uint32_t position) {
 
     castBinOpOperands(position);
 
-    ctx.bytecode()->addInsn(binOp);
+    ctx.bytecode()->addInsn(bin_op);
     ctx.popType();
     ctx.popType();
-    ctx.pushType(resType);
+    ctx.pushType(res_type);
 }
 
 void BytecodeGenVisitor::processLogicalOpNode(BinaryOpNode *node) {
@@ -489,49 +511,49 @@ void BytecodeGenVisitor::processLogicalOpNode(BinaryOpNode *node) {
 
     // making lazy evaluation
     ctx.bytecode()->addInsn(BC_ILOAD0);
-    Label evalSecondOperand(ctx.bytecode());
-    ctx.bytecode()->addBranch(node->kind() == tAND ? BC_IFICMPNE : BC_IFICMPE, evalSecondOperand);
+    Label eval_second_operand(ctx.bytecode());
+    ctx.bytecode()->addBranch(node->kind() == tAND ? BC_IFICMPNE : BC_IFICMPE, eval_second_operand);
 
     // put 0 or 1 on stack due to lazy evaluated AND or OR
     ctx.bytecode()->addInsn(node->kind() == tAND ? BC_ILOAD0 : BC_ILOAD1);
 
     // label for jumping over second op evaluation
-    Label lazyHit(ctx.bytecode());
-    ctx.bytecode()->addBranch(BC_JA, lazyHit);
+    Label lazy_hit(ctx.bytecode());
+    ctx.bytecode()->addBranch(BC_JA, lazy_hit);
 
     // eval second op
-    ctx.bytecode()->bind(evalSecondOperand);
+    ctx.bytecode()->bind(eval_second_operand);
     node->right()->visit(this);
     if (ctx.tosType() != VT_INT) {
         throw TranslatorError("Bad logical operation operand type", node->right()->position());
     }
     ctx.popType();
 
-    ctx.bytecode()->bind(lazyHit);
+    ctx.bytecode()->bind(lazy_hit);
     ctx.pushType(VT_INT);
 }
 
-void BytecodeGenVisitor::doCompareOp(Instruction ifCmpInstruction, uint32_t position) {
-    if (ifCmpInstruction != BC_IFICMPE && ifCmpInstruction != BC_IFICMPG && ifCmpInstruction != BC_IFICMPNE &&
-            ifCmpInstruction != BC_IFICMPGE && ifCmpInstruction != BC_IFICMPL && ifCmpInstruction != BC_IFICMPLE) {
+void BytecodeGenVisitor::doCompareOp(Instruction if_cmp_insn, uint32_t position) {
+    if (if_cmp_insn != BC_IFICMPE && if_cmp_insn != BC_IFICMPG && if_cmp_insn != BC_IFICMPNE &&
+            if_cmp_insn != BC_IFICMPGE && if_cmp_insn != BC_IFICMPL && if_cmp_insn != BC_IFICMPLE) {
         throw TranslatorError("bad ificmp instruction", position);
     }
 
-    VarType opType = castBinOpOperands(position);
-    Instruction cmpInstruction = (opType == VT_DOUBLE) ? BC_DCMP : BC_ICMP;
+    VarType op_type = castBinOpOperands(position);
+    Instruction cmp_insn = (op_type == VT_DOUBLE) ? BC_DCMP : BC_ICMP;
 
-    ctx.bytecode()->addInsn(cmpInstruction);
+    ctx.bytecode()->addInsn(cmp_insn);
     ctx.bytecode()->addInsn(BC_ILOAD0); // stack will be: <- 0 - cmp - ...
     ctx.bytecode()->addInsn(BC_SWAP); // now stack is <- cmp - 0 - ...; cmp -- compare result
 
-    Label trueL(ctx.bytecode());
-    ctx.bytecode()->addBranch(ifCmpInstruction, trueL);
+    Label true_l(ctx.bytecode());
+    ctx.bytecode()->addBranch(if_cmp_insn, true_l);
     ctx.bytecode()->addInsn(BC_ILOAD0);
-    Label falseL(ctx.bytecode());
-    ctx.bytecode()->addBranch(BC_JA, falseL);
-    ctx.bytecode()->bind(trueL);
+    Label false_l(ctx.bytecode());
+    ctx.bytecode()->addBranch(BC_JA, false_l);
+    ctx.bytecode()->bind(true_l);
     ctx.bytecode()->addInsn(BC_ILOAD1);
-    ctx.bytecode()->bind(falseL);
+    ctx.bytecode()->bind(false_l);
 }
 
 void BytecodeGenVisitor::translateToBytecode(AstFunction *root) {
@@ -549,9 +571,9 @@ Status* BytecodeGenTranslator::translate(const std::string& program, Code* *code
     if (status->isError())
         return status;
 
-    *code = new InterpreterCodeImpl();
-
-    BytecodeGenVisitor visitor(*code);
+    auto codeImpl = new InterpreterCodeImpl(parser.top()->node()->body()->scope());
+    *code = codeImpl;
+    BytecodeGenVisitor visitor(codeImpl);
     try {
         visitor.translateToBytecode(parser.top());
     } catch (TranslatorError e) {

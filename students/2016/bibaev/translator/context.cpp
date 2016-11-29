@@ -4,7 +4,6 @@
 
 using namespace mathvm;
 
-
 Context::Context(BytecodeFunction* function, Scope* scope, Context* parent)
     : _parent(parent), _function(function), _scope(scope), _maxId(0u) {
   Scope::VarIterator it(_scope);

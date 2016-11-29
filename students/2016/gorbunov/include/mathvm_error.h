@@ -1,5 +1,5 @@
-#ifndef _TRANSLATOREXCEPTION_H
-#define _TRANSLATOREXCEPTION_H
+#ifndef _MATHVM_ERROR_H
+#define _MATHVM_ERROR_H
 
 #include <stdexcept>
 
@@ -12,6 +12,11 @@ public:
     uint32_t getPosition() {
         return pos;
     }
+};
+
+class InterpreterError: public std::runtime_error {
+public:
+    InterpreterError(const std::string &__arg) : runtime_error(__arg) {}
 };
 
 #endif
