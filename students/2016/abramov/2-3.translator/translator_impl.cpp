@@ -19,10 +19,5 @@ Status* TranslatorImpl::translate(const string& program, Code** code)
 
 Translator* Translator::create(const string& impl) 
 {
-    if (impl.empty() || impl == "printer") 
-    {
-        return new TranslatorImpl();
-    }
-
-    return NULL;
+    return new TranslatorImpl();
 }

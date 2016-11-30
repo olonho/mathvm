@@ -8,7 +8,7 @@
 
 namespace mathvm
 {   
-    class CodeInterpreter : Code
+    class CodeInterpreter : public Code
     {
     public:
         CodeInterpreter();
@@ -18,6 +18,16 @@ namespace mathvm
     
     private:
         void executeInstruction(Instruction instruction);
+        bool tryLoad(Instruction instruction);
+        bool tryStore(Instruction instruction);
+        bool tryArithmetic(Instruction instruction);
+        bool tryLogic(Instruction instruction);
+        bool tryPrint(Instruction instruction);
+        bool tryConvert(Instruction instruction);
+        bool tryCompare(Instruction instruction);
+        bool tryOther(Instruction Instruction);
+        
+        StackElement popStack();
     
     private:
         InterpreterContext* _context;

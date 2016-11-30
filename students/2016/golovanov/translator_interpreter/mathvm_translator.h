@@ -11,42 +11,46 @@
 #include "ast.h"
 #include "mathvm.h"
 
-#include "context.h"
-
 namespace mathvm
 {
-
-// Code class
-///////////////////////////////////////////////////////////////////////////
-class InterpreterCodeImpl : public Code
-{
-    Status* execute(vector<Var*>& vars)
-    {
-        return Status::Ok();
-    }
-};
 
 namespace
 {
 
 // Context class
 ///////////////////////////////////////////////////////////////////////////
-class translator_context : public context
+class translator_context
 {
 public:
     translator_context(BytecodeFunction* top)
-        : context(top)
+        : id_(0)
+        , function_(top)
+        , parent_(nullptr)
     {}
 
-    translator_context* up(BytecodeFunction* func = nullptr);
-    translator_context* down();
+    BytecodeFunction* function();
+    Bytecode* bc();
+    uint16_t id();
     translator_context* parent();
+    translator_context* up(BytecodeFunction* func);
+    translator_context* down();
+
     bool contains(const std::string& var_name);
     void add_var(const std::string& var_name);
     void add_all_vars(Scope* scope);
     std::pair<uint16_t, uint16_t> get_var_id(const std::string& var_name);
 
 private:
+    translator_context(uint16_t id, BytecodeFunction* func, translator_context* parent)
+        : id_(id)
+        , function_(func)
+        , parent_(parent)
+    {}
+
+private:
+    uint16_t id_;
+    BytecodeFunction* function_;
+    translator_context* parent_;
     std::map<std::string, uint16_t> local_vars_;
 };
 
