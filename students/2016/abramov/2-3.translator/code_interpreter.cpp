@@ -3,6 +3,7 @@
 
 #include "code_interpreter.h"
 #include "interpreter_exception.h"
+#include "generator_context.h"
 
 using namespace mathvm;
 
@@ -37,6 +38,8 @@ void CodeInterpreter::executeInstruction(Instruction instruction)
 {
     if (tryLoad(instruction))
         return;
+    if (tryStore(instruction))
+        return;
     if (tryArithmetic(instruction))
         return;
     if (tryLogic(instruction))
@@ -44,6 +47,10 @@ void CodeInterpreter::executeInstruction(Instruction instruction)
     if (tryPrint(instruction))
         return;
     if (tryConvert(instruction))
+        return;
+    if (tryCompare(instruction))
+        return;
+    if (tryOther(instruction))
         return;
     
     throw InterpreterException("Invalid instruction on execution step!");
@@ -103,6 +110,15 @@ bool CodeInterpreter::tryLoad(Instruction instruction)
         case BC_LOADSVAR3:
             _stack.push(_context->getVariableById(3));
             break;
+        case BC_LOADCTXIVAR:
+        case BC_LOADCTXDVAR:
+        case BC_LOADCTXSVAR:
+        {
+            uint16_t contextId = _context->getUInt16();
+            uint16_t varId = _context->getUInt16();
+            _stack.push(_context->getContextVariable(contextId, varId));
+            break;
+        }
         default:
             // not load instruction
             return false;
@@ -111,6 +127,55 @@ bool CodeInterpreter::tryLoad(Instruction instruction)
     // executed  instruction
     return true;
 }
+
+bool CodeInterpreter::tryStore(Instruction instruction) 
+{
+    switch (instruction)
+    {
+        case BC_STOREIVAR0:
+        case BC_STOREDVAR0:
+        case BC_STORESVAR0:
+            _context->storeVariableById(popStack(), 0);
+            break;
+        case BC_STOREIVAR1:
+        case BC_STOREDVAR1:
+        case BC_STORESVAR1:
+            _context->storeVariableById(popStack(), 1);
+            break;
+        case BC_STOREIVAR2:
+        case BC_STOREDVAR2:
+        case BC_STORESVAR2:
+            _context->storeVariableById(popStack(), 2);
+            break;
+        case BC_STOREIVAR3:
+        case BC_STOREDVAR3:
+        case BC_STORESVAR3:
+            _context->storeVariableById(popStack(), 3);
+            break;
+        case BC_STOREIVAR:
+        case BC_STOREDVAR:
+        case BC_STORESVAR:
+        {
+            uint16_t index = _context->getUInt16();
+            _context->storeVariableById(popStack(), index);
+            break;
+        }
+        case BC_STORECTXIVAR:
+        case BC_STORECTXDVAR:
+        case BC_STORECTXSVAR:
+        {
+            uint16_t contextId = _context->getUInt16();
+            uint16_t varId = _context->getUInt16();
+            _context->storeContextVariable(popStack(), contextId, varId);
+            break;
+        }
+        default:
+            return false;
+    }
+    
+    return true;    
+}
+
 
 bool CodeInterpreter::tryArithmetic(Instruction instruction) 
 {
@@ -225,7 +290,140 @@ bool CodeInterpreter::tryConvert(Instruction instruction)
     return true;
 }
 
+bool CodeInterpreter::tryCompare(Instruction instruction) 
+{
+    switch (instruction)
+    {
+        case BC_ICMP: 
+        {
+            int64_t lhs = popStack().getInt64();
+            int64_t rhs = popStack().getInt64();
+            if (lhs < rhs) 
+            {
+                _stack.push((int64_t) -1);
+            } 
+            if (lhs > rhs)
+            {
+                _stack.push((int64_t) 1);
+            }
+            if (lhs == rhs) 
+            {
+                _stack.push((int64_t) 0);
+            } 
+            break;
+        };
+        case BC_DCMP: 
+        {
+            double lhs = popStack().getDouble();
+            double rhs = popStack().getDouble();
+            if (lhs < rhs) 
+            {
+                _stack.push((int64_t) -1);
+            } 
+            if (lhs > rhs)
+            {
+                _stack.push((int64_t) 1);
+            }
+            if (lhs == rhs) 
+            {
+                _stack.push((int64_t) 0);
+            } 
+            break;
+        };
+        case BC_IFICMPNE:
+        {
+            int64_t lhs = popStack().getInt64();
+            int64_t rhs = popStack().getInt64();
+            _context->jumpIf(lhs != rhs);
+            break;
+        }
+        case BC_IFICMPE:
+        {
+            int64_t lhs = popStack().getInt64();
+            int64_t rhs = popStack().getInt64();
+            _context->jumpIf(lhs == rhs);
+            break;
+        }
+        case BC_IFICMPG:
+        {
+            int64_t lhs = popStack().getInt64();
+            int64_t rhs = popStack().getInt64();
+            _context->jumpIf(lhs > rhs);
+            break;
+        }
+        case BC_IFICMPGE:
+        {
+            int64_t lhs = popStack().getInt64();
+            int64_t rhs = popStack().getInt64();
+            _context->jumpIf(lhs >= rhs);
+            break;
+        }
+        case BC_IFICMPL:
+        {
+            int64_t lhs = popStack().getInt64();
+            int64_t rhs = popStack().getInt64();
+            _context->jumpIf(lhs < rhs);
+            break;
+        }
+        case BC_IFICMPLE:
+        {
+            int64_t lhs = popStack().getInt64();
+            int64_t rhs = popStack().getInt64();
+            _context->jumpIf(lhs <= rhs);
+            break;
+        }
+        case BC_JA:
+            _context->jumpIf(true);
+            break;
+        case BC_STOP:
+            break;
+        default:
+            return false;
+    }
+    
+    return true;
+}
 
+bool CodeInterpreter::tryOther(Instruction Instruction) 
+{
+    switch (Instruction)
+    {
+        case BC_CALL: 
+        {
+            uint16_t funcId = _context->getUInt16();
+            BytecodeFunction* function = (BytecodeFunction*) functionById(funcId);
+            _context = new InterpreterContext(function, _context);
+            break;
+        }
+        case BC_CALLNATIVE: 
+        {
+            _context->getUInt16();
+            throw InterpreterException("NATIVE CALL");
+        }
+        case BC_RETURN: 
+        {
+            InterpreterContext* context = _context;
+            _context = _context->getParentContext();
+            delete context;
+            break;
+        }
+        case BC_SWAP:
+        {
+            StackElement top = popStack();
+            std::swap(top, _stack.top());
+            // new top
+            _stack.push(top);
+            break;
+        }
+        case BC_POP:
+            _stack.pop();
+            break;
+        default:
+            return false;
+    }
+    
+    return true;
+}
 
 StackElement CodeInterpreter::popStack() 
 {

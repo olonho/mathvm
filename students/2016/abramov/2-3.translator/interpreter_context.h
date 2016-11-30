@@ -43,8 +43,13 @@ namespace mathvm
         double getDouble();
         int64_t getInt64();
         uint16_t getUInt16();
+        InterpreterContext* getParentContext();
         Instruction getInstruction();
         StackElement getVariableById(uint16_t index) const;
+        StackElement getContextVariable(uint16_t contextId, uint16_t index);
+        void storeVariableById(StackElement element, uint16_t index);
+        void storeContextVariable(StackElement element, uint16_t contextId, uint16_t index);
+        void jumpIf(bool condition);
         bool hasNextInstruction();
         
     private:

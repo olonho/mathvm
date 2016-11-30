@@ -111,6 +111,12 @@ uint16_t InterpreterContext::getUInt16()
     return output;
 }
 
+InterpreterContext* InterpreterContext::getParentContext() 
+{
+    return _parent;
+}
+
+
 Instruction InterpreterContext::getInstruction()
 {
     return getBytecode()->getInsn(_pos++);
@@ -122,6 +128,61 @@ StackElement InterpreterContext::getVariableById(uint16_t index) const
     return _vars[index];
 }
 
+void InterpreterContext::storeVariableById(StackElement element, uint16_t index) 
+{
+    checkAccess(index);
+    _vars[index] = element;
+}
+
+void InterpreterContext::storeContextVariable(StackElement element, uint16_t contextId, uint16_t index) 
+{
+    // local
+    if (contextId == _func->scopeId()) 
+    {
+        checkAccess(index);
+        _vars[index] = element;
+        return;
+    }
+    // search parent scope
+    if (_parent) 
+    {
+        return _parent->storeContextVariable(element, contextId, index);
+    }
+    else
+    {
+        throw InterpreterException("Invalid index for variable in storeContextVariable!");
+    }
+}
+
+void InterpreterContext::jumpIf(bool condition) 
+{
+    uint16_t offset = getUInt16();
+    if (condition > 0) 
+    {
+        // negative check?
+        _pos += offset - sizeof(offset);
+    }
+}
+
+
+StackElement InterpreterContext::getContextVariable(uint16_t contextId, uint16_t index) 
+{
+    // local
+    if (contextId == _func->scopeId()) 
+    {
+        checkAccess(index);
+        return _vars[index];
+    }
+    // search parent scope
+    if (_parent) 
+    {
+        return _parent->getContextVariable(contextId, index);
+    }
+    else
+    {
+        throw InterpreterException("Invalid index for variable in getContextVariable!");
+    }
+}
 
 bool InterpreterContext::hasNextInstruction() 
 {
