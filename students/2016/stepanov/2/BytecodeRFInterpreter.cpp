@@ -4,6 +4,10 @@
 #include "../../../../libs/asmjit/asmjit.h"
 #include <stack>
 
+#ifdef MY_DEBUG
+    #include "../1/StringUtils.h"
+#endif
+
 using namespace asmjit;
 using namespace asmjit::x86;
 
@@ -130,6 +134,9 @@ double mathvm::InterScope::nextDouble() {
 void mathvm::InterScope::jump() {
     const uint32_t currentIP = IP;
     IP += bytecode->getInt16(currentIP);
+    #ifdef MY_DEBUG
+        std::cout << (currentIP-1) << "|: jump to " << IP << std::endl;
+    #endif
 }
 
 void mathvm::InterScope::skipUint16t() {
@@ -273,7 +280,7 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             stack.back().value.intValue = (int64_t) stack.back().value.doubleValue;
             break;
         case BC_S2I:
-            stack.back().value.intValue = (int64_t) &constantById(stack.back().value.stringIdValue);
+            stack.back().value.intValue = getStringConstantPtrById(stack.back().value.stringIdValue);
             break;
         case BC_SWAP:
             std::swap(stack.back(), stack[stack.size() - 2]);
@@ -370,8 +377,14 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             }
             break;
         case BC_ICMP:
+            #ifdef MY_DEBUG
+                std::cout << (is->IP - 1) << "|:";
+            #endif
             top = stack.back();
             stack.pop_back();
+            #ifdef MY_DEBUG
+                std::cout << "compare " << top.value.intValue << " and " << stack.back().value.intValue;
+            #endif
             if (top.value.intValue < stack.back().value.intValue) {
                 stack.back().value.intValue = -1;
             } else if (top.value.intValue == stack.back().value.intValue) {
@@ -379,16 +392,25 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             } else {
                 stack.back().value.intValue = 1;
             }
+            #ifdef MY_DEBUG
+                std::cout << " result=" << stack.back().value.intValue << std::endl;
+            #endif
             break;
         case BC_JA:
             is->jump();
             break;
         case BC_IFICMPNE:
+            #ifdef MY_DEBUG
+                std::cout << (is->IP - 1) << "|:";
+            #endif
             top = stack.back();
             stack.pop_back();
             second = stack.back();
             stack.pop_back();
 
+            #ifdef MY_DEBUG
+                std::cout << top.value.intValue <<" != "<< second.value.intValue  <<": " << (top.value.intValue != second.value.intValue) << std::endl;
+            #endif
             if (top.value.intValue != second.value.intValue) {
                 is->jump();
             } else {
@@ -396,11 +418,17 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             }
             break;
         case BC_IFICMPE:
+            #ifdef MY_DEBUG
+                std::cout << (is->IP - 1) << "|:";
+            #endif
             top = stack.back();
             stack.pop_back();
             second = stack.back();
             stack.pop_back();
 
+            #ifdef MY_DEBUG
+                std::cout  << top.value.intValue <<" == "<< second.value.intValue  <<": " << (top.value.intValue == second.value.intValue) << std::endl;
+            #endif
             if (top.value.intValue == second.value.intValue) {
                 is->jump();
             } else {
@@ -408,10 +436,17 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             }
             break;
         case BC_IFICMPG:
+            #ifdef MY_DEBUG
+                std::cout << (is->IP - 1) << "|:";
+            #endif
             top = stack.back();
             stack.pop_back();
             second = stack.back();
             stack.pop_back();
+
+            #ifdef MY_DEBUG
+                std::cout << top.value.intValue <<" > "<< second.value.intValue  <<": " << (top.value.intValue > second.value.intValue) << std::endl;
+            #endif
 
             if (top.value.intValue > second.value.intValue) {
                 is->jump();
@@ -420,11 +455,17 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             }
             break;
         case BC_IFICMPGE:
+            #ifdef MY_DEBUG
+                std::cout << (is->IP - 1) << "|:";
+            #endif
             top = stack.back();
             stack.pop_back();
             second = stack.back();
             stack.pop_back();
 
+            #ifdef MY_DEBUG
+                std::cout <<  top.value.intValue <<" >= "<< second.value.intValue  <<": " << (top.value.intValue >= second.value.intValue) << std::endl;
+            #endif
             if (top.value.intValue >= second.value.intValue) {
                 is->jump();
             } else {
@@ -432,11 +473,17 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             }
             break;
         case BC_IFICMPL:
+            #ifdef MY_DEBUG
+                std::cout << (is->IP - 1) << "|:";
+            #endif
             top = stack.back();
             stack.pop_back();
             second = stack.back();
             stack.pop_back();
 
+            #ifdef MY_DEBUG
+                std::cout << top.value.intValue <<" < "<< second.value.intValue  <<": " << (top.value.intValue < second.value.intValue) << std::endl;
+            #endif
             if (top.value.intValue < second.value.intValue) {
                 is->jump();
             } else {
@@ -444,11 +491,17 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             }
             break;
         case BC_IFICMPLE:
+            #ifdef MY_DEBUG
+                std::cout << (is->IP - 1) << "|:";
+            #endif
             top = stack.back();
             stack.pop_back();
             second = stack.back();
             stack.pop_back();
 
+            #ifdef MY_DEBUG
+                std::cout << top.value.intValue <<" <= "<< second.value.intValue  <<": " << (top.value.intValue <= second.value.intValue) << std::endl;
+            #endif
             if (top.value.intValue <= second.value.intValue) {
                 is->jump();
             } else {
@@ -462,13 +515,25 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             return true;
             break;
         case BC_CALL:
+            #ifdef MY_DEBUG
+                std::cout << (is->IP - 1) << "|:";
+            #endif
             itemId = is->nextUint16t();
+            #ifdef MY_DEBUG
+                std::cout <<   "call " << itemId << "[" <<  functionById(itemId)->name() << "]" <<std::endl;
+            #endif
             is = new InterScope((BytecodeFunction *) functionById(itemId), is);
             variablesOffset = is->variableOffset;
             break;
         case BC_CALLNATIVE:
+            #ifdef MY_DEBUG
+                        std::cout << (is->IP - 1) << "|:";
+            #endif
             itemId = is->nextUint16t();
             call = nativeById(itemId, &signature, &name);
+            #ifdef MY_DEBUG
+                std::cout << "native call " << itemId << "[" << *name << "]"<< std::endl;
+            #endif
 
             if (nativeFunctions[itemId] == 0) {
                 nativeFunctions[itemId] = buildNativeFunction(*signature, (void *) call);
@@ -507,7 +572,9 @@ bool mathvm::BytecodeRFInterpreterCode::evaluateThis(mathvm::Instruction instr) 
             }
 
             stack.resize(stack.size() - signature->size() + 1);
-            stack.push_back(top);
+            if (signature->operator[](0).first != VT_VOID) {
+                stack.push_back(top);
+            }
             break;
         case BC_RETURN:
             oldScope = is;
@@ -537,6 +604,16 @@ int64_t mathvm::nativeLinks[UINT16_MAX];
 mathvm::nativePtr mathvm::nativeFunctions[UINT16_MAX];
 
 int64_t mathvm::BytecodeRFInterpreterCode::getStringConstantPtrById(uint16_t id) {
+    #ifdef MY_DEBUG
+        std::cout << "get string " << id << " = [" ;
+        int64_t ptr;
+        if (nativeLinks[id] != 0) {
+            ptr = nativeLinks[id];
+        } else {
+            ptr =  (int64_t) &(constantById(id)[0]);
+        }
+        std:: cout  << ptr << "] {" << utils::StringUtils::escapeString((char*) ptr) << "}" <<std::endl;
+    #endif
     if (nativeLinks[id] != 0) {
         return nativeLinks[id];
     } else {
@@ -545,5 +622,8 @@ int64_t mathvm::BytecodeRFInterpreterCode::getStringConstantPtrById(uint16_t id)
 }
 
 void mathvm::BytecodeRFInterpreterCode::registerStringConstantPtrById(uint16_t id, int64_t ptr) {
+    #ifdef MY_DEBUG
+        std::cout << "register string " << id << " = [" <<  ptr << "]" <<std::endl;
+    #endif
     nativeLinks[id] = ptr;
 }

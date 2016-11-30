@@ -37,6 +37,10 @@ void mathvm::BytecodeRfVisitor::visitForNode(mathvm::ForNode *node) {
     Label endLabel = Label(bc);
     Label bodyLabel = Label(bc);
 
+    if (node->var() == nullptr){
+        throw new VmException("cannot find for index variable", node->position());
+    }
+
     range->left()->visit(this);
     storeVariable(node->var());
     range->right()->visit(this);
@@ -541,6 +545,11 @@ void mathvm::BytecodeRfVisitor::visitBlockNode(BlockNode *node) {
     scopeEvaluator(node->scope());
     for (uint32_t i = 0; i < node->nodes(); i++) {
         node->nodeAt(i)->visit(this);
+        if (node->nodeAt(i)->isCallNode()){
+            if ((currentSd->topType != VT_VOID) && (currentSd->topType != VT_INVALID)){
+                currentSd->containedFunction->bytecode()->add(BC_POP);
+            }
+        }
     }
     old_sd->updateNestedStack(currentSd->getCountVariablesInScope());
     old_sd->topType = currentSd->topType;
@@ -814,7 +823,7 @@ void mathvm::BytecodeRfVisitor::prepareTopType(VarType param) {
 }
 
 void mathvm::BytecodeRfVisitor::dumpByteCode(ostream &out) {
-    _code->disassemble(out);
+  _code->disassemble(out);
 }
 
 

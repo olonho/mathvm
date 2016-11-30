@@ -163,6 +163,10 @@ namespace mathvm {
                     }
                 }
             }
+            #ifdef MY_DEBUG
+                std::cout << "Stack size on out: " << stack.size() << std::endl;
+            #endif
+
             return is ? is->status : Status::Ok();
         }
 
