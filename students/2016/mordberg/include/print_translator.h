@@ -8,9 +8,9 @@
 namespace mathvm 
 {
 
-class SourcePrintTranslator : public Translator {
+class PrintTranslator : public Translator {
 public:
-    SourcePrintTranslator(std::ostream& out): _out(out) {}
+    PrintTranslator(std::ostream& out): _out(out) {}
 
     Status* translate(const std::string& program, Code* *code);
 

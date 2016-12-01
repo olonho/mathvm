@@ -1,4 +1,4 @@
-#include "source_print_translator.h"
+#include "print_translator.h"
 
 #include <ostream>
 #include <sstream>
@@ -258,7 +258,7 @@ const std::string PrintVisitor::QUOTE = "'";
 
 
 
-Status* SourcePrintTranslator::translate(const std::string &program, Code* *code) {
+Status* PrintTranslator::translate(const std::string &program, Code* *code) {
     Parser parser;
     const auto status = parser.parseProgram(program);
 
