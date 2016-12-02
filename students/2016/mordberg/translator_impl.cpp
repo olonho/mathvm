@@ -10,7 +10,7 @@ Translator* Translator::create(const string& impl) {
         return new PrintTranslator(std::cout);
     } 
     if (impl == "intepreter") {
-        // return new BytecodeTranslatorImpl();
+        return new BytecodeTranslatorImpl();
         return 0;
     }
     if (impl == "jit") {
