@@ -16,6 +16,7 @@ USER_OBJ = \
    $(OBJ)/ast_to_code$(OBJ_SUFF) \
    $(OBJ)/translator_visitor$(OBJ_SUFF) \
    $(OBJ)/TranslatorImpl$(OBJ_SUFF) \
+   $(OBJ)/CodeImpl$(OBJ_SUFF) \
 
 include $(VM_ROOT)/common.mk
 

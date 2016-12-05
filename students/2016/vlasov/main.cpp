@@ -84,6 +84,37 @@ int translator(int argc, char** argv) {
     return 0;
 }
 
+int translate_and_run(int argc, char** argv) {
+    std::string filename(argv[1]);
+    std::ifstream file(filename);
+    std::string content((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+
+
+	mathvm::Translator* translator = mathvm::Translator::create();
+    mathvm::Code* code = new mathvm::CodeImpl();
+    mathvm::Status* s = translator->translate(content, &code);
+
+    if(!s->isOk()) {
+        printError(s, content);
+		return 1;
+    }
+
+    if(argc > 2) {
+		std::string out(argv[2]);
+		std::ofstream of(out);
+        code->disassemble(of);
+	}
+
+    std::vector<mathvm::Var*> vars;
+    s = code->execute(vars);
+    if(!s->isOk()) {
+        std::cout << "Error: " << s->getError() << std::endl;
+        return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
-    return translator(argc, argv);
+	return translate_and_run(argc, argv);
 }

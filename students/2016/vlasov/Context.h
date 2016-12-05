@@ -17,10 +17,10 @@ namespace mathvm {
 struct Context {
 	Scope* scope = nullptr;
 	std::stack<BytecodeFunction*> functions;
-	std::unordered_map<AstVar*, uint16_t> variables;
+	std::unordered_map<AstVar*, std::pair<uint16_t, uint16_t> > variables;
 	bool usedRegs[4] = {false, false, false, false};
 
-	uint16_t lastVarId = 0;
+	std::map<uint16_t, uint16_t> lastVarId;
 
 	int freeReg() {
 		for(int i = 0 ; i < 4; ++i) {
@@ -39,7 +39,10 @@ struct Context {
 	uint16_t declareVar(const std::string& name) {
 		AstVar* var = varByName(name);
 		assert(var != nullptr);
-		return variables[var] = lastVarId++;
+		uint16_t fid = functions.top()->id();
+		uint16_t id = lastVarId[fid]++;
+		variables[var] = std::make_pair(fid, id);
+		return id;
 	}
 
 	AstVar* varByName(const std::string& name) {
@@ -52,7 +55,16 @@ struct Context {
 		if(res == variables.end()) {
 			return -1;
 		}
-		return res->second;
+		return res->second.second;
+	}
+
+	int varFIdByName(const std::string& name) {
+		AstVar* var = varByName(name);
+		auto res = variables.find(var);
+		if(res == variables.end()) {
+			return -1;
+		}
+		return res->second.first;
 	}
 };
 

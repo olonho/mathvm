@@ -14,8 +14,9 @@ void TranslatorVisitor::visitStoreNode(StoreNode *node) {
 	if(var_id == -1) {
 		throw Status::Error(("Using of undeclared variable " + var->name()).c_str(), node->position());
 	}
-	Instruction insn;
+	val->visit(this);
 
+	Instruction insn;
 	Status* err = Status::Error(("Invalid assign operator for store into variable " + var->name() + ": " + tokenStr(node->op())).c_str(), node->position());
 	switch(node->op()) {
 		case tASSIGN:
@@ -23,18 +24,20 @@ void TranslatorVisitor::visitStoreNode(StoreNode *node) {
 		case tINCRSET:
 			loadVariable(var, node->position());
 			OPFORINTEGRALTYPE(var->type(), BC_, ADD, insn, err);
+			ctx.bytecode()->addInsn(insn);
 			break;
 		case tDECRSET:
 			loadVariable(var, node->position());
 			OPFORINTEGRALTYPE(var->type(), BC_, SUB, insn, err);
+			ctx.bytecode()->addInsn(BC_SWAP);
 			ctx.bytecode()->addInsn(insn);
 			break;
 		default:
 			throw err;
 	}
-	OPFORTYPE(var->type(), BC_STORE, VAR, insn, Status::Error(("Invalid type of variable " + var->name()).c_str(), node->position()));
-	val->visit(this);
+	OPFORTYPE(var->type(), BC_STORECTX, VAR, insn, Status::Error(("Invalid type of variable " + var->name()).c_str(), node->position()));
 	ctx.bytecode()->addInsn(insn);
+	ctx.bytecode()->addUInt16(ctx.functions.top()->id());
 	ctx.bytecode()->addUInt16(var_id);
 
 	lastResult = VT_VOID;
@@ -85,7 +88,7 @@ void TranslatorVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 				throw Status::Error("Invalid operand type", node->position());
 			}
 			ctx.bytecode()->addInsn(BC_ILOAD0);
-			compare(VT_INT, 1, 0, 0, node->position());
+			cmpAndLoad(VT_INT, tEQ);
 			break;
 		case tSUB:
 			if(lastResult != VT_INT && lastResult != VT_DOUBLE) {
@@ -97,6 +100,60 @@ void TranslatorVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 		default:
 			throw Status::Error((std::string("Invalid token ") + tokenOp(node->kind())).c_str(), node->position());
 	}
+}
+
+void TranslatorVisitor::cmpAndLoad(VarType type, TokenKind kind) {
+	Bytecode* bc = ctx.bytecode();
+	Label then(bc), end(bc);
+	Instruction insn;
+
+	OPFORINTEGRALTYPE(type, BC_, CMP, insn, Status::Error("Invalid type"));
+	bc->addInsn(insn);
+
+	Instruction cmpInsn;
+	Instruction doThen;
+	Instruction doElse;
+	switch(kind) {
+		case tEQ:
+			cmpInsn = BC_ILOAD0;
+			doThen = BC_ILOAD1;
+			doElse = BC_ILOAD0;
+			break;
+		case tNEQ:
+			cmpInsn = BC_ILOAD0;
+			doThen = BC_ILOAD0;
+			doElse = BC_ILOAD1;
+			break;
+		case tGE:
+			cmpInsn = BC_ILOADM1;
+			doThen = BC_ILOAD0;
+			doElse = BC_ILOAD1;
+			break;
+		case tGT:
+			cmpInsn = BC_ILOAD1;
+			doThen = BC_ILOAD1;
+			doElse = BC_ILOAD0;
+			break;
+		case tLE:
+			cmpInsn = BC_ILOAD1;
+			doThen = BC_ILOAD0;
+			doElse = BC_ILOAD1;
+			break;
+		case tLT:
+			cmpInsn = BC_ILOADM1;
+			doThen = BC_ILOAD1;
+			doElse = BC_ILOAD0;
+			break;
+		default:
+			throw Status::Error("Invalid comparator");
+	}
+	bc->addInsn(cmpInsn);
+	bc->addBranch(BC_IFICMPE, then);
+	bc->addInsn(doElse);
+	bc->addBranch(BC_JA, end);
+	bc->bind(then);
+	bc->addInsn(doThen);
+	bc->bind(end);
 }
 
 void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode *node) {
@@ -115,7 +172,7 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			convertLogic(t1, t2, node->position());
 			bc->addInsn(BC_IAOR);
 			break;
-		case tAND:break;
+		case tAND:
 		case tAAND:
 			convertLogic(t1, t2, node->position());
 			bc->addInsn(BC_IAAND);
@@ -126,27 +183,27 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 			break;
 		case tEQ:
 			convertCmp(t1, t2, node->position());
-			compare(t1, 1, 0, 0, node->position());
+			cmpAndLoad(t1, node->kind());
 			break;
 		case tNEQ:
 			convertCmp(t1, t2, node->position());
-			compare(t1, 0, 1, 1, node->position());
+			cmpAndLoad(t1, node->kind());
 			break;
 		case tGT:
 			convertCmp(t1, t2, node->position());
-			compare(t1, 0, 0, 1, node->position());
+			cmpAndLoad(t1, node->kind());
 			break;
 		case tGE:
 			convertCmp(t1, t2, node->position());
-			compare(t1, 1, 0, 1, node->position());
+			cmpAndLoad(t1, node->kind());
 			break;
 		case tLT:
 			convertCmp(t1, t2, node->position());
-			compare(t1, 0, 1, 0, node->position());
+			cmpAndLoad(t1, node->kind());
 			break;
 		case tLE:
 			convertCmp(t1, t2, node->position());
-			compare(t1, 1, 1, 0, node->position());
+			cmpAndLoad(t1, node->kind());
 			break;
 		case tADD:
 			convertAriphmetic(t1, t2, node->position());
@@ -205,27 +262,32 @@ void TranslatorVisitor::visitForNode(ForNode *node) {
 	if(lastResult != VT_INT) {
 		throw Status::Error("Only int allowed in range", node->position());
 	}
-	bc->addInsn(BC_STOREIVAR);
+	uint16_t fid = ctx.functions.top()->id();
+	bc->addInsn(BC_STORECTXIVAR);
+	bc->addUInt16(fid);
 	bc->addUInt16(varId);
 
 	Label start(bc), end(bc);
 
 	bc->bind(start);
-	bc->addInsn(BC_LOADIVAR);
+	bc->addInsn(BC_LOADCTXIVAR);
+	bc->addUInt16(fid);
 	bc->addUInt16(varId);
 	right->visit(this);
 	if(lastResult != VT_INT) {
 		throw Status::Error("Only int allowed in range", node->position());
 	}
-	bc->addBranch(BC_IFICMPGE, end);
+	bc->addBranch(BC_IFICMPG, end);
 
 	node->body()->visit(this);
 
-	bc->addInsn(BC_LOADIVAR);
+	bc->addInsn(BC_LOADCTXIVAR);
+	bc->addUInt16(fid);
 	bc->addUInt16(varId);
 	bc->addInsn(BC_ILOAD1);
 	bc->addInsn(BC_IADD);
-	bc->addInsn(BC_STOREIVAR);
+	bc->addInsn(BC_STORECTXIVAR);
+	bc->addUInt16(fid);
 	bc->addUInt16(varId);
 	bc->addBranch(BC_JA, start);
 	bc->bind(end);
@@ -233,20 +295,22 @@ void TranslatorVisitor::visitForNode(ForNode *node) {
 
 void TranslatorVisitor::visitIfNode(IfNode *node) {
 	Bytecode* bc = ctx.bytecode();
-	Label elseLabel(bc), endLabel(bc);
 
-	AstNode* expr = node->ifExpr();
-	expr->visit(this);
+	node->ifExpr()->visit(this);
+
+	Label elseLabel(bc);
 	bc->addInsn(BC_ILOAD0);
-
 	bc->addBranch(BC_IFICMPE, elseLabel);
 	node->thenBlock()->visit(this);
-	bc->addBranch(BC_JA, endLabel);
-	bc->bind(elseLabel);
-	if(node->elseBlock() != nullptr) {
+	if(node->elseBlock()) {
+		Label end(bc);
+		bc->addBranch(BC_JA, end);
+		bc->bind(elseLabel);
 		node->elseBlock()->visit(this);
+		bc->bind(end);
+	} else {
+		bc->bind(elseLabel);
 	}
-	bc->bind(endLabel);
 }
 
 void TranslatorVisitor::visitWhileNode(WhileNode *node) {
@@ -289,7 +353,7 @@ void TranslatorVisitor::visitBlockNode(BlockNode *node) {
                     || child->isStringLiteralNode()
                     || child->isDoubleLiteralNode()
                     || child->isLoadNode()
-                    || child->isCallNode()
+                    || (child->isCallNode() && code->functionByName(child->asCallNode()->name())->returnType() != VT_VOID)
                     || child->isBinaryOpNode()
                     || child->isUnaryOpNode())
 		{
@@ -342,52 +406,18 @@ void TranslatorVisitor::loadVariable(const AstVar *var, uint32_t pos) {
 		case VT_VOID:
 			throw Status::Error(("Invalid type of variable " + var->name()).c_str(), pos);
 		case VT_DOUBLE:
-			insn = BC_LOADDVAR;
+			insn = BC_LOADCTXDVAR;
 			break;
 		case VT_INT:
-			insn = BC_LOADIVAR;
+			insn = BC_LOADCTXIVAR;
 			break;
 		case VT_STRING:
-			insn = BC_LOADSVAR;
+			insn = BC_LOADCTXSVAR;
 			break;
 	}
 	ctx.bytecode()->addInsn(insn);
+	ctx.bytecode()->addUInt16(ctx.functions.top()->id());
 	ctx.bytecode()->addUInt16(var_id);
-}
-
-void TranslatorVisitor::compare(VarType type, uint64_t eqThen, uint64_t ltThen, uint64_t gtThen, uint32_t pos) {
-    Bytecode * bc = ctx.bytecode();
-    Label gtLabel(bc), neLabel(bc), end(bc);
-
-	Instruction insn;
-	if(type == VT_INT) {
-		insn = BC_ICMP;
-	} else if(type == VT_DOUBLE) {
-		insn = BC_DCMP;
-	} else {
-		throw Status::Error("Invalid operand types", pos);
-	}
-
-	bc->addInsn(insn);
-	bc->addInsn(BC_ILOAD0);
-	bc->addInsn(BC_SWAP);
-
-    bc->addBranch(BC_IFICMPE, neLabel);
-	loadInt(eqThen);
-	bc->addBranch(BC_JA, end);
-
-	bc->bind(neLabel);
-	bc->addInsn(BC_ILOAD1);
-	bc->addInsn(BC_SWAP);
-
-	bc->addBranch(BC_IFICMPE, gtLabel);
-	loadInt(ltThen);
-	bc->addBranch(BC_JA, end);
-    bc->bind(gtLabel);
-    loadInt(gtThen);
-    bc->bind(end);
-
-    lastResult = VT_INT;
 }
 
 void TranslatorVisitor::loadInt(int64_t val) {
@@ -477,13 +507,13 @@ void TranslatorVisitor::declareScope(Scope *scope, bool isGlobal) {
 		BytecodeFunction *bFunc = dynamic_cast<BytecodeFunction*>(code->functionByName(func->name()));
 		assert(bFunc);
 		Scope* fScope = func->scope();
+		ctx.functions.push(bFunc);
 		if(!isGlobal) {
 			declareScope(fScope);
 		}
-		ctx.functions.push(bFunc);
 		func->node()->visit(this);
-		ctx.functions.pop();
 		ctx.scope = ctx.scope->parent();
+		ctx.functions.pop();
 	}
 }
 
