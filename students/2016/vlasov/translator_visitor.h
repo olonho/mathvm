@@ -10,6 +10,7 @@
 #include <exception>
 
 namespace mathvm {
+
 class TranslatorVisitor : public AstVisitor {
 	Code *code;
 	Context ctx;
@@ -19,7 +20,7 @@ public:
 
 	void loadVariable(const AstVar* var, uint32_t pos = Status::INVALID_POSITION);
 	void loadInt(int64_t val);
-	void compare(VarType type, uint64_t eqThen, uint64_t lessThen, uint64_t greaterThen, uint32_t pos);
+	void cmpAndLoad(VarType type, TokenKind kind);
 	void convertCmp(VarType& t1, VarType& t2, uint32_t pos);
 	void convertAriphmetic(VarType& t1, VarType& t2, uint32_t pos);
 	void convertLogic(VarType& t1, VarType& t2, uint32_t pos);
