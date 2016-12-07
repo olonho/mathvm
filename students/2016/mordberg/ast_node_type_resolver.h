@@ -1,8 +1,10 @@
 #pragma once
 
-#include <mathvm.h>
+#include "mathvm.h"
+#include "ast.h"
 
 #include <map>
+#include <stack>
 
 namespace mathvm {
 
@@ -14,15 +16,11 @@ public:
 
     AstNodeTypeResolver(AstFunction* astTop);
 
-    VarType getNodeType(AstNode* node) const {
-        if (_resolver.count(node)) {
-            return _resolver[node];
-        }
-        return VT_INVALID;
-    }
+    VarType operator() (AstNode* node) const;
 
 private:
     std::map<AstNode*, VarType> _resolver;
+    std::stack<Scope*> _scopes;
 };
 
 } // namespace type_resolver

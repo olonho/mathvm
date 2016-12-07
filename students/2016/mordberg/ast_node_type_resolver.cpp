@@ -11,8 +11,8 @@ namespace {
 class TypeResolverVisitor: public AstVisitor {
 
 public:
-    PrintVisitor(AstFunction* astTop) {
-        astTop->body()->visit(this);
+    TypeResolverVisitor(AstFunction* astTop) {
+        astTop->node()->visit(this);
     }
 
     std::map<AstNode*, VarType> getResolver() const {
@@ -123,8 +123,12 @@ void TypeResolverVisitor::visitIfNode(IfNode *node) {
 }
 
 void TypeResolverVisitor::visitBlockNode(BlockNode *node) {
-    _scopes.push(node->scope())
+    _scopes.push(node->scope());
     node->visitChildren(this);
+    auto funcIt = Scope::FunctionIterator(node->scope());
+    while (funcIt.hasNext()) {
+        funcIt.next()->node()->visit(this);
+    }
     _resolver[node] = VT_INVALID;
     _scopes.pop();
 }
@@ -144,7 +148,7 @@ void TypeResolverVisitor::visitCallNode(CallNode *node) {
     if (_scopes.empty()) {
         _resolver[node] = VT_INVALID;
     } else {
-        _resolver[node] = _scopes.top().lookupFunction(node->name(), true)->returnType();
+        _resolver[node] = _scopes.top()->lookupFunction(node->name(), true)->returnType();
     }
 }
 
@@ -168,6 +172,10 @@ void TypeResolverVisitor::visitPrintNode(PrintNode *node) {
 AstNodeTypeResolver::AstNodeTypeResolver(AstFunction* astTop) {
     _resolver = TypeResolverVisitor(astTop).getResolver();
 }
+
+VarType AstNodeTypeResolver::operator() (AstNode* node) const {
+        return _resolver.at(node);
+    }
 
 } // namspace type_resolver
 

@@ -169,7 +169,7 @@ void PrintVisitor::visitBlockNode(BlockNode *node) {
     }
 
     if (isNotRootScope) {
-        _source_code << get_ident(_scope_level - 1) << END;
+        _source_code << get_ident(_scope_level - 2) << END;
     }
 
     --_scope_level;

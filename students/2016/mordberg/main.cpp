@@ -15,8 +15,10 @@ int main(int argc, char** argv) {
     for (int32_t i = 1; i < argc; i++) {
       if (string(argv[i]) == "-j") {
         impl = "jit";
-      }  if (string(argv[i]) == "-p") {
+      } else if (string(argv[i]) == "-p") {
         impl = "printer";
+      } else if (string(argv[i]) == "-i") {
+        impl = "interpreter";
       } else {
         script = argv[i];
       }
