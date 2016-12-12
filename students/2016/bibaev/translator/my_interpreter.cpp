@@ -1,6 +1,7 @@
 #include <iostream>
 #include <ast.h>
 #include <unordered_map>
+#include <asmjit/base/globals.h>
 #include "stack.h"
 #include "my_interpreter.h"
 #include "bytecode_stream.h"
@@ -208,8 +209,93 @@ struct BytecodeEvaluator {
       _code(code), _out(out) {
   }
 
+  void pushBackToData(vector<uint8_t>& data, VarType type, ValueUnion value) {
+    size_t size = data.size();
+    switch (type) {
+      case VT_INT: {
+        data.resize(size + sizeof(int64_t));
+        int64_t* ptr = (int64_t*) (data.data() + size);
+        *ptr = value.integerValue;
+        break;
+      }
+      case VT_DOUBLE: {
+        data.resize(size + sizeof(int64_t));
+        double* ptr = (double*) (data.data() + size);
+        *ptr = value.floatingPointValue;
+        break;
+      }
+      case VT_STRING: {
+        data.resize(size + sizeof(int64_t));
+        const char* c_str = _code->constantById(value.stringId).data();
+        const char** ptr = (const char**) (data.data() + size);
+        *ptr = c_str;
+        break;
+      }
+      case VT_VOID: {
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  void callNative(uint16_t functionId) {
+    const Signature* signature;
+    const string* name;
+    const void* nativePtr = _code->nativeById(functionId, &signature, &name);
+    mathvm::VarType retType = signature->at(0).first;
+
+    vector<uint8_t> mem;
+    pushBackToData(mem, retType, ValueUnion(0.0));
+    for (uint16_t j = 0; j < signature->size() - 1; ++j) {
+      auto var = signature->at(j + 1);
+      switch (var.first) {
+        case VT_DOUBLE:
+          pushBackToData(mem, VT_DOUBLE, _variables.getDoubleVariableValue(_currentContextId, j));
+          break;
+        case VT_INT:
+          pushBackToData(mem, VT_INT, _variables.getIntVariableValue(_currentContextId, j));
+          break;
+        case VT_STRING:
+          pushBackToData(mem, VT_STRING, _variables.getUInt16VariableValue(_currentContextId, j));
+          break;
+        default:
+          break;
+      }
+    }
+
+    typedef double (* double_handler)(void const*);
+    typedef int64_t (* int_handler)(void const*);
+    typedef const char* (* str_handler)(void const*);
+    typedef void (* void_handler)(void const*);
+    switch (retType) {
+      case VT_DOUBLE: {
+        double result = asmjit_cast<double_handler>(nativePtr)((void const*) mem.data());
+        _stack.pushDouble(result);
+        break;
+      }
+      case VT_INT: {
+        int64_t result = asmjit_cast<int_handler>(nativePtr)((void const*) mem.data());
+        _stack.pushInt(result);
+      }
+        break;
+      case VT_STRING: {
+        const char* c_str = asmjit_cast<str_handler>(nativePtr)((void const*) mem.data());
+        uint16_t id = _code->makeStringConstant(string(c_str));
+        _stack.pushUInt16(id);
+      }
+        break;
+      case VT_VOID:
+        asmjit_cast<void_handler>(nativePtr)((void const*) mem.data());
+        break;
+      default:
+        throw runtime_error(std::string("unexpected return type") + typeToName(retType));
+    }
+  }
+
   void evaluate(BytecodeFunction* function) {
     _currentContextId = function->id();
+
     _variables.pushScope(function->id(), function->localsNumber());
 
     BytecodeStream bytecodeStream(function->bytecode());
@@ -533,8 +619,11 @@ struct BytecodeEvaluator {
 
           break;
         }
-        case BC_CALLNATIVE:
+        case BC_CALLNATIVE: {
+          uint16_t functionId = bytecodeStream.readUInt16();
+          callNative(functionId);
           break;
+        }
         case BC_RETURN:
           return;
         case BC_BREAK:

@@ -63,5 +63,7 @@ private:
   inline Bytecode* getBytecode() {
     return currentContext()->getCurrentFunction()->bytecode();
   }
+
+  bool isPushedValueToStack(AstNode* pNode);
 }; // MathVmTranslator
 } // mathvm

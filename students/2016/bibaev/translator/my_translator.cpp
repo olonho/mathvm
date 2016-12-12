@@ -333,7 +333,12 @@ void MathVmTranslator::visitBlockNode(BlockNode* node) {
   }
 
   for (uint32_t i = 0; i < node->nodes(); ++i) {
-    node->nodeAt(i)->visit(this);
+    AstNode* nestedNode = node->nodeAt(i);
+    nestedNode->visit(this);
+    // Pop value to avoid trash on the stack
+    if (isPushedValueToStack(nestedNode)) {
+      getBytecode()->addInsn(BC_POP);
+    }
   }
 }
 
@@ -384,7 +389,7 @@ void MathVmTranslator::visitCallNode(CallNode* node) {
 void MathVmTranslator::visitNativeCallNode(NativeCallNode* node) {
   void* nativeCode = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
   if (!nativeCode) {
-    throw std::logic_error("Native function not found");
+    throw std::logic_error("Native function not found. name = " + std::string(node->nativeName().c_str()));
   }
 
   uint16_t func_id = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), nativeCode);
@@ -722,4 +727,14 @@ void MathVmTranslator::pop(size_t count) {
   for (size_t i = 0; i < count; ++i) {
     bytecode->addInsn(BC_POP);
   }
+}
+
+bool MathVmTranslator::isPushedValueToStack(AstNode* node) {
+  return node->isBinaryOpNode() ||
+         node->isIntLiteralNode() ||
+         node->isDoubleLiteralNode() ||
+         node->isStringLiteralNode() ||
+         node->isUnaryOpNode() ||
+         (node->isFunctionNode() && node->asFunctionNode()->returnType() != VT_VOID) ||
+         (node->isNativeCallNode() && node->asNativeCallNode()->nativeSignature().at(0).first != VT_VOID);
 }
