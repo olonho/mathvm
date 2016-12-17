@@ -7,6 +7,7 @@
 
 #include "code_interpreter.h"
 #include "code_generator.h"
+#include "translator_impl.h"
 
 using namespace mathvm;
 using namespace std;
@@ -19,10 +20,11 @@ int main(int argc, char** argv) {
     }
     const char* fileName = argv[1];
     const char* inputCode = loadFile(fileName);
-    
+
     Code* code = new CodeInterpreter();
+    Code** argument = &code;
     Translator* translator = Translator::create();
-    Status* translateStatus = translator->translate(inputCode, &code);
+    Status* translateStatus = translator->translate(inputCode, argument);
     
     if (translateStatus->isError()) 
     {

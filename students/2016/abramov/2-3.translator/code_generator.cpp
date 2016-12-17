@@ -519,12 +519,19 @@ void CodeGenerator::processFunction(AstFunction* astFunc, BytecodeFunction* byte
 }
 
 void CodeGenerator::castTypeTOS(VarType target) 
-{    
-    if (_tosType == VT_INT && target == VT_DOUBLE) {
+{
+    if (target == _tosType) 
+    {
+        return;
+    }
+    if (_tosType == VT_INT && target == VT_DOUBLE) 
+    {
         getBytecode()->addInsn(BC_I2D);
         return;
     }
-    else if (_tosType == VT_DOUBLE && target == VT_INT) {
+    else if (_tosType == VT_DOUBLE && target == VT_INT) 
+    {
+        
         getBytecode()->addInsn(BC_D2I);
         return;
     }

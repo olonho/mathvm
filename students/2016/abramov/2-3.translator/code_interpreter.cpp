@@ -7,7 +7,8 @@
 
 using namespace mathvm;
 
-CodeInterpreter::CodeInterpreter() 
+CodeInterpreter::CodeInterpreter()
+    : Code()
 {}
 
 CodeInterpreter::~CodeInterpreter() 
