@@ -11,7 +11,7 @@ static void error(AstNode* node = nullptr, const string& message = "") {
 }
 
 static VarType combineTypes(VarType arg1, VarType arg2) {
-    return (arg1 == VT_INT && arg2 == VT_INT) ? VT_INT : VT_DOUBLE;
+    return (arg1 == VT_DOUBLE || arg2 == VT_DOUBLE) ? VT_DOUBLE : VT_INT;
 }
 
 void caseIntDouble(VarType type, Instruction iInsn, Instruction dInsn, Bytecode* bc) {
@@ -46,23 +46,36 @@ void cast(VarType to, VarType from, Bytecode* bc) {
         bc->addInsn(BC_I2D);
     } else if (from == VT_DOUBLE && to == VT_INT) {
         bc->addInsn(BC_D2I);
-    } /*else if (from == VT_STRING && to == VT_INT) {
+    } else if (from == VT_STRING && to == VT_INT) {
         bc->addInsn(BC_S2I);
-    }*/
+    } else if (from == VT_STRING && to == VT_DOUBLE) {
+        bc->addInsn(BC_S2I);
+        bc->addInsn(BC_I2D);
+    }
+}
+
+void intCompare(Bytecode* bc, Instruction cmp) {
+    Label endLabel(bc);
+    Label trueLabel(bc);
+
+    bc->addBranch(cmp, trueLabel);
+
+    bc->addInsn(BC_ILOAD0);
+    bc->addBranch(BC_JA, endLabel);
+
+    bc->bind(trueLabel);
+    bc->addInsn(BC_ILOAD1);
+
+    bc->bind(endLabel);
+}
+
+void intCompareZero(Bytecode* bc, Instruction cmp) {
+    bc->addInsn(BC_ILOAD0);
+    intCompare(bc, cmp);
 }
 
 void castIntToBool(Bytecode* bc) {
-    Label endLabel(bc);
-
-    bc->addInsn(BC_ILOAD0);
-    bc->addBranch(BC_IFICMPE, endLabel);
-    bc->addInsn(BC_ILOAD1);
-    bc->addInsn(BC_SWAP);
-    bc->addInsn(BC_POP);
-    bc->addInsn(BC_SWAP);
-
-    bc->bind(endLabel);
-    bc->addInsn(BC_POP);
+    intCompareZero(bc, BC_IFICMPNE);
 }
 
 void compare(VarType type, TokenKind kind, Bytecode* bc) {
@@ -71,50 +84,30 @@ void compare(VarType type, TokenKind kind, Bytecode* bc) {
     if (type == VT_DOUBLE) {
         bc->addInsn(BC_DCMP);
 
-        bc->addInsn(BC_SWAP);
-        bc->addInsn(BC_POP);
-        bc->addInsn(BC_SWAP);
-        bc->addInsn(BC_POP);
-
         bc->addInsn(BC_ILOAD0);
         bc->addInsn(BC_SWAP);
     }
 
-    Label trueValue(bc);
-    Label endLabel(bc);
-
     switch (kind) {
         case tEQ:
-            bc->addBranch(BC_IFICMPE, trueValue);
+            intCompare(bc, BC_IFICMPE);
             break;
         case tNEQ:
-            bc->addBranch(BC_IFICMPNE, trueValue);
+            intCompare(bc, BC_IFICMPNE);
             break;
         case tGT:
-            bc->addBranch(BC_IFICMPG, trueValue);
+            intCompare(bc, BC_IFICMPG);
             break;
         case tGE:
-            bc->addBranch(BC_IFICMPGE, trueValue);
+            intCompare(bc, BC_IFICMPGE);
             break;
         case tLT:
-            bc->addBranch(BC_IFICMPL, trueValue);
+            intCompare(bc, BC_IFICMPL);
             break;
         case tLE:
-            bc->addBranch(BC_IFICMPLE, trueValue);
+            intCompare(bc, BC_IFICMPLE);
             break;
     }
-
-    bc->addInsn(BC_POP);
-    bc->addInsn(BC_POP);
-    bc->addInsn(BC_ILOAD0);
-    bc->addBranch(BC_JA, endLabel);
-
-    bc->bind(trueValue);
-    bc->addInsn(BC_POP);
-    bc->addInsn(BC_POP);
-    bc->addInsn(BC_ILOAD1);
-
-    bc->bind(endLabel);
 }
 
 void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode* node) {
@@ -123,29 +116,43 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode* node) {
     VarType argType = combineTypes(leftType, rightType);
     TokenKind kind = node->kind();
 
-    if (kind == tOR || kind == tAND) {
+    if (kind == tAND) {
         node->left()->visit(this);
-        castIntToBool(bc());
 
         Label endLabel(bc());
+        Label trueLabel(bc());
 
         bc()->addInsn(BC_ILOAD0);
-        switch (kind) {
-            case tOR:
-                bc()->addBranch(BC_IFICMPNE, endLabel);
-                break;
-            case tAND:
-                bc()->addBranch(BC_IFICMPE, endLabel);
-                break;
-        }
+        bc()->addBranch(BC_IFICMPE, trueLabel);
 
-        bc()->addInsn(BC_POP);
         node->right()->visit(this);
         castIntToBool(bc());
-        bc()->addInsn(BC_SWAP);
+        bc()->addBranch(BC_JA, endLabel);
+
+        bc()->bind(trueLabel);
+        bc()->addInsn(BC_ILOAD0);
 
         bc()->bind(endLabel);
-        bc()->addInsn(BC_POP);  // нолик с которым сравнивали
+        return;
+    }
+
+    if (kind == tOR) {
+        node->left()->visit(this);
+
+        Label endLabel(bc());
+        Label trueLabel(bc());
+
+        bc()->addInsn(BC_ILOAD0);
+        bc()->addBranch(BC_IFICMPNE, trueLabel);
+
+        node->right()->visit(this);
+        castIntToBool(bc());
+        bc()->addBranch(BC_JA, endLabel);
+
+        bc()->bind(trueLabel);
+        bc()->addInsn(BC_ILOAD1);
+
+        bc()->bind(endLabel);
         return;
     }
 
@@ -212,9 +219,7 @@ void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode* node) {
             if (type == VT_STRING) {
                 bc()->addInsn(BC_S2I);
             }
-            castIntToBool(bc());
-            bc()->addInsn(BC_ILOAD1);
-            bc()->addInsn(BC_IAXOR);
+            intCompareZero(bc(), BC_IFICMPE);
             break;
     }
 }
@@ -251,14 +256,12 @@ void BytecodeGenerator::loadVar(const AstVar* var) {
     uint16_t varId = getVarId(var);
     VarType varType = var->type();
 
-    /*if (scopeId == _functions.top()->scopeId()) {
-        caseIntDoubleString(var->type(), BC_LOADIVAR, BC_LOADDVAR, BC_LOADSVAR, bc());
+    if (scopeId == _functions.top()->scopeId()) {
+        caseIntDoubleString(varType, BC_LOADIVAR, BC_LOADDVAR, BC_LOADSVAR, bc());
     } else {
-        caseIntDoubleString(var->type(), BC_LOADCTXIVAR, BC_LOADCTXDVAR, BC_LOADCTXSVAR, bc());
+        caseIntDoubleString(varType, BC_LOADCTXIVAR, BC_LOADCTXDVAR, BC_LOADCTXSVAR, bc());
         bc()->addUInt16(scopeId);
-    }*/
-    caseIntDoubleString(varType, BC_LOADCTXIVAR, BC_LOADCTXDVAR, BC_LOADCTXSVAR, bc());
-    bc()->addUInt16(scopeId);
+    }
     bc()->addUInt16(varId);
 }
 
@@ -309,20 +312,21 @@ void BytecodeGenerator::visitForNode(ForNode* node) {
     node->inExpr()->visit(this);
     bc()->addInsn(BC_SWAP);
     storeVar(node->var());
-    loadVar(node->var());
 
     bc()->bind(condition);
+    bc()->addInsn(BC_DUMP);
+    loadVar(node->var());
     bc()->addBranch(BC_IFICMPG, end);
 
     node->body()->visit(this);
+
+    loadVar(node->var());
     bc()->addInsn(BC_ILOAD1);
     bc()->addInsn(BC_IADD);
     storeVar(node->var());
-    loadVar(node->var());
     bc()->addBranch(BC_JA, condition);
 
     bc()->bind(end);
-    bc()->addInsn(BC_POP);
     bc()->addInsn(BC_POP);
 }
 
@@ -335,14 +339,10 @@ void BytecodeGenerator::visitWhileNode(WhileNode* node) {
     bc()->addInsn(BC_ILOAD0);
     bc()->addBranch(BC_IFICMPE, end);
 
-    bc()->addInsn(BC_POP);
-    bc()->addInsn(BC_POP);
     node->loopBlock()->visit(this);
     bc()->addBranch(BC_JA, condition);
 
     bc()->bind(end);
-    bc()->addInsn(BC_POP);
-    bc()->addInsn(BC_POP);
 }
 
 void BytecodeGenerator::visitIfNode(IfNode* node) {
@@ -350,17 +350,15 @@ void BytecodeGenerator::visitIfNode(IfNode* node) {
     Label end(bc());
 
     node->ifExpr()->visit(this);
+    cast(VT_INT, _preprocessor->getType(node->ifExpr()), bc());
+
     bc()->addInsn(BC_ILOAD0);
     bc()->addBranch(BC_IFICMPE, elseCase);
 
-    bc()->addInsn(BC_POP);
-    bc()->addInsn(BC_POP);
     node->thenBlock()->visit(this);
     bc()->addBranch(BC_JA, end);
 
     bc()->bind(elseCase);
-    bc()->addInsn(BC_POP);
-    bc()->addInsn(BC_POP);
     if (node->elseBlock()) {
         node->elseBlock()->visit(this);
     }
@@ -393,7 +391,6 @@ void BytecodeGenerator::visitBlockNode(BlockNode* node) {
         if (resultType != VT_VOID && !childNode->isReturnNode()) {
             bc()->addInsn(BC_POP);
         }
-        //bc()->addInsn(BC_BREAK);
     }
 }
 
@@ -420,7 +417,8 @@ void BytecodeGenerator::processFunction(AstFunction* astFunction, bool topFuncti
 
     //bcFunction->bytecode()->addInsn(BC_RETURN);
     if (topFunction) {
-        bcFunction->bytecode()->addInsn(BC_STOP);
+        bcFunction->bytecode()->addInsn(BC_RETURN);
+        //bcFunction->bytecode()->addInsn(BC_STOP);
     }
 }
 

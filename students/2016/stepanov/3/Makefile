@@ -6,7 +6,7 @@ NO_JIT = 0
 WITH_SDL = true
 
 
-USER_CFLAGS = -std=c++11 -O2 -lstdc++ -Wl,--no-as-needed -rdynamic -ldl -g $(JIT_FLAGS)
+USER_CFLAGS = -std=c++11 -O2 -lstdc++ -Wl,--no-as-needed -DASMJIT_RECHECK_STATE -rdynamic -ldl -g $(JIT_FLAGS) 
 
 ifneq ($(NO_JIT), 1)
 # JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)

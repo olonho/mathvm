@@ -69,11 +69,11 @@ void* InterpreterCodeImpl::processNativeFunction(const Signature* signature, con
     FuncBuilderX builder = builderFromSignature(signature);
 
     c.addFunc(FuncBuilder1<void, void*>(kCallConvHost));
-    X86GpVar stack = c.newIntPtr();
-    c.setArg(0, stack);
+    X86GpVar locals = c.newIntPtr();
+    c.setArg(0, locals);
 
     vector<X86Var> vars;
-    loadArgsFromMem(signature, c, stack, vars);
+    loadArgsFromMem(signature, c, locals, vars);
 
     X86CallNode* call = c.call(imm_ptr(ptr), builder);
     for (size_t i = 0; i < vars.size(); ++i) {
@@ -85,13 +85,13 @@ void* InterpreterCodeImpl::processNativeFunction(const Signature* signature, con
         case VT_INT: {
             X86GpVar retVar = c.newInt64();
             call->setRet(0, retVar);
-            c.mov(x86::qword_ptr(stack), retVar);
+            c.mov(x86::qword_ptr(locals), retVar);
             break;
         }
         case VT_DOUBLE: {
-            X86XmmVar v = c.newXmm();
-            call->setRet(0, v);
-            c.movsd(x86::qword_ptr(stack), v);
+            X86XmmVar retVar = c.newXmm();
+            call->setRet(0, retVar);
+            c.movsd(x86::qword_ptr(locals), retVar);
             break;
         }
         case VT_VOID:
@@ -170,6 +170,26 @@ struct stack_t {
         c.movsd(var, x86::qword_ptr(stack));
     }
 
+    template<int id>
+    void getGp(X86GpVar& var) {
+        c.mov(var, x86::qword_ptr(stack, -8 * (id + 1)));
+    }
+
+    template<int id>
+    void setGp(X86GpVar& var) {
+        c.mov(x86::qword_ptr(stack, -8 * (id + 1)), var);
+    }
+
+    template<int id>
+    void getXmm(X86XmmVar& var) {
+        c.movsd(var, x86::qword_ptr(stack, -8 * (id + 1)));
+    }
+
+    template<int id>
+    void setXmm(X86XmmVar& var) {
+        c.movsd(x86::qword_ptr(stack, -8 * (id + 1)), var);
+    }
+
     void pop() {
         c.sub(stack, 8);
     }
@@ -198,13 +218,15 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
     //aa.setLogger(&logger);
 
     c.addFunc(FuncBuilder1<void, void*>(kCallConvHost));
+    X86GpVar locals = c.newIntPtr();
+    c.setArg(0, locals);
+
     X86GpVar stack = c.newIntPtr();
-    c.setArg(0, stack);
+    c.mov(stack, locals);
+    c.add(stack, _scopeSize[scopeId] * 8);
 
     X86GpVar mem_map = c.newIntPtr();
     c.mov(mem_map, imm_ptr(_scopes));
-    X86GpVar functions = c.newIntPtr();
-    c.mov(functions, imm_ptr(_functions));
 
     stack_t st(c, stack);
 
@@ -239,11 +261,12 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
             case BC_SLOAD0: OPL(const char*, constantById(0).c_str()); break;
 
 #define OP2I(op) { X86GpVar a = c.newInt64();  \
-                   st.popGp(a);                \
+                   st.getGp<0>(a);             \
                    X86GpVar b = c.newInt64();  \
-                   st.popGp(b);                \
+                   st.getGp<1>(b);             \
                    c.op(a, b);                 \
-                   st.pushGp(a);               \
+                   st.setGp<1>(a);             \
+                   st.pop();                   \
                    c.unuse(a);                 \
                    c.unuse(b);                 \
                  }
@@ -255,14 +278,15 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
             case BC_IAXOR: OP2I(xor_); break;
             case BC_IDIV: {
                 X86GpVar a = c.newInt64();
-                st.popGp(a);
+                st.getGp<0>(a);
                 X86GpVar b = c.newInt64();
-                st.popGp(b);
+                st.getGp<1>(b);
                 X86GpVar r = c.newInt64();
                 c.mov(r, imm(0));
 
                 c.idiv(r, a, b);
-                st.pushGp(a);
+                st.setGp<1>(a);
+                st.pop();
 
                 c.unuse(a);
                 c.unuse(b);
@@ -271,14 +295,15 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
             }
             case BC_IMOD: {
                 X86GpVar a = c.newInt64();
-                st.popGp(a);
+                st.getGp<0>(a);
                 X86GpVar b = c.newInt64();
-                st.popGp(b);
+                st.getGp<1>(b);
                 X86GpVar r = c.newInt64();
                 c.mov(r, imm(0));
 
                 c.idiv(r, a, b);
-                st.pushGp(r);
+                st.setGp<1>(r);
+                st.pop();
 
                 c.unuse(a);
                 c.unuse(b);
@@ -287,18 +312,19 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
             }
             case BC_INEG: {
                 X86GpVar a = c.newInt64();
-                st.popGp(a);
+                st.getGp<0>(a);
                 c.neg(a);
-                st.pushGp(a);
+                st.setGp<0>(a);
                 c.unuse(a);
                 break;
             }
 #define OP2D(op) { X86XmmVar a = c.newXmm(); \
-                   st.popXmm(a);             \
+                   st.getXmm<0>(a);          \
                    X86XmmVar b = c.newXmm(); \
-                   st.popXmm(b);             \
+                   st.getXmm<1>(b);          \
                    c.op(a, b);               \
-                   st.pushXmm(a);            \
+                   st.setXmm<1>(a);          \
+                   st.pop();                 \
                    c.unuse(a);               \
                    c.unuse(b);               \
                  }
@@ -335,24 +361,24 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
 
             case BC_I2D: {
                 X86GpVar a = c.newInt64();
-                st.popGp(a);
+                st.getGp<0>(a);
                 X86XmmVar r = c.newXmm();
                 X86CallNode* call = c.call(imm_ptr(&i2d), FuncBuilder1<double, int64_t>(kCallConvHost));
                 call->setArg(0, a);
                 call->setRet(0, r);
-                st.pushXmm(r);
+                st.setXmm<0>(r);
                 c.unuse(a);
                 c.unuse(r);
                 break;
             }
             case BC_D2I: {
                 X86XmmVar a = c.newXmm();
-                st.popXmm(a);
+                st.getXmm<0>(a);
                 X86GpVar r = c.newInt64();
                 X86CallNode* call = c.call(imm_ptr(&d2i), FuncBuilder1<int64_t, double>(kCallConvHost));
                 call->setArg(0, a);
                 call->setRet(0, r);
-                st.pushGp(r);
+                st.setGp<0>(r);
                 c.unuse(a);
                 c.unuse(r);
                 break;
@@ -361,13 +387,11 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
 
             case BC_SWAP: {
                 X86GpVar a = c.newInt64();
-                st.popGp(a);
                 X86GpVar b = c.newInt64();
-                st.popGp(b);
-
-                st.pushGp(a);
-                st.pushGp(b);
-
+                st.getGp<0>(a);
+                st.getGp<1>(b);
+                st.setGp<1>(a);
+                st.setGp<0>(b);
                 c.unuse(a);
                 c.unuse(b);
                 break;
@@ -380,11 +404,11 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
             case BC_LOADCTXDVAR:
             case BC_LOADCTXIVAR:
             case BC_LOADCTXSVAR: {
-                uint16_t scope = bc->getUInt16(bci + 1);
-                uint16_t var = bc->getUInt16(bci + 3);
+                uint16_t varScope = bc->getUInt16(bci + 1);
+                uint16_t varId = bc->getUInt16(bci + 3);
                 X86GpVar a = c.newIntPtr();
-                c.mov(a, x86::qword_ptr(mem_map, scope * 8));
-                c.mov(a, x86::qword_ptr(a, var * 8));
+                c.mov(a, x86::qword_ptr(mem_map, varScope * 8));
+                c.mov(a, x86::qword_ptr(a, varId * 8));
                 st.pushGp(a);
                 c.unuse(a);
                 break;
@@ -392,32 +416,51 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
             case BC_STORECTXDVAR:
             case BC_STORECTXIVAR:
             case BC_STORECTXSVAR: {
-                uint16_t scope = bc->getUInt16(bci + 1);
-                uint16_t var = bc->getUInt16(bci + 3);
+                uint16_t varScope = bc->getUInt16(bci + 1);
+                uint16_t varId = bc->getUInt16(bci + 3);
                 X86GpVar p = c.newIntPtr();
                 X86GpVar a = c.newInt64();
                 st.popGp(a);
-                c.mov(p, x86::qword_ptr(mem_map, scope * 8));
-                c.mov(x86::qword_ptr(p, var * 8), a);
+                c.mov(p, x86::qword_ptr(mem_map, varScope * 8));
+                c.mov(x86::qword_ptr(p, varId * 8), a);
                 c.unuse(a);
                 c.unuse(p);
+                break;
+            }
+            case BC_LOADDVAR:
+            case BC_LOADIVAR:
+            case BC_LOADSVAR: {
+                uint16_t var = bc->getUInt16(bci + 1);
+                X86GpVar a = c.newInt64();
+                c.mov(a, x86::qword_ptr(locals, var * 8));
+                st.pushGp(a);
+                c.unuse(a);
+                break;
+            }
+            case BC_STOREDVAR:
+            case BC_STOREIVAR:
+            case BC_STORESVAR: {
+                uint16_t var = bc->getUInt16(bci + 1);
+                X86GpVar a = c.newInt64();
+                st.popGp(a);
+                c.mov(x86::qword_ptr(locals, var * 8), a);
+                c.unuse(a);
                 break;
             }
 
             case BC_DCMP: {
                 X86XmmVar a = c.newXmm();
-                st.popXmm(a);
+                st.getXmm<0>(a);
                 X86XmmVar b = c.newXmm();
-                st.popXmm(b);
-                st.pushXmm(b);
-                st.pushXmm(a);
+                st.getXmm<1>(b);
                 X86GpVar r = c.newInt64();
                 X86CallNode* call = c.call(imm_ptr(&dcmp),
                                            FuncBuilder2<int64_t, double, double>(kCallConvHost));
                 call->setArg(0, a);
                 call->setArg(1, b);
                 call->setRet(0, r);
-                st.pushGp(r);
+                st.setGp<1>(r);
+                st.pop();
                 c.unuse(a);
                 c.unuse(b);
                 c.unuse(r);
@@ -425,18 +468,17 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
             }
             case BC_ICMP: {
                 X86GpVar a = c.newInt64();
-                st.popGp(a);
+                st.getGp<0>(a);
                 X86GpVar b = c.newInt64();
-                st.popGp(b);
-                st.pushGp(b);
-                st.pushGp(a);
+                st.getGp<1>(b);
                 X86GpVar r = c.newInt64();
                 X86CallNode* call = c.call(imm_ptr(&icmp),
                                            FuncBuilder2<int64_t, int64_t, int64_t>(kCallConvHost));
                 call->setArg(0, a);
                 call->setArg(1, b);
                 call->setRet(0, r);
-                st.pushGp(r);
+                st.setGp<1>(r);
+                st.pop();
                 c.unuse(a);
                 c.unuse(b);
                 c.unuse(r);
@@ -454,8 +496,6 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
                   st.popGp(a);                \
                   X86GpVar b = c.newInt64();  \
                   st.popGp(b);                \
-                  st.pushGp(b);               \
-                  st.pushGp(a);               \
                   c.cmp(a, b);                \
                   c.op(labels[offset]);       \
                   c.unuse(a);                 \
@@ -468,7 +508,12 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
             case BC_IFICMPL:  JMP(jl); break;
             case BC_IFICMPLE: JMP(jle); break;
 
-            case BC_DUMP: break;
+            case BC_DUMP: {
+                X86GpVar a = c.newInt64();
+                st.getGp<0>(a);
+                st.pushGp(a);
+                break;
+            }
 
             case BC_STOP: {
                 X86GpVar ret = c.newInt64();
@@ -491,24 +536,15 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
                 // now stack refers to arguments
                 c.sub(stack, callArgs * 8);
 
-                // first variables of scope = arguments
-                X86GpVar new_scope = c.newIntPtr();
-                c.mov(new_scope, stack);
-
-                // all scope variables just below stack
-                X86GpVar new_stack = c.newIntPtr();
-                c.mov(new_stack, new_scope);
-                c.add(new_stack, _scopeSize[callScopeId] * 8);
-
                 // save new scope
-                c.mov(x86::qword_ptr(mem_map, callScopeId * 8), new_scope);
-                c.unuse(new_scope);
+                c.mov(x86::qword_ptr(mem_map, callScopeId * 8), stack);
 
                 X86GpVar p = c.newIntPtr();
-                c.mov(p, x86::qword_ptr(functions, functionId * 8));
+                c.mov(p, imm_ptr(_functions));
+                c.mov(p, x86::qword_ptr(p, functionId * 8));
 
                 X86CallNode* call = c.call(p, FuncBuilder1<void, void*>(kCallConvHost));
-                call->setArg(0, new_stack);
+                call->setArg(0, stack);
 
                 c.unuse(p);
 
@@ -518,13 +554,10 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
 
                 if (callFunc->returnType() != VT_VOID) {
                     X86GpVar ret = c.newInt64();
-                    c.mov(ret, x86::qword_ptr(new_stack));
-                    c.mov(x86::qword_ptr(stack), ret);
-                    c.add(stack, 8);
+                    c.mov(ret, x86::qword_ptr(stack, _scopeSize[callScopeId] * 8));
+                    st.pushGp(ret);
                     c.unuse(ret);
                 }
-
-                c.unuse(new_stack);
                 break;
             }
 
@@ -534,17 +567,13 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
                 const string* name;
                 const void* nativePtr = nativeById(functionId, &signature, &name);
 
-                X86GpVar scope = c.newIntPtr();
-                c.mov(scope, x86::qword_ptr(mem_map, scopeId * 8));
-
                 X86CallNode* call = c.call(imm_ptr(nativePtr), FuncBuilder1<void, void*>(kCallConvHost));
-                call->setArg(0, scope);
+                call->setArg(0, locals);
 
                 if (signature->at(0).first != VT_VOID) {
                     X86GpVar ret = c.newInt64();
-                    c.mov(ret, x86::qword_ptr(scope));
-                    c.mov(x86::qword_ptr(stack), ret);
-                    c.add(stack, 8);
+                    c.mov(ret, x86::qword_ptr(locals));
+                    st.pushGp(ret);
                     c.unuse(ret);
                 }
 
@@ -564,6 +593,11 @@ void InterpreterCodeImpl::processFunction(BytecodeFunction* func) {
 
         bci += length;
     }
+
+    c.unuse(mem_map);
+    c.unuse(stack);
+    c.unuse(locals);
+
     c.endFunc();
     c.finalize();
     _functions[funcId] = aa.make();
@@ -597,9 +631,8 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
     uint16_t functionId = topFunction->id();
     uint16_t scopeId = topFunction->scopeId();
 
-    unique_ptr<void*> stack(new void*[64 * 1024 * 1024]);
+    unique_ptr<void*> stack(new void*[128 * 1024 * 1024]);
     void** scope_ptr = stack.get();
-    void** stack_ptr = scope_ptr + _scopeSize[functionId];
 
     for (size_t i = 0; i< vars.size(); ++i) {
         switch (vars[i]->type()) {
@@ -616,9 +649,7 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
     }
 
     _scopes[scopeId] = scope_ptr;
-    asmjit_cast<void (*)(void*)>(_functions[functionId])(stack_ptr);
+    asmjit_cast<void (*)(void*)>(_functions[functionId])(scope_ptr);
 
     return Status::Ok();
 }
-
-
