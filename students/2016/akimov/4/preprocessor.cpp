@@ -20,7 +20,7 @@ void Preprocessor::setType(AstNode* node, VarType type) {
 
 
 static VarType combineTypes(VarType arg1, VarType arg2) {
-    return (arg1 == VT_INT && arg2 == VT_INT) ? VT_INT : VT_DOUBLE;
+    return (arg1 == VT_DOUBLE || arg2 == VT_DOUBLE) ? VT_DOUBLE : VT_INT;
 }
 
 void checkInt(VarType type, AstNode* node) {
@@ -33,13 +33,6 @@ void checkIntOrDouble(VarType type, AstNode* node) {
 
 void checkValueType(VarType type, AstNode* node) {
     if (type != VT_INT && type != VT_DOUBLE && type != VT_STRING) error(node);
-}
-
-void checkAssign(VarType varType, VarType valueType, AstNode* node) {
-    if (varType != valueType) {
-        checkIntOrDouble(varType, node);
-        checkIntOrDouble(valueType, node);
-    }
 }
 
 
@@ -118,8 +111,6 @@ void Preprocessor::visitUnaryOpNode(UnaryOpNode* node) {
             break;
 
         case tNOT:
-            if (type != VT_INT && type != VT_STRING)
-                error(node);
             setType(node, VT_INT);
             break;
 
@@ -147,11 +138,9 @@ void Preprocessor::visitLoadNode(LoadNode* node) {
 void Preprocessor::visitStoreNode(StoreNode* node) {
     node->value()->visit(this);
 
-    VarType varType = node->var()->type();
     VarType valueType = getType(node->value());
-    checkAssign(varType, valueType, node);
+    checkValueType(valueType, node);
 
-    //setType(node, varType);
     setType(node, VT_VOID);
 }
 
@@ -166,7 +155,7 @@ void Preprocessor::visitWhileNode(WhileNode* node) {
     node->whileExpr()->visit(this);
     node->loopBlock()->visit(this);
 
-    checkInt(getType(node->whileExpr()), node);
+    checkValueType(getType(node->whileExpr()), node);
 
     setType(node, VT_VOID);
 }
@@ -178,7 +167,7 @@ void Preprocessor::visitIfNode(IfNode* node) {
         node->elseBlock()->visit(this);
     }
 
-    checkInt(getType(node->ifExpr()), node);
+    checkValueType(getType(node->ifExpr()), node);
 
     setType(node, VT_VOID);
 }
@@ -210,7 +199,7 @@ void Preprocessor::visitReturnNode(ReturnNode* node) {
 
         VarType returnType = getType(_functions.top());
         VarType exprType = getType(node->returnExpr());
-        checkAssign(returnType, exprType, node);
+        checkValueType(exprType, node);
 
         setType(node, returnType);
     } else {
@@ -227,9 +216,8 @@ void Preprocessor::visitCallNode(CallNode* node) {
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
 
-        VarType argType = function->parameterType(i);
-        VarType exprType = getType(node->parameterAt(i));
-        checkAssign(argType, exprType, node);
+        VarType type = getType(node->parameterAt(i));
+        checkValueType(type, node);
     }
 
     setType(node, function->returnType());
