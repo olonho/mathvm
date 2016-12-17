@@ -406,14 +406,13 @@ void BytecodeGenerator::processFunction(AstFunction* astFunction, bool topFuncti
     uint16_t scopeId = bcFunction->id();
     bcFunction->setScopeId(scopeId);
 
-    //assert(bcFunction->localsNumber() == 0);
-    uint16_t varId = bcFunction->localsNumber();
-    for (Scope::VarIterator it(astFunction->scope()); it.hasNext();) {
-        AstVar* var = it.next();
+    Scope* scope = astFunction->scope();
+    for (uint32_t i = 0; i < astFunction->parametersNumber(); ++i) {
+        AstVar* var = scope->lookupVariable(astFunction->parameterName(i), false);
         _var2scope[var] = scopeId;
-        _var2id[var] = varId++;
+        _var2id[var] = i;
     }
-    bcFunction->setLocalsNumber(varId);
+    bcFunction->setLocalsNumber(astFunction->parametersNumber());
 
     _functions.push(bcFunction);
     visitFunctionNode(astFunction->node());

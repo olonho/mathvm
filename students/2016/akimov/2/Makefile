@@ -2,8 +2,8 @@ ROOT   = .
 VM_ROOT = ../../../..
 # This flag disables JIT dependencies.
 NO_JIT = 0
-#OPT = 1
-#WITH_SDL = 1
+OPT = 1
+WITH_SDL = 1
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
