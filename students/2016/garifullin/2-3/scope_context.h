@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <limits>
+#include <iostream>
 
 #include "mathvm.h"
 #include "translator_exception.h"
@@ -33,12 +34,12 @@ class ScopeContext {
     uint16_t _id;
 
 public:
-    ScopeContext(BytecodeFunction* bf, Scope* scope, ScopeContext* p = NULL):
+    ScopeContext(BytecodeFunction* bf, Scope* scope, ScopeContext* p = nullptr):
         _byte_func(bf),
         _scope(scope),
         _parent(p) {
 
-        if (p != NULL) {
+        if (p != nullptr) {
             _id = p->getId() + 1;
         } else {
             _id = 0;
@@ -47,7 +48,7 @@ public:
         Scope::VarIterator it = Scope::VarIterator(_scope);
         while(it.hasNext()) {
             AstVar *var = it.next();
-            _vars[var->name()] = _vars.size() - 1;
+            _vars[var->name()] = _vars.size();
         }
 
     }
@@ -56,7 +57,7 @@ public:
 
     bool containsVar(std::string const & var_name) {
         if (_vars.find(var_name) == _vars.end()) {
-            if (_parent == NULL) {
+            if (_parent == nullptr) {
                 return false;
             } else {
                 return _parent->containsVar(var_name);
@@ -72,7 +73,7 @@ public:
         if (_vars.size() > std::numeric_limits<uint16_t>::max()) {
             throw TranslatorException("Too many variables");
         }
-        _vars[var->name()] = _vars.size() - 1;
+        _vars[var->name()] = _vars.size();
     }
 
     void setTosType(VarType t) {
