@@ -1,6 +1,8 @@
 #include <limits>
 #include "translator_context.h"
 
+#include <sstream>
+
 using namespace mathvm;
 using std::vector;
 using std::map;
@@ -74,8 +76,10 @@ VarData TranslatorContext::getVarByName(const std::string &var_name) {
 
 void TranslatorContext::addVarsFromScope(Scope *scope) {
     Scope::VarIterator varIt(scope);
-    if (scope->variablesCount() > std::numeric_limits<int16_t>::max()) {
-        throw TranslatorError("Too much variables in one scope!");
+    if (scope->variablesCount() > std::numeric_limits<uint16_t>::max()) {
+        std::stringstream ss;
+        ss << "Too much vars in one scope: " << scope->variablesCount() << ".";
+        throw TranslatorError(ss.str());
     }
     while (varIt.hasNext()) {
         auto var = varIt.next();
@@ -86,7 +90,8 @@ void TranslatorContext::addVarsFromScope(Scope *scope) {
             _vars.insert(it, std::make_pair(var->name(), std::vector<VarData>(1, var_data)));
         } else {
             it->second.push_back(var_data);
-            std::cout << "Warning: variable " + var->name() + " shadows variable from outer scope" << std::endl;
+            // TODO: printing it is not a very good idea
+            std::cerr << "Warning: variable " + var->name() + " shadows variable from outer scope" << std::endl;
         }
     }
 }
