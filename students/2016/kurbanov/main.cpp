@@ -11,6 +11,8 @@
 typedef std::shared_ptr<mathvm::Status> StatusPtr;
 typedef std::shared_ptr<mathvm::Translator> TranslatorPtr;
 
+using namespace mathvm;
+
 int test_printer(int argc, char** argv) {
     std::string filename(argv[1]);
     std::ifstream file(filename);
@@ -49,14 +51,8 @@ int test_translator(int argc, char** argv) {
     }
     mathvm::Translator* translator = mathvm::Translator::create(impl);
 
-    if (translator == 0) {
-        std::cout << "TODO: Implement translator factory in translator.cpp!!!!" << std::endl;
-        return 1;
-    }
-
     const char* expr = "double x; double y;"
             "x += 8.0; y = 2.0;"
-//            "x *= 10"
             "print('Hello, x=',x,' y=',y,'\n');"
     ;
     bool isDefaultExpr = true;
@@ -109,7 +105,6 @@ int test_inerpreter(int argc, char** argv) {
     TranslatorPtr translator(mathvm::Translator::create(impl));
     // TODO place usage here
     if (!translator) {
-        std::cout << "TODO: Implement translator factory in translator.cpp!!!!" << std::endl;
         return 1;
     }
 
