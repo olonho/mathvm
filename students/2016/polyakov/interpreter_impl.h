@@ -158,9 +158,11 @@ public:
                 throw new runtime_error("Unknown var");
             }
             variables[var_id] = var;
+            return;
         }
         if (parent != NULL) {
             parent->storeCTXVar(var, contextid, var_id);
+            return;
         }
         throw new std::runtime_error("Unknown var");
     }
