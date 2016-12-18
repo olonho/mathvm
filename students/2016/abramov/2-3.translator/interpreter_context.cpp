@@ -116,7 +116,6 @@ InterpreterContext* InterpreterContext::getParentContext()
     return _parent;
 }
 
-
 Instruction InterpreterContext::getInstruction()
 {
     return getBytecode()->getInsn(_pos++);

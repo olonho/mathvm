@@ -33,7 +33,6 @@ namespace mathvm
     private:
         InterpreterContext* _context;
         std::stack<StackElement> _stack;
-        
     };
 }
 

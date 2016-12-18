@@ -263,7 +263,7 @@ bool CodeInterpreter::tryPrint(Instruction instruction)
         }
         case BC_SPRINT:
         {
-            std::string str = constantById(popStack().getUint16());
+            const std::string& str = constantById(popStack().getUint16());
             std::cout << str;
             break;
         }

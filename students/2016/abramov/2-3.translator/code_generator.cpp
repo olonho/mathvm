@@ -69,28 +69,25 @@ void CodeGenerator::visitUnaryOpNode(UnaryOpNode* node)
 void CodeGenerator::visitStringLiteralNode(StringLiteralNode* node)
 {
     uint16_t const stringId = _code->makeStringConstant(node->literal());
-    _tosType = VT_STRING;
-    
     getBytecode()->addInsn(BC_SLOAD);
     getBytecode()->addUInt16(stringId);
+    _tosType = VT_STRING;
 }
 
 void CodeGenerator::visitDoubleLiteralNode(DoubleLiteralNode* node)
 {
     const double literal = node->literal();
-    _tosType = VT_DOUBLE;
-    
     getBytecode()->addInsn(BC_DLOAD);
     getBytecode()->addDouble(literal);
+    _tosType = VT_DOUBLE;
 }
 
 void CodeGenerator::visitIntLiteralNode(IntLiteralNode* node)
 {
     const int64_t literal = node->literal();
-    _tosType = VT_INT;
-    
     getBytecode()->addInsn(BC_ILOAD);
     getBytecode()->addInt64(literal);
+    _tosType = VT_INT;
 }
 
 void CodeGenerator::visitLoadNode(LoadNode* node)

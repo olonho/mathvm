@@ -22,9 +22,8 @@ int main(int argc, char** argv) {
     const char* inputCode = loadFile(fileName);
 
     Code* code = new CodeInterpreter();
-    Code** argument = &code;
     Translator* translator = Translator::create();
-    Status* translateStatus = translator->translate(inputCode, argument);
+    Status* translateStatus = translator->translate(inputCode, &code);
     
     if (translateStatus->isError()) 
     {
