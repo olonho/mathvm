@@ -10,7 +10,7 @@
 
 #include "result_bytecode.h"
 #include "variable_context.h"
-#include "include/ex/translation_exception.h"
+#include "translation_exception.h"
 
 using namespace mathvm;
 

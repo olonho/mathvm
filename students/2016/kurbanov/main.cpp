@@ -101,7 +101,7 @@ int test_inerpreter(int argc, char** argv) {
             script = argv[i];
         }
     }
-    script = "/home/rauf/Programs/semester_3/vm/mathvm/students/2016/kurbanov/bytecode.txt";
+    // script = "/home/rauf/Programs/semester_3/vm/mathvm/students/2016/kurbanov/bytecode.txt";
     TranslatorPtr translator(mathvm::Translator::create(impl));
     // TODO place usage here
     if (!translator) {
@@ -158,6 +158,6 @@ int test_inerpreter(int argc, char** argv) {
 
 int main(int argc, char** argv) {
 //    return test_printer(argc, argv);
-    return test_translator(argc, argv);
-//    return test_inerpreter(argc, argv);
+//    return test_translator(argc, argv);
+    return test_inerpreter(argc, argv);
 }

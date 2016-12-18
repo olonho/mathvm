@@ -14,7 +14,7 @@ MATHVM = $(BIN)/mvm
 MATHVMTGZ = ../MathVM.tgz
 
 CXX        ?= g++
-CFLAGS     += -Wall -Werror -D_REENTRANT -fPIC $(USER_CFLAGS)
+CFLAGS     += -D_REENTRANT -fPIC $(USER_CFLAGS)
 LIBS_ROOT = $(VM_ROOT)/libs
 ASMJIT_CFLAGS = -Wno-error
 INCLUDE    = -I$(VM_ROOT)/include -I$(LIBS_ROOT)
@@ -22,7 +22,7 @@ VM_INCLUDE = -I$(VM_ROOT)/vm
 ASMJIT_INCLUDE = -I$(LIBS_ROOT)/asmjit
 USER_INCLUDE = -I$(ROOT)
 DEFS       = $(USER_DEFS) -D_POSIX_SOURCE
-THREAD_LIB = -lpthread 
+THREAD_LIB = -lpthread
 OBJ_SUFF   = .o
 LIBS = $(USER_LIBS) $(THREAD_LIB)
 
@@ -78,7 +78,7 @@ ASMJIT_OBJ = \
 		$(ASMJIT_OBJ_DIR)/x86operand$(OBJ_SUFF) \
 		$(ASMJIT_OBJ_DIR)/x86operand_regs$(OBJ_SUFF)
 else
-ASMJIT_OBJ = 
+ASMJIT_OBJ =
 endif
 
 MATHVM_OBJ = \
@@ -112,7 +112,7 @@ $(OBJ)/%$(OBJ_SUFF): $(ROOT)/%.cpp \
 	$(VM_ROOT)/common.mk $(USER_DEPS)
 	$(CXX) -c $(DEFS) $(CFLAGS) $(INCLUDE) $(VM_INCLUDE) $< -o $@
 
-$(ASMJIT_OBJ_DIR)/x86%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/x86/x86%.cpp $(OBJ)/.dir 
+$(ASMJIT_OBJ_DIR)/x86%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/x86/x86%.cpp $(OBJ)/.dir
 	$(CXX) -c $(DEFS) $(CFLAGS) $(ASMJIT_CFLAGS) $(INCLUDE) $(ASMJIT_INCLUDE) $< -o $@
 
 $(ASMJIT_OBJ_DIR)/%$(OBJ_SUFF): $(LIBS_ROOT)/asmjit/base/%.cpp $(OBJ)/.dir

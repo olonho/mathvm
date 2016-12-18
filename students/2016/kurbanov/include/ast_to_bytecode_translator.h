@@ -5,7 +5,7 @@
 #include "mathvm.h"
 #include "parser.h"
 #include "ast_to_bytecode_visitor.h"
-#include "include/ex/translation_exception.h"
+#include "translation_exception.h"
 
 class AstToBytecodeTranslator : public mathvm::Translator {
 public:
