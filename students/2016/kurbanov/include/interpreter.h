@@ -5,9 +5,9 @@
 
 #include <vector>
 #include "data_holder.h"
-#include "local_variable_storage.h"
+#include "locals_storage.h"
 
-using namespace mathvm;
+namespace mathvm {
 
 class Interpreter {
 public:
@@ -450,5 +450,7 @@ private:
     DataStack dataStack;
     DataStack localVariableStack;
     const int16_t defaultStringId;
-    LocalVariableStorage localStorage;
+    LocalsStorage localStorage;
 };
+
+}
