@@ -1,3 +1,4 @@
+#include <cstring>
 #include "../../../../include/mathvm.h"
 #include "bytecode_executor.h"
 using namespace mathvm;
@@ -6,8 +7,12 @@ using namespace std;
 int main(int argc, char **argv) {
 
     string filename;
-    if(argc == 2){
+    bool verbose = false;
+    if(argc >= 2){
         filename = argv[1];
+        if(argc == 3 && strcmp(argv[2], "-v") == 0){
+            verbose = true;
+        }
     }else{
         filename  = "/home/wimag/Yandex.Disk/My Stuff/SPBAU/VM/mathvm/tests/additional/fib.mvm";
         filename  = "/home/wimag/Yandex.Disk/My Stuff/SPBAU/VM/mathvm/tests/additional/ackermann.mvm";
@@ -33,7 +38,9 @@ int main(int argc, char **argv) {
                line, offset,
                translateStatus->getErrorCstr());
     } else {
-        code->disassemble();
+        if(verbose){
+            code->disassemble();
+        }
         bytecode_executor((InterpreterCodeImpl *) code).execute();
     }
     delete translateStatus;
