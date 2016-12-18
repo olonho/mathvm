@@ -1,5 +1,7 @@
 #include "include/interpreter.h"
 
+namespace mathvm {
+
 void Interpreter::executeInstruction() {
     Instruction instruction = currentBytecode()->getInsn(programCounter());
     next();
@@ -66,4 +68,6 @@ void Interpreter::executeInstruction() {
         case BC_BREAK: next(); break;
         default: break;
     }
+}
+
 }
