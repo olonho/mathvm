@@ -909,7 +909,8 @@ namespace mathvm {
         std::vector<asmjit::X86Var *> closureVariables;
         std::vector<asmjit::X86Mem *> stackPointers;
 
-
+        stackPointers.reserve(nsd->captured.size());
+        closureVariables.reserve(nsd->captured.size());
         for (auto it = nsd->captured.begin(); it != nsd->captured.end(); ++it) {
             const uint32_t *targetTypePointer = (it->isPointer) ? &(argsTypesPointed[0]) : &(argsTypes[0]);
             argumentTypes.push_back(targetTypePointer[it->type]);
@@ -1452,36 +1453,45 @@ namespace mathvm {
         X86XmmVar *leftVar = (X86XmmVar *) jStack.top();
         jStack.pop();
 
-        void *targetCall;
         switch (node->kind()) {
-            case tEQ:
-                targetCall = (void *) ucomisd_e;
+            case tEQ: {
+                currentSd->compiler->ucomisd(*rightVar, *leftVar);
+                currentSd->compiler->setnp(result->r8());
+                X86GpVar additionalVar = currentSd->compiler->newInt64();
+                currentSd->compiler->mov(additionalVar.r32(), 0);
+                currentSd->compiler->ucomisd(*leftVar, *rightVar);
+                currentSd->compiler->cmovne(result->r32(), additionalVar.r32());
+            }
                 break;
-            case tNEQ:
-                targetCall = (void *) ucomisd_ne;
+            case tNEQ: {
+                currentSd->compiler->ucomisd(*rightVar, *leftVar);
+                currentSd->compiler->setp(result->r8());
+                X86GpVar additionalVar = currentSd->compiler->newInt64();
+                currentSd->compiler->mov(additionalVar.r32(), 1);
+                currentSd->compiler->ucomisd(*leftVar, *rightVar);
+                currentSd->compiler->cmovne(result->r32(), additionalVar.r32());
+            }
                 break;
             case tLT:
-                targetCall = (void *) ucomisd_l;
+                currentSd->compiler->ucomisd(*rightVar, *leftVar);
+                currentSd->compiler->seta(result->r8());
                 break;
             case tLE:
-                targetCall = (void *) ucomisd_le;
+                currentSd->compiler->ucomisd(*rightVar, *leftVar);
+                currentSd->compiler->setnb(result->r8());
                 break;
             case tGT:
-                targetCall = (void *) ucomisd_g;
+                currentSd->compiler->ucomisd(*leftVar, *rightVar);
+                currentSd->compiler->seta(result->r8());
                 break;
             case tGE:
-                targetCall = (void *) ucomisd_ge;
+                currentSd->compiler->ucomisd(*leftVar, *rightVar);
+                currentSd->compiler->setnb(result->r8());
                 break;
             default:
                 throw new std::logic_error("unexpected operator");
         }
-        //currentSd->compiler->comment("add extern double comparison");
-        X86CallNode *call = currentSd->compiler->call(imm_ptr(targetCall), signatureIDD);
-
-
-        call->setArg(0, *leftVar);
-        call->setArg(1, *rightVar);
-        call->setRet(0, *result);
+        currentSd->compiler->movzx(*(X86GpVar *) result, (*(X86GpVar *) result).r8());
 
         currentSd->topType = VT_INT;
         jStack.push(result);
