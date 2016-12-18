@@ -48,7 +48,7 @@ public:
         Scope::VarIterator it = Scope::VarIterator(_scope);
         while(it.hasNext()) {
             AstVar *var = it.next();
-            _vars[var->name()] = _vars.size() - 1;
+            _vars[var->name()] = _vars.size();
         }
 
     }
@@ -73,7 +73,7 @@ public:
         if (_vars.size() > std::numeric_limits<uint16_t>::max()) {
             throw TranslatorException("Too many variables");
         }
-        _vars[var->name()] = _vars.size() - 1;
+        _vars[var->name()] = _vars.size();
     }
 
     void setTosType(VarType t) {
