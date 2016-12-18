@@ -182,4 +182,5 @@ std::ostream &::mathvm::operator<<(ostream &stream, stack_var var) {
         default:
             assert(false);
     }
+    return stream;
 }

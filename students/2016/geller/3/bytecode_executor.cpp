@@ -17,9 +17,9 @@ Status* bytecode_executor::execute() {
 }
 
 void bytecode_executor::execute_instruction(Instruction insn) {
-    stack_var v1, v2, v3; //tmp vals
+    stack_var v1, v2; //tmp vals
     uint16_t addr1, addr2;
-    int64_t i1, i2;
+    int64_t i1;
     TranslatedFunction* function;
     switch(insn){
 
