@@ -61,7 +61,7 @@ class InterpreterScopeContext {
 public:
     InterpreterScopeContext(BytecodeFunction* bf, InterpreterScopeContext* parent = nullptr) :
         _byte_func(bf),
-        _scope_vars(bf->localsNumber() + 1),
+        _scope_vars(bf->localsNumber()),
         _bci(0),
         _parent(parent) {
     }
