@@ -1,5 +1,7 @@
 #include <dlfcn.h>
 #include <cmath>
+#include <iostream>
+#include <stdlib.h>
 
 #include "code_interpreter.h"
 #include "interpreter_exception.h"
@@ -8,16 +10,10 @@
 using namespace mathvm;
 
 CodeInterpreter::CodeInterpreter()
-    : Code()
 {}
 
 CodeInterpreter::~CodeInterpreter() 
-{
-    if (_context)
-    {
-        delete _context;
-    }
-}
+{}
 
 Status* CodeInterpreter::execute(vector<Var*>& vars) 
 {
@@ -25,7 +21,9 @@ Status* CodeInterpreter::execute(vector<Var*>& vars)
     try 
     {
         for (_context = new InterpreterContext(top); _context->hasNextInstruction(); )
+        {
             executeInstruction(_context->getInstruction());
+        }
     } 
     catch (InterpreterException e) 
     {
@@ -90,6 +88,11 @@ bool CodeInterpreter::tryLoad(Instruction instruction)
             break;
         case BC_ILOADM1:
             _stack.push((int64_t) -1);
+            break;
+        case BC_LOADIVAR:
+        case BC_LOADDVAR:
+        case BC_LOADSVAR:
+            _stack.push(_context->getVariableById(_context->getUInt16()));
             break;
         case BC_LOADIVAR0:
         case BC_LOADDVAR0:
@@ -247,14 +250,23 @@ bool CodeInterpreter::tryPrint(Instruction instruction)
     switch (instruction)
     {
         case BC_DPRINT:
-            std::cout << popStack().getDouble();
+        {
+            double res = popStack().getDouble();
+            std::cout << res;
             break;
+        }
         case BC_IPRINT:
-            std::cout << popStack().getInt64();
+        {
+            int64_t res = popStack().getInt64();
+            std::cout << res;
             break;
+        }
         case BC_SPRINT:
-            std::cout << constantById(popStack().getUint16());
+        {
+            std::string str = constantById(popStack().getUint16());
+            std::cout << str;
             break;
+        }
         default:
             return false;
     }

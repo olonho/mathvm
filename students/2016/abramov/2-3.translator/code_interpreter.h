@@ -2,6 +2,7 @@
 #define CODEINTERPRETER_H
 
 #include <stack>
+#include <string>
 
 #include "mathvm.h"
 #include "interpreter_context.h"
