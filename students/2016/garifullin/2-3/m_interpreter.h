@@ -100,14 +100,14 @@ public:
 
     stack_var getVar() {
         uint16_t  var_id = getUInt16();
-        if (_scope_vars.size() < var_id) {
+        if (_scope_vars.size() <= var_id) {
             throw InterpreterError("Invalid var");
         }
         return _scope_vars[var_id];
     }
 
     stack_var getVarById(uint16_t var_id) {
-        if (_scope_vars.size() < var_id) {
+        if (_scope_vars.size() <= var_id) {
             throw InterpreterError("Invalid var");
         }
         return _scope_vars[var_id];
@@ -115,14 +115,14 @@ public:
 
     void storeVar(stack_var var) {
         uint16_t  var_id = getUInt16();
-        if (_scope_vars.size() < var_id) {
+        if (_scope_vars.size() <= var_id) {
             throw InterpreterError("Invalid var");
         }
         _scope_vars[var_id] = var;
     }
 
     void storeVarById(stack_var var, uint16_t var_id) {
-        if (_scope_vars.size() < var_id) {
+        if (_scope_vars.size() <= var_id) {
             throw InterpreterError("Invalid var");
         }
         _scope_vars[var_id] = var;
@@ -136,7 +136,7 @@ public:
 
     stack_var getContextVar(uint16_t context_id, uint16_t var_id) {
         if (context_id == _byte_func->scopeId()) {
-            if (_scope_vars.size() < var_id) {
+            if (_scope_vars.size() <= var_id) {
                 throw InterpreterError("Invalid var");
             }
             return _scope_vars[var_id];
@@ -155,7 +155,7 @@ public:
 
     void storeContextVar(stack_var var, uint16_t context_id, uint16_t var_id) {
         if (context_id == _byte_func->scopeId()) {
-            if (_scope_vars.size() < var_id) {
+            if (_scope_vars.size() <= var_id) {
                 throw InterpreterError("Invalid var");
             }
             _scope_vars[var_id] = var;

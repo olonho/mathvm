@@ -83,9 +83,9 @@ namespace mathvm
 
         interpreter_context(BytecodeFunction* bf)
                 : _bf(bf)
-                , _vars(bf->localsNumber())
                 , _position(0)
         {
+            _vars.resize(bf->localsNumber());
         }
 
         ~interpreter_context()
@@ -139,6 +139,8 @@ namespace mathvm
 
         void store_by_id(stack_value val, uint16_t id)
         {
+            if (!valid_bounds(id))
+                throw;
             _vars[id] = val;
         }
 

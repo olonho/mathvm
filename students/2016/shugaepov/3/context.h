@@ -37,7 +37,8 @@ namespace mathvm {
             while(it.hasNext())
             {
                 AstVar *var = it.next();
-                _vars[var->name()] = _vars.size() - 1;
+                uint16_t sz = _vars.size();
+                _vars[var->name()] = sz;
             }
 
         }
@@ -51,7 +52,10 @@ namespace mathvm {
 
         bool contains_var(std::string const & var_name) { return _vars.find(var_name) != _vars.end(); }
 
-        void add_var(AstVar const * var) { _vars[var->name()] = _vars.size() - 1; }
+        void add_var(AstVar const * var) {
+            uint16_t sz = _vars.size();
+            _vars[var->name()] = sz;
+        }
 
         var_context v_context(std::string const & var_name) { return var_context(_vars[var_name], _id); }
 

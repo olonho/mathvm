@@ -10,10 +10,10 @@ using namespace mathvm;
 
 void interpreter(const string& code_str)
 {
-    BytecodeTranslatorImpl translator;
+    BytecodeTranslatorImpl *translator = new BytecodeTranslatorImpl();
 
     Code* code = new bytecode_interpreter();
-    Status *translate_status = translator.translate(code_str, &code);
+    Status *translate_status = translator->translate(code_str, &code);
 
     if (translate_status->isError())
         cout << "translation error: " << translate_status->getMsg() << endl;
@@ -25,6 +25,7 @@ void interpreter(const string& code_str)
 
     delete translate_status;
     delete code;
+    delete translator;
 }
 
 int main(int argc, char** argv)

@@ -2,7 +2,7 @@ ROOT   = .
 VM_ROOT = ../../../..
 TEST_ROOT = $(VM_ROOT)/tests
 
-USER_CFLAGS = -std=c++11 -ggdb
+USER_CFLAGS = -std=c++11 -g
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
