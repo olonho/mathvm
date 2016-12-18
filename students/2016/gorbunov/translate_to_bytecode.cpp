@@ -560,6 +560,7 @@ void BytecodeGenVisitor::translateToBytecode(AstFunction *root) {
     BytecodeFunction* bf = new BytecodeFunction(root);
     code->addFunction(bf);
     translateFunction(root);
+    code->setBcMeta(ctx.getBcMeta());
 }
 
 
@@ -571,7 +572,7 @@ Status* BytecodeGenTranslator::translate(const std::string& program, Code* *code
     if (status->isError())
         return status;
 
-    auto codeImpl = new InterpreterCodeImpl(parser.top()->node()->body()->scope());
+    auto codeImpl = new InterpreterCodeImpl();
     *code = codeImpl;
     BytecodeGenVisitor visitor(codeImpl);
     try {

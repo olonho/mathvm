@@ -8,41 +8,43 @@
 using namespace mathvm;
 
 Status *InterpreterCodeImpl::execute(vector<Var*> &vars) {
-    auto var_it = Scope::VarIterator(_top_scope);
-
-    vector<int32_t> var_ids(vars.size(), -1);
-    int32_t id = 0;
-    while (var_it.hasNext()) {
-        bool changed = false;
-        auto ast_var = var_it.next();
-        for (uint32_t i = 0; i < vars.size(); ++i) {
-            if (vars[i]->name() == ast_var->name()) {
-                changed = true;
-                var_ids[i] = id;
-                break;
-            }
-        }
-        if (!changed) {
-            break;
-        }
-        id += 1;
-    }
+//    auto var_it = Scope::VarIterator(_top_scope);
+//
+//    vector<int32_t> var_ids(vars.size(), -1);
+//    int32_t id = 0;
+//    while (var_it.hasNext()) {
+//        bool changed = false;
+//        auto ast_var = var_it.next();
+//        for (uint32_t i = 0; i < vars.size(); ++i) {
+//            if (vars[i]->name() == ast_var->name()) {
+//                changed = true;
+//                var_ids[i] = id;
+//                break;
+//            }
+//        }
+//        if (!changed) {
+//            break;
+//        }
+//        id += 1;
+//    }
 
     auto vm = BytecodeInterpreter(this, std::cout);
 
+
     for (uint32_t i = 0; i < vars.size(); ++i) {
+        auto id = bc_meta->getTopmostVarId(vars[i]->name());
         switch (vars[i]->type()) {
             case VT_INVALID:
             case VT_VOID:
                 throw InterpreterError("bad init vars type");
             case VT_DOUBLE:
-                vm.set_topmost_var_by_id(var_ids[i], vars[i]->getDoubleValue());
+                vm.set_topmost_var_by_id(id, vars[i]->getDoubleValue());
                 break;
             case VT_INT:
-                vm.set_topmost_var_by_id(var_ids[i], vars[i]->getIntValue());
+                vm.set_topmost_var_by_id(id, vars[i]->getIntValue());
                 break;
             case VT_STRING:
-                vm.set_topmost_var_by_id(var_ids[i], vars[i]->getStringValue());
+                vm.set_topmost_var_by_id(id, vars[i]->getStringValue());
                 break;
         }
     }
@@ -53,18 +55,19 @@ Status *InterpreterCodeImpl::execute(vector<Var*> &vars) {
     }
 
     for (uint32_t i = 0; i < vars.size(); ++i) {
+        auto id = bc_meta->getTopmostVarId(vars[i]->name());
         switch (vars[i]->type()) {
             case VT_INVALID:
             case VT_VOID:
                 throw InterpreterError("bad init vars type");
             case VT_DOUBLE:
-                vars[i]->setDoubleValue(vm.get_topmost_var_by_id<double>(var_ids[i]));
+                vars[i]->setDoubleValue(vm.get_topmost_var_by_id<double>(id));
                 break;
             case VT_INT:
-                vars[i]->setIntValue(vm.get_topmost_var_by_id<int64_t>(var_ids[i]));
+                vars[i]->setIntValue(vm.get_topmost_var_by_id<int64_t>(id));
                 break;
             case VT_STRING:
-                vars[i]->setStringValue(vm.get_topmost_var_by_id<const char*>(var_ids[i]));
+                vars[i]->setStringValue(vm.get_topmost_var_by_id<const char*>(id));
                 break;
         }
     }

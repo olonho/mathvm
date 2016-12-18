@@ -20,6 +20,12 @@ void TranslatorContext::pushScope(Scope *scope, map<string, std::pair<BytecodeFu
     setCurScope(scope);
     addVarsFromScope(scope);
 
+    if (currentContextId() == 0) {
+        for (auto it = _vars.begin(); it != _vars.end(); ++it) {
+            bc_meta->addTopmostVar(it->first, it->second.back().id);
+        }
+    }
+
     Scope::FunctionIterator funIt(scope);
     while (funIt.hasNext()) {
         auto fun = funIt.next();

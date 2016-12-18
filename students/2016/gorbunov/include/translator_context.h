@@ -4,10 +4,12 @@
 #include "mathvm.h"
 #include "ast.h"
 #include "mathvm_error.h"
+#include "bytecode_metadata..h"
 
 #include <stack>
 #include <map>
 #include <utility>
+#include <memory>
 
 namespace mathvm
 {
@@ -23,7 +25,7 @@ namespace mathvm
 
     class TranslatorContext {
     public:
-        TranslatorContext(): _cur_scope(nullptr), return_pos(-1) {
+        TranslatorContext(): _cur_scope(nullptr), return_pos(-1), bc_meta(std::make_shared<BytecodeMetadata>()) {
         }
 
         /**
@@ -114,6 +116,10 @@ namespace mathvm
             return _f_bytecodes.top()->name();
         }
 
+        std::shared_ptr<BytecodeMetadata> getBcMeta() {
+            return bc_meta;
+        }
+
     private:
         Scope* _cur_scope;
         std::stack<BytecodeFunction*> _f_bytecodes;
@@ -132,6 +138,9 @@ namespace mathvm
         // stack with types
         std::vector<VarType> type_stack;
         int32_t return_pos;
+
+        // bytecode metadata, which is built during working with context
+        std::shared_ptr<BytecodeMetadata> bc_meta;
 
 
         void setCurScope(Scope* scope) {

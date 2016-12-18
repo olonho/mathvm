@@ -6,6 +6,7 @@
 #include "ast.h"
 #include "mathvm.h"
 #include "translator_context.h"
+#include "bytecode_metadata..h"
 
 namespace mathvm {
     /**
