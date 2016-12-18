@@ -16,12 +16,43 @@ bool isNumberType(VarType vt) {
 }
 
 void BytecodeWriter::visitBlockNode(BlockNode *node) {
-    Scope::VarIterator iter(node->scope());
-    uint16_t firstId = _localVariablesOffset;
+    uint16_t currentId = 0;
+    vector<VarType> types;
     _scopesStack.push_back(node->scope());
+    if (_localVariablesOffset != 0) {
+        //for (auto s : _currentFunction->signature()) {
+        //    types.push_back(s.first);
+        //}
+
+        Scope::VarIterator iter(node->scope()->parent());
+        while (iter.hasNext()) {
+            AstVar *var = iter.next();
+            _varDescriptions.insert({var, {currentId++, currentScopeId(), var->type()}});
+            types.push_back(var->type());
+        }
+    }
+
+    _localVariablesOffset = 0;
+    Scope::VarIterator iter(node->scope());
     while (iter.hasNext()) {
         AstVar *var = iter.next();
-        _varDescriptions.insert({var, {firstId++, currentScopeId(), var->type()}});
+        _varDescriptions.insert({var, {currentId++, currentScopeId(), var->type()}});
+        types.push_back(var->type());
+    }
+
+    uint32_t blockStartIndex = _currentCode->length();
+    if (_currentBytecodeScope == nullptr) {
+        _currentBytecodeScope = BytecodeScope::createToplevelScope(move(types));
+        _info.funcToScope[0] = _currentBytecodeScope;
+
+        for (auto & v: _varDescriptions) {
+            _info.toplevelVarNameToId.insert({v.first->name(), v.second.id});
+        }
+    } else {
+        bool isFunctionScope = _info.funcToScope.find(_currentFunction->id()) == _info.funcToScope.end();
+        _currentBytecodeScope = _currentBytecodeScope->addChildScope(blockStartIndex,
+                                                                     move(types), isFunctionScope);
+        _info.funcToScope.insert({_currentFunction->id(), _currentBytecodeScope});
     }
 
     Scope::FunctionIterator funcIter(node->scope());
@@ -34,10 +65,22 @@ void BytecodeWriter::visitBlockNode(BlockNode *node) {
         newFunction->setScopeId(currentScopeId() + 1);
     }
 
+    startupBlockCode.back()();
     for (uint32_t i = 0; i < node->nodes(); i++) {
-        node->nodeAt(i)->visit(this);
+        AstNode *n = node->nodeAt(i);
+        n->visit(this);
+        VarType type = _typeDeducer.getNodeType(n);
+        if (!n->isReturnNode() && type != VT_VOID && type != VT_INVALID) {
+            _currentCode->addInsn(BC_POP);
+        }
     }
+    finishBlockCode.back()();
+    _currentBytecodeScope->_bytecodeEndIndex =  _currentCode->length();
+    _currentBytecodeScope = _currentBytecodeScope->parent;
+
     _scopesStack.pop_back();
+    finishBlockCode.pop_back();
+    startupBlockCode.pop_back();
 }
 
 void BytecodeWriter::visitCallNode(CallNode *node) {
@@ -51,12 +94,12 @@ void BytecodeWriter::visitCallNode(CallNode *node) {
         throw PositionalException{node->position(), "Usage of undeclare function"};
     }
 
-    _currentCode->addInsn(BC_CALL);
-    _currentCode->addUInt16(func->id());
-
     for (uint32_t i = 0; i < node->parametersNumber(); i++) {
         node->parameterAt(i)->visit(this);
     }
+
+    _currentCode->addInsn(BC_CALL);
+    _currentCode->addUInt16(func->id());
 }
 
 void BytecodeWriter::visitNativeCallNode(NativeCallNode *node) {
@@ -68,6 +111,7 @@ void BytecodeWriter::visitNativeCallNode(NativeCallNode *node) {
 void BytecodeWriter::visitFunctionNode(FunctionNode *node) {
     _localVariablesOffset = node->parametersNumber();
     Bytecode* prevCode = _currentCode;
+    TranslatedFunction *prevFunc = _currentFunction;
     BytecodeFunction *func = dynamic_cast<BytecodeFunction*>(_code->functionByName(node->name()));
 
     if (!func) {
@@ -75,7 +119,23 @@ void BytecodeWriter::visitFunctionNode(FunctionNode *node) {
     }
 
     _currentCode = func->bytecode();
+    _currentFunction = func;
+
+    // Not function may be
+
+    uint16_t locals_number = 0;
+    Scope::VarIterator iter(node->body()->scope());
+    while (iter.hasNext()) {
+        iter.next();
+        locals_number++;
+    }
+    _currentFunction->setLocalsNumber(locals_number);
+
+    startupBlockCode.push_back([]{});
+    finishBlockCode.push_back([]{});
     visitBlockNode(node->body());
+
+    _currentFunction = prevFunc;
     _currentCode = prevCode;
 }
 
@@ -118,18 +178,20 @@ void BytecodeWriter::visitDoubleLiteralNode(DoubleLiteralNode *node) {
 }
 
 void BytecodeWriter::visitForNode(ForNode *node) {
-    auto varIdIter = _varDescriptions.find(node->var());
+    AstVar *var = _scopesStack.back()->lookupVariable(node->var()->name(), true);
+
+    auto varIdIter = _varDescriptions.find(var);
     if (varIdIter == _varDescriptions.end()) {
         throw PositionalException(node->position(), "No such variable");
     }
 
     if (varIdIter->second.type != VT_INT) {
-        throw PositionalException{node->position(), "Variabl in for loop must "
+        throw PositionalException{node->position(), "Variable in for loop must "
                 "have integer type"};
     }
 
     // initialize variable with lower bound
-    // should be done even if range is somthing like 100..-1
+    // should be done even if range is something like 100..-1
     loadVar(varIdIter->second);
     BinaryOpNode *inExpr = dynamic_cast<BinaryOpNode*>(node->inExpr());
     if (!inExpr) {
@@ -139,26 +201,31 @@ void BytecodeWriter::visitForNode(ForNode *node) {
     storeVar(varIdIter->second);
 
     // check initial value
-
     Label finish{_currentCode};
-
     Label repeat = _currentCode->currentLabel();
-    inExpr->right()->visit(this);
-    loadVar(varIdIter->second);
-    _currentCode->addBranch(BC_IFICMPG, finish);
+
+    startupBlockCode.push_back([&](){
+        inExpr->right()->visit(this);
+        loadVar(varIdIter->second);
+        _currentCode->addBranch(BC_IFICMPG, finish);}
+    );
+    finishBlockCode.push_back([&](){
+        _currentCode->addInsn(BC_ILOAD1);
+        loadVar(varIdIter->second);
+        _currentCode->addInsn(BC_IADD);
+        storeVar(varIdIter->second);
+        _currentCode->addBranch(BC_JA, repeat);
+        _currentCode->bind(finish);
+    });
 
     node->body()->visit(this);
-    _currentCode->addInsn(BC_ILOAD1);
-    _currentCode->addInsn(BC_IADD);
-    _currentCode->addBranch(BC_JA, repeat);
-    _currentCode->bind(finish);
 }
 
 void BytecodeWriter::visitIfNode(IfNode *node) {
     node->ifExpr()->visit(this);
 
-    Label elseLabel;
-    Label finish;
+    Label elseLabel(_currentCode);
+    Label finish(_currentCode);
     Label &ifNotIf = node->elseBlock() ? elseLabel : finish;
     VarType condType = _typeDeducer.getNodeType(node->ifExpr());
     switch (condType) {
@@ -177,8 +244,18 @@ void BytecodeWriter::visitIfNode(IfNode *node) {
         default:
             throw PositionalException{node->position(), "Invalid expression in if statement"};
     }
+
+    startupBlockCode.push_back([]{});
+    finishBlockCode.push_back([&]{
+        if (node->elseBlock()) {
+            _currentCode->addBranch(BC_JA, finish);
+        }
+    });
     node->thenBlock()->visit(this);
+
     if (node->elseBlock()) {
+        startupBlockCode.push_back([]{});
+        finishBlockCode.push_back([]{});
         _currentCode->bind(elseLabel);
         node->elseBlock()->visit(this);
     }
@@ -191,10 +268,12 @@ void BytecodeWriter::visitIntLiteralNode(IntLiteralNode *node) {
 }
 
 void BytecodeWriter::visitLoadNode(LoadNode *node) {
-    auto varIdIter = _varDescriptions.find(node->var());
-    if (varIdIter == _varDescriptions.end()) {
+    AstVar *var = _scopesStack.back()->lookupVariable(node->var()->name(), true);
+
+    if (!var) {
         throw PositionalException(node->position(), "No such variable");
     }
+    auto varIdIter = _varDescriptions.find(var);
     VarDescription varDesc = varIdIter->second;
 
     VarType type = _typeDeducer.getNodeType(node);
@@ -207,7 +286,9 @@ void BytecodeWriter::visitLoadNode(LoadNode *node) {
 
 void BytecodeWriter::visitStoreNode(StoreNode *node) {
     VarType valType = _typeDeducer.getNodeType(node->value());
-    auto varIdIter = _varDescriptions.find(node->var());
+
+    AstVar *var = _scopesStack.back()->lookupVariable(node->var()->name(), true);
+    auto varIdIter = _varDescriptions.find(var);
     if (varIdIter == _varDescriptions.end()) {
         throw PositionalException(node->position(), "Undeclared variable usage");
     }
@@ -264,7 +345,17 @@ void BytecodeWriter::visitPrintNode(PrintNode *node) {
 }
 
 void BytecodeWriter::visitReturnNode(ReturnNode *node) {
-    node->returnExpr()->visit(this);
+    if (!node->returnExpr()) {
+        if (_currentFunction->returnType() != VT_VOID) {
+            throw PositionalException{node->position(), "Wrong return type in function"};
+        }
+    } else {
+        if (_typeDeducer.getNodeType(node->returnExpr()) != _currentFunction->returnType()) {
+            throw PositionalException{node->position(), "Wrong return type in function"};
+        }
+        node->returnExpr()->visit(this);
+    }
+
     _currentCode->addInsn(BC_RETURN);
 }
 
@@ -277,21 +368,21 @@ void BytecodeWriter::visitStringLiteralNode(StringLiteralNode *node) {
 
 void BytecodeWriter::visitUnaryOpNode(UnaryOpNode *node) {
     VarType type = _typeDeducer.getNodeType(node->operand());
+    node->operand()->visit(this);
     if (node->kind() == tSUB) {
         if (type != VT_DOUBLE && type != VT_INT) {
             throw PositionalException{node->position(), "Can't negate this type of expression"};
         }
-        node->operand()->visit(this);
         Instruction instr = type == VT_DOUBLE ? BC_DNEG : BC_INEG;
         _currentCode->addInsn(instr);
     } else { // tNOT
         switch (type) {
-            case VT_DOUBLE:
+            case VT_DOUBLE: // TODO and for string we need cast
                 _currentCode->addInsn(BC_D2I);
             case VT_INT: {
                 _currentCode->addInsn(BC_ILOAD0);
-                Label put1;
-                Label finish;
+                Label put1(_currentCode);
+                Label finish(_currentCode);
                 _currentCode->addBranch(BC_IFICMPE, put1); // goto 1
                 _currentCode->addInsn(BC_ILOAD0);
                 _currentCode->addBranch(BC_JA, finish);
@@ -315,51 +406,74 @@ void BytecodeWriter::visitWhileNode(WhileNode *node) {
 
     VarType condType = _typeDeducer.getNodeType(node->whileExpr());
     Label checkCond = _currentCode->currentLabel();
-    node->whileExpr()->visit(this);
-    _currentCode->addInsn(loadZero.at(condType));
-    if (condType == VT_DOUBLE) {
-        _currentCode->addInsn(BC_D2I);
-    }
-
     Label finish(_currentCode);
-    _currentCode->addBranch(BC_IFICMPE, finish);
+
+    startupBlockCode.push_back([&]{
+        node->whileExpr()->visit(this);
+        if (condType == VT_DOUBLE) {
+            _currentCode->addInsn(BC_D2I);
+        }
+        _currentCode->addInsn(loadZero.at(condType));
+        _currentCode->addBranch(BC_IFICMPE, finish);
+    });
+    finishBlockCode.push_back([&]{
+        _currentCode->addBranch(BC_JA, checkCond);
+        _currentCode->bind(finish);
+    });
+
     node->loopBlock()->visit(this);
-    _currentCode->addBranch(BC_JA, checkCond);
-    _currentCode->bind(finish);
 }
 
-void BytecodeWriter::loadVar(VarDescription varDesc) {
-    static std::map<VarType, Instruction> sameContextInstructions =
-            {{VT_INT, BC_LOADIVAR}, {VT_DOUBLE, BC_LOADDVAR}, {VT_STRING, BC_LOADSVAR}};
-    static std::map<VarType, Instruction> differentContextInstructions =
-            {{VT_INT, BC_LOADCTXIVAR}, {VT_DOUBLE, BC_LOADCTXDVAR}, {VT_STRING, BC_LOADCTXSVAR}};
+#define LOAD_STORE_BODY   do {                                                  \
+    if (varDesc.scopeId == currentScopeId()) {                                  \
+        if (varDesc.id > 3) {                                                   \
+            _currentCode->addInsn(sameContextInstructions.at(varDesc.type));    \
+            _currentCode->addUInt16(varDesc.id);                                \
+        } else {                                                                \
+            _currentCode->addInsn(mapping[varDesc.id].at(varDesc.type));        \
+        }                                                                       \
+    } else {                                                                    \
+        _currentCode->addInsn(differentContextInstructions.at(varDesc.type));   \
+        _currentCode->addUInt16(varDesc.scopeId);                               \
+        _currentCode->addUInt16(varDesc.id);                                    \
+    } } while(0)
 
-    if (varDesc.scopeId == currentScopeId()) {
-        _currentCode->addInsn(sameContextInstructions.at(varDesc.type));
-        _currentCode->addUInt16(varDesc.id);
-    } else {
-        _currentCode->addInsn(differentContextInstructions.at(varDesc.type));
-        _currentCode->addUInt16(varDesc.scopeId);
-        _currentCode->addUInt16(varDesc.id);
-    }
+void BytecodeWriter::loadVar(VarDescription varDesc) {
+#define MAPPING(ID) {               \
+    {VT_INT, BC_LOADIVAR##ID},      \
+    {VT_DOUBLE, BC_LOADDVAR##ID},   \
+    {VT_STRING, BC_LOADSVAR##ID}}
+
+    static const std::map<VarType, Instruction> sameContextInstructions =
+            {{VT_INT, BC_LOADIVAR}, {VT_DOUBLE, BC_LOADDVAR}, {VT_STRING, BC_LOADSVAR}};
+    static const std::map<VarType, Instruction> differentContextInstructions =
+            {{VT_INT, BC_LOADCTXIVAR}, {VT_DOUBLE, BC_LOADCTXDVAR}, {VT_STRING, BC_LOADCTXSVAR}};
+    static const map<VarType, Instruction> mapping[] = {
+            MAPPING(0), MAPPING(1), MAPPING(2), MAPPING(3)
+    };
+#undef MAPPING
+
+    LOAD_STORE_BODY;
 }
 
 void BytecodeWriter::storeVar(VarDescription varDesc) {
+#define MAPPING(ID) {               \
+    {VT_INT, BC_STOREIVAR##ID},      \
+    {VT_DOUBLE, BC_STOREDVAR##ID},   \
+    {VT_STRING, BC_STORESVAR##ID}}
     static const std::map<VarType, Instruction> sameContextInstructions =
             {{VT_INT, BC_STOREIVAR}, {VT_DOUBLE, BC_STOREDVAR}, {VT_STRING, BC_STORESVAR}};
     static const std::map<VarType, Instruction> differentContextInstructions =
             {{VT_INT, BC_STORECTXIVAR}, {VT_DOUBLE, BC_STORECTXDVAR}, {VT_STRING, BC_STORECTXSVAR}};
+    static const map<VarType, Instruction> mapping[] = {
+            MAPPING(0), MAPPING(1), MAPPING(2), MAPPING(3)
+    };
+#undef MAPPING
 
-
-    if (varDesc.scopeId == currentScopeId()) {
-        _currentCode->addInsn(sameContextInstructions.at(varDesc.type));
-        _currentCode->addUInt16(varDesc.id);
-    } else {
-        _currentCode->addInsn(differentContextInstructions.at(varDesc.type));
-        _currentCode->addUInt16(varDesc.scopeId);
-        _currentCode->addUInt16(varDesc.id);
-    }
+    LOAD_STORE_BODY;
 }
+
+#undef LOAD_STORE_BODY
 
 void BytecodeWriter::subtract(VarType type) {
     switch (type) {
@@ -466,18 +580,23 @@ void BytecodeWriter::comparison(BinaryOpNode *node) {
     }
 
     bool hasDoubleArg = leftType == VT_DOUBLE || rightType == VT_DOUBLE;
-    bool convertFirstArg = leftType != VT_DOUBLE && rightType == VT_DOUBLE;
-    bool convertSecondArg = leftType == VT_DOUBLE && rightType != VT_DOUBLE;
+    bool convertFirstArgToDouble = leftType != VT_DOUBLE && rightType == VT_DOUBLE;
+    bool convertSecondArgToDouble = leftType == VT_DOUBLE && rightType != VT_DOUBLE;
+    bool convertArgsToInt = leftType == VT_STRING;
 
     // since we compare left ? right, we need to load right first, then left
     node->right()->visit(this);
-    if (convertSecondArg) {
+    if (convertSecondArgToDouble) {
         _currentCode->addInsn(BC_I2D);
+    } else if (convertArgsToInt) {
+        _currentCode->addInsn(BC_S2I);
     }
 
     node->left()->visit(this);
-    if (convertFirstArg) {
+    if (convertFirstArgToDouble) {
         _currentCode->addInsn(BC_I2D);
+    } else if (convertArgsToInt) {
+        _currentCode->addInsn(BC_S2I);
     }
 
     Instruction comparator = hasDoubleArg ? BC_DCMP : BC_ICMP;
@@ -491,9 +610,9 @@ void BytecodeWriter::comparison(BinaryOpNode *node) {
     _currentCode->addInsn(BC_ILOAD1);
     Label success(_currentCode);
     _currentCode->addBranch(BC_JA, success);
-    fail.bind(_currentCode->current());
+    _currentCode->bind(fail);
     _currentCode->addInsn(BC_ILOAD0);
-    success.bind(_currentCode->current());
+    _currentCode->bind(success);
 }
 
 void BytecodeWriter::integerBinaryOp(BinaryOpNode *node) {
@@ -507,8 +626,9 @@ void BytecodeWriter::integerBinaryOp(BinaryOpNode *node) {
 
     assert(mapping.count(kind));
 
-    node->left()->visit(this);
     node->right()->visit(this);
+    node->left()->visit(this);
+
     if (leftType != VT_INT || rightType != VT_INT) {
         throw PositionalException(node->position(),
                                   string(tokenOp(kind)) + " expects two integer arguments");
@@ -533,12 +653,13 @@ void BytecodeWriter::numberBinaryOp(BinaryOpNode *node) {
     bool convertFirstArg = leftType != VT_DOUBLE && rightType == VT_DOUBLE;
     bool convertSecondArg = leftType == VT_DOUBLE && rightType != VT_DOUBLE;
 
-    node->left()->visit(this);
-    if (convertFirstArg) {
-        _currentCode->addInsn(BC_I2D);
-    }
     node->right()->visit(this);
     if (convertSecondArg) {
+        _currentCode->addInsn(BC_I2D);
+    }
+
+    node->left()->visit(this);
+    if (convertFirstArg) {
         _currentCode->addInsn(BC_I2D);
     }
 

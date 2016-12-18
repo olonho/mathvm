@@ -7,11 +7,9 @@
 // [Export]
 #define ASMJIT_EXPORTS
 
-// [Dependencies - AsmJit]
-#include "../base/intutil.h"
+// [Dependencies]
+#include "../base/utils.h"
 #include "../base/zone.h"
-
-// [Dependencies - C]
 #include <stdarg.h>
 
 // [Api-Begin]
@@ -21,19 +19,19 @@ namespace asmjit {
 
 //! Zero size block used by `Zone` that doesn't have any memory allocated.
 static const Zone::Block Zone_zeroBlock = {
-  NULL, NULL, NULL, NULL, { 0 }
+  nullptr, nullptr, nullptr, nullptr, { 0 }
 };
 
 // ============================================================================
 // [asmjit::Zone - Construction / Destruction]
 // ============================================================================
 
-Zone::Zone(size_t blockSize) {
+Zone::Zone(size_t blockSize) noexcept {
   _block = const_cast<Zone::Block*>(&Zone_zeroBlock);
   _blockSize = blockSize;
 }
 
-Zone::~Zone() {
+Zone::~Zone() noexcept {
   reset(true);
 }
 
@@ -41,7 +39,7 @@ Zone::~Zone() {
 // [asmjit::Zone - Reset]
 // ============================================================================
 
-void Zone::reset(bool releaseMemory) {
+void Zone::reset(bool releaseMemory) noexcept {
   Block* cur = _block;
 
   // Can't be altered.
@@ -56,10 +54,10 @@ void Zone::reset(bool releaseMemory) {
       Block* prev = cur->prev;
       ASMJIT_FREE(cur);
       cur = prev;
-    } while (cur != NULL);
+    } while (cur != nullptr);
 
     cur = next;
-    while (cur != NULL) {
+    while (cur != nullptr) {
       next = cur->next;
       ASMJIT_FREE(cur);
       cur = next;
@@ -68,7 +66,7 @@ void Zone::reset(bool releaseMemory) {
     _block = const_cast<Zone::Block*>(&Zone_zeroBlock);
   }
   else {
-    while (cur->prev != NULL)
+    while (cur->prev != nullptr)
       cur = cur->prev;
 
     cur->pos = cur->data;
@@ -80,9 +78,9 @@ void Zone::reset(bool releaseMemory) {
 // [asmjit::Zone - Alloc]
 // ============================================================================
 
-void* Zone::_alloc(size_t size) {
+void* Zone::_alloc(size_t size) noexcept {
   Block* curBlock = _block;
-  size_t blockSize = IntUtil::iMax<size_t>(_blockSize, size);
+  size_t blockSize = Utils::iMax<size_t>(_blockSize, size);
 
   // The `_alloc()` method can only be called if there is not enough space
   // in the current block, see `alloc()` implementation for more details.
@@ -93,7 +91,7 @@ void* Zone::_alloc(size_t size) {
   // a new one. If there is a `next` block it's completely unused, we don't have
   // to check for remaining bytes.
   Block* next = curBlock->next;
-  if (next != NULL && next->getBlockSize() >= size) {
+  if (next != nullptr && next->getBlockSize() >= size) {
     next->pos = next->data + size;
     _block = next;
     return static_cast<void*>(next->data);
@@ -101,16 +99,16 @@ void* Zone::_alloc(size_t size) {
 
   // Prevent arithmetic overflow.
   if (blockSize > ~static_cast<size_t>(0) - sizeof(Block))
-    return NULL;
+    return nullptr;
 
   Block* newBlock = static_cast<Block*>(ASMJIT_ALLOC(sizeof(Block) - sizeof(void*) + blockSize));
-  if (newBlock == NULL)
-    return NULL;
+  if (newBlock == nullptr)
+    return nullptr;
 
   newBlock->pos = newBlock->data + size;
   newBlock->end = newBlock->data + blockSize;
-  newBlock->prev = NULL;
-  newBlock->next = NULL;
+  newBlock->prev = nullptr;
+  newBlock->next = nullptr;
 
   if (curBlock != &Zone_zeroBlock) {
     newBlock->prev = curBlock;
@@ -119,7 +117,7 @@ void* Zone::_alloc(size_t size) {
     // Does only happen if there is a next block, but the requested memory
     // can't fit into it. In this case a new buffer is allocated and inserted
     // between the current block and the next one.
-    if (next != NULL) {
+    if (next != nullptr) {
       newBlock->next = next;
       next->prev = newBlock;
     }
@@ -129,52 +127,52 @@ void* Zone::_alloc(size_t size) {
   return static_cast<void*>(newBlock->data);
 }
 
-void* Zone::allocZeroed(size_t size) {
+void* Zone::allocZeroed(size_t size) noexcept {
   void* p = alloc(size);
-  if (p != NULL)
+  if (p != nullptr)
     ::memset(p, 0, size);
   return p;
 }
 
-void* Zone::dup(const void* data, size_t size) {
-  if (data == NULL)
-    return NULL;
+void* Zone::dup(const void* data, size_t size) noexcept {
+  if (data == nullptr)
+    return nullptr;
 
   if (size == 0)
-    return NULL;
+    return nullptr;
 
   void* m = alloc(size);
-  if (m == NULL)
-    return NULL;
+  if (m == nullptr)
+    return nullptr;
 
   ::memcpy(m, data, size);
   return m;
 }
 
-char* Zone::sdup(const char* str) {
-  if (str == NULL)
-    return NULL;
+char* Zone::sdup(const char* str) noexcept {
+  if (str == nullptr)
+    return nullptr;
 
   size_t len = ::strlen(str);
   if (len == 0)
-    return NULL;
+    return nullptr;
 
   // Include NULL terminator and limit string length.
   if (++len > 256)
     len = 256;
 
   char* m = static_cast<char*>(alloc(len));
-  if (m == NULL)
-    return NULL;
+  if (m == nullptr)
+    return nullptr;
 
   ::memcpy(m, str, len);
   m[len - 1] = '\0';
   return m;
 }
 
-char* Zone::sformat(const char* fmt, ...) {
-  if (fmt == NULL)
-    return NULL;
+char* Zone::sformat(const char* fmt, ...) noexcept {
+  if (fmt == nullptr)
+    return nullptr;
 
   char buf[512];
   size_t len;

@@ -33,6 +33,8 @@ class BytecodeGeneratorVisitor : public AstVisitor {
 public:
     BytecodeGeneratorVisitor(Code * code);
 
+    void generateCode(AstFunction * top);
+
 #define VISITOR_FUNCTION(type, name) \
     void visit##type(type* node) override;
 
@@ -41,6 +43,8 @@ public:
 
 private:
     Bytecode * bytecode();
+
+    void declareFunction(AstFunction * function);
 
     void generateIfElse(IfNode * node);
     void generateWhile(WhileNode * node);
@@ -73,7 +77,7 @@ private:
 
     ScopeContextPtr topCtx();
 
-    void pushContext(FunctionNode * fn = nullptr);
+    void pushContext(BytecodeFunction * function);
     void popContext();
 
 private:

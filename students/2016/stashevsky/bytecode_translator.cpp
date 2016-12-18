@@ -2,11 +2,10 @@
 #include "interpreter_code.h"
 
 #include "parser.h"
+#include "native_codegen.h"
 #include <dlfcn.h>
 
 namespace mathvm {
-
-using namespace std;
 
 namespace details {
 
@@ -569,7 +568,7 @@ void TranslatorVisitor::indexVariable(AstVar const& variable) {
 
     assert(stack_size_.top() <= UINT16_MAX);
 
-    function_scope_.top()->setLocalsNumber(std::max(
+    function_scope_.top()->setLocalsNumber(max(
             static_cast<uint16_t>(stack_size_.top()),
             static_cast<uint16_t>(function_scope_.top()->localsNumber()))
     );
@@ -589,6 +588,11 @@ void TranslatorVisitor::indexFunctions() {
 
         if (function->node()->body()->nodes() > 0 && function->node()->body()->nodeAt(0)->isNativeCallNode()) {
             void* handler = dlsym(RTLD_DEFAULT, function->name().c_str());
+            if (handler == nullptr) {
+                assert(false);
+            }
+
+            handler = wrap_native_call(function->node()->signature(), handler);
             uint16_t id = code_.makeNativeFunction(function->name(), function->node()->signature(), handler);
             bytecode->assignId(id);
         } else {
@@ -651,7 +655,7 @@ VarType TranslatorVisitor::unifyTop(VarType left, VarType right) {
 
 }
 
-Status* BytecodeTranslatorImpl::translateBytecode(const string& program, InterpreterCodeImpl* *code) {
+Status* BytecodeTranslatorImpl::translateBytecode(const string& program, InterpreterCodeImpl** code) {
     Parser parser;
     auto status = parser.parseProgram(program);
     if (status->isError()) {

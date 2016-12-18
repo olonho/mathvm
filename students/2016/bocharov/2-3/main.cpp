@@ -1,6 +1,8 @@
 #include "mathvm.h"
 #include "parser.h"
 
+#include "interpretable_code.h"
+
 #include <iostream>
 #include <memory>
 
@@ -37,9 +39,16 @@ int main(int argc, char** argv) {
                "error '%s'\n",
                line, offset,
                translateStatus->getErrorCstr());
+        return -1;
     }
 
-    code->disassemble(std::cout);
+    try {
+        std::vector<Var *> vars;
+        code->execute(vars);
+    } catch (std::runtime_error const & e) {
+        std::cerr << "error: " << e.what() << std::endl;
+        return -1;
+    }
 
     return 0;
 }

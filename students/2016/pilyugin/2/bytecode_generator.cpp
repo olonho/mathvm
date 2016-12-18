@@ -162,8 +162,7 @@ public:
         } else {
             node->body()->visit(this);
         }
-        VarType type = node->returnType();
-        tosType_ = type;
+        tosType_ = node->returnType();
     }
 
     void visitCallNode(CallNode* node) override {
@@ -181,12 +180,11 @@ public:
         }
         bytecode()->addInsn(BC_CALL);
         bytecode()->addUInt16(function->id());
-        VarType type = function->returnType();
-        tosType_ = type;
+        tosType_ = function->returnType();
     }
 
     void visitNativeCallNode(NativeCallNode* node) override {
-        void* code = dlsym((void*) -2/*RTLD_DEFAULT*/, node->nativeName().c_str());
+        void* code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
         if (!code) {
             throw BytecodeGeneratorException("Invalid native function: " + node->nativeName());
         }
@@ -362,8 +360,7 @@ private:
             bytecode()->addUInt16(varInfo.scopeId);
         }
         bytecode()->addUInt16(varInfo.varId);
-        VarType type = var->type();
-        tosType_ = type;
+        tosType_ = var->type();
     }
 
     void castTosType(VarType to) {

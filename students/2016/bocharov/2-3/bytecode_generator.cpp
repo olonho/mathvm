@@ -9,7 +9,7 @@ std::map<VarType, std::map<TokenKind, Instruction>> BytecodeGeneratorVisitor::in
     { VT_INT, { { tAAND, BC_IAAND }, { tAOR, BC_IAOR }, { tAXOR, BC_IAXOR }, { tADD, BC_IADD },
                 { tSUB , BC_ISUB }, { tMUL, BC_IMUL }, { tDIV, BC_IDIV }, { tMOD, BC_IMOD },
                 { tINCRSET, BC_IADD }, { tDECRSET, BC_ISUB } } },
-    { VT_DOUBLE, { { tSUB , BC_DSUB }, { tMUL, BC_DMUL }, { tDIV, BC_DDIV },
+    { VT_DOUBLE, { { tADD, BC_DADD }, { tSUB , BC_DSUB }, { tMUL, BC_DMUL }, { tDIV, BC_DDIV },
                 { tINCRSET, BC_DADD }, { tDECRSET, BC_DSUB } } }
 };
 
@@ -43,6 +43,16 @@ void BytecodeGeneratorVisitor::generateLiteral<std::string>(const std::string& v
 BytecodeGeneratorVisitor::BytecodeGeneratorVisitor(Code * code)
     : m_code(code)
 {}
+
+void BytecodeGeneratorVisitor::generateCode(AstFunction * top)
+{
+    pushContext(nullptr);
+
+    declareFunction(top);
+    top->node()->visit(this);
+
+    popContext();
+}
 
 void BytecodeGeneratorVisitor::visitUnaryOpNode(UnaryOpNode * node)
 {
@@ -151,7 +161,6 @@ void BytecodeGeneratorVisitor::visitStoreNode(StoreNode * node)
         case tINCRSET:
         case tDECRSET:
             generateLoad(node->var());
-            bytecode()->addInsn(type == VT_INT ? BC_ILOAD1 : BC_DLOAD1);
             bytecode()->addInsn(instructions[type][op]);
             break;
         case tASSIGN:
@@ -175,7 +184,7 @@ void BytecodeGeneratorVisitor::visitPrintNode(PrintNode * node)
 
 void BytecodeGeneratorVisitor::visitCallNode(CallNode * node)
 {
-    TranslatedFunction * function = m_code->functionByName(node->name());
+    AstFunction * function = topCtx()->getFunction(node->name());
     if (!function) {
         auto message = std::string("function ") + node->name() + " doesn't exists";
         throw CodeGenerationError(message, node->position());
@@ -191,7 +200,15 @@ void BytecodeGeneratorVisitor::visitCallNode(CallNode * node)
         generateCast(function->parameterType(i - 1));
     }
 
-    generateCall(function->id());
+    uint16_t id = ((BytecodeFunction *) function->info())->scopeId();
+    if (function->node()->body()->nodes() > 0 &&
+            function->node()->body()->nodeAt(0)->isNativeCallNode()) {
+        generateNativeCall(id);
+    } else {
+        generateCall(id);
+    }
+
+    setLastExprType(function->returnType());
 }
 
 void BytecodeGeneratorVisitor::visitNativeCallNode(NativeCallNode * node)
@@ -202,8 +219,8 @@ void BytecodeGeneratorVisitor::visitNativeCallNode(NativeCallNode * node)
         std::string message = "couldn't find native with name " + name;
         throw CodeGenerationError(message, node->position());
     }
-    uint16_t id = m_code->makeNativeFunction(name, node->nativeSignature(), sym);
-    generateNativeCall(id);
+    uint64_t id = m_code->makeNativeFunction(name, node->nativeSignature(), sym);
+    topCtx()->getFunction(name)->setInfo(reinterpret_cast<void *>(id));
 }
 
 void BytecodeGeneratorVisitor::visitReturnNode(ReturnNode * node)
@@ -218,10 +235,17 @@ void BytecodeGeneratorVisitor::visitBlockNode(BlockNode * node)
 {
     Scope::VarIterator vars = node->scope();
     while (vars.hasNext()) {
-        topCtx()->addVar(vars.next());
+        topCtx()->addVar(vars.next()->name());
     }
+    topCtx()->function()->setLocalsNumber(topCtx()->localsNumber());
 
     Scope::FunctionIterator functions = node->scope();
+    while (functions.hasNext()) {
+        auto fn = functions.next();
+        declareFunction(fn);
+    }
+
+    functions = node->scope();
     while (functions.hasNext()) {
         auto fn = functions.next();
         fn->node()->visit(this);
@@ -232,19 +256,21 @@ void BytecodeGeneratorVisitor::visitBlockNode(BlockNode * node)
 
 void BytecodeGeneratorVisitor::visitFunctionNode(FunctionNode * node)
 {
-    if (m_code->functionByName(node->name())) {
-        throw CodeGenerationError("redefenition of function", node->position());
+    auto function = topCtx()->getFunction(node->name());
+    if (!function) {
+        throw CodeGenerationError("function definition before declaration", node->position());
     }
 
-    pushContext(node);
-    m_code->addFunction(topCtx()->function());
-    AstFunction * function = new AstFunction(node, topCtx()->scope());
+    if (node->body()->nodes() > 0 && node->body()->nodeAt(0)->isNativeCallNode()) {
+        node->body()->nodeAt(0)->visit(this);
+        return;
+    }
 
-    for (uint32_t i = function->parametersNumber(); i > 0; --i) {
-        AstVar param(function->parameterName(i - 1), function->parameterType(i - 1),
-                     topCtx()->scope());
-        topCtx()->addVar(&param);
-        generateLoad(&param);
+    pushContext((BytecodeFunction *) function->info());
+    for (uint32_t i = 0; i < function->parametersNumber(); ++i) {
+        AstVar param(function->parameterName(i), function->parameterType(i), nullptr);
+        topCtx()->addVar(param.name());
+        generateStore(&param);
     }
     node->body()->visit(this);
 
@@ -257,23 +283,50 @@ Bytecode * BytecodeGeneratorVisitor::bytecode()
     return topCtx()->bytecode();
 }
 
+void BytecodeGeneratorVisitor::declareFunction(AstFunction * fn)
+{
+    topCtx()->addFunction(fn);
+
+    BytecodeFunction * bcf = new BytecodeFunction(fn);
+    uint16_t id = m_code->addFunction(bcf);
+    bcf->setScopeId(id);
+    fn->setInfo(bcf);
+}
+
 void BytecodeGeneratorVisitor::generateIfElse(IfNode * node)
 {
-    node->ifExpr()->visit(this);
-    generateCast(VT_INT);
+   node->ifExpr()->visit(this);
+   generateCast(VT_INT);
 
-    Label elseBranch(bytecode());
-    Label ifElseEnd(bytecode());
+   Label elseBranch(bytecode());
+   Label ifElseEnd(bytecode());
 
-    bytecode()->addInsn(BC_ILOAD1);
-    bytecode()->addBranch(BC_IFICMPNE, elseBranch);
-    node->thenBlock()->visit(this);
-    bytecode()->addBranch(BC_JA, ifElseEnd);
+   bytecode()->addInsn(BC_ILOAD1);
+   bytecode()->addBranch(BC_IFICMPNE, elseBranch);
+   node->thenBlock()->visit(this);
+   bytecode()->addBranch(BC_JA, ifElseEnd);
 
-    bytecode()->bind(elseBranch);
-    if (node->elseBlock())
-        node->elseBlock()->visit(this);
-    bytecode()->bind(ifElseEnd);
+   bytecode()->bind(elseBranch);
+   if (node->elseBlock())
+       node->elseBlock()->visit(this);
+   bytecode()->bind(ifElseEnd);
+
+    // Label unlessLabel(bytecode());
+    // node->ifExpr()->visit(this);
+    // bytecode()->addInsn(BC_ILOAD0);
+    // bytecode()->addBranch(BC_IFICMPE, unlessLabel);
+
+    // node->thenBlock()->visit(this);
+
+    // if (node->elseBlock() != 0) {
+    //     Label afterElse(bytecode());
+    //     bytecode()->addBranch(BC_JA, afterElse);
+    //     bytecode()->bind(unlessLabel);
+    //     node->elseBlock()->visit(this);
+    //     bytecode()->bind(afterElse);
+    // } else {
+    //     bytecode()->bind(unlessLabel);
+    // }
 }
 
 void BytecodeGeneratorVisitor::generateWhile(WhileNode * node)
@@ -284,8 +337,8 @@ void BytecodeGeneratorVisitor::generateWhile(WhileNode * node)
     bytecode()->bind(loopStart);
     node->whileExpr()->visit(this);
     generateCast(VT_INT);
-    bytecode()->addInsn(BC_ILOAD1);
-    bytecode()->addBranch(BC_IFICMPNE, loopEnd);
+    bytecode()->addInsn(BC_ILOAD0);
+    bytecode()->addBranch(BC_IFICMPE, loopEnd);
     node->loopBlock()->visit(this);
     bytecode()->addBranch(BC_JA, loopStart);
     bytecode()->bind(loopEnd);
@@ -295,7 +348,6 @@ void BytecodeGeneratorVisitor::generateFor(AstVar const * var, BinaryOpNode * ra
 {
     // for(
     // i = left;
-    topCtx()->addVar(var);
     range->left()->visit(this);
     generateStore(var);
 
@@ -303,9 +355,10 @@ void BytecodeGeneratorVisitor::generateFor(AstVar const * var, BinaryOpNode * ra
     Label loopEnd(bytecode());
 
     // i < right
+    bytecode()->bind(loopStart);
     generateLoad(var);
     range->right()->visit(this);
-    bytecode()->addBranch(BC_IFICMPLE, loopEnd);
+    bytecode()->addBranch(BC_IFICMPL, loopEnd);
 
     body->visit(this);
 
@@ -322,22 +375,24 @@ void BytecodeGeneratorVisitor::generateFor(AstVar const * var, BinaryOpNode * ra
 
 void BytecodeGeneratorVisitor::generateArithmeticOp(BinaryOpNode * node)
 {
-    node->left()->visit(this);
-    VarType leftType = lastExprType();
     node->right()->visit(this);
     VarType rightType = lastExprType();
+    node->left()->visit(this);
+    VarType leftType = lastExprType();
     VarType type = leftType;
     if (leftType != rightType) {
         // c-style cast (if any is double -> all double)
-        if (rightType == VT_DOUBLE) {
+        if (leftType == VT_DOUBLE) {
             // topmost is double -> need to swap and cast
             bytecode()->addInsn(BC_SWAP);
+            setLastExprType(VT_INT);
         }
         generateCast(VT_DOUBLE);
 
-        if (rightType == VT_DOUBLE) {
+        if (leftType == VT_DOUBLE) {
             // need to swap backward to save semantic
             bytecode()->addInsn(BC_SWAP);
+            setLastExprType(VT_DOUBLE);
         }
 
         type = VT_DOUBLE;
@@ -428,12 +483,15 @@ void BytecodeGeneratorVisitor::generateLogicOp(BinaryOpNode * node)
     }
 
     Label done(bytecode());
-    bytecode()->addBranch(BC_IFICMPE, done);
+    Label firstDecide(bytecode());
+    bytecode()->addBranch(BC_IFICMPE, firstDecide);
     node->right()->visit(this);
     generateCast(VT_INT);
     bytecode()->addBranch(BC_JA, done);
 
+    bytecode()->bind(firstDecide);
     bytecode()->addInsn(eqInsn);
+
     bytecode()->bind(done);
 
     setLastExprType(VT_INT);
@@ -455,7 +513,7 @@ void BytecodeGeneratorVisitor::generateNotOp(UnaryOpNode * node)
 
 void BytecodeGeneratorVisitor::generateNegateOp(UnaryOpNode * node)
 {
-    node->visit(this);
+    node->operand()->visit(this);
     VarType type = lastExprType();
     switch (type) {
         case VT_INT:
@@ -470,7 +528,7 @@ void BytecodeGeneratorVisitor::generateNegateOp(UnaryOpNode * node)
         }
     }
 
-    assert(m_lastExprType == VT_INT);
+    assert(m_lastExprType == type);
 }
 
 void BytecodeGeneratorVisitor::generateCall(uint16_t fid)
@@ -487,15 +545,15 @@ void BytecodeGeneratorVisitor::generateNativeCall(uint16_t fid)
 
 void BytecodeGeneratorVisitor::generateCast(VarType type)
 {
+    if (lastExprType() == type)
+        return;
+
     if ((type != VT_DOUBLE && type != VT_INT) ||
             (lastExprType() != VT_DOUBLE && lastExprType() != VT_INT)) {
         char message[100];
         sprintf(message, "can't cast type %s to type %s", typeToName(lastExprType()), typeToName(type));
         throw CodeGenerationError(message, Status::INVALID_POSITION);
     }
-
-    if (lastExprType() == type)
-        return;
 
     switch (type) {
     case VT_INT:
@@ -533,6 +591,8 @@ void BytecodeGeneratorVisitor::generatePrint()
 
 void BytecodeGeneratorVisitor::generateReturn(VarType type)
 {
+    if (type != VT_VOID)
+        generateCast(type);
     bytecode()->addInsn(BC_RETURN);
     setLastExprType(type);
 }
@@ -607,8 +667,6 @@ void BytecodeGeneratorVisitor::generateStore(const AstVar * var)
         bytecode()->addUInt16(loc.m_scopeId);
         bytecode()->addUInt16(loc.m_varId);
     }
-
-    assert(lastExprType() == type);
 }
 
 VarType BytecodeGeneratorVisitor::lastExprType() const
@@ -621,15 +679,9 @@ void BytecodeGeneratorVisitor::setLastExprType(VarType type)
     m_lastExprType = type;
 }
 
-void BytecodeGeneratorVisitor::pushContext(FunctionNode * fn)
+void BytecodeGeneratorVisitor::pushContext(BytecodeFunction * function)
 {
-    AstFunction * function = nullptr;
-    ScopeContextPtr parentCtx = topCtx();
-    if (fn) {
-        Scope * scope = new Scope(parentCtx ? parentCtx->scope() : nullptr);
-        function = new AstFunction(fn, scope);
-    }
-    auto ctx = std::make_shared<ScopeContext>(parentCtx, function);
+    auto ctx = std::make_shared<ScopeContext>(topCtx(), function);
     m_contexts.push(ctx);
 }
 

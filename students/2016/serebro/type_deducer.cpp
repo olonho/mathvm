@@ -19,7 +19,7 @@ void TypeDeducer::visitBinaryOpNode(BinaryOpNode *node) {
 
     switch (node->kind()) {
         case tASSIGN:
-            _nodeType.insert({node, _nodeType.at(node->left())});
+            _nodeType.insert({node, getNodeType(node->left())});
             break;
         case tOR:
         case tAND:
@@ -40,7 +40,7 @@ void TypeDeducer::visitBinaryOpNode(BinaryOpNode *node) {
         case tSUB:
         case tMUL:
         case tDIV:
-            if (_nodeType.at(node->left()) == VT_DOUBLE || _nodeType.at(node->right()) == VT_DOUBLE) {
+            if (getNodeType(node->left()) == VT_DOUBLE || getNodeType(node->right()) == VT_DOUBLE) {
                 _nodeType.insert({node, VT_DOUBLE});
             } else {
                 _nodeType.insert({node, VT_INT});
@@ -77,7 +77,7 @@ void TypeDeducer::visitUnaryOpNode(UnaryOpNode *node) {
         _nodeType.insert({node, VT_INT});
     } else {
         node->operand()->visit(this);
-        _nodeType.insert({node, _nodeType.at(node)});
+        _nodeType.insert({node, getNodeType(node->operand())});
     }
 }
 
@@ -94,7 +94,7 @@ void TypeDeducer::visitLoadNode(LoadNode *node) {
 }
 
 void TypeDeducer::visitStoreNode(StoreNode *node) {
-    _nodeType.insert({node, node->var()->type()}); // TODO
+    _nodeType.insert({node, VT_INVALID}); // TODO
 }
 
 void TypeDeducer::visitNativeCallNode(NativeCallNode *node) {
@@ -113,6 +113,10 @@ VarType TypeDeducer::getNodeType(AstNode *node) {
     auto res = _nodeType.find(node);
     if (res != _nodeType.end()) {
         return res->second;
+    }
+
+    if (!node) {
+        return VT_INVALID;
     }
 
     node->visit(this);

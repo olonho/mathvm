@@ -20,7 +20,7 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code)
     *code = new InterpretableCode;
     BytecodeGeneratorVisitor codegen(*code);
     try {
-        parser.top()->node()->visit(&codegen);
+        codegen.generateCode(parser.top());
     } catch (const CodeGenerationError& e) {
         return Status::Error(e.what(), e.position());
     }

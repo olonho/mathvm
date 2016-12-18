@@ -15,9 +15,13 @@ USER_OBJ = \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translator$(OBJ_SUFF)\
    $(OBJ)/translator_impl$(OBJ_SUFF)\
-   $(OBJ)/PrintTranslatorImpl$(OBJ_SUFF)
+   $(OBJ)/PrintTranslatorImpl$(OBJ_SUFF)\
+   $(OBJ)/BytecodeTranslatorImpl$(OBJ_SUFF)\
+   $(OBJ)/InterpreterCodeImpl$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
+
+INCLUDE += -I$(ROOT)/include
 
 MATHVM = $(BIN)/mvm
 

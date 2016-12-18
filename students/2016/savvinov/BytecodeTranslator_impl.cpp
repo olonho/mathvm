@@ -14,9 +14,9 @@ Status* BytecodeTranslatorImpl::translate(const string &program, Code **code) {
 
     BytecodeTranslatorVisitor visitor{};
     FunctionNode * topLevel = parser.top()->node()->asFunctionNode();
-    visitor.ctx.pushScope(parser.top()->scope());
+    visitor.code->addFunction(new BytecodeFunction(parser.top()));
     topLevel->visit(&visitor);
-    visitor.getCode()->disassemble(std::cout);
+//    visitor.getCode()->disassemble(std::cout);
     *code = visitor.getCode();
     return Status::Ok();
 }

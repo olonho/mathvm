@@ -24,12 +24,12 @@ namespace mathvm {
 
     class ScopeData {
     private:
-        ScopeData *parent = nullptr;
-        std::map<std::string, uint16_t> variables;
         std::map<std::string, BytecodeFunction *> functions;
         std::map<std::string, VariableRF> variableInfo;
         uint16_t maxNestedStack = 0;
     public:
+        ScopeData *parent = nullptr;
+        std::map<std::string, uint16_t> variables;
         BytecodeFunction *containedFunction = nullptr;
         uint16_t scope_id = 0;
         uint16_t max_id = 0;
@@ -104,6 +104,7 @@ namespace mathvm {
         }
 
     };
+
 }
 
 #endif //VM_SCOPEDATA_H

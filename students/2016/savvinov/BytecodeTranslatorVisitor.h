@@ -16,16 +16,12 @@ private:
 
     void verifyRangeExpr(AstNode *pNode);
 
-    template <class T>
-    void assignConstant(uint16_t id, VarType anInt, T value);
-    void increment(uint16_t i);
-
-    void storeParams(AstFunction *pFunction);
+    void storeParams(BytecodeFunction *pFunction);
     template <class T>
     void loadConstant(VarType type, T value);
-    void storeIntoVariable(VarType type, uint16_t id);
-    void loadFromVariable(VarType type, uint16_t id);
-    void visitScope(Scope * scope);
+    void storeVar(Info *info);
+    void loadVar(Info * info);
+
     VarType visitExpressionWithResult(AstNode *pNode);
 
 public:
@@ -58,6 +54,22 @@ public:
     void decrementIntoVariable(VarType type, uint16_t id);
 
     void compare(Instruction insn, VarType type);
+
+    bool pushesOnStack(AstNode *pNode);
+
+    void castType(VarType type, VarType returnType);
+
+    void loadFromContext(VarType type, uint16_t id, uint16_t ctxId);
+
+    void incrementIntoVariable(Info *info);
+
+    void decrementIntoVariable(Info *info);
+
+    VarType unifyTypes(VarType type, VarType rightType);
+
+    void visitScope(Scope * scope);
+
+    void declareScope(Scope *pScope);
 };
 
 }

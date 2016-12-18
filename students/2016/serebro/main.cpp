@@ -1,23 +1,45 @@
 #include "mathvm.h"
+#include "translator_impl.h"
 
-#include "formatter.h"
 using namespace mathvm;
 using namespace std;
+
+namespace {
+    void print_help() {
+        cout << "\tUsage: mvm [<options>] <source file>\n";
+        cout << "\tAvailable options: \n";
+        cout << "\t-p\tonly print result (no execution); if no other options passed, just reformat source\n";
+        cout << "\t-b\tproduce bytecode; execute it unless -p is passed\n";
+        cout << "\t-j\tproduce bytecode; execute it with jit unless -p is passed\n";
+    }
+}
 
 int main(int argc, char** argv) {
     string impl = "";
     const char* script = NULL;
+    bool print_only = false;
+    impl = TR_BYTECODE;
+
     for (int32_t i = 1; i < argc; i++) {
         if (string(argv[i]) == "-j") {
-            impl = "jit";
+            impl = TR_JITCODE;
         } else if (string(argv[i]) == "-p") {
-            impl = "printer";
+            print_only = true;
         } else if (string(argv[i]) == "-b") {
-            impl = "src2bc";
-        } else {
+            impl = TR_BYTECODE;
+        } else if (string(argv[i]) == "-h") {
+            print_help();
+            return 0;
+        }
+        else {
             script = argv[i];
         }
     }
+
+    if (impl == TR_FORMATTER) {
+        print_only = true;
+    }
+
     Translator* translator = Translator::create(impl);
 
     if (translator == 0) {
@@ -51,7 +73,11 @@ int main(int argc, char** argv) {
                line, offset,
                translateStatus->getErrorCstr());
     } else {
-        if (impl != "printer" && impl != "bc2") {
+        if (print_only) {
+            if (impl != TR_FORMATTER) {
+                code->disassemble(cout);
+            }
+        } else {
             assert(code != 0);
             vector<Var*> vars;
 
@@ -74,9 +100,9 @@ int main(int argc, char** argv) {
                     }
                 }
             }
-            delete code;
             delete execStatus;
         }
+        delete code;
     }
     delete translateStatus;
     delete translator;

@@ -55,31 +55,28 @@ endif
 ASMJIT_OBJ_DIR = $(OBJ)/asmjit
 ifneq ($(NO_JIT),1)
 ASMJIT_OBJ = \
-		$(ASMJIT_OBJ_DIR)/x86cpuinfo$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/x86operand_regs$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/x86assembler$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/x86operand$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/x86scheduler$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/x86context$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/x86inst$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/x86compiler$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/context$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/assembler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/compilercontext$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/compiler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/constpool$(OBJ_SUFF) \
 		$(ASMJIT_OBJ_DIR)/containers$(OBJ_SUFF) \
 		$(ASMJIT_OBJ_DIR)/cpuinfo$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/error$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/assembler$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/runtime$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/cputicks$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/vmem$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/operand$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/zone$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/compiler$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/codegen$(OBJ_SUFF) \
 		$(ASMJIT_OBJ_DIR)/globals$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/constpool$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/string$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/hlstream$(OBJ_SUFF) \
 		$(ASMJIT_OBJ_DIR)/logger$(OBJ_SUFF) \
-		$(ASMJIT_OBJ_DIR)/intutil$(OBJ_SUFF)
+		$(ASMJIT_OBJ_DIR)/operand$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/podvector$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/runtime$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/utils$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/vmem$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/zone$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86assembler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86compilercontext$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86compiler$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86compilerfunc$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86inst$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86operand$(OBJ_SUFF) \
+		$(ASMJIT_OBJ_DIR)/x86operand_regs$(OBJ_SUFF)
 else
 ASMJIT_OBJ = 
 endif
@@ -87,7 +84,6 @@ endif
 MATHVM_OBJ = \
         $(ASMJIT_OBJ) \
         $(OBJ)/ast$(OBJ_SUFF) \
-        $(OBJ)/interpreter$(OBJ_SUFF) \
         $(OBJ)/mathvm$(OBJ_SUFF) \
         $(OBJ)/parser$(OBJ_SUFF) \
         $(OBJ)/scanner$(OBJ_SUFF) \

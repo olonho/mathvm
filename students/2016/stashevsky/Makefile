@@ -3,7 +3,6 @@ VM_ROOT = ../../..
 TEST_ROOT = $(VM_ROOT)/tests
 
 USER_CFLAGS = -g0 -std=c++11 -Ofast
-NO_JIT = 1
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
@@ -29,10 +28,10 @@ MATHVM = $(BIN)/mvm
 all: $(MATHVM)
 
 debug: all
-	gdb -tui --args $(BIN)/mvm -p $(VM_ROOT)/tests/astprint/dummyTest.mvm
-
+	gdb -tui --args $(BIN)/mvm $(VM_ROOT)/tests/optional/function_native.mvm
 test:
 	./tests/run.py
 	./tests/run.py -t ./tests/additional/
+	./tests/run.py -t ./tests/optional/
 $(MATHVM): $(OUT) $(USER_OBJ) $(MATHVM_OBJ)
 	$(CXX) -o $@ $(USER_OBJ) $(MATHVM_OBJ) $(LIBS)
