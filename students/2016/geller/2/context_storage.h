@@ -5,7 +5,6 @@
 #ifndef MATHVM_CONTEXTSTORAGE_H
 #define MATHVM_CONTEXTSTORAGE_H
 
-#include <stdint-gcc.h>
 #include <map>
 #include <stack>
 #include <deque>
