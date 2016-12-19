@@ -16,7 +16,7 @@
 
 namespace asmjit {
 
-//! \addtogroup asmjit_base_util
+//! \addtogroup asmjit_base
 //! \{
 
 // ============================================================================
@@ -34,11 +34,8 @@ namespace asmjit {
 //! data used by `Assembler` and `Compiler` has a very short lifetime, thus, is
 //! allocated by `Zone`. The advantage is that `Zone` can free all of the data
 //! allocated at once by calling `reset()` or by `Zone` destructor.
-struct Zone {
-  // --------------------------------------------------------------------------
-  // [Block]
-  // --------------------------------------------------------------------------
-
+class Zone {
+ public:
   //! \internal
   //!
   //! A single block of memory.
@@ -48,12 +45,12 @@ struct Zone {
     // ------------------------------------------------------------------------
 
     //! Get the size of the block.
-    ASMJIT_INLINE size_t getBlockSize() const {
+    ASMJIT_INLINE size_t getBlockSize() const noexcept {
       return (size_t)(end - data);
     }
 
     //! Get count of remaining bytes in the block.
-    ASMJIT_INLINE size_t getRemainingSize() const {
+    ASMJIT_INLINE size_t getRemainingSize() const noexcept {
       return (size_t)(end - pos);
     }
 
@@ -75,6 +72,13 @@ struct Zone {
     uint8_t data[sizeof(void*)];
   };
 
+  enum {
+    //! Zone allocator overhead.
+    kZoneOverhead =
+      kMemAllocOverhead
+        + static_cast<int>(sizeof(Block) - sizeof(void*))
+  };
+
   // --------------------------------------------------------------------------
   // [Construction / Destruction]
   // --------------------------------------------------------------------------
@@ -89,13 +93,13 @@ struct Zone {
   //! It's not required, but it's good practice to set `blockSize` to a
   //! reasonable value that depends on the usage of `Zone`. Greater block sizes
   //! are generally safer and performs better than unreasonably low values.
-  ASMJIT_API Zone(size_t blockSize);
+  ASMJIT_API Zone(size_t blockSize) noexcept;
 
   //! Destroy the `Zone` instance.
   //!
   //! This will destroy the `Zone` instance and release all blocks of memory
   //! allocated by it. It performs implicit `reset(true)`.
-  ASMJIT_API ~Zone();
+  ASMJIT_API ~Zone() noexcept;
 
   // --------------------------------------------------------------------------
   // [Reset]
@@ -104,14 +108,14 @@ struct Zone {
   //! Reset the `Zone` invalidating all blocks allocated.
   //!
   //! If `releaseMemory` is true all buffers will be released to the system.
-  ASMJIT_API void reset(bool releaseMemory = false);
+  ASMJIT_API void reset(bool releaseMemory = false) noexcept;
 
   // --------------------------------------------------------------------------
   // [Accessors]
   // --------------------------------------------------------------------------
 
   //! Get the default block size.
-  ASMJIT_INLINE size_t getBlockSize() const {
+  ASMJIT_INLINE size_t getBlockSize() const noexcept {
     return _blockSize;
   }
 
@@ -128,19 +132,19 @@ struct Zone {
   //! ~~~
   //! using namespace asmjit;
   //!
-  //! class SomeObject { ... };
+  //! class Object { ... };
   //!
-  //! // Create Zone with default block size of 65536 bytes.
-  //! Zone zone(65536);
+  //! // Create Zone with default block size of approximately 65536 bytes.
+  //! Zone zone(65536 - Zone::kZoneOverhead);
   //!
   //! // Create your objects using zone object allocating, for example:
-  //! Object* obj = static_cast<Object*>( zone.alloc(sizeof(SomeClass)) );
+  //! Object* obj = static_cast<Object*>( zone.alloc(sizeof(Object)) );
   //
-  //! if (obj == NULL) {
+  //! if (obj == nullptr) {
   //!   // Handle out of memory error.
   //! }
   //!
-  //! // To instantiate class placement `new` and `delete` operators can be used.
+  //! // Placement `new` and `delete` operators can be used to instantiate it.
   //! new(obj) Object();
   //!
   //! // ... lifetime of your objects ...
@@ -148,10 +152,10 @@ struct Zone {
   //! // To destroy the instance (if required).
   //! obj->~Object();
   //!
-  //! // Reset of destroy `Zone`.
+  //! // Reset or destroy `Zone`.
   //! zone.reset();
   //! ~~~
-  ASMJIT_INLINE void* alloc(size_t size) {
+  ASMJIT_INLINE void* alloc(size_t size) noexcept {
     Block* cur = _block;
 
     uint8_t* ptr = cur->pos;
@@ -169,31 +173,31 @@ struct Zone {
   //! Allocate `size` bytes of zeroed memory.
   //!
   //! See \ref alloc() for more details.
-  ASMJIT_API void* allocZeroed(size_t size);
+  ASMJIT_API void* allocZeroed(size_t size) noexcept;
 
   //! Like `alloc()`, but the return pointer is casted to `T*`.
   template<typename T>
-  ASMJIT_INLINE T* allocT(size_t size = sizeof(T)) {
+  ASMJIT_INLINE T* allocT(size_t size = sizeof(T)) noexcept {
     return static_cast<T*>(alloc(size));
   }
 
   //! Like `allocZeroed()`, but the return pointer is casted to `T*`.
   template<typename T>
-  ASMJIT_INLINE T* allocZeroedT(size_t size = sizeof(T)) {
+  ASMJIT_INLINE T* allocZeroedT(size_t size = sizeof(T)) noexcept {
     return static_cast<T*>(allocZeroed(size));
   }
 
   //! \internal
-  ASMJIT_API void* _alloc(size_t size);
+  ASMJIT_API void* _alloc(size_t size) noexcept;
 
   //! Helper to duplicate data.
-  ASMJIT_API void* dup(const void* data, size_t size);
+  ASMJIT_API void* dup(const void* data, size_t size) noexcept;
 
   //! Helper to duplicate string.
-  ASMJIT_API char* sdup(const char* str);
+  ASMJIT_API char* sdup(const char* str) noexcept;
 
   //! Helper to duplicate formatted string, maximum length is 256 bytes.
-  ASMJIT_API char* sformat(const char* str, ...);
+  ASMJIT_API char* sformat(const char* str, ...) noexcept;
 
   // --------------------------------------------------------------------------
   // [Members]
@@ -203,11 +207,6 @@ struct Zone {
   Block* _block;
   //! Default block size.
   size_t _blockSize;
-};
-
-enum {
-  //! Zone allocator overhead.
-  kZoneOverhead = static_cast<int>(sizeof(Zone::Block) - sizeof(void*)) + kMemAllocOverhead
 };
 
 //! \}

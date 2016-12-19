@@ -4,30 +4,50 @@
 // [License]
 // Zlib - See LICENSE.md file in the package.
 
-// ============================================================================
-// [MSVC]
-// ============================================================================
+// [Guard]
+#if defined(ASMJIT_API_SCOPE)
+# undef ASMJIT_API_SCOPE
+#else
+# error "[asmjit] Api-Scope not active, forgot to include apibegin.h?"
+#endif // ASMJIT_API_SCOPE
 
-#if defined(_MSC_VER)
-// Pop disabled warnings by ApiBegin.h
+// [NoExcept]
+#if defined(ASMJIT_UNDEF_NOEXCEPT)
+# undef noexcept
+# undef ASMJIT_UNDEF_NOEXCEPT
+#endif // ASMJIT_UNDEF_NOEXCEPT
+
+// [NullPtr]
+#if defined(ASMJIT_UNDEF_NULLPTR)
+# undef nullptr
+# undef ASMJIT_UNDEF_NULLPTR
+#endif // ASMJIT_UNDEF_NULLPTR
+
+// [Override]
+#if defined(ASMJIT_UNDEF_OVERRIDE)
+# undef override
+# undef ASMJIT_UNDEF_OVERRIDE
+#endif // ASMJIT_UNDEF_OVERRIDE
+
+// [CLang]
+#if ASMJIT_CC_CLANG
+# pragma clang diagnostic pop
+#endif // ASMJIT_CC_CLANG
+
+// [GCC]
+#if ASMJIT_CC_GCC
+# pragma GCC diagnostic pop
+#endif // ASMJIT_CC_GCC
+
+// [MSC]
+#if ASMJIT_CC_MSC
 # pragma warning(pop)
-// Rename symbols back.
-# if defined(ASMJIT_DEFINED_VSNPRINTF)
-#  undef ASMJIT_DEFINED_VSNPRINTF
+# if defined(ASMJIT_UNDEF_VSNPRINTF)
 #  undef vsnprintf
-# endif // ASMJIT_DEFINED_VSNPRINTF
-# if defined(ASMJIT_DEFINED_SNPRINTF)
-#  undef ASMJIT_DEFINED_SNPRINTF
+#  undef ASMJIT_UNDEF_VSNPRINTF
+# endif // ASMJIT_UNDEF_VSNPRINTF
+# if defined(ASMJIT_UNDEF_SNPRINTF)
 #  undef snprintf
-# endif // ASMJIT_DEFINED_SNPRINTF
-#endif // _MSC_VER
-
-// ============================================================================
-// [GNUC]
-// ============================================================================
-
-#if defined(__GNUC__) && !defined(__clang__)
-# if __GNUC__ >= 4 && !defined(__MINGW32__)
-#  pragma GCC visibility pop
-# endif // __GNUC__ >= 4
-#endif // __GNUC__
+#  undef ASMJIT_UNDEF_SNPRINTF
+# endif // ASMJIT_UNDEF_SNPRINTF
+#endif // ASMJIT_CC_MSC

@@ -18,5 +18,4 @@ namespace mathvm {
         assert(false);
         return 0;
     }
-    
 }

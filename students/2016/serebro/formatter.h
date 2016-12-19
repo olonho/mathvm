@@ -24,7 +24,6 @@ public:
   FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
 
-  Status* formatCode(std::string &outputSource, 
-    const std::string &inputSource);
+  Status* formatCode(std::string &outputSource, const std::string &inputSource);
 };
 }

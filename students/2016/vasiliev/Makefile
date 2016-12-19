@@ -13,7 +13,10 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/pretty_print$(OBJ_SUFF)
+   $(OBJ)/translator_create$(OBJ_SUFF) \
+   $(OBJ)/pretty_print$(OBJ_SUFF) \
+   $(OBJ)/code_maker$(OBJ_SUFF) \
+   $(OBJ)/code_interpreter$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
