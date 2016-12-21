@@ -587,7 +587,8 @@ void TranslatorVisitor::indexFunctions() {
         function->setInfo(bytecode);
 
         if (function->node()->body()->nodes() > 0 && function->node()->body()->nodeAt(0)->isNativeCallNode()) {
-            void* handler = dlsym(RTLD_DEFAULT, function->name().c_str());
+            auto name = function->node()->body()->nodeAt(0)->asNativeCallNode()->nativeName();
+            void* handler = dlsym(RTLD_DEFAULT, name.c_str());
             if (handler == nullptr) {
                 assert(false);
             }

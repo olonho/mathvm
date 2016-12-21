@@ -3,6 +3,7 @@ VM_ROOT = ../../..
 TEST_ROOT = $(VM_ROOT)/tests
 
 USER_CFLAGS = -g0 -std=c++11 -Ofast
+WITH_SDL = 1
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
