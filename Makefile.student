@@ -1,8 +1,11 @@
 ROOT   = .
 VM_ROOT = ../../..
-TEST_ROOT = $(VM_ROOT)/tests
 
-USER_CFLAGS =
+#OPT = 0
+NO_JIT = 1
+#WITH_SDL = 0
+
+USER_CFLAGS = -std=c++11
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
