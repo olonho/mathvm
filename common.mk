@@ -14,7 +14,7 @@ MATHVM = $(BIN)/mvm
 MATHVMTGZ = ../MathVM.tgz
 
 CXX        ?= g++
-CFLAGS     += -D_REENTRANT -fPIC $(USER_CFLAGS)
+CFLAGS     += -Wall -Werror -D_REENTRANT -fPIC $(USER_CFLAGS)
 LIBS_ROOT = $(VM_ROOT)/libs
 ASMJIT_CFLAGS = -Wno-error
 INCLUDE    = -I$(VM_ROOT)/include -I$(LIBS_ROOT)
