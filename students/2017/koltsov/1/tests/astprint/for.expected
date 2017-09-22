@@ -1,0 +1,6 @@
+int i;
+int j;
+for (i in (-3 .. 4)) {
+    j += i;
+}
+print(i);

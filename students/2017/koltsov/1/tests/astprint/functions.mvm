@@ -1,0 +1,8 @@
+function void foo(int a, double b, string c) {
+    function string g() {
+        print('abc');
+    }
+    foo(1, 1.0, 'asd');
+    print('xyz');
+}
+
