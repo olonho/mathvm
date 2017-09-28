@@ -19,7 +19,8 @@ function int foo(int x) {
               x = z1;
             }
             else {
-              x = z1;
+              y = (z1 + 1);
+              x = -z1;
             }
             x -= 1;
             t = baz();
