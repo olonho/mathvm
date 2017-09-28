@@ -1,0 +1,4 @@
+function foo(string s) {
+    foo('\s')
+    foo("\n\r\t")
+}
