@@ -1,6 +1,5 @@
 #include "parser.h"
-#include "include/astPrinter.h"
-#include <fstream>
+#include "astPrinter.h"
 
 namespace mathvm {
     Translator* Translator::create(const string &impl) {

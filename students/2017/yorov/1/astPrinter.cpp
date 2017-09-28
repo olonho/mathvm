@@ -1,5 +1,4 @@
 #include <ostream>
-#include <sstream>
 #include "astPrinter.h"
 
 namespace mathvm {

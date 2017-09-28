@@ -1,5 +1,5 @@
 ROOT   = .
-VM_ROOT = ../../../../
+VM_ROOT = ../../../..
 
 #OPT = 0
 NO_JIT = 1
