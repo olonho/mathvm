@@ -5,6 +5,8 @@
 #include "parser.h"
 #include "visitors.h"
 
+#include <iostream>
+
 namespace mathvm {
 
 class AstTranslatorImpl : public Translator
@@ -16,21 +18,26 @@ public:
 
 class AstPrinter : public AstBaseVisitor
 {
+private:
+    std::ostream &_out;
+    int _indent;
+
+    void print();
+    void printIndent();
+    bool containsBlock(AstNode *node);
 public:
-    AstPrinter() {
+    AstPrinter(std::ostream &out): _out(out) {
+        _indent = -1;
     }
 
     virtual ~AstPrinter() {
     }
 
-    virtual void visitFunctionNode(FunctionNode* node);
-/*
 #define VISITOR_FUNCTION(type, name) \
     virtual void visit##type(type* node);
 
     FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
-*/
 };
 
 }

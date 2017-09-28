@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
                line, offset,
                translateStatus->getErrorCstr());
     } else {
-        if (impl != "printer") {
+        if (impl != "printer" && impl != "") {
           assert(code != 0);
           vector<Var*> vars;
 
