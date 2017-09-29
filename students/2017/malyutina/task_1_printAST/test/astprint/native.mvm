@@ -1,0 +1,1 @@
+function double pow(double x, double y) native 'pow';
