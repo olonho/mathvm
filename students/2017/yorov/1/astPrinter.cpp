@@ -129,7 +129,9 @@ namespace mathvm {
         _os << std::string(_curOffset, ' ') << "return ";
         size_t temp = _curOffset;
         _curOffset = 0;
-        node->returnExpr()->visit(this);
+        if (node->returnExpr() != nullptr) {
+            node->returnExpr()->visit(this);
+        }
         _curOffset = temp;
     }
 
