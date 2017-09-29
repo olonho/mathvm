@@ -206,7 +206,11 @@ void AstPrinter::visitCallNode(CallNode * node)
 
 void AstPrinter::visitNativeCallNode(NativeCallNode * node)
 {
-	code << "native ' " << node->nativeName() << "';";
+	code << "native '" << node->nativeName() << "'";
+
+	if (in_expression) {
+		code << ";";
+	}
 }
 
 void AstPrinter::visitPrintNode(PrintNode * node)
