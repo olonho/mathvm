@@ -4,9 +4,14 @@
 namespace mathvm {
 
     void AstPrinterVisitor::visitBinaryOpNode(BinaryOpNode *node) {
+        _os << std::string(_curOffset, ' ') << "(";
+        size_t temp = _curOffset;
+        _curOffset = 0;
         node->left()->visit(this);
         _os << " " << tokenOp(node->kind()) << " ";
         node->right()->visit(this);
+        _os << ")";
+        _curOffset = temp;
     }
 
     void AstPrinterVisitor::visitUnaryOpNode(UnaryOpNode *node) {
@@ -21,12 +26,12 @@ namespace mathvm {
         std::string rawStr;
         auto escape = [](char ch) {
             switch (ch) {
-                case '\n': return "\'\\n\'";
-                case '\r': return "\'\\r\'";
-                case '\\': return "\'\\\\\'";
-                case '\t': return "\'\\t\'";
-                case '\f': return "\'\\f\'";
-                case '\v': return "\'\\v\'";
+                case '\n': return "\\n";
+                case '\r': return "\\r";
+                case '\\': return "\\\\";
+                case '\t': return "\\t";
+                case '\f': return "\\f";
+                case '\v': return "\\v";
                 default: return "";
             }
         };
@@ -37,7 +42,7 @@ namespace mathvm {
                 rawStr.append(escape(ch));
             }
         }
-        _os << std::string(_curOffset, ' ') << rawStr;
+        _os << std::string(_curOffset, ' ') << '\'' << rawStr << '\'';
     }
 
     void AstPrinterVisitor::visitIntLiteralNode(IntLiteralNode *node) {
@@ -65,9 +70,7 @@ namespace mathvm {
         visitScope(node->scope());
         for (size_t i = 0; i < node->nodes(); ++i) {
             node->nodeAt(i)->visit(this);
-            if (!(node->nodeAt(i)->isIfNode()
-                || node->nodeAt(i)->isWhileNode()
-                    || node->nodeAt(i)->isForNode())) {
+            if (checkForSemicolon(node->nodeAt(i))) {
                 _os << ";";
             }
             _os << std::endl;
@@ -75,7 +78,7 @@ namespace mathvm {
     }
 
     void AstPrinterVisitor::visitNativeCallNode(NativeCallNode *node) {
-        _os << std::string(_curOffset, ' ') << "native " << node->nativeName();
+        _os << std::string(_curOffset, ' ') << "native \'" << node->nativeName() << '\'';
     }
 
     void AstPrinterVisitor::visitForNode(ForNode *node) {
@@ -83,7 +86,7 @@ namespace mathvm {
         size_t temp = _curOffset;
         _curOffset = 0;
         visitAstVar(node->var());
-        _os << " ";
+        _os << " in ";
         node->inExpr()->visit(this);
         _os << ") {" << std::endl;
         _curOffset = temp + _offset;
@@ -141,7 +144,17 @@ namespace mathvm {
                 _os << ", ";
             }
         }
-        _os << ") {" << std::endl;
+        _os << ") ";
+        if (node->body()->nodes() == 2
+            && node->body()->nodeAt(0)->isNativeCallNode()) {
+            size_t temp = _curOffset;
+            _curOffset = 0;
+            node->body()->nodeAt(0)->visit(this);
+            _os << ";";
+            _curOffset = temp;
+            return;
+        }
+        _os << "{" << std::endl;
         _curOffset += _offset;
         node->body()->visit(this);
         _curOffset -= _offset;
@@ -197,6 +210,13 @@ namespace mathvm {
 
     void AstPrinterVisitor::visitAstFunction(AstFunction* func) {
         func->node()->visit(this);
+    }
+
+    bool AstPrinterVisitor::checkForSemicolon(AstNode* node) {
+        return !(node->isIfNode()
+            || node->isWhileNode()
+            || node->isForNode()
+            || node->isFunctionNode());
     }
 
     AstPrinterVisitor::AstPrinterVisitor(std::ostream &os)
