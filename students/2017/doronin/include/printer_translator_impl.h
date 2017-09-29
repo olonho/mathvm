@@ -17,12 +17,16 @@ class PrinterTranslatorImpl : public Translator {
 
 class PrinterVisitor : public AstVisitor {
     static constexpr uint32_t _indent_size = 4;
-    uint32_t _expr_counter;
     uint32_t _indent;
     std::ostream& _strm;
+
+    void indent();
+
   public:
     PrinterVisitor(std::ostream& strm);
     virtual ~PrinterVisitor() = default;
+
+
 
 #define VISITOR_FUNCTION(type, name) \
     virtual void visit##type(type* node);
