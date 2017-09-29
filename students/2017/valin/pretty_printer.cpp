@@ -66,6 +66,7 @@ void AstPrinter::visitLoadNode(LoadNode * node)
 void AstPrinter::visitStoreNode(StoreNode * node)
 {
 	code << node->var()->name() << " " << tokenOp(node->op()) << " ";
+	Expression expression(this);
 	node->visitChildren(this);
 	code << ";";
 }
@@ -77,6 +78,7 @@ void AstPrinter::visitForNode(ForNode * node)
 	{
 		Braces braces(this);
 		code << node->var()->name() << " in ";
+		Expression expression(this);
 		node->inExpr()->visit(this);
 	}
 
@@ -88,6 +90,7 @@ void AstPrinter::visitWhileNode(WhileNode * node)
 	code << "while";
 
 	{
+		Expression expression(this);
 		Braces braces(this);
 		node->whileExpr()->visit(this);
 	}
@@ -100,6 +103,7 @@ void AstPrinter::visitIfNode(IfNode * node)
 	code << "if ";
 
 	{
+		Expression expression(this);
 		Braces braces(this);
 		node->ifExpr()->visit(this);
 	}
@@ -174,6 +178,7 @@ void AstPrinter::visitReturnNode(ReturnNode * node)
 
 	if (node->returnExpr()) {
 		code << " ";
+		Expression expression(this);
 		node->visitChildren(this);
 	}
 
@@ -183,12 +188,19 @@ void AstPrinter::visitReturnNode(ReturnNode * node)
 void AstPrinter::visitCallNode(CallNode * node)
 {
 	code << node->name();
-	Braces braces(this);
-       	for (size_t i = 0; i < node->parametersNumber(); ++i) {
-		node->parameterAt(i)->visit(this);
-		if (i + 1 != node->parametersNumber()) {
-			code << ", ";
+
+	{
+		Braces braces(this);
+		for (size_t i = 0; i < node->parametersNumber(); ++i) {
+			node->parameterAt(i)->visit(this);
+			if (i + 1 != node->parametersNumber()) {
+				code << ", ";
+			}
 		}
+	}
+
+	if (!in_expression) {
+		code << ";";
 	}
 }
 
