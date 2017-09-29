@@ -66,8 +66,11 @@ void AstPrinter::visitLoadNode(LoadNode * node)
 void AstPrinter::visitStoreNode(StoreNode * node)
 {
 	code << node->var()->name() << " " << tokenOp(node->op()) << " ";
-	Expression expression(this);
-	node->visitChildren(this);
+	{
+		Expression expression(this);
+		Braces braces(this);
+		node->visitChildren(this);
+	}
 	code << ";";
 }
 
