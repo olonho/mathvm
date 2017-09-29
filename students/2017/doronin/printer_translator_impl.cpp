@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unordered_map>
+#include <iomanip>
 #include "printer_translator_impl.h"
 #include "ast.h"
 
@@ -33,7 +34,7 @@ void PrinterVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 void PrinterVisitor::visitBlockNode(BlockNode *node) {
     static int counter = 0;
 
-    if (counter != 0) {
+    if (counter != 0 && !(node->nodes() > 0 && node->nodeAt(0)->isNativeCallNode())) {
         _strm << "{" << std::endl;
         _indent++;
     }
@@ -53,13 +54,18 @@ void PrinterVisitor::visitBlockNode(BlockNode *node) {
 
 
     for (uint32_t i = 0; i < node->nodes(); ++i) {
+
         AstNode *cld = node->nodeAt(i);
         cld->visit(this);
+
+        if (cld->isNativeCallNode()) {
+            break;
+        }
     }
 
 
     counter--;
-    if (counter != 0) {
+    if (counter != 0 && !(node->nodes() > 0 && node->nodeAt(0)->isNativeCallNode())) {
         _indent--;
         _strm << std::string(_indent * _indent_size, ' ') << "}" << std::endl;
     }
@@ -85,7 +91,7 @@ void PrinterVisitor::visitCallNode(CallNode *node) {
 }
 
 void PrinterVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
-    _strm << node->literal();
+    _strm << std::showpoint << node->literal();
 }
 
 void PrinterVisitor::visitForNode(ForNode *node) {
@@ -94,7 +100,7 @@ void PrinterVisitor::visitForNode(ForNode *node) {
     _expr_counter++;
     node->inExpr()->visit(this);
     _expr_counter--;
-    _strm << ")";
+    _strm << ") ";
 
     node->body()->visit(this);
 }
@@ -142,10 +148,11 @@ void PrinterVisitor::visitLoadNode(LoadNode *node) {
 }
 
 void PrinterVisitor::visitNativeCallNode(NativeCallNode *node) {
-    _strm << "native '" << node->nativeName() << '\'';
+    _strm << "native '" << node->nativeName() << "\';";
 }
 
 void PrinterVisitor::visitPrintNode(PrintNode *node) {
+    _strm << std::string(_indent * _indent_size, ' ');
     _strm << "print(";
     for (uint32_t i = 0; i < node->operands(); i++) {
         _expr_counter++;
@@ -195,8 +202,9 @@ void PrinterVisitor::visitStringLiteralNode(StringLiteralNode *node) {
 }
 
 void PrinterVisitor::visitUnaryOpNode(UnaryOpNode *node) {
-    _strm << tokenOp(node->kind());
+    _strm << tokenOp(node->kind()) << "(";
     node->visitChildren(this);
+    _strm << ")";
 }
 
 void PrinterVisitor::visitWhileNode(WhileNode *node) {
@@ -205,7 +213,7 @@ void PrinterVisitor::visitWhileNode(WhileNode *node) {
      _expr_counter++;
     node->whileExpr()->visit(this);
     _expr_counter--;
-    _strm << std::endl;
+    _strm << ") ";
     node->loopBlock()->visit(this);
 }
 
