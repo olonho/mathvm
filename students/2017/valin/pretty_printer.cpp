@@ -11,19 +11,24 @@ using my::AstPrinter;
 
 void AstPrinter::visitBinaryOpNode(BinaryOpNode * node)
 {
-	Braces braces(this);
-
-	node->left()->visit(this);
+	{
+		Braces braces(this);
+		node->left()->visit(this);
+	}
 	code << " " << tokenOp(node->kind()) << " ";
-	node->right()->visit(this);
+	{
+		Braces braces(this);
+		node->right()->visit(this);
+	}
 }
 
 void AstPrinter::visitUnaryOpNode(UnaryOpNode * node)
 {
-	Braces braces(this);
-
 	code << tokenOp(node->kind());
-	node->visitChildren(this);
+	{
+		Braces braces(this);
+		node->visitChildren(this);
+	}
 }
 
 static std::string escape(const std::string& str)
