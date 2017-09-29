@@ -5,8 +5,6 @@ VM_ROOT = ../../..
 NO_JIT = 1
 #WITH_SDL = 0
 
-CFLAGS = -std=c++11
-
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
 else
@@ -16,11 +14,14 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/translator_impl$(OBJ_SUFF)
+   $(OBJ)/translator_impl$(OBJ_SUFF) \
+   $(OBJ)/pretty_printer$(OBJ_SUFF)
+
 
 include $(VM_ROOT)/common.mk
 
 INCLUDE += -I$(ROOT)/include
+CFLAGS += -std=c++11
 
 MATHVM = $(BIN)/mvm
 
