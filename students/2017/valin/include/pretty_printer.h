@@ -13,6 +13,7 @@ class AstPrinter : public mathvm::AstVisitor {
 	mathvm::FunctionNode * top;
 	std::ostream& code;
 	int tabs = 0;
+	bool in_expression = false;
 
 	class Braces {
 		AstPrinter * printer;
@@ -41,6 +42,19 @@ class AstPrinter : public mathvm::AstVisitor {
 			}
 
 			printer->code << "}";
+		}
+	};
+
+	class Expression {
+		AstPrinter * printer;
+	public:
+		Expression(AstPrinter * printer) {
+			this->printer = printer;
+			this->printer->in_expression = true;
+		}
+
+		~Expression() {
+			this->printer->in_expression = false;
 		}
 	};
 
