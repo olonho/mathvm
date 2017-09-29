@@ -14,6 +14,12 @@ class AstPrinterTranslator : public Translator
 	{	
 		mathvm::Parser parser;
 		Status * status = parser.parseProgram(source);
+
+		if (!status->isOk()) {
+			std::cerr << status->getError() << '\n';
+			return status;
+		}
+
 		my::AstPrinter::pretty_printer(parser.top(), std::cout);
 		return status;
 	}

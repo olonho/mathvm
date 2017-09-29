@@ -17,6 +17,7 @@ namespace mathvm {
         void visitAstVar(const AstVar* var);
         void visitScope(Scope* scope);
         void visitAstFunction(AstFunction* func);
+        bool checkForSemicolon(AstNode* node);
         std::ostream& _os;
         size_t _offset;
         size_t _curOffset;
