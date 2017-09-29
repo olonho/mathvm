@@ -85,8 +85,7 @@ namespace mathvm {
         _os << std::string(_curOffset, ' ') << "for (";
         size_t temp = _curOffset;
         _curOffset = 0;
-        visitAstVar(node->var());
-        _os << " in ";
+        _os << node->var()->name() << " in ";
         node->inExpr()->visit(this);
         _os << ") {" << std::endl;
         _curOffset = temp + _offset;
