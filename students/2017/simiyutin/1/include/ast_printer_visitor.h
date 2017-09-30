@@ -9,14 +9,15 @@
 struct AstPrinterVisitor : AstBaseVisitor {
 
     void visitBinaryOpNode(BinaryOpNode * node) override {
+        ss << '(';
         node->left()->visit(this);
         ss << ' ' << tokenOp(node->kind()) << ' ';
         node->right()->visit(this);
+        ss << ')';
     }
 
     void visitUnaryOpNode(UnaryOpNode * node) override {
-        ss << "TODO UNARY OP NODE\n";
-        ss << ' ' << tokenStr(node->kind()) << ' ';
+        ss << tokenOp(node->kind());
         node->visitChildren(this);
     }
 
@@ -41,7 +42,8 @@ struct AstPrinterVisitor : AstBaseVisitor {
     }
 
     void visitStoreNode(StoreNode * node) override {
-        ss << node->var()->name() << ' ' << tokenOp(node->op()) << ' ';
+        pi(node->var()->name());
+        ss << ' ' << tokenOp(node->op()) << ' ';
         node->value()->visit(this);
         ss << ";\n";
     }
@@ -56,7 +58,7 @@ struct AstPrinterVisitor : AstBaseVisitor {
         node->visitChildren(this);
     }
 
-    void visitIfNode(IfNode * node) override {
+    void visitIfNode(IfNode * node) override    {
 
         pi("if ("); node->ifExpr()->visit(this); p(") {\n");
             tab();
@@ -74,28 +76,55 @@ struct AstPrinterVisitor : AstBaseVisitor {
     }
 
     void visitBlockNode(BlockNode * node) override {
+
         Scope::VarIterator it(node->scope());
-        vector<string> types = {"<invalid>", "void", "double", "int", "string"};
+
         while (it.hasNext()) {
             const AstVar * var = it.next();
-            ss << types[(int) var->type()] << ' ' << var->name() << ";\n";
+            pi(type_str(var->type())); p(' '); p(var->name()); p(";\n");
         }
+
+        Scope::FunctionIterator fit(node->scope());
+        while (fit.hasNext()) {
+            const AstFunction * func = fit.next();
+            pi("function ");
+            p(type_str(func->returnType()));
+            p(' ');
+            p(func->name());
+            p('(');
+            for (size_t i = 0; i < func->parametersNumber(); ++i) {
+                ss << type_str(func->parameterType(i)) << ' ' << func->parameterName(i);
+                if (i < func->parametersNumber() - 1) {
+                    ss << ", ";
+                }
+            }
+            ss << ") {\n";
+                tab();
+                func->node()->visit(this);
+                untab();
+            pi("}\n");
+        }
+
         node->visitChildren(this);
     }
 
     void visitFunctionNode(FunctionNode * node) override {
-        ss << "FunctionNode!!!!" << std::endl;
+//        ss << "FunctionNode!!!!" << std::endl;
         node->visitChildren(this);
     }
 
     void visitReturnNode(ReturnNode * node) override {
-        ss << "ReturnNode!!!!" << std::endl;
-        node->visitChildren(this);
+        pi("return");
+        if (node->returnExpr()) {
+            ss << ' ';
+            node->returnExpr()->visit(this);
+        }
+        ss << ";\n";
     }
 
     void visitCallNode(CallNode * node) override {
-        ss << "CallNode!!!!" << std::endl;
-        node->visitChildren(this);
+        p(node->name());// todo smart indent
+        print_parameters(node);
     }
 
     void visitNativeCallNode(NativeCallNode * node) override {
@@ -119,6 +148,19 @@ struct AstPrinterVisitor : AstBaseVisitor {
     }
 
 private:
+
+    template <typename T>
+    void print_parameters(const T * node) {
+        p("(");
+        for (int i = 0; i < (int) node->parametersNumber(); ++i) {
+            node->parameterAt(i)->visit(this);
+            if (i < int (node->parametersNumber()) - 1) {
+                p(", ");
+            }
+        }
+        p(')');
+    }
+
     template <typename T>
     void pi(const T &el) {
         for (int i = 0; i < indent; ++i) {
@@ -170,6 +212,11 @@ private:
             }
         }
         return res.str();
+    }
+
+    string type_str(VarType t) {
+        vector<string> types = {"<invalid>", "void", "double", "int", "string"};
+        return types[(int) t];
     }
 
     stringstream ss;
