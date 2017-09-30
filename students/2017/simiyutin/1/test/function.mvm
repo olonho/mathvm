@@ -41,6 +41,16 @@ function int fact(int n) {
     return n*fact(n-1);
 }
 
+function void test_void() {
+    if (2 < 3) {
+        print('hello');
+        return;
+    }
+
+    print('world');
+    return;
+}
+
 print(add(2, 3), '\n');
 doit();
 print(mul5(2, 2.0, 0.0, 0.0, 0.0, 0.0), '\n');

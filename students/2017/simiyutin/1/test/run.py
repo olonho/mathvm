@@ -19,7 +19,7 @@ def run_test(test_name, executable, test_input):
     src2 = read_file(result2)
     if src1 == src2:
         print 'test ' + test_name + ' passed'
-        print src1
+        # print src1
         os.remove(result1)
         os.remove(result2)
     else:

@@ -17,7 +17,8 @@ USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translator_impl$(OBJ_SUFF) \
-   $(OBJ)/ast_printer_translator$(OBJ_SUFF)
+   $(OBJ)/ast_printer_translator$(OBJ_SUFF) \
+   $(OBJ)/ast_printer_visitor$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 
