@@ -18,7 +18,7 @@ Status *AstPrinterTranslatorImpl::translate(const string &program, Code **code) 
     AstPrinterVisitor visitor;
     FunctionNode * node = parser.top()->node();
     node->visitChildren(&visitor);
-    std::cout << visitor.get_ss().str() << std::endl;
+    cout << visitor.get_program();
 
     return status;
 }

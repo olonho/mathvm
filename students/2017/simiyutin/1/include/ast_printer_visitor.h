@@ -22,7 +22,7 @@ struct AstPrinterVisitor : AstBaseVisitor {
     }
 
     void visitStringLiteralNode(StringLiteralNode * node) override {
-        ss << '\'' << escape(node->literal()) << '\''; // todo print \n escaped
+        ss << '\'' << escape(node->literal()) << '\'';
         node->visitChildren(this);
     }
 
@@ -45,34 +45,41 @@ struct AstPrinterVisitor : AstBaseVisitor {
         pi(node->var()->name());
         ss << ' ' << tokenOp(node->op()) << ' ';
         node->value()->visit(this);
-        ss << ";\n";
+        ss << ";";
+        ip();
     }
 
     void visitForNode(ForNode * node) override {
-        ss << "ForNode!!!!" << std::endl;
-        node->visitChildren(this);
+        pi("for ("); ss << node->var()->name() << " in "; node->inExpr()->visit(this); ss << ") {"; ip();
+            tab();
+            node->body()->visit(this);
+            untab();
+        pi("}"); ip();
     }
 
-    void visitWhileNode(WhileNode * node) override {
-        ss << "WhileNode!!!!" << std::endl;
-        node->visitChildren(this);
+    void visitWhileNode(WhileNode * node) override { //todo
+        pi("while ("); node->whileExpr()->visit(this); ss << ") {"; ip();
+            tab();
+            node->loopBlock()->visit(this);
+            untab();
+        pi("}"); ip();
     }
 
     void visitIfNode(IfNode * node) override    {
 
-        pi("if ("); node->ifExpr()->visit(this); p(") {\n");
+        pi("if ("); node->ifExpr()->visit(this); p(") {"); ip();
             tab();
             node->thenBlock()->visit(this);
             untab();
         pi("}");
         if (node->elseBlock()) {
-            p(" else {\n");
+            p(" else {"); ip();
                 tab();
                 node->elseBlock()->visit(this);
                 untab();
             pi("}");
         }
-        p('\n');
+        ip();
     }
 
     void visitBlockNode(BlockNode * node) override {
@@ -81,7 +88,7 @@ struct AstPrinterVisitor : AstBaseVisitor {
 
         while (it.hasNext()) {
             const AstVar * var = it.next();
-            pi(type_str(var->type())); p(' '); p(var->name()); p(";\n");
+            pi(type_str(var->type())); p(' '); p(var->name()); p(";"); ip();
         }
 
         Scope::FunctionIterator fit(node->scope());
@@ -98,18 +105,17 @@ struct AstPrinterVisitor : AstBaseVisitor {
                     ss << ", ";
                 }
             }
-            ss << ") {\n";
+            ss << ") {"; ip();
                 tab();
                 func->node()->visit(this);
                 untab();
-            pi("}\n");
+            pi("}"); ip();
         }
 
         node->visitChildren(this);
     }
 
     void visitFunctionNode(FunctionNode * node) override {
-//        ss << "FunctionNode!!!!" << std::endl;
         node->visitChildren(this);
     }
 
@@ -119,18 +125,27 @@ struct AstPrinterVisitor : AstBaseVisitor {
             ss << ' ';
             node->returnExpr()->visit(this);
         }
-        ss << ";\n";
+        ss << ";"; ip();
     }
 
     void visitCallNode(CallNode * node) override {
-        p(node->name());// todo smart indent
-        print_parameters(node);
+        if (is_newline) {
+            pi("");
+            p(node->name());// todo smart indent
+            print_parameters(node);
+            ss << ';';
+            ip();
+        } else {
+            p(node->name());// todo smart indent
+            print_parameters(node);
+        }
+
     }
 
     void visitNativeCallNode(NativeCallNode * node) override {
         ss << "NativeCallNode!!!!" << std::endl;
         node->visitChildren(this);
-    }
+    } //todo
 
     void visitPrintNode(PrintNode * node) override {
         pi("print(");
@@ -140,11 +155,11 @@ struct AstPrinterVisitor : AstBaseVisitor {
                 p(", ");
             }
         }
-        p(");\n");
+        p(");"); ip();
     }
 
-    const stringstream & get_ss() const {
-        return ss;
+    const string get_program() const {
+        return ss.str();
     }
 
 private:
@@ -166,7 +181,13 @@ private:
         for (int i = 0; i < indent; ++i) {
             ss << ' ';
         }
+        is_newline = false;
         p(el);
+    }
+
+    void ip() {
+        ss << '\n';
+        is_newline = true;
     }
 
     template <typename T>
@@ -221,5 +242,6 @@ private:
 
     stringstream ss;
     int indent = 0;
+    bool is_newline = true;
 
 };

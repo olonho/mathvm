@@ -19,17 +19,12 @@ def run_test(test_name, executable, test_input):
     src2 = read_file(result2)
     if src1 == src2:
         print 'test ' + test_name + ' passed'
+        print src1
         os.remove(result1)
         os.remove(result2)
     else:
         print 'test ' + test_name + ' failed (compare files ' + result1 + ' and ' + result2 + ')'
 
-    src3 = read_file(test_name + '.expected')
-    if src1 != src3:
-        print "Expected:"
-        print src3
-        print "Actual:"
-        print src1
 
 def args_parser():
     parser = OptionParser()
