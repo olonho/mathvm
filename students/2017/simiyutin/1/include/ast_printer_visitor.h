@@ -9,77 +9,83 @@
 struct AstPrinterVisitor : AstBaseVisitor {
 
     void visitBinaryOpNode(BinaryOpNode * node) override {
-        ss << '(';
+        ss_ << '(';
         node->left()->visit(this);
-        ss << ' ' << tokenOp(node->kind()) << ' ';
+        ss_ << ' ' << tokenOp(node->kind()) << ' ';
         node->right()->visit(this);
-        ss << ')';
+        ss_ << ')';
     }
 
     void visitUnaryOpNode(UnaryOpNode * node) override {
-        ss << tokenOp(node->kind());
+        ss_ << tokenOp(node->kind());
         node->visitChildren(this);
     }
 
     void visitStringLiteralNode(StringLiteralNode * node) override {
-        ss << '\'' << escape(node->literal()) << '\'';
+        ss_ << '\'' << escape(node->literal()) << '\'';
         node->visitChildren(this);
     }
 
     void visitDoubleLiteralNode(DoubleLiteralNode * node) override {
-        ss << node->literal();
+        ss_ << node->literal();
         node->visitChildren(this);
     }
 
     void visitIntLiteralNode(IntLiteralNode * node) override {
-        ss << node->literal();
+        ss_ << node->literal();
         node->visitChildren(this);
     }
 
     void visitLoadNode(LoadNode * node) override {
-        ss << node->var()->name();
+        ss_ << node->var()->name();
         node->visitChildren(this);
     }
 
     void visitStoreNode(StoreNode * node) override {
-        pi(node->var()->name());
-        ss << ' ' << tokenOp(node->op()) << ' ';
+        indent(node->var()->name());
+        ss_ << ' ' << tokenOp(node->op()) << ' ';
         node->value()->visit(this);
-        ss << ";";
-        ip();
+        ss_ << ";";
+        newline();
     }
 
     void visitForNode(ForNode * node) override {
-        pi("for ("); ss << node->var()->name() << " in "; node->inExpr()->visit(this); ss << ") {"; ip();
+        indent("for ("); ss_ << node->var()->name() << " in "; node->inExpr()->visit(this); ss_ << ") {";
+        newline();
             tab();
             node->body()->visit(this);
             untab();
-        pi("}"); ip();
+        indent("}");
+        newline();
     }
 
-    void visitWhileNode(WhileNode * node) override { //todo
-        pi("while ("); node->whileExpr()->visit(this); ss << ") {"; ip();
+    void visitWhileNode(WhileNode * node) override {
+        indent("while ("); node->whileExpr()->visit(this); ss_ << ") {";
+        newline();
             tab();
             node->loopBlock()->visit(this);
             untab();
-        pi("}"); ip();
+        indent("}");
+        newline();
     }
 
     void visitIfNode(IfNode * node) override    {
 
-        pi("if ("); node->ifExpr()->visit(this); ss << ") {"; ip();
+        indent("if ("); node->ifExpr()->visit(this); ss_ << ") {";
+        newline();
             tab();
             node->thenBlock()->visit(this);
             untab();
-        pi("}");
+        indent("}");
         if (node->elseBlock()) {
-            ss << " else {"; ip();
+            ss_ << " else {";
+            newline();
                 tab();
                 node->elseBlock()->visit(this);
                 untab();
-            pi("}");
+            indent("}");
         }
-        ip();
+        newline();
     }
 
     void visitBlockNode(BlockNode * node) override {
@@ -88,24 +94,25 @@ struct AstPrinterVisitor : AstBaseVisitor {
 
         while (it.hasNext()) {
             const AstVar * var = it.next();
-            pi(type_str(var->type())); ss << ' ' << var->name() << ';'; ip();
+            indent(type_str(var->type())); ss_ << ' ' << var->name() << ';';
+            newline();
         }
 
         Scope::FunctionIterator fit(node->scope());
         while (fit.hasNext()) {
             const AstFunction * func = fit.next();
-            pi("function ");
-            ss << type_str(func->returnType())
+            indent("function ");
+            ss_ << type_str(func->returnType())
                << ' '
                << func->name()
                << '(';
             for (size_t i = 0; i < func->parametersNumber(); ++i) {
-                ss << type_str(func->parameterType(i)) << ' ' << func->parameterName(i);
+                ss_ << type_str(func->parameterType(i)) << ' ' << func->parameterName(i);
                 if (i < func->parametersNumber() - 1) {
-                    ss << ", ";
+                    ss_ << ", ";
                 }
             }
-            ss << ") ";
+            ss_ << ") ";
             func->node()->visit(this);
         }
 
@@ -117,92 +124,95 @@ struct AstPrinterVisitor : AstBaseVisitor {
         if (native) {
             native->visit(this);
         } else {
-            ss << "{"; ip();
+            ss_ << "{";
+            newline();
             tab();
             node->visitChildren(this);
             untab();
-            pi("}");
-            ip();
+            indent("}");
+            newline();
         }
     }
 
     void visitReturnNode(ReturnNode * node) override {
-        pi("return");
+        indent("return");
         if (node->returnExpr()) {
-            ss << ' ';
+            ss_ << ' ';
             node->returnExpr()->visit(this);
         }
-        ss << ";"; ip();
+        ss_ << ";";
+        newline();
     }
 
     void visitCallNode(CallNode * node) override {
-        if (is_newline) {
-            pi("");
-            ss << node->name();
+        if (need_indent_) {
+            indent("");
+            ss_ << node->name();
             print_parameters(node);
-            ss << ';';
-            ip();
+            ss_ << ';';
+            newline();
         } else {
-            ss << node->name();
+            ss_ << node->name();
             print_parameters(node);
         }
 
     }
 
     void visitNativeCallNode(NativeCallNode * node) override {
-        ss << "native '" << node->nativeName()<< "';"; ip();
+        ss_ << "native '" << node->nativeName()<< "';";
+        newline();
     }
 
     void visitPrintNode(PrintNode * node) override {
-        pi("print(");
+        indent("print(");
         for (int i = 0; i < (int) node->operands(); ++i) {
             node->operandAt(i)->visit(this);
             if (i < int (node->operands()) - 1) {
-                ss << ", ";
+                ss_ << ", ";
             }
         }
-        ss << ");";
-        ip();
+        ss_ << ");";
+        newline();
     }
 
     const string get_program() const {
-        return ss.str();
+        return ss_.str();
     }
 
 private:
 
     template <typename T>
     void print_parameters(const T * node) {
-        ss << '(';
+        ss_ << '(';
         for (int i = 0; i < (int) node->parametersNumber(); ++i) {
             node->parameterAt(i)->visit(this);
             if (i < int (node->parametersNumber()) - 1) {
-                ss << ", ";
+                ss_ << ", ";
             }
         }
-        ss << ')';
+        ss_ << ')';
     }
 
     template <typename T>
-    void pi(const T &el) {
-        for (int i = 0; i < indent; ++i) {
-            ss << ' ';
+    void indent(const T &el) {
+        for (int i = 0; i < indent_; ++i) {
+            ss_ << ' ';
         }
-        is_newline = false;
-        ss << el;
+        need_indent_ = false;
+        ss_ << el;
     }
 
-    void ip() {
-        ss << '\n';
-        is_newline = true;
+    void newline() {
+        ss_ << '\n';
+        need_indent_ = true;
     }
 
     void tab() {
-        indent += 4;
+        indent_ += 4;
     }
 
     void untab() {
-        indent -= 4;
+        indent_ -= 4;
     }
 
     string escape_char(char c) {
@@ -249,8 +259,7 @@ private:
         return native;
     }
 
-    stringstream ss;
-    int indent = 0;
-    bool is_newline = true;
-
+    stringstream ss_;
+    int indent_ = 0;
+    bool need_indent_ = true;
 };
