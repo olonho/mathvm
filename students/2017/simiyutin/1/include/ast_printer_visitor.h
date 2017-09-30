@@ -67,13 +67,13 @@ struct AstPrinterVisitor : AstBaseVisitor {
 
     void visitIfNode(IfNode * node) override    {
 
-        pi("if ("); node->ifExpr()->visit(this); p(") {"); ip();
+        pi("if ("); node->ifExpr()->visit(this); ss << ") {"; ip();
             tab();
             node->thenBlock()->visit(this);
             untab();
         pi("}");
         if (node->elseBlock()) {
-            p(" else {"); ip();
+            ss << " else {"; ip();
                 tab();
                 node->elseBlock()->visit(this);
                 untab();
@@ -88,35 +88,42 @@ struct AstPrinterVisitor : AstBaseVisitor {
 
         while (it.hasNext()) {
             const AstVar * var = it.next();
-            pi(type_str(var->type())); p(' '); p(var->name()); p(";"); ip();
+            pi(type_str(var->type())); ss << ' ' << var->name() << ';'; ip();
         }
 
         Scope::FunctionIterator fit(node->scope());
         while (fit.hasNext()) {
             const AstFunction * func = fit.next();
             pi("function ");
-            p(type_str(func->returnType()));
-            p(' ');
-            p(func->name());
-            p('(');
+            ss << type_str(func->returnType())
+               << ' '
+               << func->name()
+               << '(';
             for (size_t i = 0; i < func->parametersNumber(); ++i) {
                 ss << type_str(func->parameterType(i)) << ' ' << func->parameterName(i);
                 if (i < func->parametersNumber() - 1) {
                     ss << ", ";
                 }
             }
-            ss << ") {"; ip();
-                tab();
-                func->node()->visit(this);
-                untab();
-            pi("}"); ip();
+            ss << ") ";
+            func->node()->visit(this);
         }
 
         node->visitChildren(this);
     }
 
     void visitFunctionNode(FunctionNode * node) override {
-        node->visitChildren(this);
+        NativeCallNode * native = check_native(node);
+        if (native) {
+            native->visit(this);
+        } else {
+            ss << "{"; ip();
+            tab();
+            node->visitChildren(this);
+            untab();
+            pi("}");
+            ip();
+        }
     }
 
     void visitReturnNode(ReturnNode * node) override {
@@ -131,31 +138,31 @@ struct AstPrinterVisitor : AstBaseVisitor {
     void visitCallNode(CallNode * node) override {
         if (is_newline) {
             pi("");
-            p(node->name());// todo smart indent
+            ss << node->name();
             print_parameters(node);
             ss << ';';
             ip();
         } else {
-            p(node->name());// todo smart indent
+            ss << node->name();
             print_parameters(node);
         }
 
     }
 
     void visitNativeCallNode(NativeCallNode * node) override {
-        ss << "NativeCallNode!!!!" << std::endl;
-        node->visitChildren(this);
-    } //todo
+        ss << "native '" << node->nativeName()<< "';"; ip();
+    }
 
     void visitPrintNode(PrintNode * node) override {
         pi("print(");
         for (int i = 0; i < (int) node->operands(); ++i) {
             node->operandAt(i)->visit(this);
             if (i < int (node->operands()) - 1) {
-                p(", ");
+                ss << ", ";
             }
         }
-        p(");"); ip();
+        ss << ");";
+        ip();
     }
 
     const string get_program() const {
@@ -166,14 +173,14 @@ private:
 
     template <typename T>
     void print_parameters(const T * node) {
-        p("(");
+        ss << '(';
         for (int i = 0; i < (int) node->parametersNumber(); ++i) {
             node->parameterAt(i)->visit(this);
             if (i < int (node->parametersNumber()) - 1) {
-                p(", ");
+                ss << ", ";
             }
         }
-        p(')');
+        ss << ')';
     }
 
     template <typename T>
@@ -182,17 +189,12 @@ private:
             ss << ' ';
         }
         is_newline = false;
-        p(el);
+        ss << el;
     }
 
     void ip() {
         ss << '\n';
         is_newline = true;
-    }
-
-    template <typename T>
-    void p(const T &el) {
-        ss << el;
     }
 
     void tab() {
@@ -238,6 +240,13 @@ private:
     string type_str(VarType t) {
         vector<string> types = {"<invalid>", "void", "double", "int", "string"};
         return types[(int) t];
+    }
+
+    NativeCallNode * check_native(FunctionNode * node) {
+        BlockNode * block = node->body();
+        AstNode * first_child = block->nodeAt(0);
+        NativeCallNode * native = dynamic_cast<NativeCallNode*>(first_child);
+        return native;
     }
 
     stringstream ss;
