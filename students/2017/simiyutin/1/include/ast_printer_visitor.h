@@ -23,22 +23,18 @@ struct AstPrinterVisitor : AstBaseVisitor {
 
     void visitStringLiteralNode(StringLiteralNode * node) override {
         ss_ << '\'' << escape(node->literal()) << '\'';
-        node->visitChildren(this);
     }
 
     void visitDoubleLiteralNode(DoubleLiteralNode * node) override {
         ss_ << node->literal();
-        node->visitChildren(this);
     }
 
     void visitIntLiteralNode(IntLiteralNode * node) override {
         ss_ << node->literal();
-        node->visitChildren(this);
     }
 
     void visitLoadNode(LoadNode * node) override {
         ss_ << node->var()->name();
-        node->visitChildren(this);
     }
 
     void visitStoreNode(StoreNode * node) override {
