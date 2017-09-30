@@ -8,7 +8,7 @@ struct AstPrinterTranslatorImpl: Translator {
 
     AstPrinterTranslatorImpl();
 
-    Status *translate(const string &program, Code **code);
+    Status *translate(const string &program, Code **code) override;
 
     virtual ~AstPrinterTranslatorImpl() override;
 };

@@ -33,7 +33,10 @@ int main(int argc, char** argv) {
 
     const char* expr = "double x; double y;"
                         "x += 8.0; y = 2.0;"
-                        "print('Hello, x=',x,' y=',y,'\n');";
+                        "print('Hello, x=',x,' y=',y,'\n');"
+                        "if (2 > 1) {"
+                            "print('hello');"
+                        "}";
     bool isDefaultExpr = true;
 
     if (script != nullptr) {

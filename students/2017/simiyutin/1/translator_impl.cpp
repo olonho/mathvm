@@ -1,5 +1,5 @@
 #include "mathvm.h"
-#include "include/ast_printer.h"
+#include "include/ast_printer_translator.h"
 
 namespace mathvm {
 
