@@ -3,6 +3,7 @@
 #include "source_translator.hpp"
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 
 using namespace std;
 using namespace mathvm;
@@ -17,6 +18,8 @@ static const char* serializeToken(TokenKind kind)
 
     switch (kind) {
         FOR_TOKENS(ENUM_ELEM)
+        default:
+            break;
     }
     assert(false && "unexpected token");
     return NULL;
@@ -63,9 +66,11 @@ struct PrinterVisitor
 
     void visitBinaryOpNode(BinaryOpNode* node)
     {
+        ss << "(";
         node->left()->visit(this);
         ss << ' ' << serializeToken(node->kind()) << ' ';
         node->right()->visit(this);
+        ss << ")";
     }
 
     void visitUnaryOpNode(UnaryOpNode* node)
@@ -76,14 +81,8 @@ struct PrinterVisitor
 
     void visitStringLiteralNode(StringLiteralNode* node)
     {
-        static const char hd[] = "0123456789ABCDEF";
-
         ss << '\'';
         for (char c : node->literal()) {
-            if (c >= 0x1F && c != '\'') {
-                ss << c;
-                return;
-            }
             switch (c) {
             case '\n':
                 ss << "\\n";
@@ -94,8 +93,11 @@ struct PrinterVisitor
             case '\t':
                 ss << "\\t";
                 break;
+            case '\\':
+                ss << "\\\\";
+                break;
             default:
-                ss << "\\x" << hd[c >> 4] << hd[c & 0xF];
+                ss << c;
                 break;
             }
         }
@@ -104,7 +106,7 @@ struct PrinterVisitor
 
     void visitDoubleLiteralNode(DoubleLiteralNode* node)
     {
-        ss << node->literal();
+        ss << showpoint << node->literal();
     }
 
     void visitIntLiteralNode(IntLiteralNode* node)
@@ -127,12 +129,11 @@ struct PrinterVisitor
     void visitForNode(ForNode* node)
     {
         printIndention();
-        ss << "for (";
-        node->var()->name();
-        ss << " in ";
+        ss << "for (" << node->var()->name() << " in ";
         node->inExpr()->visit(this);
-        ss << ")\n";
+        ss << ") ";
         node->body()->visit(this);
+        ss << "\n";
     }
 
     void visitWhileNode(WhileNode* node)
@@ -140,8 +141,9 @@ struct PrinterVisitor
         printIndention();
         ss << "while (";
         node->whileExpr()->visit(this);
-        ss << "\n";
+        ss << ") ";
         node->loopBlock()->visit(this);
+        ss << "\n";
     }
 
     void visitIfNode(IfNode* node)
@@ -149,12 +151,13 @@ struct PrinterVisitor
         printIndention();
         ss << "if (";
         node->ifExpr()->visit(this);
-        ss << ")\n";
+        ss << ") ";
         node->thenBlock()->visit(this);
 
         if (node->elseBlock() != NULL) {
+            ss << "\n";
             printIndention();
-            ss << "else\n";
+            ss << "else ";
             node->elseBlock()->visit(this);
         }
 
@@ -163,11 +166,17 @@ struct PrinterVisitor
 
     void visitBlockNode(BlockNode* node)
     {
+        if (node->nodes() > 1 && node->nodeAt(0)->isNativeCallNode()) {
+            node->nodeAt(0)->visit(this);
+            ss << ";";
+            bypass = false;
+            return;
+        }
+
         bool bypassed = bypass;
         bypass = false;
 
         if (!bypassed) {
-            printIndention();
             ss << "{\n";
             ++indent;
         }
@@ -194,6 +203,8 @@ struct PrinterVisitor
         for (uint32_t i = 0; i < node->nodes(); ++i) {
             AstNode *cld = node->nodeAt(i);
             block = false;
+            if (cld->isNativeCallNode() || cld->isCallNode())
+                printIndention();
             cld->visit(this);
             if (!block)
                 ss << ";\n";
@@ -202,7 +213,7 @@ struct PrinterVisitor
         if (!bypassed) {
             --indent;
             printIndention();
-            ss << "}\n";
+            ss << "}";
         }
         block = true;
     }
@@ -221,17 +232,22 @@ struct PrinterVisitor
                 if (i < node->parametersNumber() - 1)
                     ss << ", ";
             }
-            ss << ")\n";
+            ss << ") ";
         }
 
         node->body()->visit(this);
+        if (node->name() != "<top>")
+            ss << "\n";
     }
 
     void visitReturnNode(ReturnNode* node)
     {
         printIndention();
-        ss << "return ";
-        node->visitChildren(this);
+        ss << "return";
+        if (node->returnExpr()) {
+            ss << ' ';
+            node->visitChildren(this);
+        }
     }
 
     void visitCallNode(CallNode* node)
