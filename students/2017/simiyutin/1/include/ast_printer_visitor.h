@@ -1,9 +1,9 @@
 #pragma once
 
+//#include "../../../../../include/visitors.h"
+
 #include <sstream>
 #include "visitors.h"
-#include "../../../../../include/visitors.h"
-#include "../../../../../include/ast.h"
 
 struct AstPrinterVisitor : mathvm::AstBaseVisitor {
 

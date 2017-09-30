@@ -1,8 +1,6 @@
-#include "../../../../vm/parser.h"
-////////////////////////////////////////
-
 #include "include/ast_printer_translator.h"
 #include "include/ast_printer_visitor.h"
+#include "parser.h"
 
 using namespace mathvm;
 

@@ -1,6 +1,3 @@
-//#include "../../../../include/mathvm.h"
-//////////////////////////////////////CLION END///////////////////////////
-
 #include "mathvm.h"
 
 #include <stdio.h>
