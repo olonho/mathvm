@@ -44,7 +44,7 @@ namespace mathvm {
         }
     }
 
-    const char* PrettyPrintVisitor::correctStrLiteral(const std::string& str) {
+    std::string PrettyPrintVisitor::correctStrLiteral(const std::string& str) {
       std::map<char, std::string> spec = {{'\n', "\\n"}, {'\r', "\\r"}, {'\t', "\\t"}};
       std::string literal = "";
       for (char c: str) {
@@ -53,7 +53,7 @@ namespace mathvm {
           else
               literal += c;
       }
-      return literal.c_str();
+      return literal;
     }
 
     bool PrettyPrintVisitor::needSemicolon(const AstNode* node) {
@@ -130,12 +130,19 @@ namespace mathvm {
             std::cout << ", ";
             std::cout << to_string(node->parameterType(i)) << " " << (node->parameterName(i)).c_str();
         }
-        std::cout << ") {" << std::endl;
-        incIndent();
-        node->visitChildren(this);
-        decIndent();
-        printIndent();
-        std::cout << '}' << std::endl;
+        std::cout << ") ";
+        if (node->body()->nodes() == 2 && node->body()->nodeAt(0)->isNativeCallNode()) {
+            node->body()->nodeAt(0)->visit(this);
+            std::cout << ';';
+        } else {
+            std::cout << '{' << std::endl;
+            incIndent();
+            node->visitChildren(this);
+            decIndent();
+            printIndent();
+            std::cout << '}';
+        }
+        std::cout << std::endl;
     }
 
     void PrettyPrintVisitor::visitIfNode(IfNode *node) {
@@ -166,7 +173,7 @@ namespace mathvm {
     }
 
     void PrettyPrintVisitor::visitNativeCallNode(NativeCallNode *node) {
-        std::cout << "native '" << (node->nativeName()).c_str();
+        std::cout << "native '" << (node->nativeName()).c_str() << "'";
     }
 
     void PrettyPrintVisitor::visitPrintNode(PrintNode *node) {
@@ -196,7 +203,7 @@ namespace mathvm {
 
     void PrettyPrintVisitor::visitStringLiteralNode(StringLiteralNode *node) {
         std::cout << "'";
-        std::cout << correctStrLiteral(node->literal()) << "'";
+        std::cout << correctStrLiteral(node->literal()).c_str() << "'";
     }
 
     void PrettyPrintVisitor::visitUnaryOpNode(UnaryOpNode *node) {

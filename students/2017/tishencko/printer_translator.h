@@ -23,7 +23,7 @@ class PrettyPrintVisitor : public AstDumper {
     void incIndent();
     void decIndent();
     const char* to_string(const VarType&) const;
-    const char* correctStrLiteral(const std::string& str);
+    std::string correctStrLiteral(const std::string& str);
     bool needSemicolon(const AstNode*);
 
 public:
