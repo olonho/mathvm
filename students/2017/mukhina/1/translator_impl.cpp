@@ -147,7 +147,9 @@ namespace mathvm {
 
     void AstPrintVisitor::visitNativeCallNode(NativeCallNode* node) {
         print("native ");
+        print("'");
         print(node->nativeName());
+        print("'");
         print(";\n");
     }
 
@@ -192,7 +194,9 @@ namespace mathvm {
 
     void AstPrintVisitor::visitReturnNode(ReturnNode* node) {
         print("return ");
-        node->returnExpr()->visit(this);
+        if (node->returnExpr()) {
+            node->returnExpr()->visit(this);
+        }
     }
 
     void AstPrintVisitor::visitFunctionNode(FunctionNode* node) {
@@ -210,7 +214,15 @@ namespace mathvm {
                 print(", ");
             }
         }
-        print(") {\n");
+        print(")");
+
+        if (node->body()->nodeAt(0)->isNativeCallNode()) {
+            print(" ");
+            node->body()->nodeAt(0)->visit(this);
+            return;
+        }
+
+        print(" {\n");
         node->body()->visit(this);
         print("\n");
         printOffset();
@@ -253,4 +265,5 @@ namespace mathvm {
         return 0;
     }
 }
+
 
