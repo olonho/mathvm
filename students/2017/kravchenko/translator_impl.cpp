@@ -43,9 +43,14 @@ void AstPrinter::printIndent()
         _out << std::string(this->_indent * 4, ' ');
 }
 
+bool AstPrinter::isNative(FunctionNode *node)
+{
+    return (node->body()->nodes() > 0 && dynamic_cast<NativeCallNode *>(node->body()->nodeAt(0)));
+}
+
 bool AstPrinter::containsBlock(AstNode *node)
 {
-    return dynamic_cast<FunctionNode *>(node)
+    return (dynamic_cast<FunctionNode *>(node) && isNative(dynamic_cast<FunctionNode *>(node)))
         || dynamic_cast<IfNode *>(node)
         || dynamic_cast<ForNode *>(node)
         || dynamic_cast<BlockNode *>(node)
@@ -145,8 +150,16 @@ void AstPrinter::visitBlockNode(BlockNode *node)
         AstFunction *fun = fun_it.next();
         printIndent();
         fun->node()->visit(this);
-        _out << "\n\n";
+        if (isNative(fun->node())) {
+            _out << ";";
+        } else {
+            if (fun_it.hasNext())
+                _out << "\n";
+        }
+        _out << "\n";
     }
+
+    _out << "\n";
 
     bool emptyLine = true;
 
@@ -236,7 +249,7 @@ void AstPrinter::visitFunctionNode(FunctionNode *node)
         _out << ")";
     }
 
-    if (node->body()->nodes() > 0 && dynamic_cast<NativeCallNode *>(node->body()->nodeAt(0))) {
+    if (isNative(node)) {
         _out << " ";
         node->body()->nodeAt(0)->visit(this);
     } else {

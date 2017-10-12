@@ -3,6 +3,8 @@ int y;
 int z;
 int i;
 
+function void setMem(int base, int offset, int value, int width) native 'unsafe_setMem';
+
 function int foo(int x) {
     int r;
     function int bar(int a) {
