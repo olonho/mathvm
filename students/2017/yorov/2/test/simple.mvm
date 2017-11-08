@@ -1,0 +1,18 @@
+int x1;
+int y;
+int z;
+
+function int foo(int x) {
+    int r;
+    if (x == 0) {
+        int f;
+        return (f - 3);
+    }
+    r = foo(x - 1);
+}
+
+x1 = 2;
+y = 2;
+z = 2;
+
+print(foo(2), '\n');
