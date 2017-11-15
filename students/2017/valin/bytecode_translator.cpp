@@ -218,6 +218,12 @@ void BytecodeTranslator::binMath(mathvm::BinaryOpNode * node)
 			bytecode->addInsn(I::BC_IDIV);
 		} else if (kind == mathvm::tMOD) {
 			bytecode->addInsn(I::BC_IMOD);
+		} else if (kind == mathvm::tAOR) {
+			bytecode->addInsn(I::BC_IAOR);
+		} else if (kind == mathvm::tAAND) {
+			bytecode->addInsn(I::BC_IAAND);
+		} else if (kind == mathvm::tAXOR) {
+			bytecode->addInsn(I::BC_IAXOR);
 		}
 	} else if (resType == mathvm::VT_DOUBLE) {
 		if (kind == mathvm::tADD) {
