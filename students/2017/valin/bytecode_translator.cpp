@@ -3,6 +3,8 @@
 #include "parser.h"
 #include "bytecode_translator.h"
 
+#include <dlfcn.h>
+
 #define USING_NODES(type, name) using mathvm::type;
 FOR_NODES(USING_NODES)
 #undef USING_NODES
@@ -21,6 +23,7 @@ mathvm::Status * BytecodeTranslator::translate(const std::string& program, mathv
 		return status;
 	}
 
+	hd = dlopen(nullptr, RTLD_LAZY | RTLD_NODELETE);
 	this->code = new my::Code();
 	*code = this->code;
 
@@ -39,6 +42,8 @@ mathvm::Status * BytecodeTranslator::translate(const std::string& program, mathv
 		AstVar * var = iv.next();
 		this->code->addGlobalVar(var->name(), varsIDs[var]);
 	}
+
+	dlclose(hd);
 
 	return status;
 }
@@ -586,7 +591,11 @@ void BytecodeTranslator::visitCallNode(CallNode * node)
 
 void BytecodeTranslator::visitNativeCallNode(NativeCallNode * node)
 {
-	// TODO
+	bytecode->addInsn(I::BC_CALLNATIVE);
+	void * addr = dlsym(hd, node->nativeName().c_str());
+	assert(addr);
+	uint16_t id = code->makeNativeFunction(node->nativeName(), node->nativeSignature(), addr);
+	bytecode->addTyped(id);
 }
 
 

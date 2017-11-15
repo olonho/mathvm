@@ -42,6 +42,8 @@ private:
 
 	mathvm::VarType returnType;
 
+	void * hd = nullptr;
+
 	void registerAll(mathvm::Scope * scope);
 	void registerAllFunctions(mathvm::Scope * scope);
 	void translateFunction(mathvm::AstFunction * fun);
