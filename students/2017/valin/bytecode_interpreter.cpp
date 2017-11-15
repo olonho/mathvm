@@ -23,21 +23,21 @@ using I = mathvm::Instruction;
 mathvm::Status* Code::execute(std::vector<mathvm::Var*>& vars)
 {
     BytecodeFunctionE * main = dynamic_cast<BytecodeFunctionE*>(functionById(0));
-    memory.push();
+
+    memory.push(main->minID());
 
     for (auto var : vars) {
         uint16_t id = globalVars[var->name()];
         if (var->type() == mathvm::VT_INT) {
-            memory.back()[1][id].I = var->getIntValue();
+            memory.top().val(1, id).I = var->getIntValue();
         } else if (var->type() == mathvm::VT_DOUBLE) {
-            memory.back()[1][id].D = var->getDoubleValue();
+            memory.top().val(1, id).D = var->getDoubleValue();
         } else {
-            memory.back()[1][id].S = var->getStringValue();
+            memory.top().val(1, id).S = var->getStringValue();
         }
     }
 
     instructions.push(std::make_pair(main->bytecode(), 0));
-    minID.push_back(main->minID());
     bytecode = main->bytecode();
     IP = &instructions.top().second;
 
@@ -54,11 +54,11 @@ mathvm::Status* Code::execute(std::vector<mathvm::Var*>& vars)
     for (auto var : vars) {
         uint16_t id = globalVars[var->name()];
         if (var->type() == mathvm::VT_INT) {
-            var->setIntValue(memory.back()[1][id].I);
+            var->setIntValue(memory.top().val(1, id).I);
         } else if (var->type() == mathvm::VT_DOUBLE) {
-            var->setDoubleValue(memory.back()[1][id].D);
+            var->setDoubleValue(memory.top().val(1, id).D);
         } else {
-            var->setStringValue(memory.back()[1][id].S);
+            var->setStringValue(memory.top().val(1, id).S);
         }
     }
 
@@ -801,18 +801,10 @@ void Code::STOP()
 
 Code::Val& Code::getVal(uint16_t scopeID, uint16_t varID)
 {
-    if (scopeID < minID.back()) {
-        for (int i = memory.size() - 1; i >= 0; --i) {
-            if (scopeID < minID[i]) {
-                continue;
-            }
-
-            return memory[i][scopeID][varID];
-        }
-
-        assert(false);
+    if (!memory.topContainsScope(scopeID)) {
+        return memory.findClosure(scopeID).val(scopeID, varID);
     } else {
-        return memory.back()[scopeID][varID];
+        return memory.top().val(scopeID, varID);
     }
 }
 
@@ -824,8 +816,7 @@ void Code::CALL()
     bytecode = bfun->bytecode();
     instructions.push(std::make_pair(bytecode, 0));
     IP = &instructions.top().second;
-    memory.push();
-    minID.push_back(bfun->minID());
+    memory.push(bfun->minID());
 }
 
 void Code::CALLNATIVE()
@@ -836,7 +827,6 @@ void Code::CALLNATIVE()
 void Code::RETURN()
 {
     memory.pop();
-    minID.pop_back();
     instructions.pop();
     bytecode = instructions.top().first;
     IP = &instructions.top().second;

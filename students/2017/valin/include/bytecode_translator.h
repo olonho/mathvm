@@ -76,63 +76,48 @@ class Code : public mathvm::Code
         const char* S;
 	};
 
-	template<class T> class MyCollection {
-		std::vector<T> collection;
+	class MyFrame {
+		typedef std::unordered_map<uint16_t, Val> Scope;
+		std::unordered_map<uint16_t, Scope> scopes;
 		
 	public:
-		MyCollection() {
-			collection.resize(4);
-		}
-
-		T& operator[](uint16_t id) {
-			if (id > collection.size()) {
-				collection.resize(id + 1);
-			}
-			return collection[id];
+		Val& val(uint16_t ctxId, uint16_t varId) {
+			return scopes[ctxId][varId];
 		}
 	};
 
 	class MyStack {
 		size_t sz = 0;
-		std::vector<MyCollection<MyCollection<Val>>> mem;
+		uint16_t topID;
+		std::map<uint16_t, std::stack<MyFrame>> frames;
+		std::stack<uint16_t> minIDs;
 	public:
-		MyStack() {
-			mem.resize(4);
-		}
-
-		void push() {
-			sz++;
-			if (sz > mem.size()) {
-				mem.resize(sz);
-			}
+		void push(uint16_t id) {
+			topID = id;
+			minIDs.push(id);
+			frames[id].push(MyFrame());
 		}
 
 		void pop() {
-			sz--;
+			minIDs.pop();
+			frames[topID].pop();
+			topID = minIDs.empty() ? 0 : minIDs.top();
 		}
 
-		MyCollection<MyCollection<Val>>& operator[](uint16_t id) {
-			return mem[id];
+		MyFrame& findClosure(uint16_t idCtx) {
+			auto it = --frames.lower_bound(idCtx);
+			return it->second.top();
 		}
 
-		MyCollection<MyCollection<Val>>& back() {
-			return mem[sz-1];
+		MyFrame& top() {
+			return frames[topID].top();
 		}
 
-		std::vector<MyCollection<MyCollection<Val>>>::reverse_iterator rbegin() {
-			return mem.rbegin() + mem.size() - sz;
-		}
-
-		std::vector<MyCollection<MyCollection<Val>>>::reverse_iterator rend() {
-			return mem.rend();
-		}
-
-		size_t size() {
-			return sz;
+		bool topContainsScope(uint16_t scopeID) {
+			return scopeID >= topID;
 		}
 	};
 
-	std::vector<uint16_t> minID;
 	MyStack memory;
 	std::unordered_map<uint16_t, Val> vars;
 	std::unordered_map<std::string, uint16_t> globalVars;
