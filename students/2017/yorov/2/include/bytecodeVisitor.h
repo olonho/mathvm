@@ -4,7 +4,7 @@
 #include "ast.h"
 #include "visitors.h"
 #include "mathvm.h"
-#include "context.h"
+#include "translatorUtil.h"
 
 namespace mathvm {
     struct BytecodeVisitor : public AstVisitor {
@@ -30,7 +30,7 @@ namespace mathvm {
         void convert(VarType from, VarType to);
 
         Code* _code;
-        Context* _context;
+        utils::Context* _context;
         VarType _TOSType;
     };
 }

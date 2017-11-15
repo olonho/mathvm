@@ -1,7 +1,5 @@
 #include "bytecodeVisitor.h"
 #include <iostream>
-#include "context.h"
-#include "utils.h"
 #include <cmath>
 #include <unordered_map>
 #include <dlfcn.h>
@@ -24,7 +22,7 @@ namespace mathvm {
     void BytecodeVisitor::visitAstFunction(AstFunction* astFunction) {
         Scope* scope = astFunction->scope();
         BytecodeFunction* func = static_cast<BytecodeFunction*>(_code->functionByName(astFunction->name()));
-        Context* innerContext = new Context(func, _context);
+        utils::Context* innerContext = new utils::Context(func, _context);
         Scope::VarIterator it(scope);
         while (it.hasNext()) {
             innerContext->addVar(it.next()->name());
@@ -91,7 +89,7 @@ namespace mathvm {
         }
 
         Instruction insn = utils::arithmeticInsn(resultType, kind);
-        if (insn == BC_LAST) {
+        if (insn == BC_INVALID) {
             throw std::logic_error(std::string("unsupported operation: ")
                                     + typeToName(left) + tokenOp(kind) + typeToName(right));
         }
@@ -188,7 +186,7 @@ namespace mathvm {
 
         TokenKind kind = node->kind();
         Instruction insn = utils::bitwiseInsn(kind);
-        if (insn == BC_LAST) {
+        if (insn == BC_INVALID) {
             throw std::logic_error(std::string("unsupported bitwise operation: ") + tokenOp(kind));
         }
 
@@ -230,7 +228,7 @@ namespace mathvm {
             bytecode->addInsn(BC_ICMP);
         }
         Instruction insn = utils::comparisonInsn(kind);
-        if (insn == BC_LAST) {
+        if (insn == BC_INVALID) {
             throw std::logic_error(std::string("unsupported comparison operation: ")
                                     + typeToName(left) + tokenOp(kind) + typeToName(right));
         }
@@ -331,6 +329,7 @@ namespace mathvm {
                 bytecode->addInt64(literal);
                 break;
         }
+        _TOSType = VT_INT;
     }
 
     void BytecodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
@@ -376,7 +375,7 @@ namespace mathvm {
             _TOSType = varType;
             loadToTOS(node->var());
             Instruction insn = utils::arithmeticInsn(varType, temp[kind]);
-            if (insn == BC_LAST) {
+            if (insn == BC_INVALID) {
                 throw std::logic_error(std::string("undefined operation ")
                                         + tokenOp(temp[kind]) + std::string(" for ") + typeToName(_TOSType));
             }
@@ -495,25 +494,27 @@ namespace mathvm {
     void BytecodeVisitor::visitIfNode(IfNode* node) {
         Bytecode* bytecode = _context->function()->bytecode();
         bool hasElseBlock = node->elseBlock() != nullptr;
+
         Label elseLabel(bytecode);
-        Label endLabel(bytecode);
+        Label thenLabel(bytecode);
 
         node->ifExpr()->visit(this);
         bytecode->addInsn(BC_ILOAD0);
-        bytecode->addBranch(BC_IFICMPE, hasElseBlock ? elseLabel : endLabel);
+        bytecode->addBranch(BC_IFICMPE, elseLabel);
         bytecode->addInsn(BC_POP);
         bytecode->addInsn(BC_POP);
 
         node->thenBlock()->visit(this);
-        bytecode->addBranch(BC_JA, endLabel);
+        bytecode->addBranch(BC_JA, thenLabel);
 
+        bytecode->bind(elseLabel);
+        bytecode->addInsn(BC_POP);
+        bytecode->addInsn(BC_POP);
         if (hasElseBlock) {
-            bytecode->bind(elseLabel);
-            bytecode->addInsn(BC_POP);
-            bytecode->addInsn(BC_POP);
             node->elseBlock()->visit(this);
         }
-        bytecode->bind(endLabel);
+
+        bytecode->bind(thenLabel);
     }
 
     void BytecodeVisitor::visitReturnNode(ReturnNode* node) {
@@ -580,7 +581,7 @@ namespace mathvm {
         Bytecode* bytecode = _context->function()->bytecode();
         auto insns = utils::insnConvert(from, to);
         for (size_t i = 0; i < insns.size(); ++i) {
-            if (insns[i] == BC_LAST) {
+            if (insns[i] == BC_INVALID) {
                 throw std::logic_error(std::string("cannot cast from: ")
                                         + typeToName(from) + std::string(" to ") + typeToName(to));
             }
@@ -600,7 +601,7 @@ namespace mathvm {
                                ? utils::localScopeLoadInsn(varType, localId)
                                : utils::outerScopeLoadInsn(varType);
 
-        if (insn == BC_LAST) {
+        if (insn == BC_INVALID) {
             throw std::logic_error(std::string("cannot get load instruction for ") + var->name());
         }
 
@@ -627,7 +628,7 @@ namespace mathvm {
                                ? utils::localScopeStoreInsn(varType, localId)
                                : utils::outerScopeStoreInsn(varType);
 
-        if (insn == BC_LAST) {
+        if (insn == BC_INVALID) {
            throw std::logic_error(std::string("cannot get store instruction for ") + var->name());
         }
         Bytecode* bytecode = _context->function()->bytecode();

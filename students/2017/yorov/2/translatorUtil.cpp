@@ -1,14 +1,56 @@
-#ifndef INSTRUCTION_H
-#define INSTRUCTION_H
+#include "translatorUtil.h"
 
 #include "mathvm.h"
 #include <vector>
+#include <limits>
 
 namespace mathvm {
 
     namespace utils {
 
-        inline VarType resultType(VarType left, VarType right) {
+        Context::Context(BytecodeFunction* func, Context* parent)
+            : _function(func)
+            , _parent(parent)
+            , _curId(0)
+        {}
+
+        BytecodeFunction* Context::function() {
+            return _function;
+        }
+
+        void Context::addVar(const std::string& name) {
+            if (_curId == std::numeric_limits<uint16_t>::max()) {
+                throw std::logic_error("cannot create next id");
+            }
+            _varName2Id[name] = _curId;
+            ++_curId;
+        }
+
+        std::pair<uint16_t, uint16_t> Context::locAndCtxId(const std::string& name) {
+            if (_varName2Id.find(name) == _varName2Id.end()) {
+                if (_parent != nullptr) {
+                    return _parent->locAndCtxId(name);
+                } else {
+                    throw std::logic_error(std::string("cannot find variable ") + name);
+                }
+            }
+            return std::make_pair(_varName2Id[name], _function->id());
+        }
+
+        uint16_t Context::id() const {
+            return _function->id();
+        }
+
+        uint16_t Context::localsCount() const {
+            return _varName2Id.size();
+        }
+
+        Context* Context::parent() {
+            return _parent;
+        }
+        // end context
+
+        VarType resultType(VarType left, VarType right) {
             if (left == right) {
                 return left;
             }
@@ -31,8 +73,8 @@ namespace mathvm {
             return VT_INVALID;
         }
 
-        inline std::vector<Instruction> insnConvert(VarType from, VarType to) {
-            // to maybe either VT_INT or VT_DOUBLE (see resultType)
+        std::vector<Instruction> insnConvert(VarType from, VarType to) {
+            // 'to' maybe either VT_INT or VT_DOUBLE (see resultType)
             std::vector<Instruction> result;
             if (from == VT_INT && to == VT_DOUBLE) {
                 result.emplace_back(BC_I2D);
@@ -49,11 +91,11 @@ namespace mathvm {
                 result.emplace_back(BC_I2D);
                 return result;
             }
-            result.emplace_back(BC_LAST);
+            result.emplace_back(BC_INVALID);
             return result;
         }
 
-        inline Instruction localScopeStoreInsn(VarType type, uint16_t localId) {
+        Instruction localScopeStoreInsn(VarType type, uint16_t localId) {
             switch (type) {
                 case VT_INT:
                     switch (localId) {
@@ -79,20 +121,20 @@ namespace mathvm {
                         case 3: return BC_STORESVAR3;
                         default: return BC_STORESVAR;
                     }
-                default: return BC_LAST;
+                default: return BC_INVALID;
             }
         }
 
-        inline Instruction outerScopeStoreInsn(VarType type) {
+        Instruction outerScopeStoreInsn(VarType type) {
             switch (type) {
                 case VT_INT: return BC_STORECTXIVAR;
                 case VT_DOUBLE: return BC_STORECTXDVAR;
                 case VT_STRING: return BC_STORECTXSVAR;
-                default: return BC_LAST;
+                default: return BC_INVALID;
             }
         }
 
-        inline Instruction localScopeLoadInsn(VarType type, uint16_t localId) {
+        Instruction localScopeLoadInsn(VarType type, uint16_t localId) {
             switch (type) {
                 case VT_INT:
                     switch (localId) {
@@ -118,22 +160,22 @@ namespace mathvm {
                         case 3: return BC_LOADSVAR3;
                         default: return BC_LOADSVAR;
                     }
-                default: return BC_LAST;
+                default: return BC_INVALID;
             }
         }
 
-        inline Instruction outerScopeLoadInsn(VarType type) {
+        Instruction outerScopeLoadInsn(VarType type) {
             switch (type) {
                 case VT_INT: return BC_LOADCTXIVAR;
                 case VT_DOUBLE: return BC_LOADCTXDVAR;
                 case VT_STRING: return BC_LOADCTXSVAR;
-                default: return BC_LAST;
+                default: return BC_INVALID;
             }
         }
 
-        inline Instruction arithmeticInsn(VarType type, TokenKind kind) {
+        Instruction arithmeticInsn(VarType type, TokenKind kind) {
             if (type != VT_INT && type != VT_DOUBLE) {
-                return BC_LAST;
+                return BC_INVALID;
             }
 
             switch (kind) {
@@ -142,20 +184,20 @@ namespace mathvm {
                 case tMUL: return type == VT_INT ? BC_IMUL : BC_DMUL;
                 case tDIV: return type == VT_INT ? BC_IDIV : BC_DDIV;
                 case tMOD: return type == VT_INT ? BC_IMOD : BC_INVALID;
-                default: return BC_LAST;
+                default: return BC_INVALID;
             }
         }
 
-        inline Instruction bitwiseInsn(TokenKind kind) {
+        Instruction bitwiseInsn(TokenKind kind) {
             switch (kind) {
                 case tAOR: return BC_IAOR;
                 case tAAND: return BC_IAAND;
                 case tAXOR: return BC_IAXOR;
-                default: return BC_LAST;
+                default: return BC_INVALID;
             }
         }
 
-        inline Instruction comparisonInsn(TokenKind kind) {
+        Instruction comparisonInsn(TokenKind kind) {
             switch (kind) {
                 case tEQ: return BC_IFICMPE;
                 case tNEQ: return BC_IFICMPNE;
@@ -163,9 +205,8 @@ namespace mathvm {
                 case tGE: return BC_IFICMPGE;
                 case tLT: return BC_IFICMPL;
                 case tLE: return BC_IFICMPLE;
-                default: return BC_LAST;
+                default: return BC_INVALID;
             }
         }
     }
 }
-#endif //INSTRUCTION_H

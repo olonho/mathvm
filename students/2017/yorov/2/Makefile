@@ -18,7 +18,9 @@ USER_OBJ = \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translatorImpl$(OBJ_SUFF) \
    $(OBJ)/bytecodeVisitor$(OBJ_SUFF) \
-   $(OBJ)/context$(OBJ_SUFF)
+   $(OBJ)/translatorUtil$(OBJ_SUFF) \
+   $(OBJ)/interpreterImpl$(OBJ_SUFF) \
+   $(OBJ)/interpreterUtil$(OBJ_SUFF)
 
 
 include $(VM_ROOT)/common.mk
