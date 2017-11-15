@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
 #include <string>
 #include <iostream>
 #include <stack>
@@ -75,10 +76,66 @@ class Code : public mathvm::Code
         const char* S;
 	};
 
+	template<class T> class MyCollection {
+		std::vector<T> collection;
+		
+	public:
+		MyCollection() {
+			collection.resize(4);
+		}
+
+		T& operator[](uint16_t id) {
+			if (id > collection.size()) {
+				collection.resize(id + 1);
+			}
+			return collection[id];
+		}
+	};
+
+	class MyStack {
+		size_t sz = 0;
+		std::vector<MyCollection<MyCollection<Val>>> mem;
+	public:
+		MyStack() {
+			mem.resize(4);
+		}
+
+		void push() {
+			sz++;
+			if (sz > mem.size()) {
+				mem.resize(sz);
+			}
+		}
+
+		void pop() {
+			sz--;
+		}
+
+		MyCollection<MyCollection<Val>>& operator[](uint16_t id) {
+			return mem[id];
+		}
+
+		MyCollection<MyCollection<Val>>& back() {
+			return mem[sz-1];
+		}
+
+		std::vector<MyCollection<MyCollection<Val>>>::reverse_iterator rbegin() {
+			return mem.rbegin() + mem.size() - sz;
+		}
+
+		std::vector<MyCollection<MyCollection<Val>>>::reverse_iterator rend() {
+			return mem.rend();
+		}
+
+		size_t size() {
+			return sz;
+		}
+	};
+
 	std::vector<uint16_t> minID;
-	std::vector<std::map<uint16_t, std::map<uint16_t, Val>>> memory;
-	std::map<uint16_t, Val> vars;
-	std::map<std::string, uint16_t> globalVars;
+	MyStack memory;
+	std::unordered_map<uint16_t, Val> vars;
+	std::unordered_map<std::string, uint16_t> globalVars;
 	std::stack<Val> stack;
 	std::stack<std::pair<mathvm::Bytecode*, size_t>> instructions;
 	mathvm::Bytecode * bytecode;

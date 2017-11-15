@@ -23,7 +23,7 @@ using I = mathvm::Instruction;
 mathvm::Status* Code::execute(std::vector<mathvm::Var*>& vars)
 {
     BytecodeFunctionE * main = dynamic_cast<BytecodeFunctionE*>(functionById(0));
-    memory.push_back(std::map<uint16_t, std::map<uint16_t, Val>>());
+    memory.push();
 
     for (auto var : vars) {
         uint16_t id = globalVars[var->name()];
@@ -824,7 +824,7 @@ void Code::CALL()
     bytecode = bfun->bytecode();
     instructions.push(std::make_pair(bytecode, 0));
     IP = &instructions.top().second;
-    memory.push_back(std::map<uint16_t, std::map<uint16_t, Val>>());
+    memory.push();
     minID.push_back(bfun->minID());
 }
 
@@ -835,7 +835,7 @@ void Code::CALLNATIVE()
 
 void Code::RETURN()
 {
-    memory.pop_back();
+    memory.pop();
     minID.pop_back();
     instructions.pop();
     bytecode = instructions.top().first;
