@@ -105,10 +105,6 @@ namespace mathvm {
             bytecode->addInsn(BC_SWAP);
         }
 
-        if (kind == tSUB || kind == tDIV) {
-            bytecode->addInsn(BC_SWAP);
-        }
-
         bytecode->addInsn(insn);
         _TOSType = resultType;
     }
@@ -240,11 +236,15 @@ namespace mathvm {
         bytecode->addBranch(insn, setTrue);
         bytecode->addInsn(BC_POP);
         bytecode->addInsn(BC_POP);
+        bytecode->addInsn(BC_POP);
+        bytecode->addInsn(BC_POP);
 
         bytecode->addInsn(BC_ILOAD0);
         bytecode->addBranch(BC_JA, setFalse);
 
         bytecode->bind(setTrue);
+        bytecode->addInsn(BC_POP);
+        bytecode->addInsn(BC_POP);
         bytecode->addInsn(BC_POP);
         bytecode->addInsn(BC_POP);
 
@@ -273,11 +273,13 @@ namespace mathvm {
                 bytecode->addInsn(BC_ILOAD0);
                 bytecode->addBranch(BC_IFICMPE, setTrue);
                 bytecode->addInsn(BC_POP);
+                bytecode->addInsn(BC_POP);
 
                 bytecode->addInsn(BC_ILOAD0);
                 bytecode->addBranch(BC_JA, setFalse);
 
                 bytecode->bind(setTrue);
+                bytecode->addInsn(BC_POP);
                 bytecode->addInsn(BC_POP);
 
                 bytecode->addInsn(BC_ILOAD1);
@@ -379,6 +381,7 @@ namespace mathvm {
                 throw std::logic_error(std::string("undefined operation ")
                                         + tokenOp(temp[kind]) + std::string(" for ") + typeToName(_TOSType));
             }
+            bytecode->addInsn(BC_SWAP);
             bytecode->addInsn(insn);
         }
         storeTOS(node->var());
@@ -390,20 +393,7 @@ namespace mathvm {
     }
 
     void BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
-        void* code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
-        if (code == nullptr) {
-            throw std::logic_error("Native function not found");
-        }
-        uint16_t nativeId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
-
-        Bytecode* bytecode = _context->function()->bytecode();
-        bytecode->addInsn(BC_CALLNATIVE);
-        bytecode->addUInt16(nativeId);
-
-        VarType returnType = node->nativeSignature()[0].first;
-        if (returnType != VT_VOID && returnType != VT_INVALID) {
-            _TOSType = returnType;
-        }
+        throw std::logic_error("not implemented");
     }
 
     void BytecodeVisitor::visitCallNode(CallNode* node) {
@@ -455,7 +445,7 @@ namespace mathvm {
         bytecode->bind(beginLabel);
 
         loadToTOS(var);
-        bytecode->addBranch(BC_IFICMPG, endLabel);
+        bytecode->addBranch(BC_IFICMPL, endLabel);
         bytecode->addInsn(BC_POP);
 
         node->body()->visit(this);

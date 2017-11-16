@@ -1,0 +1,33 @@
+function double fabs(double x) native 'fabs';
+function double sin(double x) native 'sin';
+function int timestamp() native 'native_timestamp';
+
+function double newton(double xbase) {
+  function double func(double d) {
+      return d*d - d*d*d + 2 + sin(d);
+  }
+  double x = xbase;
+  double xp = x - 0.01;
+  double y = func(x);
+  double yp = func(yp);
+  int repeat = 0;
+  while ((fabs(y) > 1e-8) && (repeat < 10000))  {
+      double temp = x;
+      y = func(x);
+      x = x - (x - xp) * y / (y - yp);      
+      xp = temp;
+      yp = y;
+      repeat += 1;
+  }
+  return x;
+}
+int start = timestamp();
+int repeat;
+double root;
+for (repeat in 0 .. 100000) {
+  root = newton(10 + repeat / 400.0);
+}
+int end = timestamp();
+print('root=', root, '\n');
+
+print('Newton took ', end - start, 'us\n');

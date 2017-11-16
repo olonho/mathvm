@@ -33,14 +33,18 @@ namespace mathvm {
             int64_t popInt();
             double popDouble();
             uint16_t popUInt16();
+            int64_t topInt();
+            double topDouble();
+            uint16_t topUInt16();
             void pushInt(int64_t value);
             void pushDouble(double value);
             void pushUInt16(uint16_t value);
             VarType tosType();
-            Variable pop();
             void swap();
+            Variable pop();
 
         private:
+            Variable top();
             std::stack<Variable> vars;
         };
 
@@ -79,7 +83,7 @@ namespace mathvm {
             void storeCache();
             void refreshCache();
             Variable _cache[4];
-            std::unordered_map<uint16_t, std::vector<Variable>> _variables;
+            std::unordered_map<uint16_t, std::stack<std::vector<Variable>>> _variables;
             std::stack<std::pair<uint16_t, uint16_t>> _contextsIdCount;
         };
     }

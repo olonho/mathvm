@@ -76,13 +76,13 @@ namespace mathvm {
                 case BC_DSUB: {
                     double upper = _stack.popDouble();
                     double lower = _stack.popDouble();
-                    _stack.pushDouble(upper - lower);
+                    _stack.pushDouble(lower - upper);
                     break;
                 }
                 case BC_ISUB: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    _stack.pushInt(upper - lower);
+                    _stack.pushInt(lower - upper);
                     break;
                 }
                 case BC_DMUL: {
@@ -100,19 +100,19 @@ namespace mathvm {
                 case BC_DDIV: {
                     double upper = _stack.popDouble();
                     double lower = _stack.popDouble();
-                    _stack.pushDouble(upper / lower);
+                    _stack.pushDouble(lower / upper);
                     break;
                 }
                 case BC_IDIV: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    _stack.pushInt(upper / lower);
+                    _stack.pushInt(lower / upper);
                     break;
                 }
                 case BC_IMOD: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    _stack.pushInt(upper % lower);
+                    _stack.pushInt(lower % upper);
                     break;
                 }
                 case BC_DNEG:
@@ -124,19 +124,19 @@ namespace mathvm {
                 case BC_IAOR: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    _stack.pushInt(upper | lower);
+                    _stack.pushInt(lower | upper);
                     break;
                 }
                 case BC_IAAND: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    _stack.pushInt(upper & lower);
+                    _stack.pushInt(lower & upper);
                     break;
                 }
                 case BC_IAXOR: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    _stack.pushInt(upper ^ lower);
+                    _stack.pushInt(lower ^ upper);
                     break;
                 }
                 case BC_IPRINT:
@@ -316,8 +316,8 @@ namespace mathvm {
                     break;
                 }
                 case BC_DCMP: {
-                    double upper = _stack.popDouble();
-                    double lower = _stack.popDouble();
+                    double upper = _stack.topDouble();
+                    double lower = _stack.topDouble();
                     int64_t res = fabs(lower - upper) < epsilon ? 0
                     : (lower - upper < 0 ? -1 : 1);
                     _stack.pushInt(res);
@@ -328,6 +328,8 @@ namespace mathvm {
                     int64_t lower = _stack.popInt();
                     int64_t res = (lower - upper);
                     res /= abs(res) ? abs(res) : 1;
+                    _stack.pushInt(lower);
+                    _stack.pushInt(upper);
                     _stack.pushInt(res);
                     break;
                 }
@@ -339,37 +341,49 @@ namespace mathvm {
                 case BC_IFICMPE: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    pointer += lower == upper ? bytecode->getInt16(pointer) : 0;
+                    _stack.pushInt(lower);
+                    _stack.pushInt(upper);
+                    pointer += lower == upper ? bytecode->getInt16(pointer) : sizeof(int16_t);
                     break;
                 }
                 case BC_IFICMPNE: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    pointer += lower != upper ? bytecode->getInt16(pointer) : 0;
+                    _stack.pushInt(lower);
+                    _stack.pushInt(upper);
+                    pointer += lower != upper ? bytecode->getInt16(pointer) : sizeof(int16_t);
                     break;
                 }
                 case BC_IFICMPG: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    pointer += lower > upper ? bytecode->getInt16(pointer) : 0;
+                    _stack.pushInt(lower);
+                    _stack.pushInt(upper);
+                    pointer += lower > upper ? bytecode->getInt16(pointer) : sizeof(int16_t);
                     break;
                 }
                 case BC_IFICMPGE: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    pointer += lower >= upper ? bytecode->getInt16(pointer) : 0;
+                    _stack.pushInt(lower);
+                    _stack.pushInt(upper);
+                    pointer += lower >= upper ? bytecode->getInt16(pointer) : sizeof(int16_t);
                     break;
                 }
                 case BC_IFICMPL: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    pointer += lower < upper ? bytecode->getInt16(pointer) : 0;
+                    _stack.pushInt(lower);
+                    _stack.pushInt(upper);
+                    pointer += lower < upper ? bytecode->getInt16(pointer) : sizeof(int16_t);
                     break;
                 }
                 case BC_IFICMPLE: {
                     int64_t upper = _stack.popInt();
                     int64_t lower = _stack.popInt();
-                    pointer += lower <= upper ? bytecode->getInt16(pointer) : 0;
+                    _stack.pushInt(lower);
+                    _stack.pushInt(upper);
+                    pointer += lower <= upper ? bytecode->getInt16(pointer) : sizeof(int16_t);
                     break;
                 }
                 case BC_DUMP: {

@@ -49,6 +49,24 @@ namespace mathvm {
             return var;
         }
 
+        Variable Stack::top() {
+            assert(!vars.empty() && "values's stack is empty");
+            Variable var = vars.top();
+            return var;
+        }
+
+        int64_t Stack::topInt() {
+            return top().intValue();
+        }
+
+        double Stack::topDouble() {
+            return top().doubleValue();
+        }
+
+        uint16_t Stack::topUInt16() {
+            return top().stringValue();
+        }
+
         int64_t Stack::popInt() {
             return pop().intValue();
         }
@@ -91,14 +109,16 @@ namespace mathvm {
                 storeCache();
             }
             _contextsIdCount.push(std::make_pair(contextId, localsCount));
-            assert(_variables.find(contextId) == _variables.end());
-            _variables.emplace(contextId, std::vector<Variable>(localsCount));
+            if (_variables.find(contextId) == _variables.end()) {
+                _variables.emplace(contextId, std::stack<std::vector<Variable>>());
+            }
+            _variables[contextId].push(std::vector<Variable>(localsCount));
             refreshCache();
         }
 
         void ContextsVariable::popScope() {
             assert(!_contextsIdCount.empty());
-            _variables.erase(_contextsIdCount.top().first);
+            _variables[_contextsIdCount.top().first].pop();
             _contextsIdCount.pop();
             refreshCache();
         }
@@ -205,7 +225,7 @@ namespace mathvm {
 
         Variable& ContextsVariable::getVar(uint16_t contextId, uint16_t varId) {
             assert(_variables.find(contextId) != _variables.end());
-            return _variables[contextId][varId];
+            return _variables[contextId].top()[varId];
         }
 
         void ContextsVariable::storeCache() {
