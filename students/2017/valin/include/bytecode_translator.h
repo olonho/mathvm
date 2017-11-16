@@ -183,7 +183,7 @@ class Code : public mathvm::Code
 		}
 
 		MyFrame& findClosure(uint16_t idCtx) {
-			auto it = --frames.lower_bound(idCtx);
+			auto it = --frames.upper_bound(idCtx);
 			return it->second.top();
 		}
 
