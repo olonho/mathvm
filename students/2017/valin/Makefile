@@ -23,7 +23,7 @@ USER_OBJ = \
 include $(VM_ROOT)/common.mk
 
 INCLUDE += -I$(ROOT)/include
-CFLAGS += -std=c++11 #-Wall
+CFLAGS += -std=c++11 -O3
 
 MATHVM = $(BIN)/mvm
 
