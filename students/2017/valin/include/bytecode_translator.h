@@ -149,6 +149,8 @@ class Code : public mathvm::Code
 
 	        dlclose(wd);
 
+		assert(system("rm tmp.c tmp.so") == 0);
+
 	        return res;
 	    }
 	};
