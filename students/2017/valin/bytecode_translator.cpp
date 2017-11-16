@@ -91,6 +91,8 @@ void BytecodeTranslator::translateFunction(mathvm::AstFunction * fun)
 	mathvm::Scope * scope = fun->scope();
 	uint16_t scopeID = scopesIDs[scope];
 
+	nativescope = scope; // ugly
+
 	for (size_t i = 0; i < fun->parametersNumber(); ++i) {
 		mathvm::VarType aType = fun->parameterType(i);
 		if (aType == mathvm::VT_INT) {
@@ -103,7 +105,7 @@ void BytecodeTranslator::translateFunction(mathvm::AstFunction * fun)
 
 		AstVar * var = scope->lookupVariable(fun->parameterName(i));
 		uint16_t varID = varsIDs[var];
-	
+
 		bytecode->addTyped(scopeID);
 		bytecode->addTyped(varID);
 	}
@@ -591,9 +593,24 @@ void BytecodeTranslator::visitCallNode(CallNode * node)
 
 void BytecodeTranslator::visitNativeCallNode(NativeCallNode * node)
 {
+	const mathvm::Signature& sign = node->nativeSignature();
+
+	for (size_t i = 1; i < sign.size(); ++i) {
+		AstVar * var = nativescope->lookupVariable(sign[sign.size() - i].second);
+		assert(var);
+
+		uint16_t scopeID = scopesIDs[nativescope];
+		uint16_t varID = varsIDs[var];
+
+		bytecode->addInsn(I::BC_LOADCTXDVAR);
+		bytecode->addTyped(scopeID);
+		bytecode->addTyped(varID);
+	}
+
 	bytecode->addInsn(I::BC_CALLNATIVE);
 	void * addr = dlsym(hd, node->nativeName().c_str());
 	assert(addr);
+
 	uint16_t id = code->makeNativeFunction(node->nativeName(), node->nativeSignature(), addr);
 	bytecode->addTyped(id);
 }

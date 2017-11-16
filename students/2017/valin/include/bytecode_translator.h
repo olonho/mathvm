@@ -11,6 +11,9 @@
 #include "mathvm.h"
 #include "visitors.h"
 
+#include <dlfcn.h>
+#include <fstream>
+
 namespace my {
 
 class Code;
@@ -31,10 +34,12 @@ public:
 private:
 	Code * code = nullptr;
 	mathvm::Bytecode * bytecode = nullptr;
+	mathvm::Scope * nativescope = nullptr;
+
 	std::stack<mathvm::VarType> typeStack;
 
 	std::vector<mathvm::AstFunction*> functions;
-	
+
 	std::vector<mathvm::Scope*> scopes;
 	std::map<mathvm::Scope*, uint16_t> scopesIDs;
 
@@ -75,6 +80,79 @@ class Code : public mathvm::Code
         int64_t I;
         const char* S;
 	};
+
+	class Function
+	{
+	    const mathvm::Signature * sign;
+	    const void * addr;
+	    std::vector<Val> val;
+	public:
+	    Function(const mathvm::Signature * sign, const void * addr, std::vector<Val> val) : sign(sign), addr(addr), val(val) {}
+
+	    std::string strType(std::pair<mathvm::VarType, std::string> type) {
+	        if (type.first == mathvm::VarType::VT_DOUBLE) {
+	            return "double";
+	        }
+
+	        return "int";
+	    }
+
+	    void generate() {
+	        std::ofstream out("tmp.c");
+	        out << "void wrapper(void * addr, void * res, void * args) {\n";
+
+			// cast to fun ptr
+			out << strType((*sign)[0]);
+	        out << "(*foo)(";
+
+	        if (sign->size() > 1) {
+	            out << strType((*sign)[1]);
+	        }
+
+	        for (size_t i = 2; i < sign->size(); ++i) {
+	            out << ", " << strType((*sign)[i]);
+	        }
+
+	        out << ")" << " = " << "addr;\n";
+
+			// init args
+	        for (size_t i = 1; i < sign->size(); ++i) {
+	            out << strType((*sign)[i]) << " * arg" << i << " = " << "args + " << (i - 1) * sizeof(Val) << ";\n";
+	        }
+
+			// call
+	        out << "*((" << strType((*sign)[0]) << "*) res) = foo(";
+	        if (sign->size() > 1) {
+	            out << "*arg1";
+	        }
+	        for (size_t i = 2; i < sign->size(); ++i) {
+	            out << ", *arg" << i;
+	        }
+	        out << ");\n";
+	        out << "}";
+	    }
+
+	    void compile() {
+	        assert(system("gcc tmp.c -shared -o tmp.so") == 0);
+	    }
+
+	    Val call() {
+	        void * wd = dlopen("./tmp.so", RTLD_NOW);
+			assert(wd);
+
+			void (*wp)(void*, void*, void *) = reinterpret_cast<void (*)(void*, void*, void *)>(dlsym(wd, "wrapper"));
+			assert(wp);
+
+	        Val res;
+			res.I = 0;
+	        wp(const_cast<void*>(addr), &res, val.data());
+
+	        dlclose(wd);
+
+	        return res;
+	    }
+	};
+
 
 	class MyFrame {
 		typedef std::unordered_map<uint16_t, Val> Scope;

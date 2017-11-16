@@ -819,9 +819,30 @@ void Code::CALL()
     memory.push(bfun->minID());
 }
 
+
 void Code::CALLNATIVE()
 {
-    // PASS
+    uint16_t funID = bytecode->getUInt16(*IP);
+    *IP += 2;
+
+    const mathvm::Signature * sign;
+    const std::string * names;
+    const void * addr = nativeById(funID, &sign, &names);
+
+    Val ret;
+    int argn = sign->size() - 1;
+    std::vector<Val> args;
+
+    for (int i = 0; i < argn; ++i) {
+        args.push_back(stack.top());
+        stack.pop();
+    }
+
+    Function func(sign, addr, args);
+    func.generate();
+    func.compile();
+    ret = func.call();
+    stack.push(ret);
 }
 
 void Code::RETURN()
