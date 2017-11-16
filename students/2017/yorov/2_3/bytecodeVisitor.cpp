@@ -251,7 +251,7 @@ namespace mathvm {
         bytecode->addInsn(BC_ILOAD1);
 
         bytecode->bind(setFalse);
-        _TOSType = resultType;
+        _TOSType = VT_INT;
     }
 
     void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode* node) {
