@@ -316,10 +316,12 @@ namespace mathvm {
                     break;
                 }
                 case BC_DCMP: {
-                    double upper = _stack.topDouble();
-                    double lower = _stack.topDouble();
+                    double upper = _stack.popDouble();
+                    double lower = _stack.popDouble();
                     int64_t res = fabs(lower - upper) < epsilon ? 0
                     : (lower - upper < 0 ? -1 : 1);
+                    _stack.pushDouble(lower);
+                    _stack.pushDouble(upper);
                     _stack.pushInt(res);
                     break;
                 }

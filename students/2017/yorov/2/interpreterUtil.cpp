@@ -49,24 +49,6 @@ namespace mathvm {
             return var;
         }
 
-        Variable Stack::top() {
-            assert(!vars.empty() && "values's stack is empty");
-            Variable var = vars.top();
-            return var;
-        }
-
-        int64_t Stack::topInt() {
-            return top().intValue();
-        }
-
-        double Stack::topDouble() {
-            return top().doubleValue();
-        }
-
-        uint16_t Stack::topUInt16() {
-            return top().stringValue();
-        }
-
         int64_t Stack::popInt() {
             return pop().intValue();
         }

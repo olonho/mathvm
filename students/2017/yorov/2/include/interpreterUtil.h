@@ -33,9 +33,6 @@ namespace mathvm {
             int64_t popInt();
             double popDouble();
             uint16_t popUInt16();
-            int64_t topInt();
-            double topDouble();
-            uint16_t topUInt16();
             void pushInt(int64_t value);
             void pushDouble(double value);
             void pushUInt16(uint16_t value);
@@ -44,7 +41,6 @@ namespace mathvm {
             Variable pop();
 
         private:
-            Variable top();
             std::stack<Variable> vars;
         };
 
