@@ -74,7 +74,7 @@ namespace mathvm {
 
         private:
 
-            void checkCache(uint16_t varId, VarType type);
+            void checkCache(uint16_t varId);
             Variable& getVar(uint16_t contextId, uint16_t varId);
             void storeCache();
             void refreshCache();

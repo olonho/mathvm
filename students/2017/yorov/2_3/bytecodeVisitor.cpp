@@ -120,6 +120,7 @@ namespace mathvm {
             bytecode->addInsn(BC_ILOAD0);
             node->left()->visit(this);
             convert(_TOSType, VT_INT);
+            _TOSType = VT_INT;
             bytecode->addBranch(BC_IFICMPE, setFalse);
             bytecode->addInsn(BC_POP);
             bytecode->addInsn(BC_POP);
@@ -127,6 +128,7 @@ namespace mathvm {
             bytecode->addInsn(BC_ILOAD0);
             node->right()->visit(this);
             convert(_TOSType, VT_INT);
+            _TOSType = VT_INT;
             bytecode->addBranch(BC_IFICMPE, setFalse);
             bytecode->addInsn(BC_POP);
             bytecode->addInsn(BC_POP);
@@ -149,6 +151,7 @@ namespace mathvm {
         bytecode->addInsn(BC_ILOAD0);
         node->left()->visit(this);
         convert(_TOSType, VT_INT);
+        _TOSType = VT_INT;
         bytecode->addBranch(BC_IFICMPNE, setTrue);
         bytecode->addInsn(BC_POP);
         bytecode->addInsn(BC_POP);
@@ -156,6 +159,7 @@ namespace mathvm {
         bytecode->addInsn(BC_ILOAD0);
         node->right()->visit(this);
         convert(_TOSType, VT_INT);
+        _TOSType = VT_INT;
         bytecode->addBranch(BC_IFICMPNE, setTrue);
         bytecode->addInsn(BC_POP);
         bytecode->addInsn(BC_POP);
@@ -176,9 +180,11 @@ namespace mathvm {
         node->left()->visit(this);
         VarType left = _TOSType;
         convert(left, VT_INT);
+        _TOSType = VT_INT;
         node->right()->visit(this);
         VarType right = _TOSType;
         convert(right, VT_INT);
+        _TOSType = VT_INT;
 
         TokenKind kind = node->kind();
         Instruction insn = utils::bitwiseInsn(kind);
@@ -267,6 +273,7 @@ namespace mathvm {
         switch (kind) {
             case tNOT: {
                 convert(operandType, VT_INT);
+                _TOSType = VT_INT;
                 Label setTrue(bytecode);
                 Label setFalse(bytecode);
 
@@ -512,6 +519,7 @@ namespace mathvm {
         if (node->returnExpr() != nullptr) {
             node->returnExpr()->visit(this);
             convert(_TOSType, varType);
+            _TOSType = varType;
         }
         Bytecode* bytecode = _context->function()->bytecode();
         bytecode->addInsn(BC_RETURN);
@@ -560,6 +568,11 @@ namespace mathvm {
             }
             trFunc = new BytecodeFunction(func);
             _code->addFunction(trFunc);
+        }
+
+        funcIter = Scope::FunctionIterator{scope};
+        while (funcIter.hasNext()) {
+            AstFunction* func = funcIter.next();
             visitAstFunction(func);
         }
     }

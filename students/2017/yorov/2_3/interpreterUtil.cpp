@@ -24,17 +24,14 @@ namespace mathvm {
         {}
 
         int64_t Variable::intValue() {
-            assert(_type == VT_INT);
             return _intValue;
         }
 
         double Variable::doubleValue() {
-            assert(_type == VT_DOUBLE);
             return _doubleValue;
         }
 
         uint16_t Variable::stringValue() {
-            assert(_type == VT_STRING);
             return _stringValue;
         }
 
@@ -105,32 +102,32 @@ namespace mathvm {
             refreshCache();
         }
 
-        void ContextsVariable::checkCache(uint16_t varId, VarType type) {
-            assert(varId < 4 && _cache[varId].type() == type);
+        void ContextsVariable::checkCache(uint16_t varId) {
+            assert(varId < 4);
         }
 
         int64_t ContextsVariable::getCachedInt(uint16_t varId) {
-            checkCache(varId, VT_INT);
+            checkCache(varId);
             return _cache[varId].intValue();
         }
 
         void ContextsVariable::setCachedInt(uint16_t varId, int64_t value) {
-            assert(varId < 4);
+            checkCache(varId);
             _cache[varId] = Variable(value);
         }
 
         double ContextsVariable::getCachedDouble(uint16_t varId) {
-            checkCache(varId, VT_DOUBLE);
+            checkCache(varId);
             return _cache[varId].doubleValue();
         }
 
         void ContextsVariable::setCachedDouble(uint16_t varId, double value) {
-            assert(varId < 4);
+            checkCache(varId);
             _cache[varId] = Variable(value);
         }
 
         uint16_t ContextsVariable::getCachedUInt16(uint16_t varId) {
-            checkCache(varId, VT_STRING);
+            checkCache(varId);
             return _cache[varId].stringValue();
         }
 
@@ -145,7 +142,6 @@ namespace mathvm {
             }
 
             Variable& value = getVar(contextId, varId);
-            assert(value.type() == VT_INT);
             return value.intValue();
         }
 
@@ -159,7 +155,6 @@ namespace mathvm {
             }
 
             Variable& value = getVar(contextId, varId);
-            assert(value.type() == VT_DOUBLE);
             return value.doubleValue();
         }
 
@@ -173,7 +168,6 @@ namespace mathvm {
             }
 
             Variable& value = getVar(contextId, varId);
-            assert(value.type() == VT_STRING);
             return value.stringValue();
         }
 
