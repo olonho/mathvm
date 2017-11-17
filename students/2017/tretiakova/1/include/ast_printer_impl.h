@@ -10,97 +10,166 @@ namespace mathvm {
 
 class AstPrinter : public AstVisitor {
     std::stringstream pout;
-    bool needSemicolon;
+    bool need_semicolon;
+    int indent_size;
+    string indent;
+
+    const char indent_char = ' ';
+    const int indent_shift = 4;
+    string create_indent(int size) {
+        indent = "";
+        for(int i = 0; i < size; ++i) {
+            indent += ' ';
+        }
+        return indent;
+    }
+
 public:
-    AstPrinter(): pout(), needSemicolon(true) {}
+    AstPrinter(): pout(), need_semicolon(true),
+        indent_size(-4), indent("") {}
 
     string program() {
         return pout.str();
     }
 
     virtual void visitBinaryOpNode(BinaryOpNode* node) {
+        cerr << "[BinaryOp]" << endl;
+
         node->left()->visit(this);
         pout << " " << tokenOp(node->kind()) << " ";
         node->right()->visit(this);
     }
 
     virtual void visitUnaryOpNode(UnaryOpNode* node) {
+        cerr << "[UnaryOp]" << endl;
+
         pout << tokenOp(node->kind());
         node->operand()->visit(this);
     }
 
     virtual void visitStringLiteralNode(StringLiteralNode* node) {
-        pout << node->literal();
+        cerr << "[StringLiteral]" << endl;
+
+        string literal = node->literal();
+        string new_literal = "";
+        for(int i = 0; i < (int)literal.size(); ++i) {
+            if(literal[i] != '\n') {
+                new_literal += literal[i];
+            } else {
+                new_literal += "\\n";
+            }
+        }
+        pout << "'" << new_literal << "'";
     }
 
     virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
+        cerr << "[DoubleLiteral]" << endl;
+
         pout << node->literal();
     }
 
     virtual void visitIntLiteralNode(IntLiteralNode* node) {
+        cerr << "[IntLiteral]" << endl;
+
         pout << node->literal();
     }
 
     virtual void visitLoadNode(LoadNode* node) {
+        cerr << "[Load]" << endl;
+
         const AstVar* var = node->var();
         pout << var->name();
     }
 
     virtual void visitStoreNode(StoreNode* node) {
+        cerr << "[Store]" << endl;
+
         pout << node->var()->name() << " "
                   << tokenOp(node->op()) << " ";
         node->value()->visit(this);
     }
 
     virtual void visitForNode(ForNode* node) {
+        cerr << "[For]" << endl;
+
         pout << "for (" << node->var()->name() << " in ";
         node->inExpr()->visit(this);
-        pout << "( {\n";
+        pout << ") {\n";
         node->body()->visit(this);
-        pout << "}\n";
-        needSemicolon = false;
+        pout << indent << "}\n";
+        need_semicolon = false;
     }
 
     virtual void visitWhileNode(WhileNode* node) {
+        cerr << "[While]" << endl;
+
         pout << "while(";
         node->whileExpr()->visit(this);
         pout << ") {\n";
         node->loopBlock()->visit(this);
-        pout << "}\n";
-        needSemicolon = false;
+        pout << create_indent(indent_size - indent_shift) << "}\n";
+        need_semicolon = false;
     }
 
     virtual void visitIfNode(IfNode* node) {
+        cerr << "[If]" << endl;
+
         pout << "if (";
         node->ifExpr()->visit(this);
         pout << ") {\n";
         node->thenBlock()->visit(this);
-        pout << "}";
+        cerr << "[IF indent_size " << indent_size << "]" << endl;
+        pout << indent << "}";
         BlockNode* elseBlock = node->elseBlock();
         if (elseBlock) {
             pout << " else (";
             elseBlock->visit(this);
-            pout << "}";
+            pout << indent << "}";
         }
         pout << "\n";
-        needSemicolon = false;
+        need_semicolon = false;
     }
 
     virtual void visitBlockNode(BlockNode* node) {
+        cerr << "[Block]" << endl;
+
+        indent_size += indent_shift;
+        cerr << "[" << indent_size << " " << node << "]" << endl;
+        create_indent(indent_size);
+
+        for(Scope::VarIterator it(node->scope()); it.hasNext();) {
+            AstVar* var = it.next();
+            pout << indent << typeToName(var->type()) << " "
+                 << var->name() << ";\n";
+        }
+
+        for(Scope::FunctionIterator it(node->scope()); it.hasNext();) {
+            AstFunction* fun = it.next();
+            fun->node()->visit(this);
+            need_semicolon = true;
+        }
+
         for (uint32_t i = 0; i < node->nodes(); i++) {
+            pout << indent;
+
             node->nodeAt(i)->visit(this);
-            if(needSemicolon) {
+            if(need_semicolon) {
                 pout << ";\n";
             } else {
-                needSemicolon = true;
+                need_semicolon = true;
             }
         }
+
+        indent_size -= indent_shift;
+        create_indent(indent_size);
+        cerr << "[/" << indent_size << " " << node << "]" << endl;
     }
 
     virtual void visitFunctionNode(FunctionNode* node) {
-        string returnType =
-                string(typeToName(node->returnType()));
-        pout << "function " << returnType << " (";
+        cerr << "[Function]" << node->name() << endl;
+
+        pout << "function " << typeToName(node->returnType())
+             << " " << node->name() << "(";
         for(uint32_t i = 0; i < node->parametersNumber(); i++) {
             if(i > 0) {
                 pout << ", ";
@@ -113,16 +182,25 @@ public:
         }
         pout << ") {\n";
         node->body()->visit(this);
-        pout << "}\n";
-        needSemicolon = false;
+        pout << create_indent(indent_size - indent_shift) << "}\n";
+        need_semicolon = false;
     }
 
     virtual void visitReturnNode(ReturnNode* node) {
+        cerr << "[Return]" << endl;
+
         pout << "return ";
-        node->returnExpr()->visit(this);
+        AstNode* return_expr = node->returnExpr();
+        if(return_expr == NULL) {
+            pout << "void";
+        } else {
+            return_expr->visit(this);
+        }
     }
 
     virtual void visitCallNode(CallNode* node) {
+        cerr << "[Call]" << endl;
+
         pout << node->name() << "(";
         for(uint32_t i = 0; i < node->parametersNumber(); i++) {
             if(i > 0) {
@@ -134,10 +212,14 @@ public:
     }
 
     virtual void visitNativeCallNode(NativeCallNode* node) {
+        cerr << "[NativeCall]" << endl;
+
         pout << "native '" << node->nativeName() << "'";
     }
 
     virtual void visitPrintNode(PrintNode* node) {
+        cerr << "[Print]" << endl;
+
         pout << "print(";
         for(uint32_t i = 0; i < node->operands(); i++) {
             if(i > 0) {

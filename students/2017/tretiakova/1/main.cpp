@@ -23,11 +23,6 @@ int main(int argc, char** argv) {
     }
     Translator* translator = Translator::create(impl);
 
-    if (translator == 0) {
-        cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
-        return 1;
-    }
-
     const char* expr = "double x; double y;"
                         "x += 8.0; y = 2.0;"
                         "print('Hello, x=',x,' y=',y,'\n');";

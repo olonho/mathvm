@@ -32,8 +32,9 @@ class PrinterTranslator : public Translator {
         BlockNode* body = ast->body();
         AstPrinter* visitor = new AstPrinter();
         body->visit(visitor);
-        std::cout << "was: " << program << endl;
-        std::cout << "became: " << visitor->program() << endl;
+        // std::cout << "was: " << endl << program << endl;
+        // std::cout << "became: " << endl << visitor->program() << endl;
+        std::cout << visitor->program() << endl;
         return Status::Ok();
     }
 };
@@ -50,7 +51,7 @@ Translator* Translator::create(const string& impl) {
         //return new MachCodeTranslatorImpl();
         return 0;
     }
-    return 0;
+    return new PrinterTranslator();
 }
 
 }
