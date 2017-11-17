@@ -15,8 +15,8 @@ int main(int argc, char** argv) {
     for (int32_t i = 1; i < argc; i++) {
       if (string(argv[i]) == "-j") {
         impl = "jit";
-      }  if (string(argv[i]) == "-p") {
-        impl = "printer";
+    }  if (string(argv[i]) == "-t") {
+        impl = "translator";
       } else {
         script = argv[i];
       }
@@ -56,7 +56,6 @@ int main(int argc, char** argv) {
     } else {
         if (impl != "printer") {
           assert(code != 0);
-          code->disassemble();
           vector<Var*> vars;
 
           if (isDefaultExpr) {

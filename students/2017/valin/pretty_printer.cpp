@@ -1,4 +1,6 @@
 #include "ast.h"
+#include "mathvm.h"
+#include "parser.h"
 #include "pretty_printer.h"
 
 #define USING_NODES(type, name) using mathvm::type;
@@ -239,27 +241,39 @@ void AstPrinter::visitPrintNode(PrintNode * node)
 	code << ";";
 }
 
-void AstPrinter::pretty_printer(mathvm::AstFunction * root, std::ostream& code)
+mathvm::Status * AstPrinter::translate(const std::string& source, mathvm::Code ** program)
 {
-	AstPrinter printer(code);
+	mathvm::Parser parser;
+	mathvm::Status * status = parser.parseProgram(source);
+
+	if (!status->isOk()) {
+		std::cerr << status->getError() << '\n';
+		return status;
+	}
+
+	mathvm::AstFunction * root = parser.top();
+
 	BlockNode * rootBlock = root->node()->body();
 
 	mathvm::Scope::VarIterator i_var(rootBlock->scope(), false); 
 	while (i_var.hasNext()) {
-		Statement statement(&printer);
+		Statement statement(this);
 		AstVar * var = i_var.next();
-		printer.define(var);
+		this->define(var);
 	}
 
 	mathvm::Scope::FunctionIterator i_fun(rootBlock->scope(), false); 
 	while (i_fun.hasNext()) {
-		Statement statement(&printer);
+		Statement statement(this);
 		AstFunction * fun = i_fun.next();
-		printer.define(fun);
+		this->define(fun);
 	}
 
 	for (size_t i = 0; i < rootBlock->nodes(); ++i) {
-		Statement statement(&printer);
-		rootBlock->nodeAt(i)->visit(&printer);
+		Statement statement(this);
+		rootBlock->nodeAt(i)->visit(this);
 	}
+
+	return status;
 }
+

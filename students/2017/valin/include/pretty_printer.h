@@ -8,7 +8,7 @@
 
 namespace my {
 
-class AstPrinter : public mathvm::AstVisitor {
+class AstPrinter : public mathvm::AstVisitor, public mathvm::Translator {
 	mathvm::AstFunction * program;
 	mathvm::FunctionNode * top;
 	std::ostream& code;
@@ -89,7 +89,7 @@ class AstPrinter : public mathvm::AstVisitor {
 	void define(mathvm::AstFunction * fun);
 	void define(mathvm::AstVar * var);
 public:
-	AstPrinter(std::ostream& code) : code(code) {}
+	AstPrinter(std::ostream& code = std::cout) : code(code) {}
 
 #define VISITOR_FUNCTION(type, name) \
 	virtual void visit##type(mathvm::type* node);
@@ -97,7 +97,8 @@ public:
 	FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
 	
-	static void pretty_printer(mathvm::AstFunction * root, std::ostream& code);
+
+	virtual mathvm::Status * translate(const std::string& source, mathvm::Code ** program) override;
 };
 
 }
