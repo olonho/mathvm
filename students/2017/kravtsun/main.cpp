@@ -1,48 +1,47 @@
 #include "mathvm.h"
 
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-
-#include <iostream>
-
 using namespace mathvm;
 using namespace std;
 
 int main(int argc, char** argv) {
-    string impl = "";
-    const char* script = NULL;
+    string impl;
+    const char* script = nullptr;
     for (int32_t i = 1; i < argc; i++) {
-      if (string(argv[i]) == "-j") {
-        impl = "jit";
-      }  if (string(argv[i]) == "-p") {
-        impl = "printer";
-      } else {
-        script = argv[i];
-      }
+        string arg = argv[i];
+        if (arg == "-p") {
+            impl = "printer";
+        } else if (arg == "-j") {
+            impl = "jit";
+        } else if (arg == "-t") {
+            impl = "translator";
+        } else if (arg == "-i'") {
+            impl = "interpreter";
+        } else {
+            script = argv[i];
+        }
     }
+    
     Translator* translator = Translator::create(impl);
-
-    if (translator == 0) {
+    if (translator == nullptr) {
         cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
         return 1;
     }
 
     const char* expr = "double x; double y;"
-                        "x += 8.0; y = 2.0;"
-                        "print('Hello, x=',x,' y=',y,'\n');";
+                       "x += 8.0; y = 2.0;"
+                       "print('Hello, x=',x,' y=',y,'\n');";
     bool isDefaultExpr = true;
 
-    if (script != NULL) {
+    if (script != nullptr) {
         expr = loadFile(script);
-        if (expr == 0) {
+        if (expr == nullptr) {
             printf("Cannot read file: %s\n", script);
             return 1;
         }
         isDefaultExpr = false;
     }
 
-    Code* code = 0;
+    Code* code = nullptr;
 
     Status* translateStatus = translator->translate(expr, &code);
     if (translateStatus->isError()) {
@@ -54,38 +53,38 @@ int main(int argc, char** argv) {
                line, offset,
                translateStatus->getErrorCstr());
     } else {
-        if (impl != "printer") {
-          assert(code != 0);
-          vector<Var*> vars;
+        if (impl != "printer" && impl != "translator") {
+            assert(code != 0);
+            vector<Var*> vars;
 
-          if (isDefaultExpr) {
-            Var* xVar = new Var(VT_DOUBLE, "x");
-            Var* yVar = new Var(VT_DOUBLE, "y");
-            vars.push_back(xVar);
-            vars.push_back(yVar);
-            xVar->setDoubleValue(42.0);
-          }
-          Status* execStatus = code->execute(vars);
-          if (execStatus->isError()) {
-            printf("Cannot execute expression: error: %s\n",
-                   execStatus->getErrorCstr());
-          } else {
             if (isDefaultExpr) {
-              printf("x evaluated to %f\n", vars[0]->getDoubleValue());
-              for (uint32_t i = 0; i < vars.size(); i++) {
-                delete vars[i];
-              }
+                Var* xVar = new Var(VT_DOUBLE, "x");
+                Var* yVar = new Var(VT_DOUBLE, "y");
+                vars.push_back(xVar);
+                vars.push_back(yVar);
+                xVar->setDoubleValue(42.0);
             }
-          }
-          delete code;
-          delete execStatus;
+            Status* execStatus = code->execute(vars);
+            if (execStatus->isError()) {
+                printf("Cannot execute expression: error: %s\n",
+                       execStatus->getErrorCstr());
+            } else {
+                if (isDefaultExpr) {
+                    printf("x evaluated to %f\n", vars[0]->getDoubleValue());
+                    for (auto &var : vars) {
+                        delete var;
+                    }
+                }
+            }
+            delete code;
+            delete execStatus;
         }
     }
     delete translateStatus;
     delete translator;
 
     if (!isDefaultExpr) {
-      delete [] expr;
+        delete [] expr;
     }
 
     return 0;
