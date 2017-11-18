@@ -14,6 +14,8 @@
 #include <dlfcn.h>
 #include <fstream>
 
+#include "asmjit/asmjit.h"
+
 namespace my {
 
 class Code;
@@ -86,6 +88,7 @@ class Code : public mathvm::Code
 	    const mathvm::Signature * sign;
 	    const void * addr;
 	    std::vector<Val> val;
+		void (*foo)(void *, void *, void *);
 	public:
 	    Function(const mathvm::Signature * sign, const void * addr, std::vector<Val> val) : sign(sign), addr(addr), val(val) {}
 
@@ -97,62 +100,72 @@ class Code : public mathvm::Code
 	        return "int";
 	    }
 
-	    void generate() {
-	        std::ofstream out("tmp.c");
-	        out << "void wrapper(void * addr, void * res, void * args) {\n";
-
-			// cast to fun ptr
-			out << strType((*sign)[0]);
-	        out << "(*foo)(";
-
-	        if (sign->size() > 1) {
-	            out << strType((*sign)[1]);
-	        }
-
-	        for (size_t i = 2; i < sign->size(); ++i) {
-	            out << ", " << strType((*sign)[i]);
-	        }
-
-	        out << ")" << " = " << "addr;\n";
-
-			// init args
-	        for (size_t i = 1; i < sign->size(); ++i) {
-	            out << strType((*sign)[i]) << " * arg" << i << " = " << "args + " << (i - 1) * sizeof(Val) << ";\n";
-	        }
-
-			// call
-	        out << "*((" << strType((*sign)[0]) << "*) res) = foo(";
-	        if (sign->size() > 1) {
-	            out << "*arg1";
-	        }
-	        for (size_t i = 2; i < sign->size(); ++i) {
-	            out << ", *arg" << i;
-	        }
-	        out << ");\n";
-	        out << "}";
-	    }
-
-	    void compile() {
-	        assert(system("gcc tmp.c -shared -o tmp.so") == 0);
-	    }
-
 	    Val call() {
-	        void * wd = dlopen("./tmp.so", RTLD_NOW);
-			assert(wd);
+			using namespace asmjit;
+			using namespace asmjit::x86;
 
-			void (*wp)(void*, void*, void *) = reinterpret_cast<void (*)(void*, void*, void *)>(dlsym(wd, "wrapper"));
-			assert(wp);
+	        JitRuntime runtime;
+			X86Assembler as(&runtime);
+			X86Compiler c(&as);
 
-	        Val res;
-			res.I = 0;
-	        wp(const_cast<void*>(addr), &res, val.data());
+			c.addFunc(FuncBuilder3<void, void*, void*, void*>(kCallConvX64Unix));
 
-	        dlclose(wd);
+			c.emit(kX86InstIdPush, rbx);
+			// store fun pointer
+			c.emit(kX86InstIdPush, rdi);
+			// move res pointer
+			c.emit(kX86InstIdMov, rbx, rsi);
+			// move args pointer
+			c.emit(kX86InstIdMov, rax, rdx);
 
-		assert(system("rm tmp.c tmp.so") == 0);
+			constexpr int iCntMax = 6;
+			int iCnt = 0;
 
-	        return res;
-	    }
+			constexpr int dCntMax = 8;
+			int dCnt = 0;
+
+			const asmjit::X86GpReg* regs[] = { &rdi, &rsi, &rdx, &rcx, &r8, &r9 };
+			std::vector<X86Mem> mem;
+
+			for (size_t i = 1; i < sign->size(); ++i) {
+				auto p = c.intptr_ptr(rax, (i - 1) * 8);
+				mem.push_back(p);
+
+				if (dCnt < dCntMax && sign->at(i).first == mathvm::VarType::VT_DOUBLE) {
+					c.emit(kX86InstIdMovsd, xmm(dCnt), p);
+					dCnt++;
+				} else if (iCnt < iCntMax) {
+					c.emit(kX86InstIdMov, *regs[iCnt], p);
+					iCnt++;
+				} else {
+					assert(false);
+				}
+			}
+
+			// pop fun pointer
+			c.emit(kX86InstIdPop, rax);
+			c.emit(kX86InstIdCall, rax);
+
+			auto p = c.intptr_ptr(rbx);
+			if (sign->at(0).first == mathvm::VarType::VT_DOUBLE) {
+				c.emit(kX86InstIdMovsd, p, xmm(0));
+			} else {
+				c.emit(kX86InstIdMov, p, rax);
+			}
+
+			c.emit(kX86InstIdPop, rbx);
+			c.ret();
+			c.endFunc();
+			c.finalize();
+
+			/////////////
+
+			foo = asmjit_cast<void (*)(void *, void *, void *)>(as.make());
+
+			Val res;
+			foo(const_cast<void*>(addr), &res, &val[0]);
+			return res;
+		}
 	};
 
 

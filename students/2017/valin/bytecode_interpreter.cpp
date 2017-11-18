@@ -829,7 +829,6 @@ void Code::CALLNATIVE()
     const std::string * names;
     const void * addr = nativeById(funID, &sign, &names);
 
-    Val ret;
     int argn = sign->size() - 1;
     std::vector<Val> args;
 
@@ -838,10 +837,7 @@ void Code::CALLNATIVE()
         stack.pop();
     }
 
-    Function func(sign, addr, args);
-    func.generate();
-    func.compile();
-    ret = func.call();
+    Val ret = Function(sign, addr, args).call();
     stack.push(ret);
 }
 
