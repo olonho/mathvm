@@ -1,18 +1,9 @@
 #include "code_impl.hpp"
-#include <limits.h>
+#include "utils.hpp"
 
 using namespace mathvm;
 using namespace std;
-
-template <typename T>
-static T poptop(stack<T>& container)
-{
-    assert(!container.empty());
-
-    T res = container.top();
-    container.pop();
-    return res;
-}
+#define VAR_COUNT 4
 
 void InterpreterCodeImpl::disassemble(ostream& out, FunctionFilter* filter)
 {
@@ -33,56 +24,43 @@ struct Executer
     stack<LVar> st;
     Bytecode *bc = nullptr;
     uint32_t ip = 0;
-
-    LVar v0;
+    LVar regvs[VAR_COUNT];
     int gen = 0;
 
     #define PROCESS(b, s, l) void PR_##b();
     FOR_BYTECODES(PROCESS)
     #undef PROCESS
 
-    LVar& findVar(uint16_t id) {
-        using VarID = InterpreterCodeImpl::VarID;
-        auto& var = ctx->vars[VarID(id, gen)];
+    LVar& findVar(uint16_t id)
+    {
+        auto& var = ctx->vars[LVar::VarID(id, gen)];
         return var;
     }
 
 
-    void saveVars(vector<Var*>& in) {
-        using VarID = InterpreterCodeImpl::VarID;
+    void saveVars(vector<Var*>& in)
+    {
         for (auto var : in) {
             auto res = ctx->varNames.find(var->name());
             if (res == ctx->varNames.end())
                 continue;
 
             uint16_t id = res->second;
-            auto& st = ctx->vars[VarID(id, 0)];
-
-            switch (var->type()) {
-                case VT_INT: st.i = var->getIntValue(); break;
-                case VT_DOUBLE: st.d = var->getDoubleValue(); break;
-                case VT_STRING: st.s = var->getStringValue(); break;
-                default:;
-            }
+            auto& st = ctx->vars[LVar::VarID(id, 0)];
+            st.set(*var);
         }
     }
 
-    void restoreVars(vector<Var*>& in) {
-        using VarID = InterpreterCodeImpl::VarID;
+    void restoreVars(vector<Var*>& in)
+    {
         for (auto var : in) {
             auto res = ctx->varNames.find(var->name());
             if (res == ctx->varNames.end())
                 continue;
 
             uint16_t id = res->second;
-            auto& st = ctx->vars[VarID(id, 0)];
-
-            switch (var->type()) {
-                case VT_INT: var->setIntValue(st.i); break;
-                case VT_DOUBLE: var->setDoubleValue(st.d); break;
-                case VT_STRING: var->setStringValue(st.s); break;
-                default:;
-            }
+            auto& st = ctx->vars[LVar::VarID(id, 0)];
+            st.propagate(*var);
         }
     }
 
@@ -91,11 +69,10 @@ struct Executer
         auto main = (BytecodeFunction*)ctx->functionById(0);
         saveVars(in);
 
-        bytecodes.push(main->bytecode());
-        instructions.push(0);
-
-        bc = bytecodes.top();
+        bc = main->bytecode();
         ip = 0;
+        bytecodes.push(bc);
+        instructions.push(ip);
 
         try {
             while (ip < bc->length()) {
@@ -129,8 +106,6 @@ Status* InterpreterCodeImpl::execute(vector<Var*>& vars)
     e.ctx = this;
     return e.execute(vars);
 }
-
-
 
 void Executer::PR_INVALID()
 {
@@ -347,69 +322,100 @@ void Executer::PR_POP()
     st.pop();
 }
 
-void Executer::PR_LOADDVAR0() {PR_INVALID();}
-void Executer::PR_LOADDVAR1() {PR_INVALID();}
-void Executer::PR_LOADDVAR2() {PR_INVALID();}
-void Executer::PR_LOADDVAR3() {PR_INVALID();}
-void Executer::PR_LOADIVAR0() {
-    st.push(v0);
+void Executer::PR_LOADDVAR0()
+{
+    st.push(regvs[0]);
 }
-void Executer::PR_LOADIVAR1() {PR_INVALID();}
-void Executer::PR_LOADIVAR2() {PR_INVALID();}
-void Executer::PR_LOADIVAR3() {PR_INVALID();}
-void Executer::PR_LOADSVAR0() {PR_INVALID();}
-void Executer::PR_LOADSVAR1() {PR_INVALID();}
-void Executer::PR_LOADSVAR2() {PR_INVALID();}
-void Executer::PR_LOADSVAR3() {PR_INVALID();}
-void Executer::PR_STOREDVAR0() {PR_INVALID();}
-void Executer::PR_STOREDVAR1() {PR_INVALID();}
-void Executer::PR_STOREDVAR2() {PR_INVALID();}
-void Executer::PR_STOREDVAR3() {PR_INVALID();}
-void Executer::PR_STOREIVAR0() {
-    v0 = poptop(st);
+
+void Executer::PR_LOADDVAR1()
+{
+    st.push(regvs[1]);
 }
-void Executer::PR_STOREIVAR1() {PR_INVALID();}
-void Executer::PR_STOREIVAR2() {PR_INVALID();}
-void Executer::PR_STOREIVAR3() {PR_INVALID();}
-void Executer::PR_STORESVAR0() {PR_INVALID();}
-void Executer::PR_STORESVAR1() {PR_INVALID();}
-void Executer::PR_STORESVAR2() {PR_INVALID();}
-void Executer::PR_STORESVAR3() {PR_INVALID();}
+
+void Executer::PR_LOADDVAR2()
+{
+    st.push(regvs[2]);
+}
+
+void Executer::PR_LOADDVAR3()
+{
+    st.push(regvs[3]);
+}
+
+void Executer::PR_LOADIVAR0() {PR_LOADDVAR0();}
+void Executer::PR_LOADIVAR1() {PR_LOADDVAR1();}
+void Executer::PR_LOADIVAR2() {PR_LOADDVAR2();}
+void Executer::PR_LOADIVAR3() {PR_LOADDVAR3();}
+void Executer::PR_LOADSVAR0() {PR_LOADDVAR0();}
+void Executer::PR_LOADSVAR1() {PR_LOADDVAR1();}
+void Executer::PR_LOADSVAR2() {PR_LOADDVAR2();}
+void Executer::PR_LOADSVAR3() {PR_LOADDVAR3();}
+
+void Executer::PR_STOREDVAR0()
+{
+    regvs[0] = poptop(st);
+}
+
+void Executer::PR_STOREDVAR1()
+{
+    regvs[1] = poptop(st);
+}
+
+void Executer::PR_STOREDVAR2()
+{
+    regvs[2] = poptop(st);
+}
+
+void Executer::PR_STOREDVAR3()
+{
+    regvs[3] = poptop(st);
+}
+
+void Executer::PR_STOREIVAR0() {PR_STOREDVAR0();}
+void Executer::PR_STOREIVAR1() {PR_STOREDVAR1();}
+void Executer::PR_STOREIVAR2() {PR_STOREDVAR2();}
+void Executer::PR_STOREIVAR3() {PR_STOREDVAR3();}
+void Executer::PR_STORESVAR0() {PR_STOREDVAR0();}
+void Executer::PR_STORESVAR1() {PR_STOREDVAR1();}
+void Executer::PR_STORESVAR2() {PR_STOREDVAR2();}
+void Executer::PR_STORESVAR3() {PR_STOREDVAR3();}
 
 void Executer::PR_LOADDVAR()
 {
-//    auto id = GET_VAR(bc, ip, UInt16);
-//    st.push(ctx->vars[id]);
+    auto id = GET_VAR(bc, ip, UInt16);
+    assert(id < VAR_COUNT);
+
+    st.push(regvs[id]);
 }
 
 void Executer::PR_LOADIVAR()
 {
-//    auto id = GET_VAR(bc, ip, UInt16);
-//    st.push(ctx->vars[id]);
+    PR_LOADDVAR();
 }
 
 void Executer::PR_LOADSVAR()
 {
-//    auto id = GET_VAR(bc, ip, UInt16);
-//    st.push(ctx->vars[id]);
+    PR_LOADDVAR();
 }
 
 void Executer::PR_STOREDVAR()
 {
-//    LVar val = poptop(st);
-//    auto id = GET_VAR(bc, ip, UInt16);
-//    ctx->vars[id] = val;
+    LVar val = poptop(st);
+
+    auto id = GET_VAR(bc, ip, UInt16);
+    assert(id < VAR_COUNT);
+
+    regvs[id] = val;
 }
 
 void Executer::PR_STOREIVAR()
 {
-//    LVar val = poptop(st);
-//    auto id = GET_VAR(bc, ip, UInt16);
-//    ctx->vars[id] = val;
+    PR_STOREDVAR();
 }
 
 void Executer::PR_STORESVAR()
 {
+    PR_STOREDVAR();
 }
 
 void Executer::PR_LOADCTXDVAR()

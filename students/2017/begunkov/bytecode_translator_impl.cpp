@@ -1,34 +1,12 @@
 #include <queue>
 #include "code_impl.hpp"
 #include "parser.h"
+#include "utils.hpp"
 
 using namespace mathvm;
 using namespace std;
 
-template <typename T>
-static T poptop(stack<T>& container)
-{
-    assert(!container.empty());
-
-    T res = container.top();
-    container.pop();
-    return res;
-}
-
-template <typename T>
-class mapInc
-{
-    map<T, uint16_t> mp;
-    uint16_t lastNum = 0;
-
-public:
-    uint16_t operator[](T idx) {
-        auto it = mp.find(idx);
-        if (it == mp.end())
-            return mp[idx] = lastNum++;
-        return it->second;
-    }
-};
+#define VT_BOOL ((VarType)(VT_STRING + 1))
 
 namespace {
 class BCVisitor: public AstVisitor
@@ -44,6 +22,10 @@ public:
     mapInc<const AstVar*> vars;
 
     BCVisitor(): code(new InterpreterCodeImpl) {}
+
+    static bool isIntegral(int type) {
+        return type == VT_BOOL || type == VT_INT;
+    }
 
     void process(AstFunction *top)
     {
@@ -75,16 +57,17 @@ public:
         }
     }
 
-    void coercion()
+    bool coercion()
     {
         auto l = poptop(typestack);
         auto r = poptop(typestack);
+        bool rev = false;
 
         if (l != r) {
-            if (r == VT_INT) {
+            if (isIntegral(r)) {
                 bc->addInsn(BC_SWAP);
                 bc->addInsn(BC_I2D);
-                bc->addInsn(BC_SWAP);
+                rev = true;
             } else
                 bc->addInsn(BC_I2D);
 
@@ -93,10 +76,14 @@ public:
 
         typestack.push(l);
         typestack.push(l);
+        return rev;
     }
 
-    void normalize()
+    void normalize(int type)
     {
+        if (type == VT_BOOL)
+            return;
+
         Label lend(bc), lel(bc);
 
         bc->addInsn(BC_ILOAD0);
@@ -109,14 +96,38 @@ public:
         bc->bind(lend);
     }
 
+    Instruction orderReverese(Instruction i) {
+        switch (i) {
+        case BC_IFICMPE: return BC_IFICMPE;
+        case BC_IFICMPNE: return BC_IFICMPNE;
+        case BC_IFICMPL: return BC_IFICMPGE;
+        case BC_IFICMPG: return BC_IFICMPLE;
+        case BC_IFICMPLE: return BC_IFICMPG;
+        case BC_IFICMPGE: return BC_IFICMPL;
+        default: assert(false);
+        }
+    }
+
+    bool isCompareToken(TokenKind token) {
+        return tEQ <= token && token <= tLE;
+    }
+
+
     void compare(BinaryOpNode *node)
     {
         Label lend(bc), ltrue(bc);
 
-        coercion();
-        bc->addInsn(poptop(typestack) == VT_INT ? BC_ICMP : BC_DCMP);
-        bc->addInsn(BC_ILOAD0);
-        bc->addInsn(BC_SWAP);
+        auto l = poptop(typestack);
+        auto r = typestack.top();
+        typestack.push(l);
+        bool reversed = false;
+
+        if (!isIntegral(l) || !isIntegral(r)) {
+            reversed = coercion();
+            bc->addInsn(isIntegral(poptop(typestack)) ? BC_ICMP : BC_DCMP);
+            bc->addInsn(BC_ILOAD0);
+            reversed = !reversed;
+        }
 
         Instruction i = BC_INVALID;
         switch (node->kind()) {
@@ -126,8 +137,12 @@ public:
         case tGT: i = BC_IFICMPG; break;
         case tLE: i = BC_IFICMPLE; break;
         case tGE: i = BC_IFICMPGE; break;
-        default:;
+        default: assert(false);
         }
+
+        if (reversed)
+            i = orderReverese(i);
+
         bc->addBranch(i, ltrue);
         bc->addInsn(BC_ILOAD0);
         bc->addBranch(BC_JA, lend);
@@ -135,37 +150,38 @@ public:
         bc->addInsn(BC_ILOAD1);
         bc->bind(lend);
 
-        typestack.top() = VT_INT;
+        typestack.top() = VT_BOOL;
+    }
+
+    Instruction opToBC(TokenKind kind, bool integral)
+    {
+        if (integral) {
+            switch (kind) {
+            case tADD: return BC_IADD;
+            case tSUB: return BC_ISUB;
+            case tMUL: return BC_IMUL;
+            case tDIV: return BC_IDIV;
+            case tMOD: return BC_IMOD;
+            case tAAND: return BC_IAAND;
+            case tAOR: return BC_IAOR;
+            case tAXOR: return BC_IAXOR;
+            default: assert(false);
+            }
+        } else {
+            switch (kind) {
+            case tADD: return BC_DADD;
+            case tSUB: return BC_DSUB;
+            case tMUL: return BC_DMUL;
+            case tDIV: return BC_DDIV;
+            default: assert(false);
+            }
+        }
     }
 
     void arithmetic(BinaryOpNode *node)
     {
-        Instruction i = BC_INVALID;
-
         coercion();
-        if (poptop(typestack) == VT_INT) {
-            switch (node->kind()) {
-            case tADD: i = BC_IADD; break;
-            case tSUB: i = BC_ISUB; break;
-            case tMUL: i = BC_IMUL; break;
-            case tDIV: i = BC_IDIV; break;
-            case tMOD: i = BC_IMOD; break;
-            case tAAND: i = BC_IAAND; break;
-            case tAOR: i = BC_IAOR; break;
-            case tAXOR: i = BC_IAXOR; break;
-            default:;
-            }
-        } else {
-            switch (node->kind()) {
-            case tADD: i = BC_DADD; break;
-            case tSUB: i = BC_DSUB; break;
-            case tMUL: i = BC_DMUL; break;
-            case tDIV: i = BC_DDIV; break;
-            default:;
-            }
-        }
-
-        assert(i != BC_INVALID);
+        Instruction i = opToBC(node->kind(), isIntegral(poptop(typestack)));
         bc->addInsn(i);
     }
 
@@ -175,34 +191,32 @@ public:
         node->left()->visit(this);
 
         discard = true;
+        auto token = node->kind();
 
-        switch (node->kind()) {
-            case tRANGE:
-                return;
-            case tEQ:
-            case tNEQ:
-            case tLT:
-            case tLE:
-            case tGT:
-            case tGE:
-                return compare(node);
-            case tOR:
-            case tAND: {
-                typestack.pop();
-                normalize();
+        if (isCompareToken(token))
+            return compare(node);
+
+        if (token == tRANGE)
+            return;
+
+        if (token == tOR || token == tAND) {
+            normalize(poptop(typestack));
+            auto t = poptop(typestack);
+            if (t != VT_BOOL) {
                 bc->addInsn(BC_SWAP);
-                normalize();
-
-                switch (node->kind()) {
-                    case tOR: bc->addInsn(BC_IAOR); break;
-                    case tAND: bc->addInsn(BC_IAAND); break;
-                    default:;
-                }
-                break;
+                normalize(t);
             }
-            default:
-                return arithmetic(node);
+            switch (node->kind()) {
+                case tOR: bc->addInsn(BC_IAOR); break;
+                case tAND: bc->addInsn(BC_IAAND); break;
+                default: assert(false);
+            }
+            typestack.push(VT_BOOL);
+            return;
         }
+
+
+        return arithmetic(node);
     }
 
     void visitUnaryOpNode(UnaryOpNode *node) override
@@ -212,6 +226,14 @@ public:
 
         switch (node->kind()) {
             case tNOT: {
+                auto t = poptop(typestack);
+                typestack.push(VT_BOOL);
+
+                if (t == VT_BOOL) {
+                    bc->addInsn(BC_ILOAD1);
+                    bc->addInsn(BC_IAXOR);
+                    break;
+                }
                 Label end(bc), el(bc);
 
                 bc->addInsn(BC_ILOAD0);
@@ -223,11 +245,9 @@ public:
                 bc->addInsn(BC_ILOAD1);
                 bc->bind(end);
 
-                typestack.pop();
-                typestack.push(VT_INT);
                 break;
             } case tSUB: {
-                bc->addInsn(typestack.top() == VT_INT ? BC_INEG : BC_DNEG);
+                bc->addInsn(isIntegral(typestack.top()) ? BC_INEG : BC_DNEG);
                 break;
             }
             default:
@@ -272,6 +292,7 @@ public:
         typestack.push(node->var()->type());
 
         switch (typestack.top()) {
+            case VT_BOOL:
             case VT_INT: bc->addInsn(BC_LOADCTXIVAR); break;
             case VT_DOUBLE: bc->addInsn(BC_LOADCTXDVAR); break;
             case VT_STRING: bc->addInsn(BC_LOADCTXSVAR); break;
@@ -292,7 +313,7 @@ public:
         auto old = poptop(typestack);
 
         if (old != type)
-            bc->addInsn(old == VT_INT ? BC_I2D : BC_D2I);
+            bc->addInsn(isIntegral(old) ? BC_I2D : BC_D2I);
         typestack.push(type);
     }
 
@@ -301,7 +322,7 @@ public:
         node->value()->visit(this);
         cast(node->var()->type());
 
-        VarType sType = typestack.top();
+        VarType type = typestack.top();
         uint16_t scopeID = scopes[node->var()->owner()];
         uint16_t varID = vars[node->var()];
 
@@ -311,13 +332,13 @@ public:
             bc->addTyped(varID);
 
             Instruction insn = (node->op() == tINCRSET)
-                ? (sType == VT_INT ? BC_IADD : BC_DADD)
-                : (sType == VT_INT ? BC_ISUB : BC_DSUB);
+                ? (isIntegral(type) ? BC_IADD : BC_DADD)
+                : (isIntegral(type) ? BC_ISUB : BC_DSUB);
             bc->addInsn(insn);
         }
 
-        Instruction insn =  (sType == VT_INT) ? BC_STORECTXIVAR :
-                            (sType == VT_DOUBLE) ? BC_STORECTXDVAR :
+        Instruction insn =  isIntegral(type) ? BC_STORECTXIVAR :
+                            (type == VT_DOUBLE) ? BC_STORECTXDVAR :
                                                 BC_STORECTXSVAR;
 
         bc->addInsn(insn);
@@ -327,7 +348,7 @@ public:
         discard = false;
     }
 
-    void doublingVar() {
+    void cloneVar() {
         bc->addInsn(BC_STOREIVAR0);
         bc->addInsn(BC_LOADIVAR0);
         bc->addInsn(BC_LOADIVAR0);
@@ -346,7 +367,7 @@ public:
         bc->addTyped(var);
 
         bc->bind(lcheck);
-        doublingVar();
+        cloneVar();
         bc->addInsn(BC_LOADCTXIVAR);
         bc->addTyped(scope);
         bc->addTyped(var);
@@ -491,6 +512,7 @@ public:
 
             node->operandAt(i)->visit(this);
             switch (poptop(typestack)) {
+                case VT_BOOL:
                 case VT_INT: instr = BC_IPRINT; break;
                 case VT_DOUBLE: instr = BC_DPRINT; break;
                 case VT_STRING: instr = BC_SPRINT; break;
@@ -516,7 +538,6 @@ Status *BytecodeTranslatorImpl::translate(const string& program, Code ** pCode)
         return ret;
 
     BCVisitor visitor;
-//    visitor.init(parser.top()->scope());
     visitor.process(parser.top());
 
     Scope *scope = parser.top()->node()->body()->scope();

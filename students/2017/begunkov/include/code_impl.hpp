@@ -19,6 +19,37 @@ struct LVar {
         const char* s;
     };
 
+    void set(mathvm::Var& v) {
+        using namespace mathvm;
+        switch (v.type()) {
+            case VT_INT: i = v.getIntValue(); break;
+            case VT_DOUBLE: d = v.getDoubleValue(); break;
+            case VT_STRING: s = v.getStringValue(); break;
+            default: assert(false);
+        }
+    }
+
+    void propagate(mathvm::Var& v) {
+        using namespace mathvm;
+        switch (v.type()) {
+            case VT_INT: v.setIntValue(i); break;
+            case VT_DOUBLE: v.setDoubleValue(d); break;
+            case VT_STRING: v.setStringValue(s); break;
+            default: assert(false);
+        }
+    }
+
+    struct VarID {
+        uint16_t id;
+        int gen;
+
+        VarID(uint16_t id, int gen): id(id), gen(gen) {}
+
+        bool operator<(VarID rhs) const noexcept {
+            return id < rhs.id || (id == rhs.id && gen < rhs.gen);
+        }
+    };
+
     LVar() = default;
     LVar(const LVar&) = default;
 
@@ -32,20 +63,7 @@ class mathvm::InterpreterCodeImpl : public mathvm::Code
     friend struct Executer;
     friend class mathvm::BytecodeTranslatorImpl;
 
-    struct VarID {
-        uint16_t id;
-        int gen;
-
-        VarID(uint16_t id, int gen): id(id), gen(gen) {}
-
-        bool operator<(VarID rhs) const noexcept {
-            return id < rhs.id || (id == rhs.id && gen < rhs.gen);
-        }
-    };
-
-    std::map<VarID, LVar> vars;
-
-//    std::vector<std::map<uint16_t, LVar>> vars;
+    std::map<LVar::VarID, LVar> vars;
     std::map<std::string, uint16_t> varNames;
 
 public:
