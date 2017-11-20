@@ -75,6 +75,9 @@ public:
 	uint16_t minID() { return minid; }
 };
 
+using namespace asmjit;
+using namespace asmjit::x86;
+
 class Code : public mathvm::Code
 {
 	union Val {
@@ -86,27 +89,14 @@ class Code : public mathvm::Code
 	class Function
 	{
 	    const mathvm::Signature * sign;
-	    const void * addr;
-	    std::vector<Val> val;
+
+		JitRuntime runtime;
+		X86Assembler as;
+		X86Compiler c;
+
 		void (*foo)(void *, void *, void *);
 	public:
-	    Function(const mathvm::Signature * sign, const void * addr, std::vector<Val> val) : sign(sign), addr(addr), val(val) {}
-
-	    std::string strType(std::pair<mathvm::VarType, std::string> type) {
-	        if (type.first == mathvm::VarType::VT_DOUBLE) {
-	            return "double";
-	        }
-
-	        return "int";
-	    }
-
-	    Val call() {
-			using namespace asmjit;
-			using namespace asmjit::x86;
-
-	        JitRuntime runtime;
-			X86Assembler as(&runtime);
-			X86Compiler c(&as);
+	    Function(const mathvm::Signature * sign) : sign(sign), runtime(), as(&runtime), c(&as) {
 
 			c.addFunc(FuncBuilder3<void, void*, void*, void*>(kCallConvX64Unix));
 
@@ -158,16 +148,25 @@ class Code : public mathvm::Code
 			c.endFunc();
 			c.finalize();
 
-			/////////////
-
 			foo = asmjit_cast<void (*)(void *, void *, void *)>(as.make());
+		}
 
+	    std::string strType(std::pair<mathvm::VarType, std::string> type) {
+	        if (type.first == mathvm::VarType::VT_DOUBLE) {
+	            return "double";
+	        }
+
+	        return "int";
+	    }
+
+	    Val call(const void * addr, std::vector<Val> val) {
 			Val res;
 			foo(const_cast<void*>(addr), &res, &val[0]);
 			return res;
 		}
 	};
 
+	std::map<const mathvm::Signature*, Function*> funs;
 
 	class MyFrame {
 		typedef std::unordered_map<uint16_t, Val> Scope;

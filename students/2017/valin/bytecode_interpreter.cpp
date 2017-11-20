@@ -837,7 +837,16 @@ void Code::CALLNATIVE()
         stack.pop();
     }
 
-    Val ret = Function(sign, addr, args).call();
+    Val ret;
+    auto fun = funs.find(sign);
+    if (fun == funs.end()) {
+        Function * f = new Function(sign);
+        funs[sign] = f;
+        ret = f->call(addr, args);
+    } else {
+        ret = fun->second->call(addr, args);
+    }
+
     stack.push(ret);
 }
 
