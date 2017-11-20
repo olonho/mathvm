@@ -1,4 +1,5 @@
 #include <queue>
+#include <dlfcn.h>
 #include "code_impl.hpp"
 #include "parser.h"
 #include "utils.hpp"
@@ -18,6 +19,7 @@ public:
 
     stack<VarType> typestack;
     queue<AstFunction*> foos;
+    AstFunction* current;
     mapInc<Scope*> scopes;
     mapInc<const AstVar*> vars;
 
@@ -27,33 +29,34 @@ public:
         return type == VT_BOOL || type == VT_INT;
     }
 
+
     void process(AstFunction *top)
     {
         addFoo(top);
         while (!foos.empty()) {
-            auto foo = foos.front();
+            current = foos.front();
             foos.pop();
-            TranslatedFunction *trFoo = code->functionByName(foo->name());
+            TranslatedFunction *trFoo = code->functionByName(current->name());
             bc = ((BytecodeFunction*)trFoo)->bytecode();
 
-            for (uint32_t i = 0; i < foo->parametersNumber(); ++i) {
+            for (uint32_t i = 0; i < current->parametersNumber(); ++i) {
                 Instruction instr;
 
-                switch (foo->parameterType(i)) {
+                switch (current->parameterType(i)) {
                     case VT_INT: instr = BC_STORECTXIVAR; break;
                     case VT_DOUBLE: instr = BC_STORECTXDVAR; break;
                     case VT_STRING: instr = BC_STORECTXSVAR; break;
                     default: assert(false);
                 }
-                auto var = foo->scope()->lookupVariable(foo->parameterName(i));
+                auto var = current->scope()->lookupVariable(current->parameterName(i));
 
                 bc->addInsn(instr);
-                bc->addTyped(scopes[foo->scope()]);
+                bc->addTyped(scopes[current->scope()]);
                 bc->addTyped(vars[var]);
             }
 
-            typestack.push(foo->returnType());
-            foo->node()->visit(this);
+            typestack.push(current->returnType());
+            current->node()->visit(this);
         }
     }
 
@@ -96,23 +99,6 @@ public:
         bc->bind(lend);
     }
 
-    Instruction orderReverese(Instruction i) {
-        switch (i) {
-        case BC_IFICMPE: return BC_IFICMPE;
-        case BC_IFICMPNE: return BC_IFICMPNE;
-        case BC_IFICMPL: return BC_IFICMPGE;
-        case BC_IFICMPG: return BC_IFICMPLE;
-        case BC_IFICMPLE: return BC_IFICMPG;
-        case BC_IFICMPGE: return BC_IFICMPL;
-        default: assert(false);
-        }
-    }
-
-    bool isCompareToken(TokenKind token) {
-        return tEQ <= token && token <= tLE;
-    }
-
-
     void compare(BinaryOpNode *node)
     {
         Label lend(bc), ltrue(bc);
@@ -153,30 +139,7 @@ public:
         typestack.top() = VT_BOOL;
     }
 
-    Instruction opToBC(TokenKind kind, bool integral)
-    {
-        if (integral) {
-            switch (kind) {
-            case tADD: return BC_IADD;
-            case tSUB: return BC_ISUB;
-            case tMUL: return BC_IMUL;
-            case tDIV: return BC_IDIV;
-            case tMOD: return BC_IMOD;
-            case tAAND: return BC_IAAND;
-            case tAOR: return BC_IAOR;
-            case tAXOR: return BC_IAXOR;
-            default: assert(false);
-            }
-        } else {
-            switch (kind) {
-            case tADD: return BC_DADD;
-            case tSUB: return BC_DSUB;
-            case tMUL: return BC_DMUL;
-            case tDIV: return BC_DDIV;
-            default: assert(false);
-            }
-        }
-    }
+
 
     void arithmetic(BinaryOpNode *node)
     {
@@ -296,7 +259,7 @@ public:
             case VT_INT: bc->addInsn(BC_LOADCTXIVAR); break;
             case VT_DOUBLE: bc->addInsn(BC_LOADCTXDVAR); break;
             case VT_STRING: bc->addInsn(BC_LOADCTXSVAR); break;
-            default:;
+            default: assert(false);
         }
 
         auto pVar = node->var();
@@ -471,11 +434,9 @@ public:
     void visitReturnNode(ReturnNode *node) override
     {
         node->visitChildren(this);
-        AstNode *ret = node->returnExpr();
 
-        auto type = typestack.top();
-        if (ret != nullptr && type != VT_VOID) {
-            cast(type);
+        if (current->returnType() != VT_VOID) {
+            cast(current->returnType());
             typestack.pop();
         }
         bc->addInsn(BC_RETURN);
@@ -500,9 +461,36 @@ public:
             typestack.push(foo->returnType());
     }
 
+    void loadVar(AstVar *var) {
+        Instruction ins;
+        switch (var->type()) {
+            case VT_BOOL:
+            case VT_INT: ins = BC_LOADCTXIVAR; break;
+            case VT_DOUBLE: ins = BC_LOADCTXDVAR; break;
+            case VT_STRING: ins = BC_LOADCTXIVAR; break;
+            default: assert(false);
+        }
+
+        bc->addInsn(ins);
+        bc->addTyped(scopes[var->owner()]);
+        bc->addTyped(vars[var]);
+    }
+
     void visitNativeCallNode(NativeCallNode *foo) override
     {
-        // todo:
+        auto& s = foo->nativeSignature();
+
+        for (size_t i = 1; i < s.size(); ++i) {
+            auto v = current->scope()->lookupVariable(s[i].second, true);
+            loadVar(v);
+        }
+
+        auto handler = dlopen(nullptr, RTLD_LAZY);
+        void *p = dlsym(handler, foo->nativeName().c_str());
+        auto id = code->makeNativeFunction(foo->nativeName(), s, p);
+
+        bc->addInsn(BC_CALLNATIVE);
+        bc->addTyped(id);
     }
 
     void visitPrintNode(PrintNode *node) override
@@ -525,10 +513,6 @@ public:
 };
 } // !namespace ::
 
-
-
-
-
 Status *BytecodeTranslatorImpl::translate(const string& program, Code ** pCode)
 {
     Parser parser;
@@ -549,6 +533,3 @@ Status *BytecodeTranslatorImpl::translate(const string& program, Code ** pCode)
     *pCode = visitor.code.release();
     return ret;
 }
-
-
-

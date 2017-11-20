@@ -5,7 +5,7 @@ VM_ROOT = ../../..
 NO_JIT = 1
 #WITH_SDL = 0
 
-USER_CFLAGS = -std=c++11 -Wno-unused-function -Wno-error=switch -Wno-switch
+USER_CFLAGS = -std=c++11 -Wno-unused-function -Wno-error=switch -Wno-switch -ldl
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
