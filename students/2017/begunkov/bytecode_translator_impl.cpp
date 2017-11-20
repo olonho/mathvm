@@ -139,15 +139,6 @@ public:
         typestack.top() = VT_BOOL;
     }
 
-
-
-    void arithmetic(BinaryOpNode *node)
-    {
-        coercion();
-        Instruction i = opToBC(node->kind(), isIntegral(poptop(typestack)));
-        bc->addInsn(i);
-    }
-
     void visitBinaryOpNode(BinaryOpNode *node) override
     {
         node->right()->visit(this);
@@ -179,7 +170,11 @@ public:
         }
 
 
-        return arithmetic(node);
+        bool rev = coercion();
+        Instruction i = opToBC(node->kind(), isIntegral(poptop(typestack)));
+        if (rev)
+            bc->addInsn(BC_SWAP);
+        bc->addInsn(i);
     }
 
     void visitUnaryOpNode(UnaryOpNode *node) override
@@ -488,6 +483,8 @@ public:
         auto handler = dlopen(nullptr, RTLD_LAZY);
         void *p = dlsym(handler, foo->nativeName().c_str());
         auto id = code->makeNativeFunction(foo->nativeName(), s, p);
+        assert(p);
+
 
         bc->addInsn(BC_CALLNATIVE);
         bc->addTyped(id);
