@@ -582,12 +582,15 @@ void Executer::PR_CALL()
     enterFunction(foo);
 }
 
+extern "C" {
+    double run_native_foo_double(double *, int64_t *, void *);
+    int64_t run_native_foo_int(double *, int64_t *, void *);
+    char *run_native_foo_char(double *, int64_t *, void *);
+}
+
 void Executer::PR_CALLNATIVE()
 {
     auto id = GET_VAR(bc, ip, UInt16);
-
-//    void *stack = malloc(16 * 1000);
-
     const Signature *signature;
     const string *name;
     const void *ex = ctx->nativeById(id, &signature, &name);
@@ -598,7 +601,7 @@ void Executer::PR_CALLNATIVE()
     size_t regsz = 0;
     intptr_t regs[max(sz, (size_t)8)] = {};
     size_t flssz = 0;
-    double fls[max(sz, (size_t)8)] = {};
+    double fls[max(sz, (size_t)8)] = {123, 124, 125, 126, 127};
 
     for (size_t i = 1; i < signature->size(); ++i) {
         if ((*signature)[i].first == VT_DOUBLE)
@@ -610,41 +613,20 @@ void Executer::PR_CALLNATIVE()
     for (size_t i = 1; i < signature->size(); ++i)
         st.pop();
 
-    size_t resi = 1;
-    double resd = 0.0;
-
-    asm volatile (
-        "mov %1, %%r14;"
-        "movsd 0(%2), %%xmm0;"
-        "movsd 8(%2), %%xmm1;"
-        "movsd 16(%2), %%xmm2;"
-        "movsd 24(%2), %%xmm3;"
-        "movsd 32(%2), %%xmm4;"
-        "movsd 40(%2), %%xmm5;"
-        "movsd 48(%2), %%xmm6;"
-        "movsd 56(%2), %%xmm7;"
-        "mov 0(%3), %%rdi;"
-        "mov 8(%3), %%rsi;"
-        "mov 16(%3), %%rdx;"
-        "mov 24(%3), %%rcx;"
-        "mov 32(%3), %%r8;"
-        "mov 40(%3), %%r9;"
-        "call %4;"
-        "mov %%rax, %0;"
-        "movsd %%xmm0, 0(%%r14);"
-        : "=r" (resi)
-        : "r" (&resd), "r" (fls), "r" (regs), "r" (ex)
-        : "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
-            "rdi", "rsi", "rdx", "rcx", "r8", "r8", "rax", "rbx", "r14"
-    );
-
-
     auto ret = signature[0][0].first;
     if (ret == VT_INT || ret == VT_STRING) {
-        st.push(LVar((int64_t)resi));
+        auto res = run_native_foo_int(fls, regs, (void *)ex);
+        st.push(LVar(res));
+    } else if (ret == VT_STRING) {
+        auto res = run_native_foo_char(fls, regs, (void *)ex);
+        st.push(LVar(res));
     } else if (ret == VT_DOUBLE) {
-        st.push(LVar(resd));
-    }
+        double res = run_native_foo_double(fls, regs, (void *)ex);
+        st.push(LVar(res));
+    } else if (ret == VT_VOID){
+        (void)run_native_foo_int(fls, regs, (void *)ex);
+    } else
+        assert(false);
 }
 
 void Executer::PR_RETURN()
