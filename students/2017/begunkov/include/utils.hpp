@@ -3,6 +3,7 @@
 
 #include <stack>
 #include <map>
+#include <vector>
 #include "mathvm.h"
 
 template <typename T>
@@ -16,12 +17,33 @@ static T poptop(std::stack<T>& container)
 }
 
 template <typename T>
+class MStack : public std::vector<T>
+{
+public:
+    void push(const T& v) {
+        this->push_back(v);
+    }
+
+    void emplace(T v) {
+        this->push_back(std::move(v));
+    }
+
+    void pop() {
+        this->pop_back();
+    }
+
+    T& top() {
+        return this->back();
+    }
+};
+
+template <typename T>
 class mapInc
 {
+public:
     std::map<T, uint16_t> mp;
     uint16_t lastNum = 0;
 
-public:
     uint16_t operator[](T idx) {
         auto it = mp.find(idx);
         if (it == mp.end())
@@ -29,6 +51,15 @@ public:
         return it->second;
     }
 };
+
+template <typename T>
+T poptop(MStack<T>& st) {
+    assert(!st.empty());
+
+    T res = st.top();
+    st.pop();
+    return res;
+}
 
 inline mathvm::Instruction opToBC(mathvm::TokenKind kind, bool integral)
 {

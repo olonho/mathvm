@@ -22,8 +22,14 @@ public:
     AstFunction* current;
     mapInc<Scope*> scopes;
     mapInc<const AstVar*> vars;
+    void *processSpace;
 
-    BCVisitor(): code(new InterpreterCodeImpl) {}
+    map<Scope*, Scope*> block2foo;
+
+
+    BCVisitor(): code(new InterpreterCodeImpl) {
+        processSpace = dlopen(nullptr, RTLD_LAZY);
+    }
 
     static bool isIntegral(int type) {
         return type == VT_BOOL || type == VT_INT;
@@ -36,6 +42,8 @@ public:
         while (!foos.empty()) {
             current = foos.front();
             foos.pop();
+            block2foo[current->scope()] = current->scope();
+
             TranslatedFunction *trFoo = code->functionByName(current->name());
             bc = ((BytecodeFunction*)trFoo)->bytecode();
 
@@ -258,7 +266,7 @@ public:
         }
 
         auto pVar = node->var();
-        auto scope = scopes[pVar->owner()];
+        auto scope = scopes[block2foo[pVar->owner()]];
         auto var = vars[pVar];
         bc->addTyped(scope);
         bc->addTyped(var);
@@ -281,7 +289,7 @@ public:
         cast(node->var()->type());
 
         VarType type = typestack.top();
-        uint16_t scopeID = scopes[node->var()->owner()];
+        uint16_t scopeID = scopes[block2foo[node->var()->owner()]];
         uint16_t varID = vars[node->var()];
 
         if (node->op() != tASSIGN) {
@@ -316,7 +324,7 @@ public:
     void visitForNode(ForNode *node) override
     {
         Label lbody(bc), lcheck(bc), lend(bc);
-        uint16_t scope = scopes[node->var()->owner()];
+        uint16_t scope = scopes[block2foo[node->var()->owner()]];
         uint16_t var = vars[node->var()];
 
         node->inExpr()->visit(this);
@@ -397,14 +405,17 @@ public:
 
     void addFoo(AstFunction *foo) {
         foos.push(foo);
-        code->addFunction(new BytecodeFunction(foo));
+        auto trfoo = new BytecodeFunction(foo);
+        auto scope = foo->scope();
+        trfoo->setScopeId(scopes[scope]);
+        code->addFunction(trfoo);
     }
 
 
     void visitBlockNode(BlockNode *node) override
     {
         auto scope = node->scope();
-        (void)scopes[scope];
+        block2foo[scope] = current->scope();
 
         for (Scope::FunctionIterator it(scope); it.hasNext(); )
             addFoo(it.next());
@@ -467,7 +478,7 @@ public:
         }
 
         bc->addInsn(ins);
-        bc->addTyped(scopes[var->owner()]);
+        bc->addTyped(scopes[block2foo[var->owner()]]);
         bc->addTyped(vars[var]);
     }
 
@@ -480,11 +491,9 @@ public:
             loadVar(v);
         }
 
-        auto handler = dlopen(nullptr, RTLD_LAZY);
-        void *p = dlsym(handler, foo->nativeName().c_str());
+        void *p = dlsym(processSpace, foo->nativeName().c_str());
         auto id = code->makeNativeFunction(foo->nativeName(), s, p);
-        assert(p);
-
+        assert(p && "Native function isn't loaded");
 
         bc->addInsn(BC_CALLNATIVE);
         bc->addTyped(id);
@@ -527,6 +536,7 @@ Status *BytecodeTranslatorImpl::translate(const string& program, Code ** pCode)
         visitor.code->varNames[var->name()] = visitor.vars[var];
     }
 
+    visitor.code->vars.resize(visitor.scopes.lastNum);
     *pCode = visitor.code.release();
     return ret;
 }

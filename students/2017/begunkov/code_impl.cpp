@@ -14,37 +14,6 @@ void InterpreterCodeImpl::disassemble(ostream& out, FunctionFilter* filter)
     }
 }
 
-template <typename T>
-class MStack : public vector<T>
-{
-public:
-    void push(const T& v) {
-        this->push_back(v);
-    }
-
-    void emplace(T v) {
-        this->push_back(move(v));
-    }
-
-    void pop() {
-        this->pop_back();
-    }
-
-    T& top() {
-        return (*this)[this->size()-1];
-    }
-
-};
-
-template <typename T>
-T poptop(MStack<T>& st) {
-    assert(!st.empty());
-
-    T res = st.top();
-    st.pop();
-    return res;
-}
-
 namespace mathvm {
 struct Executer
 {
@@ -52,19 +21,42 @@ struct Executer
 
     stack<uint32_t> instructions;
     stack<Bytecode*> bytecodes;
+    stack<BytecodeFunction*> foos;
+
     MStack<LVar> st;
     Bytecode *bc = nullptr;
     uint32_t ip = 0;
     LVar regvs[VAR_COUNT];
-    int gen = 0;
 
     #define PROCESS(b, s, l) void PR_##b();
     FOR_BYTECODES(PROCESS)
     #undef PROCESS
 
-    LVar& findVar(uint16_t id)
+    void enterFunction(BytecodeFunction *foo) {
+        instructions.push(ip);
+        bytecodes.push(bc);
+        foos.push(foo);
+
+        bc = foo->bytecode();
+        ip = 0;
+
+        auto& batch = ctx->vars[foo->scopeId()];
+        batch.resize(batch.size() + 1);
+    }
+
+    void leaveFunction() {
+        auto current = foos.top();
+        auto& batch = ctx->vars[current->scopeId()];
+        batch.resize(batch.size() - 1);
+
+        ip = poptop(instructions);
+        bc = poptop(bytecodes);
+        foos.pop();
+    }
+
+    LVar& findVar(uint16_t id, uint16_t scope)
     {
-        auto& var = ctx->vars[LVar::VarID(id, gen)];
+        auto& var = ctx->vars[scope].back()[id];
         return var;
     }
 
@@ -77,7 +69,7 @@ struct Executer
                 continue;
 
             uint16_t id = res->second;
-            auto& st = ctx->vars[LVar::VarID(id, 0)];
+            auto& st = findVar(id, 0);
             st.set(*var);
         }
     }
@@ -90,7 +82,7 @@ struct Executer
                 continue;
 
             uint16_t id = res->second;
-            auto& st = ctx->vars[LVar::VarID(id, 0)];
+            auto& st = findVar(id, 0);
             st.propagate(*var);
         }
     }
@@ -100,10 +92,7 @@ struct Executer
         auto main = (BytecodeFunction*)ctx->functionById(0);
         saveVars(in);
 
-        bc = main->bytecode();
-        ip = 0;
-        bytecodes.push(bc);
-        instructions.push(ip);
+        enterFunction(main);
 
         try {
             while (ip < bc->length()) {
@@ -451,9 +440,9 @@ void Executer::PR_STORESVAR()
 
 void Executer::PR_LOADCTXDVAR()
 {
-    (void)GET_VAR(bc, ip, UInt16);
+    auto scope = GET_VAR(bc, ip, UInt16);
     auto varid = GET_VAR(bc, ip, UInt16);
-    auto& var = findVar(varid);
+    auto& var = findVar(varid, scope);
     st.push(var);
 }
 
@@ -469,9 +458,9 @@ void Executer::PR_LOADCTXSVAR()
 
 void Executer::PR_STORECTXDVAR()
 {
-    (void)GET_VAR(bc, ip, UInt16);
+    auto scope = GET_VAR(bc, ip, UInt16);
     auto varid = GET_VAR(bc, ip, UInt16);
-    auto& var = findVar(varid);
+    auto& var = findVar(varid, scope);
     var = poptop(st);
 }
 
@@ -589,14 +578,8 @@ void Executer::PR_STOP()
 void Executer::PR_CALL()
 {
     auto id = GET_VAR(bc, ip, UInt16);
-    ++gen;
-
     auto foo = (BytecodeFunction*)ctx->functionById(id);
-    instructions.push(ip);
-    bytecodes.push(bc);
-
-    bc = foo->bytecode();
-    ip = 0;
+    enterFunction(foo);
 }
 
 void Executer::PR_CALLNATIVE()
@@ -666,9 +649,7 @@ void Executer::PR_CALLNATIVE()
 
 void Executer::PR_RETURN()
 {
-    --gen;
-    bc = poptop(bytecodes);
-    ip = poptop(instructions);
+    leaveFunction();
 }
 
 void Executer::PR_BREAK()

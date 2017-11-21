@@ -63,7 +63,10 @@ class mathvm::InterpreterCodeImpl : public mathvm::Code
     friend struct Executer;
     friend class mathvm::BytecodeTranslatorImpl;
 
-    std::map<LVar::VarID, LVar> vars;
+    // scopes   stack       vars
+    std::vector<std::vector<std::map<uint16_t, LVar> > > vars;
+
+//    std::map<LVar::VarID, LVar> vars;
     std::map<std::string, uint16_t> varNames;
 
 public:
