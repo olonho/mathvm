@@ -394,7 +394,7 @@ void Code::I2D()
 void Code::D2I()
 {
     Val &v = stack.top();
-    v.I = (double) v.D;
+    v.I = (int) v.D;
 }
 
 void Code::S2I()
@@ -675,7 +675,7 @@ void Code::DCMP()
     r = stack.top();
     stack.pop();
 
-    double d = l.I - r.I;
+    double d = l.D - r.D;
     d = d ? d / abs(d) : 0;
 
     v.I = (int) d;
