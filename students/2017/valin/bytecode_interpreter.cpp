@@ -675,10 +675,13 @@ void Code::DCMP()
     r = stack.top();
     stack.pop();
 
-    double d = l.D - r.D;
-    d = d ? d / abs(d) : 0;
-
-    v.I = (int) d;
+    if (l.D < r.D) {
+        v.I = -1;
+    } else if (l.D > r.D) {
+        v.I = 1;
+    } else {
+        v.I = 0;
+    }
 
     stack.push(v);
 }
