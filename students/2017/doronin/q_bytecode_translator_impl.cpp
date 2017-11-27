@@ -145,12 +145,61 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 
         case tOR: {
             _type.pop();
+            {
+                Label push0(bytecode());
+                Label out(bytecode());
+                bytecode()->addInsn(BC_ILOAD0);
+                bytecode()->addBranch(BC_IFICMPE, push0);
+                bytecode()->addInsn(BC_ILOAD1);
+                bytecode()->addBranch(BC_JA, out);
+                bytecode()->bind(push0);
+                bytecode()->addInsn(BC_ILOAD0);
+                bytecode()->bind(out);
+            }
+            bytecode()->addInsn(BC_SWAP);
+            {
+                Label push0(bytecode());
+                Label out(bytecode());
+                bytecode()->addInsn(BC_ILOAD0);
+                bytecode()->addBranch(BC_IFICMPE, push0);
+                bytecode()->addInsn(BC_ILOAD1);
+                bytecode()->addBranch(BC_JA, out);
+                bytecode()->bind(push0);
+                bytecode()->addInsn(BC_ILOAD0);
+                bytecode()->bind(out);
+            }
+
             bytecode()->addInsn(BC_IAOR);
         }
         break;
 
         case tAND: {
             _type.pop();
+
+            {
+                Label push0(bytecode());
+                Label out(bytecode());
+                bytecode()->addInsn(BC_ILOAD0);
+                bytecode()->addBranch(BC_IFICMPE, push0);
+                bytecode()->addInsn(BC_ILOAD1);
+                bytecode()->addBranch(BC_JA, out);
+                bytecode()->bind(push0);
+                bytecode()->addInsn(BC_ILOAD0);
+                bytecode()->bind(out);
+            }
+            bytecode()->addInsn(BC_SWAP);
+            {
+                Label push0(bytecode());
+                Label out(bytecode());
+                bytecode()->addInsn(BC_ILOAD0);
+                bytecode()->addBranch(BC_IFICMPE, push0);
+                bytecode()->addInsn(BC_ILOAD1);
+                bytecode()->addBranch(BC_JA, out);
+                bytecode()->bind(push0);
+                bytecode()->addInsn(BC_ILOAD0);
+                bytecode()->bind(out);
+            }
+
             bytecode()->addInsn(BC_IAAND);
         }
         break;
@@ -211,7 +260,7 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node) {
 
 }
 
-void BytecodeVisitor::visitBlockNode(BlockNode *node) { // 100
+void BytecodeVisitor::visitBlockNode(BlockNode *node) {
 
     for (Scope::FunctionIterator it(node->scope()); it.hasNext();) {
         AstFunction *foo = it.next();
@@ -221,6 +270,11 @@ void BytecodeVisitor::visitBlockNode(BlockNode *node) { // 100
     for (uint32_t i = 0; i < node->nodes(); ++i) {
         AstNode *cld = node->nodeAt(i);
         cld->visit(this);
+
+        if (cld->isCallNode()
+                && _code.functionByName(cld->asCallNode()->name())->returnType() != VT_VOID) {
+            bytecode()->addInsn(BC_POP);
+        }
     }
 
     _code.addDependencies(functionId(), _code.getScope(node->scope()));
