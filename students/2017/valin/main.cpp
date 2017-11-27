@@ -56,6 +56,7 @@ int main(int argc, char** argv) {
     } else {
         if (impl != "printer") {
           assert(code != 0);
+          code->disassemble();
           vector<Var*> vars;
 
           if (isDefaultExpr) {
