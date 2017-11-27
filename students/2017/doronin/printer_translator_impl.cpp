@@ -6,7 +6,6 @@
 
 namespace mathvm {
 
-
 Status* PrinterTranslatorImpl::translate(const string& program, Code* *code) {
     Parser parser;
     Status* status = parser.parseProgram(program);

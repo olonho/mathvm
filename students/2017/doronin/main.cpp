@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+
 #include <iostream>
 
 using namespace mathvm;
@@ -77,7 +78,7 @@ int main(int argc, char** argv) {
               }
             }
           }
-          delete code;
+          //delete code;
           delete execStatus;
         }
     }

@@ -26,8 +26,6 @@ class PrinterVisitor : public AstVisitor {
     PrinterVisitor(std::ostream& strm);
     virtual ~PrinterVisitor() = default;
 
-
-
 #define VISITOR_FUNCTION(type, name) \
     virtual void visit##type(type* node);
 
