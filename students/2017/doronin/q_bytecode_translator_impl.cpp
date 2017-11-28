@@ -573,14 +573,25 @@ void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 
     switch (node->kind())
     {
-        case mathvm::tNOT:
+        case mathvm::tNOT: {
             _type.pop();
+
+            Label push0(bytecode());
+            Label out(bytecode());
+            bytecode()->addInsn(BC_ILOAD0);
+            bytecode()->addBranch(BC_IFICMPE, push0);
             bytecode()->addInsn(BC_ILOAD1);
-            bytecode()->addInsn(BC_IAAND);
+            bytecode()->addBranch(BC_JA, out);
+            bytecode()->bind(push0);
+            bytecode()->addInsn(BC_ILOAD0);
+            bytecode()->bind(out);
+
+
             bytecode()->addInsn(BC_ILOAD1);
             bytecode()->addInsn(BC_IAXOR);
             _type.push(VT_INT);
-            break;
+        }
+        break;
 
         case mathvm::tSUB:
             switch (_type.top())
