@@ -99,7 +99,9 @@ namespace mathvm {
             assert(!_contextsIdCount.empty());
             _variables[_contextsIdCount.top().first].pop();
             _contextsIdCount.pop();
-            refreshCache();
+            if (!_contextsIdCount.empty()) {
+                refreshCache();
+            }
         }
 
         void ContextsVariable::checkCache(uint16_t varId) {
@@ -221,7 +223,7 @@ namespace mathvm {
                         setUInt16(ctxIdCount.first, i, _cache[i].stringValue());
                         break;
 
-                    default: getVar(ctxIdCount.first, i).type() = VT_INVALID;
+                    default: break;
                 }
             }
         }

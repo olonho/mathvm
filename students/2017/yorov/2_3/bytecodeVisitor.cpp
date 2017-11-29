@@ -400,8 +400,22 @@ namespace mathvm {
     }
 
     void BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
-        throw std::logic_error("not implemented");
+        void* code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+        if (code == nullptr) {
+            throw std::logic_error("Native function not found");
+        }
+        uint16_t nativeId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
+
+        Bytecode* bytecode = _context->function()->bytecode();
+        bytecode->addInsn(BC_CALLNATIVE);
+        bytecode->addUInt16(nativeId);
+
+        VarType returnType = node->nativeSignature()[0].first;
+        if (returnType != VT_VOID && returnType != VT_INVALID) {
+            _TOSType = returnType;
+        }
     }
+
 
     void BytecodeVisitor::visitCallNode(CallNode* node) {
         const std::string& name = node->name();
