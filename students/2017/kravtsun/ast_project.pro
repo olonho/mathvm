@@ -34,7 +34,10 @@ SOURCES += main.cpp \
     ../../../libs/asmjit/x86/x86compilerfunc.cpp \
     ../../../libs/asmjit/x86/x86inst.cpp \
     ../../../libs/asmjit/x86/x86operand.cpp \
-    ../../../libs/asmjit/x86/x86operand_regs.cpp
+    ../../../libs/asmjit/x86/x86operand_regs.cpp \
+    ast_printer.cpp \
+    code_generator.cpp \
+    bytecode_translator.cpp
 
 HEADERS += \
     ../../../include/ast.h \
@@ -73,7 +76,10 @@ HEADERS += \
     ../../../libs/asmjit/base.h \
     ../../../libs/asmjit/build.h \
     ../../../libs/asmjit/host.h \
-    ../../../libs/asmjit/x86.h
+    ../../../libs/asmjit/x86.h \
+    ast_printer.h \
+    code_generator.h \
+    bytecode_translator.h
 
 
 INCLUDEPATH += ../../../include/ # VM_ROOT
@@ -82,4 +88,31 @@ INCLUDEPATH += ../../../vm
 
 INCLUDEPATH += . # ROOT
 
-QMAKE_CXXFLAGS += -Wno-unused-parameter
+QMAKE_CXXFLAGS += -Wno-unused-parameter -Wno-ignored-qualifiers
+
+DISTFILES += \
+    tests/add.expect \
+    tests/assign.expect \
+    tests/bitwise.expect \
+    tests/div.expect \
+    tests/expr.expect \
+    tests/for.expect \
+    tests/if.expect \
+    tests/literal.expect \
+    tests/mul.expect \
+    tests/sub.expect \
+    tests/while.expect \
+    tests/add.mvm \
+    tests/assign.mvm \
+    tests/bitwise.mvm \
+    tests/div.mvm \
+    tests/expr.mvm \
+    tests/for.mvm \
+    tests/if.mvm \
+    tests/literal.mvm \
+    tests/mul.mvm \
+    tests/sub.mvm \
+    tests/while.mvm \
+    tests/function.expect \
+    tests/function.mvm \
+    tests/run.py

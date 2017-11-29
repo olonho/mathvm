@@ -149,12 +149,12 @@ void BytecodeTranslator::toBool()
 {
 	mathvm::Label L0(bytecode);
 	mathvm::Label L1(bytecode);
-	bytecode->addInsn(I::BC_ILOAD1);
-	bytecode->addBranch(I::BC_IFICMPE, L0);
 	bytecode->addInsn(I::BC_ILOAD0);
+	bytecode->addBranch(I::BC_IFICMPE, L0);
+	bytecode->addInsn(I::BC_ILOAD1);
 	bytecode->addBranch(I::BC_JA, L1);
 	bytecode->bind(L0);
-	bytecode->addInsn(I::BC_ILOAD1);
+	bytecode->addInsn(I::BC_ILOAD0);
 	bytecode->bind(L1);
 }
 
@@ -461,8 +461,6 @@ void BytecodeTranslator::visitForNode(ForNode * node)
 	bytecode->addBranch(I::BC_JA, condLabel);
 	bytecode->bind(bodyLabel);
 
-	bytecode->addInsn(I::BC_STOREIVAR0);
-	bytecode->addInsn(I::BC_LOADIVAR0);
 	bytecode->addInsn(I::BC_LOADIVAR0);
 	bytecode->addInsn(I::BC_STORECTXIVAR);
 	bytecode->addTyped(scopeID);
@@ -613,6 +611,10 @@ void BytecodeTranslator::visitNativeCallNode(NativeCallNode * node)
 
 	uint16_t id = code->makeNativeFunction(node->nativeName(), node->nativeSignature(), addr);
 	bytecode->addTyped(id);
+
+	if (sign[0].first == mathvm::VT_VOID) {
+		bytecode->addInsn(I::BC_POP);
+	}
 }
 
 
