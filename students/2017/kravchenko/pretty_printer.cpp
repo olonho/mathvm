@@ -1,7 +1,7 @@
 #include "mathvm.h"
 #include "parser.h"
 #include "visitors.h"
-#include "ast_translator_impl.h"
+#include "pretty_printer.h"
 
 #include <iostream>
 #include <stdarg.h>
