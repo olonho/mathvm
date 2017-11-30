@@ -19,8 +19,7 @@ AstPrinterStyle AstPrinter::prettyStyle() {
 
 
 AstPrinter::AstPrinter(AstPrinterStyle const& style):
-	style(style)
-{}
+	style(style) {}
 
 string AstPrinter::print(AstNode *root) {
 	wasStatement = false;
@@ -49,10 +48,10 @@ void AstPrinter::printVar(AstVar const *var) {
 
 void AstPrinter::visitExpression(AstNode *expr, bool braced) {
 	braced |= (
-			style.forceExpressionBraces && (
-				expr->isBinaryOpNode()
-//				|| expr->isUnaryOpNode()
-			)
+		style.forceExpressionBraces && (
+			expr->isBinaryOpNode()
+//			|| expr->isUnaryOpNode()
+		)
 	);
 	if (braced) ss << "(";
 	expr->visit(this);
@@ -134,32 +133,32 @@ void AstPrinter::visitStringLiteralNode(StringLiteralNode *node) {
 	ss << "'";
 	for (auto c: node->literal()) {
 		switch (c) {
-			case '\'':
-				ss << "\\'";
-				break;
-			case '\a':
-				ss << "\\a";
-				break;
-			case '\b':
-				ss << "\\b";
-				break;
-			case '\f':
-				ss << "\\f";
-				break;
-			case '\n':
-				ss << "\\n";
-				break;
-			case '\r':
-				ss << "\\r";
-				break;
-			case '\t':
-				ss << "\\t";
-				break;
-			case '\v':
-				ss << "\\v";
-				break;
-			default:
-				ss << string(1, c);
+		case '\'':
+			ss << "\\'";
+			break;
+		case '\a':
+			ss << "\\a";
+			break;
+		case '\b':
+			ss << "\\b";
+			break;
+		case '\f':
+			ss << "\\f";
+			break;
+		case '\n':
+			ss << "\\n";
+			break;
+		case '\r':
+			ss << "\\r";
+			break;
+		case '\t':
+			ss << "\\t";
+			break;
+		case '\v':
+			ss << "\\v";
+			break;
+		default:
+			ss << string(1, c);
 		}
 	}
 	ss << "'";
@@ -188,9 +187,7 @@ void AstPrinter::visitStoreNode(StoreNode *node) {
 }
 
 void AstPrinter::visitForNode(ForNode *node) {
-	ss << "for (";
-	printVar(node->var());
-	ss << " in ";
+	ss << "for (" << node->var()->name() << " in ";
 	visitExpression(node->inExpr());
 	ss << ") ";
 	node->body()->visit(this);

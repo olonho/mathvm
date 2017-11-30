@@ -10,14 +10,15 @@ using namespace mathvm;
 using namespace std;
 
 int main(int argc, char** argv) {
-	string impl = "";
+	string impl = "UNKNOWN";
 	const char* script = NULL;
 	for (int32_t i = 1; i < argc; i++) {
-		if (string(argv[i]) == "-j") {
+		string const arg{argv[i]};
+		if (arg == "-j" || arg == "--jit") {
 			impl = "jit";
-		} else if (string(argv[i]) == "-p") {
+		} else if (arg == "-p" || arg == "--printer") {
 			impl = "printer";
-		} else if (string(argv[i]) == "-P") {
+		} else if (arg == "-P" || arg == "--pretty-printer") {
 			impl = "printer-pretty";
 		} else {
 			script = argv[i];
@@ -26,7 +27,7 @@ int main(int argc, char** argv) {
 	Translator* translator = Translator::create(impl);
 
 	if (translator == 0) {
-		cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
+		cout << "TODO: Implement translator factory \"" << impl << "\" in translator.cpp!!!!" << endl;
 		return 1;
 	}
 
