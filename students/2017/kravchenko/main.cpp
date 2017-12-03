@@ -54,7 +54,10 @@ int main(int argc, char** argv) {
                line, offset,
                translateStatus->getErrorCstr());
     } else {
-        if (impl != "printer" && impl != "") {
+        if (impl != "printer") {
+          code->disassemble(std::cout);
+          return 0;
+
           assert(code != 0);
           vector<Var*> vars;
 

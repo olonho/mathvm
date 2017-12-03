@@ -22,6 +22,12 @@ Status* AstTranslatorImpl::translate(const string& program, Code* *code)
     AstPrinter printer(std::cout);
     top->node()->visit(&printer);
 
+    fprintf(stderr, "top scope: %p, owner: %p\n", top->scope(), top->owner());
+    for (Scope::FunctionIterator fun_it(top->scope()); fun_it.hasNext();) {
+        AstFunction *fun = fun_it.next();
+        fprintf(stderr, "function name: %s\n", fun->name().c_str());
+    }
+
     return res;
 }
 

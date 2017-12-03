@@ -1,0 +1,23 @@
+int a;
+int b;
+int c;
+
+a = 1;
+a = 5;
+a = 123;
+
+b = 123;
+c = 123;
+a = 321;
+
+double x;
+double y;
+
+y = 0.123;
+
+x = a;
+a = x;
+
+x += a;
+a += b;
+c -= y;
