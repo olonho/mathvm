@@ -84,16 +84,205 @@ void BytecodeVisitor::translateAstFunction(AstFunction *a_fun)
     fprintf(stderr, "    scopeId = %d\n", _fun->scopeId());
 }
 
+void BytecodeVisitor::convertType(VarType to)
+{
+    VarType from = types.top();
+    types.pop();
+    types.push(to);
+
+    if (from == to)
+        return;
+    if (from == VT_INT && to == VT_DOUBLE) {
+        _fun->bytecode()->addInsn(BC_I2D);
+        return;
+    }
+    if (from == VT_DOUBLE && to == VT_INT) {
+        _fun->bytecode()->addInsn(BC_D2I);
+        return;
+    }
+    if (from == VT_STRING && to == VT_INT) {
+        _fun->bytecode()->addInsn(BC_S2I);
+        return;
+    }
+
+    fprintf(stderr, "trying to convert from %d to %d\n", from, to);
+    assert(false);
+}
+
+/*
+ * This functions tells us which types can arguments of @op have
+ * and which types can be returned as result
+ *
+ * res[0] -- possible types of the result
+ * res[1] -- possible types of the first argument
+ * res[2] -- possible types of the second argument
+ * res[3] -- 0 if arguments can have different types,
+ *           1 otherwise
+ *
+ * if operation only has 1 argument, res[2] can be ignored
+ */
+std::vector<uint8_t> BytecodeVisitor::opResType(TokenKind op)
+{
+    std::vector<uint8_t> res;
+    res.push_back(0);
+    res.push_back(0);
+    res.push_back(0);
+    res.push_back(0);
+
+    const uint8_t I = 1 << VT_INT;
+    const uint8_t D = 1 << VT_DOUBLE;
+    const uint8_t S = 1 << VT_STRING;
+
+    switch (op) {
+        // there operations only can be applied to integers
+        case tAOR:
+        case tAAND:
+        case tAXOR:
+        case tMOD:
+            res[0] = res[1] = res[2] = I;
+            res[3] = 1;
+            break;
+        case tNOT:
+        case tADD:
+        case tSUB:
+        case tMUL:
+        case tDIV:
+            res[0] = res[1] = res[2] = I | D;
+            res[3] = 0;
+            break;
+        case tEQ:
+        case tNEQ:
+        case tGT:
+        case tGE:
+        case tLT:
+        case tLE:
+            res[0] = res[1] = res[2] = I | D | S;
+            res[3] = 1; // Only compare same types
+            break;
+        default:
+            fprintf(stderr, "unknown operation %d\n", op);
+            assert(false);
+
+    }
+
+    return res;
+}
+
+
+// correct types on stack to make them
+// 1) equal
+// 2) correspond resTypes
+//
+// @n -- 1 or 2 -- number of arguments
+void BytecodeVisitor::correctTypes(int n, std::vector<uint8_t> resTypes)
+{
+    assert(1 <= n && n <= 2);
+
+#define BAD_TYPE(id, type) (((resTypes[id] & (1 << type)) == 0) && (resTypes[id] == 1))
+
+    if (n == 1) {
+        VarType argType = types.top();
+
+        if (BAD_TYPE(1, argType)) {
+            fprintf(stderr, "can not correct type %d to types %d", argType, resTypes[1]);
+            assert(false);
+        }
+
+        if ((resTypes[1] & (1 << argType)) == 0)
+            convertType(VT_INT); // conver to int by default
+    } else {
+        VarType rhs = types.top();
+        types.pop();
+        VarType lhs = types.top();
+        types.push(rhs);
+
+        if (BAD_TYPE(1, lhs) || BAD_TYPE(2, rhs)) {
+            fprintf(stderr, "can not correct type %d to types %d", lhs, resTypes[1]);
+            fprintf(stderr, "can not correct type %d to types %d", rhs, resTypes[2]);
+            assert(false);
+        }
+
+        if (lhs == rhs)
+            return;
+
+        VarType finalType = VT_DOUBLE;
+        if (rhs == VT_STRING || lhs == VT_STRING)
+            finalType = VT_INT;
+
+        if (rhs != finalType)
+            convertType(finalType);
+        if (lhs != finalType) {
+            types.pop();
+            types.pop();
+            types.push(rhs);
+            types.push(lhs);
+            _fun->bytecode()->addInsn(BC_SWAP);
+            convertType(finalType);
+        }
+    }
+
+#undef BAD_TYPE
+}
+
+void BytecodeVisitor::binaryMathOp(TokenKind op)
+{
+    correctTypes(2, opResType(op));
+    VarType resType = types.top();
+
+    switch (op) {
+        case tAAND:
+            _fun->bytecode()->addInsn(BC_IAAND);
+            break;
+        case tAOR:
+            _fun->bytecode()->addInsn(BC_IAOR);
+            break;
+        case tAXOR:
+            _fun->bytecode()->addInsn(BC_IAXOR);
+            break;
+        case tADD:
+            if (resType == VT_INT)
+                _fun->bytecode()->addInsn(BC_IADD);
+            else
+                _fun->bytecode()->addInsn(BC_DADD);
+            break;
+        case tSUB:
+            if (resType == VT_INT)
+                _fun->bytecode()->addInsn(BC_ISUB);
+            else
+                _fun->bytecode()->addInsn(BC_DSUB);
+            break;
+        case tMUL:
+            if (resType == VT_INT)
+                _fun->bytecode()->addInsn(BC_IMUL);
+            else
+                _fun->bytecode()->addInsn(BC_DMUL);
+            break;
+        case tDIV:
+            if (resType == VT_INT)
+                _fun->bytecode()->addInsn(BC_IDIV);
+            else
+                _fun->bytecode()->addInsn(BC_DDIV);
+            break;
+        case tMOD:
+            _fun->bytecode()->addInsn(BC_IMOD);
+            break;
+        default:
+            fprintf(stderr, "operator '%s' is not a valid binary math operator\n", tokenOp(op));
+            assert(false);
+    }
+}
+
 void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node)
 {
-    /*
     node->left()->visit(this);
     node->right()->visit(this);
 
-    switch (node->kind()) {
-        
+    TokenKind op = node->kind();
+
+    switch (op) {
+        default:
+            binaryMathOp(op);
     }
-    */
 }
 
 void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode *node)
@@ -151,27 +340,6 @@ void BytecodeVisitor::visitLoadNode(LoadNode *node)
     _fun->bytecode()->addUInt16(var_id);
 }
 
-void BytecodeVisitor::convertType(VarType from, VarType to)
-{
-    if (from == to)
-        return;
-    if (from == VT_INT && to == VT_DOUBLE) {
-        _fun->bytecode()->addInsn(BC_I2D);
-        return;
-    }
-    if (from == VT_DOUBLE && to == VT_INT) {
-        _fun->bytecode()->addInsn(BC_D2I);
-        return;
-    }
-    if (from == VT_STRING && to == VT_INT) {
-        _fun->bytecode()->addInsn(BC_S2I);
-        return;
-    }
-
-    fprintf(stderr, "trying to convert from %d to %d\n", from, to);
-    assert(false);
-}
-
 void BytecodeVisitor::visitStoreNode(StoreNode *node)
 {
     fprintf(stderr, "visiting store node for variable %s\n", node->var()->name().c_str());
@@ -186,10 +354,10 @@ void BytecodeVisitor::visitStoreNode(StoreNode *node)
     }
 
     node->value()->visit(this);
-    convertType(types.top(), var->type());
+    convertType(var->type());
     types.pop();
 
-    // use STORE?VAR if var belongs to the current scope, STORECTX otherwise
+    // use STORE*VAR if var belongs to the current scope, STORECTX otherwise
     if (var->type() == VT_INT) {
         if (node->op() == tINCRSET)
             _fun->bytecode()->addInsn(BC_IADD);

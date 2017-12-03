@@ -57,7 +57,11 @@ public:
 #undef VISITOR_FUNCTION
 
 private:
-    void convertType(VarType from, VarType to);
+    void convertType(VarType to);
+    std::vector<uint8_t> opResType(TokenKind op);
+    void correctTypes(int n, std::vector<uint8_t> resTypes);
+
+    void binaryMathOp(TokenKind op);
 };
 
 }
