@@ -467,6 +467,73 @@ void BytecodeVisitor::binaryMathOp(TokenKind op)
     }
 }
 
+void BytecodeVisitor::binaryCompareOp(TokenKind op)
+{
+    correctTypes(2, opResType(op));
+    VarType operandsType = types.top();
+
+    if (operandsType == VT_STRING) {
+        addInsn(BC_S2I);
+        addInsn(BC_SWAP);
+        addInsn(BC_S2I);
+        addInsn(BC_SWAP);
+        operandsType = VT_INT;
+    }
+
+    if (operandsType == VT_INT)
+        addInsn(BC_ICMP);
+    else
+        addInsn(BC_DCMP);
+    addInsn(BC_ILOAD0);
+
+    Label thn(_fun->bytecode());
+    Label els(_fun->bytecode());
+
+    switch (op) {
+        case tEQ:
+            _fun->bytecode()->addBranch(BC_IFICMPE,  thn);
+            break;
+        case tNEQ:
+            _fun->bytecode()->addBranch(BC_IFICMPNE, thn);
+            break;
+        case tGT:
+            _fun->bytecode()->addBranch(BC_IFICMPG, thn);
+            break;
+        case tGE:
+            _fun->bytecode()->addBranch(BC_IFICMPGE, thn);
+            break;
+        case tLT:
+            _fun->bytecode()->addBranch(BC_IFICMPL, thn);
+            break;
+        case tLE:
+            _fun->bytecode()->addBranch(BC_IFICMPLE, thn);
+            break;
+
+        default:
+            fprintf(stderr, "operation %s is not a compare operation\n", tokenOp(op));
+            assert(false);
+    }
+
+    addInsn(BC_POP);
+    addInsn(BC_POP);
+    addInsn(BC_ILOAD0);
+    _fun->bytecode()->addBranch(BC_JA, els);
+    _fun->bytecode()->bind(thn);
+
+    types.pop();
+    types.push(VT_INT);
+    types.push(VT_INT);
+
+    addInsn(BC_POP);
+    addInsn(BC_POP);
+    addInsn(BC_ILOAD1);
+    _fun->bytecode()->bind(els);
+}
+
+void BytecodeVisitor::binaryLogicOp(TokenKind op)
+{
+}
+
 void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node)
 {
     node->left()->visit(this);
@@ -474,8 +541,21 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node)
 
     TokenKind op = node->kind();
     switch (op) {
+        case tEQ:
+        case tNEQ:
+        case tGT:
+        case tGE:
+        case tLT:
+        case tLE:
+            binaryCompareOp(op);
+            break;
+        case tOR:
+        case tAND:
+            binaryLogicOp(op);
+            break;
         default:
             binaryMathOp(op);
+            break;
     }
 }
 

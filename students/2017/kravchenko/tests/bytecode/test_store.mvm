@@ -41,3 +41,10 @@ s = '123';
 str = '321';
 
 a = s;
+
+b = s == str;
+b = s != str;
+b = a < c;
+b = a <= c;
+b = a > c;
+b = a >= c;
