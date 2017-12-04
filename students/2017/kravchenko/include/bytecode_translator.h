@@ -31,6 +31,7 @@ private:
     std::vector<AstFunction *> _funcs;
 
     std::stack<VarType> types;
+    std::stack<size_t> _scopeSizes;
 
 public:
     BytecodeVisitor() {
@@ -62,6 +63,11 @@ private:
     void correctTypes(int n, std::vector<uint8_t> resTypes);
 
     void binaryMathOp(TokenKind op);
+
+    void addInsn(Instruction insn);
+
+    void enterScope();
+    void leaveScope();
 };
 
 }
