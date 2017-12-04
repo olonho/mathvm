@@ -2,7 +2,7 @@
 #include <sstream>
 #include <deque>
 
-namespace mathvm {
+namespace mathvm::ldvsoft {
 	struct AstPrinterStyle {
 		bool forceBlockBraces{false};
 		bool forceExpressionBraces{false};

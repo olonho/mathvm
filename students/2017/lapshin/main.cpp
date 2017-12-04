@@ -20,9 +20,12 @@ int main(int argc, char** argv) {
 			impl = "printer";
 		} else if (arg == "-P" || arg == "--pretty-printer") {
 			impl = "printer-pretty";
-		} else {
+		} else if (arg == "-b" || arg == "--bytecode") {
+			impl = "to-bytecode";
+		} else if (arg[0] != '-') {
 			script = argv[i];
-		}
+		} else
+			std::cerr << "Unknown flag " << arg << std::endl;
 	}
 	Translator* translator = Translator::create(impl);
 

@@ -5,7 +5,7 @@ VM_ROOT = ../../..
 NO_JIT = 1
 #WITH_SDL = 0
 
-USER_CFLAGS = -std=c++11
+USER_CFLAGS = -std=c++17 -Wall -Wextra
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
@@ -15,9 +15,13 @@ endif
 
 USER_OBJ = \
 	$(JIT_OBJ) \
+	$(OBJ)/bytecode$(OBJ_SUFF) \
+	$(OBJ)/bytecode_translator$(OBJ_SUFF) \
+	$(OBJ)/code$(OBJ_SUFF) \
 	$(OBJ)/main$(OBJ_SUFF) \
+	$(OBJ)/printer$(OBJ_SUFF) \
 	$(OBJ)/translator_impl$(OBJ_SUFF) \
-	$(OBJ)/printer$(OBJ_SUFF)
+	$(OBJ)/util$(OBJ_SUFF)
 
 USER_DEPS += \
 	$(ROOT)/Makefile \

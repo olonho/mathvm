@@ -2,6 +2,7 @@
 #include <cstdio>
 
 using namespace mathvm;
+using namespace mathvm::ldvsoft;
 
 AstPrinterStyle AstPrinter::testStyle() {
 	AstPrinterStyle result;

@@ -1,7 +1,9 @@
 #include "printer.h"
 #include "parser.h"
+#include "bytecode_translator.h"
 
 using namespace mathvm;
+using namespace mathvm::ldvsoft;
 
 class AstPrinterTranslator: public Translator {
 private:
@@ -30,10 +32,11 @@ Status *AstPrinterTranslator::translate(string const &program, Code **code) {
 }
 
 Translator *Translator::create(string const &name) {
-	if (name == "printer") {
+	if (name == "printer")
 		return new AstPrinterTranslator(AstPrinter::testStyle());
-	} else if (name == "printer-pretty") {
+	if (name == "printer-pretty")
 		return new AstPrinterTranslator(AstPrinter::prettyStyle());
-	}
+	if (name == "to-bytecode")
+		return new BytecodeTranslator();
 	return nullptr;
 }
