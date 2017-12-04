@@ -62,9 +62,9 @@ private:
     std::vector<uint8_t> opResType(TokenKind op);
     void correctTypes(int n, std::vector<uint8_t> resTypes);
 
-    void binaryMathOp(TokenKind op);
-    void binaryCompareOp(TokenKind op);
-    void binaryLogicOp(TokenKind op);
+    void binaryMathOp(BinaryOpNode *node);
+    void binaryCompareOp(BinaryOpNode *node);
+    void binaryLogicOp(BinaryOpNode *node);
 
     void addInsn(Instruction insn);
 

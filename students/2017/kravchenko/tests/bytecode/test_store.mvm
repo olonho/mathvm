@@ -48,3 +48,13 @@ b = a < c;
 b = a <= c;
 b = a > c;
 b = a >= c;
+
+int aa;
+aa = x || y;
+aa = x && y;
+
+aa = s || str;
+aa = s && str;
+
+aa = a || c;
+aa = a && c;

@@ -419,8 +419,13 @@ void BytecodeVisitor::correctTypes(int n, std::vector<uint8_t> resTypes)
 #undef BAD_TYPE
 }
 
-void BytecodeVisitor::binaryMathOp(TokenKind op)
+void BytecodeVisitor::binaryMathOp(BinaryOpNode *node)
 {
+    node->left()->visit(this);
+    node->right()->visit(this);
+
+    TokenKind op = node->kind();
+
     correctTypes(2, opResType(op));
     VarType resType = types.top();
 
@@ -467,8 +472,13 @@ void BytecodeVisitor::binaryMathOp(TokenKind op)
     }
 }
 
-void BytecodeVisitor::binaryCompareOp(TokenKind op)
+void BytecodeVisitor::binaryCompareOp(BinaryOpNode *node)
 {
+    node->left()->visit(this);
+    node->right()->visit(this);
+
+    TokenKind op = node->kind();
+
     correctTypes(2, opResType(op));
     VarType operandsType = types.top();
 
@@ -530,15 +540,127 @@ void BytecodeVisitor::binaryCompareOp(TokenKind op)
     _fun->bytecode()->bind(els);
 }
 
-void BytecodeVisitor::binaryLogicOp(TokenKind op)
+void BytecodeVisitor::binaryLogicOp(BinaryOpNode *node)
 {
+    TokenKind op = node->kind();
+    if (op == tOR) {
+        Label fail(_fun->bytecode());
+        Label succ(_fun->bytecode());
+
+        node->left()->visit(this);
+        VarType lhs = types.top();
+        if (lhs == VT_STRING) {
+            addInsn(BC_S2I);
+            lhs = VT_INT;
+        }
+
+        if (lhs == VT_INT) {
+            addInsn(BC_ILOAD0);
+            _fun->bytecode()->addBranch(BC_IFICMPNE, succ);
+        } else {
+            addInsn(BC_DLOAD0);
+            addInsn(BC_DCMP);
+            addInsn(BC_ILOAD0);
+            _fun->bytecode()->addBranch(BC_IFICMPNE, succ);
+        }
+
+        addInsn(BC_POP);
+        addInsn(BC_POP);
+
+        node->right()->visit(this);
+        VarType rhs = types.top();
+        if (rhs == VT_STRING) {
+            addInsn(BC_S2I);
+            rhs = VT_INT;
+        }
+
+        if (rhs == VT_INT) {
+            addInsn(BC_ILOAD0);
+            _fun->bytecode()->addBranch(BC_IFICMPNE, succ);
+        } else {
+            addInsn(BC_DLOAD0);
+            addInsn(BC_DCMP);
+            addInsn(BC_ILOAD0);
+            _fun->bytecode()->addBranch(BC_IFICMPNE, succ);
+        }
+
+        addInsn(BC_POP);
+        addInsn(BC_POP);
+
+        addInsn(BC_ILOAD0);
+        _fun->bytecode()->addBranch(BC_JA, fail);
+        _fun->bytecode()->bind(succ);
+
+        types.pop();
+        types.push(VT_INVALID);
+        types.push(VT_INVALID);
+
+        addInsn(BC_POP);
+        addInsn(BC_POP);
+        addInsn(BC_ILOAD1);
+        _fun->bytecode()->bind(fail);
+
+    } else {
+        Label fail(_fun->bytecode());
+        Label succ(_fun->bytecode());
+
+        node->left()->visit(this);
+        VarType lhs = types.top();
+        if (lhs == VT_STRING) {
+            addInsn(BC_S2I);
+            lhs = VT_INT;
+        }
+
+        if (lhs == VT_INT) {
+            addInsn(BC_ILOAD0);
+            _fun->bytecode()->addBranch(BC_IFICMPE, fail);
+        } else {
+            addInsn(BC_DLOAD0);
+            addInsn(BC_DCMP);
+            addInsn(BC_ILOAD0);
+            _fun->bytecode()->addBranch(BC_IFICMPE, fail);
+        }
+
+        addInsn(BC_POP);
+        addInsn(BC_POP);
+
+        node->right()->visit(this);
+        VarType rhs = types.top();
+        if (rhs == VT_STRING) {
+            addInsn(BC_S2I);
+            rhs = VT_INT;
+        }
+
+        if (rhs == VT_INT) {
+            addInsn(BC_ILOAD0);
+            _fun->bytecode()->addBranch(BC_IFICMPE, fail);
+        } else {
+            addInsn(BC_DLOAD0);
+            addInsn(BC_DCMP);
+            addInsn(BC_ILOAD0);
+            _fun->bytecode()->addBranch(BC_IFICMPE, fail);
+        }
+
+        addInsn(BC_POP);
+        addInsn(BC_POP);
+
+        addInsn(BC_ILOAD1);
+        _fun->bytecode()->addBranch(BC_JA, succ);
+        _fun->bytecode()->bind(fail);
+
+        types.pop();
+        types.push(VT_INVALID);
+        types.push(VT_INVALID);
+
+        addInsn(BC_POP);
+        addInsn(BC_POP);
+        addInsn(BC_ILOAD0);
+        _fun->bytecode()->bind(succ);
+    }
 }
 
 void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node)
 {
-    node->left()->visit(this);
-    node->right()->visit(this);
-
     TokenKind op = node->kind();
     switch (op) {
         case tEQ:
@@ -547,14 +669,14 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node)
         case tGE:
         case tLT:
         case tLE:
-            binaryCompareOp(op);
+            binaryCompareOp(node);
             break;
         case tOR:
         case tAND:
-            binaryLogicOp(op);
+            binaryLogicOp(node);
             break;
         default:
-            binaryMathOp(op);
+            binaryMathOp(node);
             break;
     }
 }
