@@ -19,6 +19,7 @@ class BytecodeVisitor : public AstBaseVisitor
 private:
     typedef std::map<Scope*, uint16_t> ScopeMap;
     typedef std::map<Scope*, std::map<string, uint16_t>> VarMap;
+    typedef std::map<string, uint16_t> FunIdMap;
 
     Code *_code; // DO NOT delete it in distructor
 
@@ -27,6 +28,7 @@ private:
 
     ScopeMap _scope_map;
     VarMap _var_map;
+    FunIdMap _funIdMap;
 
     std::vector<AstFunction *> _funcs;
 
