@@ -210,7 +210,7 @@ class AstVisitor {
     }
 
 #define VISITOR_FUNCTION(type, name) \
-    virtual void visit##type(type* node) {}
+    virtual void visit##type(type* node) { static_cast<void>(node); }
 
     FOR_NODES(VISITOR_FUNCTION)
 #undef VISITOR_FUNCTION
@@ -305,6 +305,7 @@ class StringLiteralNode : public AstNode {
     }
 
     virtual void visitChildren(AstVisitor* visitor) const {
+		static_cast<void>(visitor);
     }
 
     COMMON_NODE_FUNCTIONS(StringLiteralNode);
@@ -317,11 +318,12 @@ class IntLiteralNode : public AstNode {
     AstNode(index), _intLiteral(intLiteral) {
     }
 
-    const int64_t literal() const {
+    int64_t literal() const {
         return _intLiteral;
     }
 
     virtual void visitChildren(AstVisitor* visitor) const {
+		static_cast<void>(visitor);
     }
 
     COMMON_NODE_FUNCTIONS(IntLiteralNode);
@@ -339,6 +341,7 @@ class DoubleLiteralNode : public AstNode {
     }
 
     virtual void visitChildren(AstVisitor* visitor) const {
+		static_cast<void>(visitor);
     }
 
     COMMON_NODE_FUNCTIONS(DoubleLiteralNode);
@@ -356,6 +359,7 @@ class LoadNode : public AstNode {
     }
 
     virtual void visitChildren(AstVisitor* visitor) const {
+		static_cast<void>(visitor);
     }
 
     COMMON_NODE_FUNCTIONS(LoadNode);
@@ -456,6 +460,7 @@ class NativeCallNode : public AstNode {
 
 
     virtual void visitChildren(AstVisitor* visitor) const {
+		static_cast<void>(visitor);
     }
 
     COMMON_NODE_FUNCTIONS(NativeCallNode);
