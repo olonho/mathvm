@@ -3,13 +3,13 @@
 #include "mathvm.h"
 
 namespace mathvm::ldvsoft {
-	enum VarTypeEx {
-		VTE_INVALID = VT_INVALID,
-		VTE_VOID    = VT_VOID,
-		VTE_DOUBLE  = VT_DOUBLE,
-		VTE_INT     = VT_INT,
-		VTE_STRING  = VT_STRING,
-		VTE_BOOL
+	enum class VarTypeEx {
+		INVALID = VT_INVALID,
+		VOID    = VT_VOID,
+		DOUBLE  = VT_DOUBLE,
+		INT     = VT_INT,
+		STRING  = VT_STRING,
+		BOOL
 	};
 
 	using std::to_string;

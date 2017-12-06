@@ -42,12 +42,12 @@ string escape(string const &s) {
 
 string to_string(VarTypeEx value) {
 	switch (value) {
-	case VTE_INVALID: return "INVALID";
-	case VTE_VOID   : return "void";
-	case VTE_DOUBLE : return "double";
-	case VTE_INT    : return "int";
-	case VTE_BOOL   : return "bool+int";
-	case VTE_STRING : return "string";
+	case VarTypeEx::INVALID: return "INVALID";
+	case VarTypeEx::VOID   : return "void";
+	case VarTypeEx::DOUBLE : return "double";
+	case VarTypeEx::INT    : return "int";
+	case VarTypeEx::BOOL   : return "bool+int";
+	case VarTypeEx::STRING : return "string";
 	}
 	__builtin_unreachable();
 }
@@ -57,17 +57,17 @@ VarTypeEx extend(VarType t) {
 }
 
 VarTypeEx common_of(VarTypeEx a, VarTypeEx b) {
-	if (a == VTE_VOID || b == VTE_VOID)
-		return VTE_INVALID; 
+	if (a == VarTypeEx::VOID || b == VarTypeEx::VOID)
+		return VarTypeEx::INVALID;
 	if (a == b)
 		return a;
-	if (a == VTE_DOUBLE || b == VTE_DOUBLE)
-		return VTE_DOUBLE;
-	if (a == VTE_INT || b == VTE_INT)
-		return VTE_INT;
-	if (a == VTE_BOOL || b == VTE_BOOL)
-		return VTE_BOOL;
-	return VTE_STRING;
+	if (a == VarTypeEx::DOUBLE || b == VarTypeEx::DOUBLE)
+		return VarTypeEx::DOUBLE;
+	if (a == VarTypeEx::INT || b == VarTypeEx::INT)
+		return VarTypeEx::INT;
+	if (a == VarTypeEx::BOOL || b == VarTypeEx::BOOL)
+		return VarTypeEx::BOOL;
+	return VarTypeEx::STRING;
 }
 
 Status* StatusEx::Error(string const &reason, uint32_t position) {

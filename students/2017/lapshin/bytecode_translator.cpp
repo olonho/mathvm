@@ -6,6 +6,8 @@
 
 #include "parser.h"
 
+#include <dlfcn.h>
+
 #include <unordered_map>
 
 namespace mathvm::ldvsoft {
@@ -22,12 +24,19 @@ using namespace std::literals;
 
 class BytecodeTranslator::TranslationData {
 public:
+	void * const dl_handle;
+
 	BytecodeCode &code;
 	unordered_map<Scope const*, uint16_t> scopes;
 	unordered_map<AstVar const*, uint16_t> vars;
 
 	TranslationData(BytecodeCode &code):
+		dl_handle(dlopen(nullptr, RTLD_LAZY | RTLD_NODELETE)),
 		code(code) {}
+
+	~TranslationData() {
+		dlclose(dl_handle);
+	}
 
 	void registerScope(Scope *scope) {
 		scopes[scope] = scopes.size(); // C++17!!!
@@ -81,19 +90,19 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 	switch (node->kind()) {
 	case tAND:
 	case tOR:
-		return_type = target_type = VTE_BOOL;
+		return_type = target_type = VarTypeEx::BOOL;
 		break;
 	case tAAND:
 	case tAOR:
 	case tAXOR:
-		return_type = target_type = VTE_INT;
+		return_type = target_type = VarTypeEx::INT;
 		break;
 	case tADD:
 	case tSUB:
 	case tMUL:
 	case tDIV:
-		return_type = target_type = common_of(VTE_INT, common_of(left_visitor.return_type, right_visitor.return_type));
-		if (target_type == VTE_INVALID || target_type == VTE_STRING) {
+		return_type = target_type = common_of(VarTypeEx::INT, common_of(left_visitor.return_type, right_visitor.return_type));
+		if (target_type == VarTypeEx::INVALID || target_type == VarTypeEx::STRING) {
 			status = StatusEx::Error(
 				"Cannot apply binary operation "s + tokenStr(node->kind()) +
 				" on types " + to_string(left_visitor.return_type) + " and " + to_string(right_visitor.return_type) +
@@ -104,7 +113,7 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 		}
 		break;
 	case tMOD:
-		return_type = target_type = VTE_INT;
+		return_type = target_type = VarTypeEx::INT;
 		break;
 	case tEQ:
 	case tNEQ:
@@ -112,9 +121,9 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 	case tLE:
 	case tGT:
 	case tGE:
-		return_type = VTE_BOOL;
+		return_type = VarTypeEx::BOOL;
 		target_type = common_of(left_visitor.return_type, right_visitor.return_type);
-		if (target_type == VTE_INVALID || target_type == VTE_STRING) {
+		if (target_type == VarTypeEx::INVALID || target_type == VarTypeEx::STRING) {
 			status = StatusEx::Error(
 				"Cannot apply binary operation "s + tokenStr(node->kind()) +
 				" on types " + to_string(left_visitor.return_type) + " and " + to_string(right_visitor.return_type) +
@@ -147,10 +156,10 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 		break;
 	case tADD:
 		switch (target_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			code.addInsn(BC_DADD);
 			break;
-		case VTE_INT:
+		case VarTypeEx::INT:
 			code.addInsn(BC_IADD);
 			break;
 		default:
@@ -159,10 +168,10 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 		break;
 	case tSUB:
 		switch (target_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			code.addInsn(BC_DSUB);
 			break;
-		case VTE_INT:
+		case VarTypeEx::INT:
 			code.addInsn(BC_ISUB);
 			break;
 		default:
@@ -171,10 +180,10 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 		break;
 	case tMUL:
 		switch (target_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			code.addInsn(BC_DMUL);
 			break;
-		case VTE_INT:
+		case VarTypeEx::INT:
 			code.addInsn(BC_IMUL);
 			break;
 		default:
@@ -183,10 +192,10 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 		break;
 	case tDIV:
 		switch (target_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			code.addInsn(BC_DDIV);
 			break;
-		case VTE_INT:
+		case VarTypeEx::INT:
 			code.addInsn(BC_IDIV);
 			break;
 		default:
@@ -202,7 +211,7 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 	case tLE:
 	case tGT:
 	case tGE:
-		if (target_type == VTE_DOUBLE) {
+		if (target_type == VarTypeEx::DOUBLE) {
 			// cannot if-compare doubles directly...
 			code.addInsns({
 				BC_DCMP,
@@ -243,12 +252,12 @@ void BytecodeTranslator::Visitor::visitUnaryOpNode(UnaryOpNode *node) {
 	VarTypeEx target_type;
 	switch (node->kind()) {
 	case tNOT:
-		return_type = target_type = VTE_BOOL;
+		return_type = target_type = VarTypeEx::BOOL;
 		break;
 	case tADD:
 	case tSUB:
-		return_type = target_type = common_of(VTE_INT, operand_visitor.return_type);
-		if (target_type != VTE_INT && target_type != VTE_DOUBLE) {
+		return_type = target_type = common_of(VarTypeEx::INT, operand_visitor.return_type);
+		if (target_type != VarTypeEx::INT && target_type != VarTypeEx::DOUBLE) {
 			status = StatusEx::Error(
 				"Cannot apply unary operation "s + tokenStr(node->kind()) +
 				" on type " + to_string(operand_visitor.return_type),
@@ -276,10 +285,10 @@ void BytecodeTranslator::Visitor::visitUnaryOpNode(UnaryOpNode *node) {
 		break;
 	case tSUB:
 		switch (target_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			code.addInsn(BC_DNEG);
 			break;
-		case VTE_INT:
+		case VarTypeEx::INT:
 			code.addInsn(BC_INEG);
 			break;
 		default:
@@ -293,7 +302,7 @@ void BytecodeTranslator::Visitor::visitUnaryOpNode(UnaryOpNode *node) {
 }
 
 void BytecodeTranslator::Visitor::visitStringLiteralNode(StringLiteralNode *node) {
-	return_type = VTE_STRING;
+	return_type = VarTypeEx::STRING;
 
 	auto id{target.code.makeStringConstant(node->literal())};
 	code.addInsn(BC_SLOAD);
@@ -302,14 +311,14 @@ void BytecodeTranslator::Visitor::visitStringLiteralNode(StringLiteralNode *node
 }
 
 void BytecodeTranslator::Visitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
-	return_type = VTE_DOUBLE;
+	return_type = VarTypeEx::DOUBLE;
 	code.addInsn(BC_DLOAD);
 	code.addTyped(node->literal());
 	status = Status::Ok();
 }
 
 void BytecodeTranslator::Visitor::visitIntLiteralNode(IntLiteralNode *node) {
-	return_type = VTE_INT;
+	return_type = VarTypeEx::INT;
 	code.addInsn(BC_ILOAD);
 	code.addTyped(node->literal());
 	status = Status::Ok();
@@ -318,14 +327,14 @@ void BytecodeTranslator::Visitor::visitIntLiteralNode(IntLiteralNode *node) {
 void BytecodeTranslator::Visitor::visitLoadNode(LoadNode *node) {
 	return_type = extend(node->var()->type());
 	switch (return_type) {
-	case VTE_DOUBLE:
+	case VarTypeEx::DOUBLE:
 		code.addInsn(BC_LOADCTXDVAR);
 		break;
-	case VTE_INT:
-	case VTE_BOOL:
+	case VarTypeEx::INT:
+	case VarTypeEx::BOOL:
 		code.addInsn(BC_LOADCTXIVAR);
 		break;
-	case VTE_STRING:
+	case VarTypeEx::STRING:
 		code.addInsn(BC_LOADCTXSVAR);
 		break;
 	default:
@@ -337,7 +346,7 @@ void BytecodeTranslator::Visitor::visitLoadNode(LoadNode *node) {
 }
 
 void BytecodeTranslator::Visitor::visitStoreNode(StoreNode *node) {
-	return_type = VTE_VOID;
+	return_type = VarTypeEx::VOID;
 	auto var_type{extend(node->var()->type())};
 
 	Visitor value_visitor(this);
@@ -350,15 +359,18 @@ void BytecodeTranslator::Visitor::visitStoreNode(StoreNode *node) {
 	case tINCRSET:
 	case tDECRSET:
 		switch (var_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			code.addInsn(BC_LOADCTXDVAR);
 			break;
-		case VTE_INT:
-		case VTE_BOOL:
+		case VarTypeEx::INT:
+		case VarTypeEx::BOOL:
 			code.addInsn(BC_LOADCTXIVAR);
 			break;
 		default:
-			status = Status::Error("Wrong var type for change-and-set", node->position());
+			status = StatusEx::Error(
+				"Wrong var type " + to_string(var_type) + " for change-and-set",
+				node->position()
+			);
 			return;
 		}
 		code.addTyped(target.scopes[node->var()->owner()]);
@@ -366,11 +378,11 @@ void BytecodeTranslator::Visitor::visitStoreNode(StoreNode *node) {
 		switch (node->op()) {
 		case tINCRSET:
 			switch (var_type) {
-			case VTE_DOUBLE:
+			case VarTypeEx::DOUBLE:
 				code.addInsn(BC_DADD);
 				break;
-			case VTE_INT:
-			case VTE_BOOL:
+			case VarTypeEx::INT:
+			case VarTypeEx::BOOL:
 				code.addInsn(BC_IADD);
 				break;
 			default:
@@ -379,11 +391,11 @@ void BytecodeTranslator::Visitor::visitStoreNode(StoreNode *node) {
 			break;
 		case tDECRSET:
 			switch (var_type) {
-			case VTE_DOUBLE:
+			case VarTypeEx::DOUBLE:
 				code.addInsn(BC_DSUB);
 				break;
-			case VTE_INT:
-			case VTE_BOOL:
+			case VarTypeEx::INT:
+			case VarTypeEx::BOOL:
 				code.addInsn(BC_ISUB);
 				break;
 			default:
@@ -396,15 +408,21 @@ void BytecodeTranslator::Visitor::visitStoreNode(StoreNode *node) {
 		[[fallthrough]];
 	case tASSIGN:
 		switch (var_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			code.addInsn(BC_STORECTXDVAR);
 			break;
-		case VTE_INT:
-		case VTE_BOOL:
+		case VarTypeEx::INT:
+		case VarTypeEx::BOOL:
 			code.addInsn(BC_STORECTXIVAR);
 			break;
+		case VarTypeEx::STRING:
+			code.addInsn(BC_STORECTXSVAR);
+			break;
 		default:
-			status = Status::Error("Wrong var type for change-and-set", node->position());
+			status = StatusEx::Error(
+				"Wrong var type " + to_string(var_type) + " for change-and-set",
+				node->position()
+			);
 			return;
 		}
 		code.addTyped(target.scopes[node->var()->owner()]);
@@ -418,7 +436,7 @@ void BytecodeTranslator::Visitor::visitStoreNode(StoreNode *node) {
 }
 
 void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
-	return_type = VTE_VOID;
+	return_type = VarTypeEx::VOID;
 
 	auto var_type{extend(node->var()->type())};
 	auto range{dynamic_cast<BinaryOpNode*>(node->inExpr())};
@@ -438,7 +456,7 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 	Bytecode store, load, dupl, precmp, inc;
 	/* init store/load */ {
 		switch (var_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			store.addInsn(BC_STORECTXDVAR);
 			load.addInsn(BC_LOADCTXDVAR);
 			dupl.addInsns({
@@ -455,8 +473,8 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 				BC_DADD
 			});
 			break;
-		case VTE_INT:
-		case VTE_BOOL:
+		case VarTypeEx::INT:
+		case VarTypeEx::BOOL:
 			store.addInsn(BC_STORECTXIVAR);
 			load.addInsn(BC_LOADCTXIVAR);
 			dupl.addInsns({
@@ -482,7 +500,7 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 		load .addTyped(target.vars[node->var()]);
 	}
 
-	Label _loop, _end;
+	Label _loop(&code), _end(&code);
 	ASSIGN_STATUS(add_and_cast(right_visitor, var_type, node->position()));
 	// Now, end value is on the stack. Carefully...
 
@@ -493,7 +511,7 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 	code.addAll(load); // curret as left
 	code.addAll(precmp);
 	code.addBranch(BC_IFICMPG, _end);
-	ASSIGN_STATUS(add_and_cast(block_visitor, VTE_VOID, node->position()));
+	ASSIGN_STATUS(add_and_cast(block_visitor, VarTypeEx::VOID, node->position()));
 	code.addAll(load);
 	code.addAll(inc);
 	code.addBranch(BC_JA, _loop);
@@ -504,35 +522,21 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 }
 
 void BytecodeTranslator::Visitor::visitWhileNode(WhileNode *node) {
-	return_type = VTE_VOID;
+	return_type = VarTypeEx::VOID;
 
 	Visitor expr_visitor(this), block_visitor(this);
 	node->whileExpr()->visit(&expr_visitor);
-	if (expr_visitor.status->isError()) {
-		status = expr_visitor.status;
-		return;
-	}
-	delete expr_visitor.status;
+	ASSIGN_STATUS(expr_visitor.status);
 	node->loopBlock()->visit(&block_visitor);
-	if (block_visitor.status->isError()) {
-		status = block_visitor.status;
-		return;
-	}
-	delete block_visitor.status;
+	ASSIGN_STATUS(block_visitor.status);
 
-	Label _loop, _end;
+	Label _loop(&code), _end(&code);
 	code.bind(_loop);
-	status = add_and_cast(expr_visitor, VTE_BOOL, node->position());
-	if (status->isError())
-		return;
-	delete status;
+	ASSIGN_STATUS(add_and_cast(expr_visitor, VarTypeEx::BOOL, node->position()));
 
 	code.addInsn(BC_ILOAD0);
 	code.addBranch(BC_IFICMPE, _end);
-	status = add_and_cast(block_visitor, VTE_VOID, node->position());
-	if (status->isError())
-		return;
-	delete status;
+	ASSIGN_STATUS(add_and_cast(block_visitor, VarTypeEx::VOID, node->position()));
 
 	code.addBranch(BC_JA, _loop);
 	code.bind(_end);
@@ -540,74 +544,54 @@ void BytecodeTranslator::Visitor::visitWhileNode(WhileNode *node) {
 }
 
 void BytecodeTranslator::Visitor::visitIfNode(IfNode *node) {
-	return_type = VTE_VOID;
+	return_type = VarTypeEx::VOID;
 
 	Visitor expr_visitor(this), then_visitor(this), else_visitor(this);
 	node->ifExpr()->visit(&expr_visitor);
-	if (expr_visitor.status->isError()) {
-		status = expr_visitor.status;
-		return;
-	}
-	delete expr_visitor.status;
+	ASSIGN_STATUS(expr_visitor.status);
 	node->thenBlock()->visit(&then_visitor);
-	if (then_visitor.status->isError()) {
-		status = then_visitor.status;
-		return;
-	}
-	delete then_visitor.status;
+	ASSIGN_STATUS(then_visitor.status);
 	if (node->elseBlock()) {
 		node->elseBlock()->visit(&else_visitor);
-		if (else_visitor.status->isError()) {
-			status = else_visitor.status;
-			return;
-		}
-		delete else_visitor.status;
+		ASSIGN_STATUS(else_visitor.status);
 	}
 
-	status = add_and_cast(expr_visitor, VTE_BOOL, node->position());
-	if (status->isError())
-		return;
-	delete status;
+	ASSIGN_STATUS(add_and_cast(expr_visitor, VarTypeEx::BOOL, node->position()));
 
 	if (node->elseBlock()) {
-		Label _else, _end;
+		Label _else(&code), _end(&code);
 
 		code.addInsn(BC_ILOAD0);
 		code.addBranch(BC_IFICMPE, _else);
-		status = add_and_cast(then_visitor, VTE_VOID, node->position());
-		if (status->isError())
-			return;
-		delete status;
-
+		ASSIGN_STATUS(add_and_cast(then_visitor, VarTypeEx::VOID, node->position()));
 		code.addBranch(BC_JA, _end);
 		code.bind(_else);
-		status = add_and_cast(else_visitor, VTE_VOID, node->position());
-		if (status->isError())
-			return;
-
+		ASSIGN_STATUS(add_and_cast(else_visitor, VarTypeEx::VOID, node->position()));
 		code.bind(_end);
 	} else {
-		Label _end;
+		Label _end(&code);
 
 		code.addInsn(BC_ILOAD0);
 		code.addBranch(BC_IFICMPE, _end);
-		status = add_and_cast(then_visitor, VTE_VOID, node->position());
-		if (status->isError())
-			return;
-
+		ASSIGN_STATUS(add_and_cast(then_visitor, VarTypeEx::VOID, node->position()));
 		code.bind(_end);
 	}
 	status = Status::Ok();
 }
 
 void BytecodeTranslator::Visitor::visitBlockNode(BlockNode *node) {
-	return_type = VTE_VOID;
+	return_type = VarTypeEx::VOID;
 	for (size_t i{0}; i < node->nodes(); ++i) {
 		Visitor node_visitor(this);
 		node->nodeAt(i)->visit(&node_visitor);
 		ASSIGN_STATUS(node_visitor.status);
 
-		ASSIGN_STATUS(add_and_cast(node_visitor, VTE_VOID, node->position()));
+		VarTypeEx target_type{VarTypeEx::VOID};
+		if (dynamic_cast<NativeCallNode*>(node->nodeAt(i))) {
+			// Native call knows what it is doing!
+			target_type = node_visitor.return_type;
+		}
+		ASSIGN_STATUS(add_and_cast(node_visitor, target_type, node->position()));
 	}
 	status = Status::Ok();
 }
@@ -635,31 +619,97 @@ void BytecodeTranslator::Visitor::visitFunctionNode(FunctionNode *node) {
 }
 
 void BytecodeTranslator::Visitor::visitReturnNode(ReturnNode *node) {
+	return_type = VarTypeEx::VOID;
 	Visitor expr_visitor(this);
-	node->returnExpr()->visit(&expr_visitor);
-	if (expr_visitor.status->isError()) {
-		status = expr_visitor.status;
-		return;
-	}
-	delete expr_visitor.status;
+	if (node->returnExpr()) {
+		node->returnExpr()->visit(&expr_visitor);
+		ASSIGN_STATUS(expr_visitor.status);
 
-	ASSIGN_STATUS(add_and_cast(expr_visitor, function_return_type, node->position()));
+		ASSIGN_STATUS(add_and_cast(expr_visitor, function_return_type, node->position()));
+	}
 	code.addInsn(BC_RETURN);
 	status = Status::Ok();
 }
 
 void BytecodeTranslator::Visitor::visitCallNode(CallNode *node) {
-	static_cast<void>(node);
-	status = Status::Error("Calls for now are not supported", node->position());
+	auto *function{target.code.functionByName(node->name())};
+	if (!function) {
+		status = StatusEx::Error(
+			"Unknown function " + node->name(),
+			node->position()
+		);
+		return;
+	}
+	if (function->parametersNumber() != node->parametersNumber()) {
+		status = StatusEx::Error(
+			"Wrong number of arguments on " + node->name() + " function call: " +
+			"expected " + to_string(function->parametersNumber()) + ", got " + to_string(node->parametersNumber()),
+			node->position()
+		);
+		return;
+	}
+	return_type = extend(function->returnType());
+
+	for (size_t i{0}; i != node->parametersNumber(); ++i) {
+		size_t id{node->parametersNumber() - 1 - i};
+		Visitor parameter_visitor(this);
+		node->parameterAt(id)->visit(&parameter_visitor);
+		ASSIGN_STATUS(parameter_visitor.status);
+
+		ASSIGN_STATUS(add_and_cast(parameter_visitor, extend(function->parameterType(id)), node->position()));
+	}
+
+	code.addInsn(BC_CALL);
+	code.addTyped(function->id());
+
+	status = Status::Ok();
 }
 
 void BytecodeTranslator::Visitor::visitNativeCallNode(NativeCallNode *node) {
-	static_cast<void>(node);
-	status = Status::Error("Native calls for now are not supported", node->position());
+	// Native calls are hacked into...
+
+	auto const &signature{node->nativeSignature()};
+
+	return_type = extend(signature[0].first);
+	for (size_t i{1 /* sic! */}; i != signature.size(); ++i) {
+		auto *var{function_scope.lookupVariable(signature[i].second)};
+		assert(var);
+
+		switch (signature[i].first) {
+		case VT_DOUBLE:
+			code.addInsn(BC_LOADCTXDVAR);
+			break;
+		case VT_INT:
+			code.addInsn(BC_LOADCTXIVAR);
+			break;
+		case VT_STRING:
+			code.addInsn(BC_LOADCTXSVAR);
+			break;
+		default:
+			;
+		}
+		code.addTyped(target.scopes[&function_scope]);
+		code.addTyped(target.vars[var]);
+	}
+
+	auto addr{dlsym(target.dl_handle, node->nativeName().c_str())};
+	if (!addr) {
+		status = StatusEx::Error(
+			"Cannot load native function " + node->nativeName(),
+			node->position()
+		);
+		return;
+	}
+
+	auto id{target.code.makeNativeFunction(node->nativeName(), node->nativeSignature(), addr)};
+	code.addInsn(BC_CALLNATIVE);
+	code.addTyped(id);
+
+	status = Status::Ok();
 }
 
 void BytecodeTranslator::Visitor::visitPrintNode(PrintNode *node) {
-	return_type = VTE_VOID;
+	return_type = VarTypeEx::VOID;
 
 	for (size_t i{0}; i < node->operands(); ++i) {
 		auto const &op{node->operandAt(i)};
@@ -669,14 +719,14 @@ void BytecodeTranslator::Visitor::visitPrintNode(PrintNode *node) {
 		code.addAll(operand_visitor.code);
 
 		switch (operand_visitor.return_type) {
-		case VTE_DOUBLE:
+		case VarTypeEx::DOUBLE:
 			code.addInsn(BC_DPRINT);
 			break;
-		case VTE_INT:
-		case VTE_BOOL:
+		case VarTypeEx::INT:
+		case VarTypeEx::BOOL:
 			code.addInsn(BC_IPRINT);
 			break;
-		case VTE_STRING:
+		case VarTypeEx::STRING:
 			code.addInsn(BC_SPRINT);
 			break;
 		default:
