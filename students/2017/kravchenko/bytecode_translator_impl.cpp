@@ -894,6 +894,35 @@ void BytecodeVisitor::visitForNode(ForNode *node)
 
 void BytecodeVisitor::visitWhileNode(WhileNode *node)
 {
+    Label repeat = _fun->bytecode()->currentLabel();
+
+    node->whileExpr()->visit(this);
+
+    VarType expType = types.top();
+    if (expType == VT_DOUBLE)
+        addInsn(BC_D2I);
+    else if (expType == VT_STRING)
+        addInsn(BC_S2I);
+
+    addInsn(BC_ILOAD0);
+
+    Label done(_fun->bytecode());
+
+    _fun->bytecode()->addBranch(BC_IFICMPE, done);
+
+    addInsn(BC_POP);
+    addInsn(BC_POP);
+
+    node->loopBlock()->visit(this);
+
+    _fun->bytecode()->addBranch(BC_JA, repeat);
+    _fun->bytecode()->bind(done);
+
+    types.push(VT_INT);
+    types.push(VT_INT);
+
+    addInsn(BC_POP);
+    addInsn(BC_POP);
 }
 
 void BytecodeVisitor::visitIfNode(IfNode *node)
