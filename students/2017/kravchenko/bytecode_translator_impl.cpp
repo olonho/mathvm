@@ -1098,6 +1098,18 @@ void BytecodeVisitor::visitCallNode(CallNode *node)
 
 void BytecodeVisitor::visitPrintNode(PrintNode *node)
 {
+    for (int i = 0; i < (int)node->operands(); i++) {
+        node->operandAt(i)->visit(this);
+        VarType opType = types.top();
+        if (opType == VT_INT)
+            addInsn(BC_IPRINT);
+        else if (opType == VT_DOUBLE)
+            addInsn(BC_DPRINT);
+        else if (opType == VT_STRING)
+            addInsn(BC_SPRINT);
+        else
+            assert(false);
+    }
 }
 
 }
