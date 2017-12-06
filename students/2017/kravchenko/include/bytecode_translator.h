@@ -72,6 +72,8 @@ private:
 
     void enterScope();
     void leaveScope();
+
+    void leaveFunction();
 };
 
 }

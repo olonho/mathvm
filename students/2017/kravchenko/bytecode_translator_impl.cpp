@@ -351,6 +351,7 @@ std::vector<uint8_t> BytecodeVisitor::opResType(TokenKind op)
         case tAAND:
         case tAXOR:
         case tMOD:
+        case tRANGE:
             res[0] = res[1] = res[2] = I;
             res[3] = 1;
             break;
@@ -678,6 +679,11 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node)
 
     TokenKind op = node->kind();
     switch (op) {
+        case tRANGE:
+            node->left()->visit(this);
+            node->right()->visit(this);
+            correctTypes(2, opResType(op));
+            break;
         case tEQ:
         case tNEQ:
         case tGT:
@@ -877,7 +883,7 @@ void BytecodeVisitor::visitBlockNode(BlockNode *node)
         AstNode *child = node->nodeAt(i);
         enterScope(); // hack
         child->visit(this);
-        leaveScope(); // hack
+        leaveScope(); // hack, pop unused values
         _scope = node->scope();
     }
 
@@ -890,6 +896,21 @@ void BytecodeVisitor::visitNativeCallNode(NativeCallNode *node)
 
 void BytecodeVisitor::visitForNode(ForNode *node)
 {
+/*
+    node->inExpr()->visit(this);
+    addInsn(BC_SWAP);
+
+    assert(node->var()->type() == VT_INT);
+
+    uint16_t scope_id = _scope_map[node->var()->owner()];
+    addInsn(BC_STORECTXIVAR);
+    _fun->bytecode()->addUInt16(scope_id);
+
+    Label begin = _fun->bytecode()->currentLabel();
+    
+*/
+//    LoadNode ln(0xffffffff, node->var());
+//    ln.visit(this);
 }
 
 void BytecodeVisitor::visitWhileNode(WhileNode *node)
@@ -983,6 +1004,10 @@ void BytecodeVisitor::visitReturnNode(ReturnNode *node)
     else if (returnType == VT_STRING)
         addInsn(BC_STORESVAR0);
 
+    int pops = (int)types.size() - 1; // leave only return address on stack
+    for (int i = 0; i < pops; i++)
+        _fun->bytecode()->addInsn(BC_POP);
+
     addInsn(BC_RETURN);
 }
 
@@ -1018,10 +1043,10 @@ void BytecodeVisitor::visitFunctionNode(FunctionNode *node)
         _fun->bytecode()->addUInt16(_var_map[_scope][node->parameterName(i)]);
     }
 
+    node->body()->visit(this);
+
     // return address
     types.pop();
-
-    node->body()->visit(this);
 
     printf("types size = %lu\n", types.size());
     if (_fun->bytecode()->getInsn(_fun->bytecode()->current() - 1) != BC_RETURN)
