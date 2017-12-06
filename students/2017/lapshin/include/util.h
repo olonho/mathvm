@@ -12,6 +12,7 @@ namespace mathvm::ldvsoft {
 		VTE_BOOL
 	};
 
+	using std::to_string;
 	string to_string(VarTypeEx value);
 	VarTypeEx extend(VarType t);
 	VarTypeEx common_of(VarTypeEx a, VarTypeEx b);

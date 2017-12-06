@@ -62,6 +62,15 @@ int main(int argc, char** argv) {
 			line, offset, translateStatus->getErrorCstr()
 		);
 	} else {
+		if (impl == "to-bytecode") {
+			class : public FunctionFilter {
+			public:
+				virtual bool matches(TranslatedFunction *) override {
+					return true;
+				}
+			} filter;
+			code->disassemble(cout, &filter);
+		}
 		if (impl != "printer" && impl != "printer-pretty") {
 			assert(code != 0);
 			vector<Var*> vars;

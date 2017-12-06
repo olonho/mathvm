@@ -3,7 +3,8 @@
 namespace mathvm::ldvsoft {
 
 Status *BytecodeCode::execute(vector<Var*> &vars) {
-	return Status::Error("Not yet supported");
+	static_cast<void>(vars);
+	return Status::Error("Execution is not supported yet");
 }
 
 }
