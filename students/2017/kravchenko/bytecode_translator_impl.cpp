@@ -33,6 +33,12 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code)
 
 // BytecodeVisitor
 
+bool BytecodeVisitor::isNative(AstFunction *fun)
+{
+    FunctionNode *node = fun->node();
+    return (node->body()->nodes() > 0 && dynamic_cast<NativeCallNode *>(node->body()->nodeAt(0)));
+}
+
 void BytecodeVisitor::registerScopes(Scope *s)
 {
     _scope_map[s] = _scope_map.size();
@@ -892,6 +898,8 @@ void BytecodeVisitor::visitBlockNode(BlockNode *node)
 
 void BytecodeVisitor::visitNativeCallNode(NativeCallNode *node)
 {
+    types.push(std::get<0>(node->nativeSignature()[0]));
+    printf("TODO: native call to '%s' with type '%s'\n", node->nativeName().c_str(), typeToName(std::get<0>(node->nativeSignature()[0])));
 }
 
 void BytecodeVisitor::visitForNode(ForNode *node)
@@ -1004,12 +1012,12 @@ void BytecodeVisitor::visitReturnNode(ReturnNode *node)
 {
     printf("visitReturnNode\n");
 
-    if (node->returnExpr())
+    if (node->returnExpr()) {
         node->returnExpr()->visit(this);
+        assert(types.top() == _fun->returnType());
+    }
 
-    VarType returnType = types.top();
-
-    assert(returnType == _fun->returnType());
+    VarType returnType = _fun->returnType();
 
     if (returnType == VT_INT)
         addInsn(BC_STOREIVAR0);

@@ -73,7 +73,7 @@ private:
     void enterScope();
     void leaveScope();
 
-    void leaveFunction();
+    bool isNative(AstFunction *fun);
 };
 
 }
