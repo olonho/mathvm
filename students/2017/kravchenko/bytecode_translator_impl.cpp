@@ -896,21 +896,35 @@ void BytecodeVisitor::visitNativeCallNode(NativeCallNode *node)
 
 void BytecodeVisitor::visitForNode(ForNode *node)
 {
-/*
     node->inExpr()->visit(this);
     addInsn(BC_SWAP);
 
     assert(node->var()->type() == VT_INT);
 
     uint16_t scope_id = _scope_map[node->var()->owner()];
+    uint16_t var_id = _var_map[node->var()->owner()][node->var()->name()];
+
     addInsn(BC_STORECTXIVAR);
     _fun->bytecode()->addUInt16(scope_id);
+    _fun->bytecode()->addUInt16(var_id);
 
     Label begin = _fun->bytecode()->currentLabel();
-    
-*/
-//    LoadNode ln(0xffffffff, node->var());
-//    ln.visit(this);
+    Label done(_fun->bytecode());
+    _fun->bytecode()->addBranch(BC_IFICMPG, done);
+
+    node->body()->visit(this);
+
+    addInsn(BC_LOADCTXIVAR);
+    _fun->bytecode()->addUInt16(scope_id);
+    _fun->bytecode()->addUInt16(var_id);
+    addInsn(BC_ILOAD1);
+    addInsn(BC_IADD);
+    addInsn(BC_STORECTXIVAR);
+    _fun->bytecode()->addUInt16(scope_id);
+    _fun->bytecode()->addUInt16(var_id);
+
+    _fun->bytecode()->addBranch(BC_JA, begin);
+    _fun->bytecode()->bind(done);
 }
 
 void BytecodeVisitor::visitWhileNode(WhileNode *node)

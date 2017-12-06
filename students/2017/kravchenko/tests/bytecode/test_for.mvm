@@ -1,0 +1,9 @@
+int a;
+int i;
+
+for (i in 1..10) {
+    int j;
+    for (j in -1..10) {
+        a += 1;
+    }
+}
