@@ -1,8 +1,8 @@
 #include "printer.h"
-#include <cstdio>
 
-using namespace mathvm;
-using namespace mathvm::ldvsoft;
+#include "util.h"
+
+namespace mathvm::ldvsoft {
 
 AstPrinterStyle AstPrinter::testStyle() {
 	AstPrinterStyle result;
@@ -131,38 +131,7 @@ void AstPrinter::visitUnaryOpNode(UnaryOpNode *node) {
 }
 
 void AstPrinter::visitStringLiteralNode(StringLiteralNode *node) {
-	ss << "'";
-	for (auto c: node->literal()) {
-		switch (c) {
-		case '\'':
-			ss << "\\'";
-			break;
-		case '\a':
-			ss << "\\a";
-			break;
-		case '\b':
-			ss << "\\b";
-			break;
-		case '\f':
-			ss << "\\f";
-			break;
-		case '\n':
-			ss << "\\n";
-			break;
-		case '\r':
-			ss << "\\r";
-			break;
-		case '\t':
-			ss << "\\t";
-			break;
-		case '\v':
-			ss << "\\v";
-			break;
-		default:
-			ss << string(1, c);
-		}
-	}
-	ss << "'";
+	ss << escape(node->literal());
 	wasStatement = false;
 }
 
@@ -238,7 +207,8 @@ void AstPrinter::visitFunctionNode(FunctionNode *node) {
 
 void AstPrinter::visitReturnNode(ReturnNode *node) {
 	ss << "return ";
-	visitExpression(node->returnExpr());
+	if (node->returnExpr())
+		visitExpression(node->returnExpr());
 	wasStatement = false;
 }
 
@@ -269,3 +239,4 @@ void AstPrinter::visitPrintNode(PrintNode *node) {
 	wasStatement = false;
 }
 
+}

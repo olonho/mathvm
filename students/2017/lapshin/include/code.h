@@ -22,6 +22,7 @@ public:
 	virtual ~BytecodeCode() override = default;
 
  	virtual Status *execute(vector<Var*> &vars) override;
+    virtual void disassemble(ostream &out, FunctionFilter *filter) override;
 };
 
 }

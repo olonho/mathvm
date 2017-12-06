@@ -13,9 +13,11 @@ namespace mathvm::ldvsoft {
 	};
 
 	using std::to_string;
-	string to_string(VarTypeEx value);
+	string to_string(VarTypeEx value);	
 	VarTypeEx extend(VarType t);
 	VarTypeEx common_of(VarTypeEx a, VarTypeEx b);
+
+	string escape(string const &s);
 
 	namespace StatusEx {
 		Status *Error(string const &reason, uint32_t position = Status::INVALID_POSITION);

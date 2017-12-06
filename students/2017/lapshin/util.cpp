@@ -1,6 +1,44 @@
 #include "util.h"
 
+#include <sstream>
+
 namespace mathvm::ldvsoft {
+
+string escape(string const &s) {
+	stringstream ss;
+	ss << '\'';
+	for (auto c: s)
+		switch (c) {
+		case '\'':
+			ss << "\\'";
+			break;
+		case '\a':
+			ss << "\\a";
+			break;
+		case '\b':
+			ss << "\\b";
+			break;
+		case '\f':
+			ss << "\\f";
+			break;
+		case '\n':
+			ss << "\\n";
+			break;
+		case '\r':
+			ss << "\\r";
+			break;
+		case '\t':
+			ss << "\\t";
+			break;
+		case '\v':
+			ss << "\\v";
+			break;
+		default:
+			ss << c;
+		}
+	ss << '\'';
+	return ss.str();
+}
 
 string to_string(VarTypeEx value) {
 	switch (value) {
