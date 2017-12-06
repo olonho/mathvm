@@ -898,6 +898,42 @@ void BytecodeVisitor::visitWhileNode(WhileNode *node)
 
 void BytecodeVisitor::visitIfNode(IfNode *node)
 {
+    node->ifExpr()->visit(this);
+
+    VarType expType = types.top();
+    if (expType == VT_DOUBLE)
+        addInsn(BC_D2I);
+    else if (expType == VT_STRING)
+        addInsn(BC_S2I);
+
+    addInsn(BC_ILOAD0);
+
+    Label notThen(_fun->bytecode());
+    Label notElse(_fun->bytecode());
+
+    _fun->bytecode()->addBranch(BC_IFICMPE, notThen);
+
+    addInsn(BC_POP);
+    addInsn(BC_POP);
+
+    node->thenBlock()->visit(this);
+
+    if (node->elseBlock())
+        _fun->bytecode()->addBranch(BC_JA, notElse);
+
+    _fun->bytecode()->bind(notThen);
+
+    if (node->elseBlock()) {
+        types.push(VT_INT);
+        types.push(VT_INT);
+
+        addInsn(BC_POP);
+        addInsn(BC_POP);
+
+        node->elseBlock()->visit(this);
+
+        _fun->bytecode()->bind(notElse);
+    }
 }
 
 void BytecodeVisitor::visitReturnNode(ReturnNode *node)
@@ -924,7 +960,7 @@ void BytecodeVisitor::visitReturnNode(ReturnNode *node)
 void BytecodeVisitor::visitFunctionNode(FunctionNode *node)
 {
     // TODO natives
-    fprintf(stderr, "visiting function node name %s\n", node->name().c_str());
+    printf("visiting function node name %s\n", node->name().c_str());
 
     // args
     for (int i = node->parametersNumber() - 1; i >= 0; i--) {
