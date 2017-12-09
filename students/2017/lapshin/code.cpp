@@ -3,6 +3,7 @@
 #include "util.h"
 
 #include <stack>
+#include <variant>
 
 namespace mathvm::ldvsoft {
 
@@ -10,99 +11,69 @@ class BytecodeCode::Evaluator {
 public:
 	class VarEx {
 	public:
-		VarType type;
-		union {
-			double d;
-			int64_t i;
-			string s;
-		};
+		std::variant<double, int64_t, string> storage;
 
-		VarEx(Var const &v) {
-			type = v.type();
-			switch (type) {
-			case VT_DOUBLE:
-				d = v.getDoubleValue();
-				break;
-			case VT_INT:
-				i = v.getIntValue();
-				break;
-			case VT_STRING:
-				s = v.getStringValue();
-				break;
-			default:
-				;
-			}
-		}
-		VarEx(double d):
-			type{VT_DOUBLE}, d{d} {}
-		VarEx(int64_t i = 0):
-			type{VT_INT}, i{i} {}
-		VarEx(string const &s):
-			type{VT_STRING}, s{s} {}
-		VarEx(VarEx const &that) {
-			type = that.type;
-			switch (type) {
-			case VT_DOUBLE:
-				d = that.d;
-				break;
-			case VT_INT:
-				i = that.i;
-				break;
-			case VT_STRING:
-				s = that.s;
-				break;
-			default:
-				;
-			}
-		}
-		VarEx(VarEx &&that) {
-			type = that.type;
-			switch (type) {
-			case VT_DOUBLE:
-				d = that.d;
-				break;
-			case VT_INT:
-				i = that.i;
-				break;
-			case VT_STRING:
-				s = move(that.s);
-				break;
-			default:
-				;
+		VarType type() const {
+			switch (storage.index()) {
+			case 0:  return VT_DOUBLE;
+			case 1:  return VT_INT;
+			case 2:  return VT_STRING;
+			default: return VT_INVALID;
 			}
 		}
 
-		~VarEx() {
-			if (type == VT_STRING)
-				s.~string();
-		}
-
-		VarEx &operator=(VarEx that) {
-			type = that.type;
-			switch (type) {
+		VarEx(Var const &v) {
+			switch (v.type()) {
 			case VT_DOUBLE:
-				d = that.d;
+				storage.emplace<double>(v.getDoubleValue());
 				break;
 			case VT_INT:
-				i = that.i;
+				storage.emplace<int64_t>(v.getIntValue());
 				break;
 			case VT_STRING:
-				swap(s, that.s);
+				storage.emplace<string>(v.getStringValue());
 				break;
 			default:
 				;
 			}
-			return *this;
+		}
+		VarEx(double d):        storage{d} {}
+		VarEx(int64_t i = 0):   storage{i} {}
+		VarEx(string const &s): storage{s} {}
+
+		friend Var &assign(Var &target, VarEx const &source) {
+			switch (source.storage.index()) {
+			case 0:
+				target.setDoubleValue(std::get<0>(source.storage));
+				break;
+			case 1:
+				target.setDoubleValue(std::get<0>(source.storage));
+				break;
+			case 2:
+				target.setDoubleValue(std::get<0>(source.storage));
+				break;
+			}
+			return target;
+		}
+
+		int64_t const &i() const {
+			return std::get<int64_t>(storage);
+		}
+		double const &d() const {
+			return std::get<double>(storage);
+		}
+		string const &s() const {
+			return std::get<string>(storage);
 		}
 
 		friend ostream &operator<<(ostream &out, VarEx const &v) {
-			switch (v.type) {
+			switch (v.type()) {
 			case VT_DOUBLE:
-				return out << v.d;
+				return out << v.d();
 			case VT_INT:
-				return out << v.i;
+				return out << v.i();
 			case VT_STRING:
-				return out << v.s;
+				return out << v.s();
 			default:
 				;
 			}
@@ -209,120 +180,120 @@ void BytecodeCode::Evaluator::processILOADM1(size_t) {
 }
 
 void BytecodeCode::Evaluator::processDADD(size_t) {
-	auto left {stack.top().d}; stack.pop();
-	auto right{stack.top().d}; stack.pop();
+	auto left {stack.top().d()}; stack.pop();
+	auto right{stack.top().d()}; stack.pop();
 	stack.emplace(left + right);
 }
 
 void BytecodeCode::Evaluator::processIADD(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(left + right);
 }
 
 void BytecodeCode::Evaluator::processDSUB(size_t) {
-	auto left {stack.top().d}; stack.pop();
-	auto right{stack.top().d}; stack.pop();
+	auto left {stack.top().d()}; stack.pop();
+	auto right{stack.top().d()}; stack.pop();
 	stack.emplace(left - right);
 }
 
 void BytecodeCode::Evaluator::processISUB(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(left - right);
 }
 
 void BytecodeCode::Evaluator::processDMUL(size_t) {
-	auto left {stack.top().d}; stack.pop();
-	auto right{stack.top().d}; stack.pop();
+	auto left {stack.top().d()}; stack.pop();
+	auto right{stack.top().d()}; stack.pop();
 	stack.emplace(left * right);
 }
 
 void BytecodeCode::Evaluator::processIMUL(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(left * right);
 }
 
 void BytecodeCode::Evaluator::processDDIV(size_t) {
-	auto left {stack.top().d}; stack.pop();
-	auto right{stack.top().d}; stack.pop();
+	auto left {stack.top().d()}; stack.pop();
+	auto right{stack.top().d()}; stack.pop();
 	stack.emplace(left / right);
 }
 
 void BytecodeCode::Evaluator::processIDIV(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(left / right);
 }
 
 void BytecodeCode::Evaluator::processIMOD(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(left % right);
 }
 
 void BytecodeCode::Evaluator::processDNEG(size_t) {
-	auto op{stack.top().d}; stack.pop();
+	auto op{stack.top().d()}; stack.pop();
 	stack.emplace(-op);
 }
 
 void BytecodeCode::Evaluator::processINEG(size_t) {
-	auto op{stack.top().i}; stack.pop();
+	auto op{stack.top().i()}; stack.pop();
 	stack.emplace(-op);
 }
 
 void BytecodeCode::Evaluator::processIAOR(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(left | right);
 }
 
 void BytecodeCode::Evaluator::processIAAND(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(left & right);
 }
 
 void BytecodeCode::Evaluator::processIAXOR(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(left ^ right);
 }
 
 void BytecodeCode::Evaluator::processIPRINT(size_t) {
-	auto op{stack.top().i}; stack.pop();
+	auto op{stack.top().i()}; stack.pop();
 	cout << op << flush;
 }
 
 void BytecodeCode::Evaluator::processDPRINT(size_t) {
-	auto op{stack.top().d}; stack.pop();
+	auto op{stack.top().d()}; stack.pop();
 	cout << op << flush;
 }
 
 void BytecodeCode::Evaluator::processSPRINT(size_t) {
-	auto op{stack.top().s}; stack.pop();
+	auto op{stack.top().s()}; stack.pop();
 	cout << op << flush;
 }
 
 void BytecodeCode::Evaluator::processI2D(size_t) {
-	auto op{stack.top().i}; stack.pop();
+	auto op{stack.top().i()}; stack.pop();
 	stack.emplace(static_cast<double>(op));
 }
 
 void BytecodeCode::Evaluator::processD2I(size_t) {
-	auto op{stack.top().d}; stack.pop();
+	auto op{stack.top().d()}; stack.pop();
 	stack.emplace(static_cast<int64_t>(op));
 }
 
 void BytecodeCode::Evaluator::processS2I(size_t) {
-	auto op{stack.top().s}; stack.pop();
+	auto op{stack.top().s()}; stack.pop();
 	stack.emplace(static_cast<int64_t>(stoll(op)));
 }
 
 void BytecodeCode::Evaluator::processSWAP(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(move(right));
 	stack.emplace(move(left ));
 }
@@ -400,14 +371,14 @@ int64_t sign(T val) {
 }
 
 void BytecodeCode::Evaluator::processDCMP(size_t) {
-	auto left {stack.top().d}; stack.pop();
-	auto right{stack.top().d}; stack.pop();
+	auto left {stack.top().d()}; stack.pop();
+	auto right{stack.top().d()}; stack.pop();
 	stack.emplace(sign(left - right));
 }
 
 void BytecodeCode::Evaluator::processICMP(size_t) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	stack.emplace(sign(left - right));
 }
 
@@ -417,8 +388,8 @@ void BytecodeCode::Evaluator::processJA(size_t) {
 }
 
 void BytecodeCode::Evaluator::processIFICMPNE(size_t adj_size) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	auto value{frame().code().getInt16(frame().ip)};
 	if (left != right)
 		frame().ip += value;
@@ -427,8 +398,8 @@ void BytecodeCode::Evaluator::processIFICMPNE(size_t adj_size) {
 }
 
 void BytecodeCode::Evaluator::processIFICMPE(size_t adj_size) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	auto value{frame().code().getInt16(frame().ip)};
 	if (left == right)
 		frame().ip += value;
@@ -437,8 +408,8 @@ void BytecodeCode::Evaluator::processIFICMPE(size_t adj_size) {
 }
 
 void BytecodeCode::Evaluator::processIFICMPG(size_t adj_size) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	auto value{frame().code().getInt16(frame().ip)};
 	if (left > right)
 		frame().ip += value;
@@ -447,8 +418,8 @@ void BytecodeCode::Evaluator::processIFICMPG(size_t adj_size) {
 }
 
 void BytecodeCode::Evaluator::processIFICMPGE(size_t adj_size) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	auto value{frame().code().getInt16(frame().ip)};
 	if (left >= right)
 		frame().ip += value;
@@ -457,8 +428,8 @@ void BytecodeCode::Evaluator::processIFICMPGE(size_t adj_size) {
 }
 
 void BytecodeCode::Evaluator::processIFICMPL(size_t adj_size) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	auto value{frame().code().getInt16(frame().ip)};
 	if (left < right)
 		frame().ip += value;
@@ -467,8 +438,8 @@ void BytecodeCode::Evaluator::processIFICMPL(size_t adj_size) {
 }
 
 void BytecodeCode::Evaluator::processIFICMPLE(size_t adj_size) {
-	auto left {stack.top().i}; stack.pop();
-	auto right{stack.top().i}; stack.pop();
+	auto left {stack.top().i()}; stack.pop();
+	auto right{stack.top().i()}; stack.pop();
 	auto value{frame().code().getInt16(frame().ip)};
 	if (left <= right)
 		frame().ip += value;
