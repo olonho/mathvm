@@ -12,8 +12,6 @@ namespace mathvm {
 
 Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code)
 {
-    fprintf(stderr, "here\n");
-
     Status *res;
     Parser parser;
     res = parser.parseProgram(program);
@@ -28,14 +26,12 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code)
 
     *code = b_visitor.get_code();
 
-    return res;
-}
+    return res;}
 
 // BytecodeVisitor
 
-bool BytecodeVisitor::isNative(AstFunction *fun)
+bool BytecodeVisitor::isNative(FunctionNode *node)
 {
-    FunctionNode *node = fun->node();
     return (node->body()->nodes() > 0 && dynamic_cast<NativeCallNode *>(node->body()->nodeAt(0)));
 }
 
@@ -55,12 +51,14 @@ void BytecodeVisitor::registerScopes(Scope *s)
 void BytecodeVisitor::registerFunctions(AstFunction *a_fun)
 {
     printf("registering function %s\n", a_fun->name().c_str());
+
+    FunctionNode *node = a_fun->node();
     _funcs.push_back(a_fun);
     BytecodeFunction *fun = new BytecodeFunction(a_fun);
     _code->addFunction(fun);
     _funIdMap[a_fun->name()] = fun->id();
 
-    for (Scope::FunctionIterator fun_it(a_fun->node()->body()->scope()); fun_it.hasNext();) {
+    for (Scope::FunctionIterator fun_it(node->body()->scope()); fun_it.hasNext();) {
         AstFunction *fun = fun_it.next();
         registerFunctions(fun);
     }
@@ -68,20 +66,39 @@ void BytecodeVisitor::registerFunctions(AstFunction *a_fun)
 
 void BytecodeVisitor::translate(AstFunction *a_fun)
 {
-    fprintf(stderr, "in b_visitor\n");
     // get functions and scopes ids.
     registerScopes(a_fun->owner());
     registerFunctions(a_fun);
 
+    _dlHandler = dlopen(NULL, RTLD_LAZY | RTLD_NODELETE);
+
     for (AstFunction *fun : _funcs) {
         _fun = nullptr;
         _scope = nullptr;
+        translateAstFunction(fun);
         assert(types.size() == 0);
         assert(_scopeSizes.size() == 0);
-        translateAstFunction(fun);
     }
 
     printf("\n\n\n");
+}
+
+void BytecodeVisitor::translateAstFunction(AstFunction *a_fun)
+{
+    _fun = (BytecodeFunction *)_code->functionByName(a_fun->name());
+    _fun->setScopeId(_scope_map[a_fun->scope()]);
+    _fun->setLocalsNumber(a_fun->node()->body()->scope()->variablesCount());
+
+    _scope = a_fun->scope();
+
+    a_fun->node()->visit(this);
+
+    fprintf(stderr, "translated ast function %s:\n", _fun->name().c_str());
+    fprintf(stderr, "    id = %d\n", _fun->id());
+    fprintf(stderr, "    locals = %d\n", _fun->localsNumber());
+    fprintf(stderr, "    params = %d\n", _fun->parametersNumber());
+    fprintf(stderr, "    scopeId = %d\n", _fun->scopeId());
+    _fun->bytecode()->dump(std::cout);
 }
 
 void BytecodeVisitor::addInsn(Instruction insn)
@@ -284,24 +301,6 @@ void BytecodeVisitor::addInsn(Instruction insn)
             assert(false);
             break;
     }
-}
-
-void BytecodeVisitor::translateAstFunction(AstFunction *a_fun)
-{
-    _fun = (BytecodeFunction *)_code->functionByName(a_fun->name());
-    _fun->setScopeId(_scope_map[a_fun->scope()]);
-    _fun->setLocalsNumber(a_fun->node()->body()->scope()->variablesCount());
-
-    _scope = a_fun->scope();
-
-    a_fun->node()->visit(this);
-
-    fprintf(stderr, "translated ast function %s:\n", _fun->name().c_str());
-    fprintf(stderr, "    id = %d\n", _fun->id());
-    fprintf(stderr, "    locals = %d\n", _fun->localsNumber());
-    fprintf(stderr, "    params = %d\n", _fun->parametersNumber());
-    fprintf(stderr, "    scopeId = %d\n", _fun->scopeId());
-    _fun->bytecode()->dump(std::cout);
 }
 
 void BytecodeVisitor::convertType(VarType to)
@@ -898,8 +897,26 @@ void BytecodeVisitor::visitBlockNode(BlockNode *node)
 
 void BytecodeVisitor::visitNativeCallNode(NativeCallNode *node)
 {
-    types.push(std::get<0>(node->nativeSignature()[0]));
-    printf("TODO: native call to '%s' with type '%s'\n", node->nativeName().c_str(), typeToName(std::get<0>(node->nativeSignature()[0])));
+    printf("native call to '%s' with type '%s'\n", node->nativeName().c_str(), typeToName(std::get<0>(node->nativeSignature()[0])));
+
+    void *address = dlsym(_dlHandler, node->nativeName().c_str());
+    assert(address != NULL);
+    uint16_t id = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), address);
+
+    addInsn(BC_CALLNATIVE);
+    _fun->bytecode()->addUInt16(id);
+
+    VarType funType = std::get<0>(node->nativeSignature()[0]);
+    if (funType == VT_INT) {
+        types.push(VT_INT);
+        addInsn(BC_LOADIVAR0);
+    } else if (funType == VT_DOUBLE) {
+        types.push(VT_DOUBLE);
+        addInsn(BC_LOADDVAR0);
+    } else if (funType == VT_STRING) {
+        types.push(VT_STRING);
+        addInsn(BC_LOADSVAR0);
+    }
 }
 
 void BytecodeVisitor::visitForNode(ForNode *node)
@@ -1017,14 +1034,23 @@ void BytecodeVisitor::visitReturnNode(ReturnNode *node)
         assert(types.top() == _fun->returnType());
     }
 
-    VarType returnType = _fun->returnType();
+/**
+ * Really?
+ * int a() native 'a' -> { native call a(); return; }
+ * wtf???
+ */
 
-    if (returnType == VT_INT)
-        addInsn(BC_STOREIVAR0);
-    else if (returnType == VT_DOUBLE)
-        addInsn(BC_STOREDVAR0);
-    else if (returnType == VT_STRING)
-        addInsn(BC_STORESVAR0);
+    AstFunction *a_fun = _funcs[_funIdMap[_fun->name()]];
+
+    if (!isNative(a_fun->node())) {
+        VarType returnType = _fun->returnType();
+        if (returnType == VT_INT)
+            addInsn(BC_STOREIVAR0);
+        else if (returnType == VT_DOUBLE)
+            addInsn(BC_STOREDVAR0);
+        else if (returnType == VT_STRING)
+            addInsn(BC_STORESVAR0);
+    }
 
     int pops = (int)types.size() - 1; // leave only return address on stack
     for (int i = 0; i < pops; i++)
@@ -1035,8 +1061,11 @@ void BytecodeVisitor::visitReturnNode(ReturnNode *node)
 
 void BytecodeVisitor::visitFunctionNode(FunctionNode *node)
 {
-    // TODO natives
     printf("visiting function node name %s\n", node->name().c_str());
+
+    // hack
+    if (isNative(node))
+        enterScope();
 
     // args
     for (int i = node->parametersNumber() - 1; i >= 0; i--) {
@@ -1053,16 +1082,18 @@ void BytecodeVisitor::visitFunctionNode(FunctionNode *node)
     // return address
     types.push(VT_INT);
 
-    for (size_t i = 0; i < node->parametersNumber(); i++) {
-        VarType paramType = node->parameterType(i);
-        addInsn(BC_SWAP); // return addres
-        if (paramType == VT_INT)
-            addInsn(BC_STOREIVAR);
-        else if (paramType == VT_DOUBLE)
-            addInsn(BC_STOREDVAR);
-        else if (paramType == VT_STRING)
-            addInsn(BC_STORESVAR);
-        _fun->bytecode()->addUInt16(_var_map[_scope][node->parameterName(i)]);
+    if (!isNative(node)) {
+        for (size_t i = 0; i < node->parametersNumber(); i++) {
+            VarType paramType = node->parameterType(i);
+            addInsn(BC_SWAP); // return addres
+            if (paramType == VT_INT)
+                addInsn(BC_STOREIVAR);
+            else if (paramType == VT_DOUBLE)
+                addInsn(BC_STOREDVAR);
+            else if (paramType == VT_STRING)
+                addInsn(BC_STORESVAR);
+            _fun->bytecode()->addUInt16(_var_map[_scope][node->parameterName(i)]);
+        }
     }
 
     node->body()->visit(this);
@@ -1070,9 +1101,12 @@ void BytecodeVisitor::visitFunctionNode(FunctionNode *node)
     // return address
     types.pop();
 
-    printf("types size = %lu\n", types.size());
-    if (_fun->bytecode()->getInsn(_fun->bytecode()->current() - 1) != BC_RETURN)
-        addInsn(BC_RETURN); // fake return just in case
+    if (!isNative(node)) {
+        if (_fun->bytecode()->getInsn(_fun->bytecode()->current() - 1) != BC_RETURN)
+            addInsn(BC_RETURN); // fake return just in case
+    } else {
+        leaveScope();
+    }
 }
 
 void BytecodeVisitor::visitCallNode(CallNode *node)

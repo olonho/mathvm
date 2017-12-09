@@ -12,6 +12,8 @@
 #include <vector>
 #include <stack>
 
+#include <dlfcn.h>
+
 namespace mathvm {
 
 class BytecodeVisitor : public AstBaseVisitor
@@ -34,6 +36,8 @@ private:
 
     std::stack<VarType> types;
     std::stack<size_t> _scopeSizes;
+
+    void *_dlHandler;
 
 public:
     BytecodeVisitor() {
@@ -73,7 +77,7 @@ private:
     void enterScope();
     void leaveScope();
 
-    bool isNative(AstFunction *fun);
+    bool isNative(FunctionNode *node);
 };
 
 }

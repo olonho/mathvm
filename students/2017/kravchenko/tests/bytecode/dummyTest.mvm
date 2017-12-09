@@ -4,6 +4,7 @@ int z;
 int i;
 
 function void setMem(int base, int offset, int value, int width) native 'unsafe_setMem';
+function int getMem(string base, int offset, int width) native 'unsafe_getMem';
 
 function int foo(int x) {
     int r;
