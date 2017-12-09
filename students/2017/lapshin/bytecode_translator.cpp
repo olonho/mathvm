@@ -601,6 +601,7 @@ void BytecodeTranslator::Visitor::visitFunctionNode(FunctionNode *node) {
 			return;
 		}
 		auto const &scope{target.code.scopes[&function_scope]};
+		scopes.push_back(scope.id);
 		code.addTyped(scope.id);
 		code.addTyped(scope.vars.at(node->parameterName(i)));
 	}

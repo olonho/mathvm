@@ -153,7 +153,7 @@ public:
 	Evaluator(BytecodeCode &code):
 		global{code} {
 		frames.emplace_back(*static_cast<TranslatedFunction*>(
-			global.functionById(0)
+			global.functionByName(AstFunction::top_name)
 		));
 	};
 };
@@ -345,28 +345,28 @@ void BytecodeCode::Evaluator::processPOP(size_t) {
 
 #define PROCESS_LOAD(name, id) \
 void BytecodeCode::Evaluator::process##name##VAR##id(size_t) { \
-	status = Status::Error("unsupported"); \
+	status = StatusEx::Error("unsupported " #name "VAR" #id " at " + to_string(frame().ip)); \
 }
 FOR_TYPES(LOAD, FOR_IDS, PROCESS_LOAD)
 #undef  PROCESS_LOAD
 
 #define PROCESS_STORE(name, id) \
 void BytecodeCode::Evaluator::process##name##VAR##id(size_t) { \
-	status = Status::Error("unsupported"); \
+	status = StatusEx::Error("unsupported " #name "VAR" #id " at " + to_string(frame().ip)); \
 }
 FOR_TYPES(STORE, FOR_IDS, PROCESS_STORE)
 #undef  PROCESS_STORE
 
 #define PROCESS_LOAD(name) \
 void BytecodeCode::Evaluator::process##name##VAR(size_t) { \
-	status = Status::Error("unsupported"); \
+	status = StatusEx::Error("unsupported " #name "VAR at " + to_string(frame().ip)); \
 }
 FOR_TYPES(LOAD, APPLY, PROCESS_LOAD)
 #undef  PROCESS_LOAD
 
 #define PROCESS_STORE(name) \
 void BytecodeCode::Evaluator::process##name##VAR(size_t) { \
-	status = Status::Error("unsupported"); \
+	status = StatusEx::Error("unsupported " #name "VAR at " + to_string(frame().ip)); \
 }
 FOR_TYPES(STORE, APPLY, PROCESS_STORE)
 #undef  PROCESS_STORE
@@ -485,8 +485,13 @@ void BytecodeCode::Evaluator::processSTOP(size_t) {
 	status = Status::Error("Execution stopped");
 }
 
-void BytecodeCode::Evaluator::processCALL(size_t) {
-	status = Status::Error("CALL is not implemented yet");
+void BytecodeCode::Evaluator::processCALL(size_t adj_size) {
+	auto value{frame().code().getInt16(frame().ip)};
+	frame().ip += adj_size;
+
+	frames.emplace_back(*static_cast<TranslatedFunction*>(
+		global.functionById(value)
+	));
 }
 
 void BytecodeCode::Evaluator::processCALLNATIVE(size_t) {
@@ -494,7 +499,7 @@ void BytecodeCode::Evaluator::processCALLNATIVE(size_t) {
 }
 
 void BytecodeCode::Evaluator::processRETURN(size_t) {
-	status = Status::Error("RETURN is not implemented yet");
+	frames.pop_back();
 }
 
 void BytecodeCode::Evaluator::processBREAK(size_t) {}
