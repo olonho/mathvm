@@ -13,25 +13,25 @@ void Bytecode::addInsns(initializer_list<Instruction> insns) {
 }
 
 Status *Bytecode::addCast(VarTypeEx from, VarTypeEx to, uint32_t position) {
-	assert(from != VTE_INVALID || to != VTE_INVALID);
+	assert(from != VarTypeEx::INVALID || to != VarTypeEx::INVALID);
 	if (from == to)
 		return Status::Ok();
-	if (to == VTE_VOID) {
+	if (to == VarTypeEx::VOID) {
 		addInsn(BC_POP);
 		return Status::Ok();
 	}
-	if (from == VTE_VOID)
+	if (from == VarTypeEx::VOID)
 		return StatusEx::Error("Cannot cast from void to " + to_string(to), position);
-	if (to == VTE_STRING)
+	if (to == VarTypeEx::STRING)
 		return StatusEx::Error("Cannot cast from " + to_string(from) + " to string", position);
 
-	if (from == VTE_STRING) {
+	if (from == VarTypeEx::STRING) {
 		addInsn(BC_S2I);
-		from = VTE_INT;
+		from = VarTypeEx::INT;
 	}
 
-	if (to == VTE_BOOL) {
-		auto s{addCast(from, VTE_INT, position)};
+	if (to == VarTypeEx::BOOL) {
+		auto s{addCast(from, VarTypeEx::INT, position)};
 		if (!s->isOk())
 			return s;
 		delete s;
@@ -45,10 +45,10 @@ Status *Bytecode::addCast(VarTypeEx from, VarTypeEx to, uint32_t position) {
 		});
 		return Status::Ok();
 	}
-	if (from == VTE_BOOL)
-		from = VTE_INT;
+	if (from == VarTypeEx::BOOL)
+		from = VarTypeEx::INT;
 
-	if (from == VTE_INT)
+	if (from == VarTypeEx::INT)
 		addInsn(BC_I2D);
 	else
 		addInsn(BC_D2I);

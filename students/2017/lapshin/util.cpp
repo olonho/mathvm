@@ -56,6 +56,12 @@ VarTypeEx extend(VarType t) {
 	return static_cast<VarTypeEx>(static_cast<uint8_t>(t));
 }
 
+VarType shrink(VarTypeEx t) {
+	if (t == VarTypeEx::BOOL)
+		return VT_INT;
+	return static_cast<VarType>(static_cast<uint8_t>(t));
+}
+
 VarTypeEx common_of(VarTypeEx a, VarTypeEx b) {
 	if (a == VarTypeEx::VOID || b == VarTypeEx::VOID)
 		return VarTypeEx::INVALID;

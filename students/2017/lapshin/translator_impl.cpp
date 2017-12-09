@@ -36,7 +36,7 @@ Translator *Translator::create(string const &name) {
 		return new AstPrinterTranslator(AstPrinter::testStyle());
 	if (name == "printer-pretty")
 		return new AstPrinterTranslator(AstPrinter::prettyStyle());
-	if (name == "to-bytecode")
+	if (name == "to-bytecode" || name == "execute-bytecode")
 		return new BytecodeTranslator();
 	return nullptr;
 }

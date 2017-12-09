@@ -20,15 +20,22 @@ using namespace std::literals;
 		if (status->isError()) \
 			return; \
 		delete status; \
-	} while (0);
+	} while (false)
+
+#define NEVER() \
+	do { \
+		status = StatusEx::Error( \
+			"THE MISSED CASE AT LINE " + to_string(__LINE__), \
+			node->position() \
+		); \
+	} while (false)
 
 class BytecodeTranslator::TranslationData {
 public:
 	void * const dl_handle;
 
 	BytecodeCode &code;
-	unordered_map<Scope const*, uint16_t> scopes;
-	unordered_map<AstVar const*, uint16_t> vars;
+	size_t return_depth{0};
 
 	TranslationData(BytecodeCode &code):
 		dl_handle(dlopen(nullptr, RTLD_LAZY | RTLD_NODELETE)),
@@ -39,11 +46,14 @@ public:
 	}
 
 	void registerScope(Scope *scope) {
-		scopes[scope] = scopes.size(); // C++17!!!
+		if (code.scopes.count(scope) > 0)
+			return;
+		auto &scope_desc{code.scopes[scope]};
+		scope_desc.id = code.scopes.size(); // C++17!!!
 		for (size_t i{0}; i != scope->childScopeNumber(); ++i)
 			registerScope(scope->childScopeAt(i));
 		for (auto it{Scope::VarIterator(scope)}; it.hasNext(); )
-			vars[it.next()] = vars.size();
+			scope_desc.vars[it.next()->name()] = scope_desc.vars.size();
 		for (auto it{Scope::FunctionIterator(scope)}; it.hasNext(); )
 			code.addFunction(new BytecodeCode::TranslatedFunction(it.next()));
 	}
@@ -52,6 +62,7 @@ public:
 class BytecodeTranslator::Visitor : public AstBaseVisitor {
 public:
 	Bytecode code;
+	vector<size_t> &scopes;
 	VarTypeEx function_return_type;
 	Scope &function_scope;
 	TranslationData &target;
@@ -59,8 +70,8 @@ public:
 	VarTypeEx return_type;
 	Status *status{nullptr};
 
-	Visitor(VarTypeEx function_return_type, Scope &function_scope, TranslationData &target):
-		function_return_type{function_return_type}, function_scope{function_scope}, target{target} {}
+	Visitor(VarTypeEx function_return_type, Scope &function_scope, vector<size_t> &scopes, TranslationData &target):
+		scopes{scopes}, function_return_type{function_return_type}, function_scope{function_scope}, target{target} {}
 	virtual ~Visitor() override = default;
 
 #	define VISITOR_FUNCTION(type, name) \
@@ -70,13 +81,47 @@ public:
 
 private:
 	Status *add_and_cast(Visitor const &src, VarTypeEx to, uint32_t position);
+	enum VarOp {
+		VO_LOAD,
+		VO_STORE,
+		VO_ONLY_ID
+	};
+	Status *addVarId(VarOp op, AstVar const *var, uint32_t position);
+	Status *addVarIdTo(VarOp op, AstVar const *var, uint32_t position, Bytecode &code);
 	Visitor(Visitor *source):
-		Visitor(source->function_return_type, source->function_scope, source->target) {}
+		Visitor(source->function_return_type, source->function_scope, source->scopes, source->target) {}
 };
 
 Status *BytecodeTranslator::Visitor::add_and_cast(Visitor const &src, VarTypeEx to, uint32_t position) {
 	code.addAll(src.code);
 	return code.addCast(src.return_type, to, position);
+}
+
+Status *BytecodeTranslator::Visitor::addVarId(VarOp op, AstVar const* var, uint32_t position) {
+	return addVarIdTo(op, var, position, code);
+}
+
+Status *BytecodeTranslator::Visitor::addVarIdTo(VarOp op, AstVar const* var, uint32_t position, Bytecode &code) {
+	if (op != VO_ONLY_ID) {
+		bool load{op == VO_LOAD};
+		switch (var->type()) {
+		case VT_DOUBLE:
+			code.addInsn(load ? BC_LOADCTXDVAR : BC_STORECTXDVAR);
+			break;
+		case VT_INT:
+			code.addInsn(load ? BC_LOADCTXIVAR : BC_STORECTXIVAR);
+			break;
+		case VT_STRING:
+			code.addInsn(load ? BC_LOADCTXSVAR : BC_STORECTXSVAR);
+			break;
+		default:
+			return Status::Error("Wrong var type", position);
+		}
+	}
+	auto const &scope{target.code.scopes[var->owner()]};
+	code.addTyped(scope.id);
+	code.addTyped(scope.vars.at(var->name()));
+	return Status::Ok();
 }
 
 void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
@@ -152,7 +197,7 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 		code.addInsn(BC_IAOR);
 		break;
 	case tAXOR:
-		code.addInsn(BC_IAOR);
+		code.addInsn(BC_IAXOR);
 		break;
 	case tADD:
 		switch (target_type) {
@@ -163,7 +208,7 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 			code.addInsn(BC_IADD);
 			break;
 		default:
-			;
+			NEVER();
 		}
 		break;
 	case tSUB:
@@ -175,7 +220,7 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 			code.addInsn(BC_ISUB);
 			break;
 		default:
-			;
+			NEVER();
 		}
 		break;
 	case tMUL:
@@ -187,7 +232,7 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 			code.addInsn(BC_IMUL);
 			break;
 		default:
-			;
+			NEVER();
 		}
 		break;
 	case tDIV:
@@ -199,7 +244,7 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 			code.addInsn(BC_IDIV);
 			break;
 		default:
-			;
+			NEVER();
 		}
 		break;
 	case tMOD:
@@ -228,7 +273,7 @@ void BytecodeTranslator::Visitor::visitBinaryOpNode(BinaryOpNode *node) {
 			case tGT : code.addBranch(BC_IFICMPG , _then); break;
 			case tGE : code.addBranch(BC_IFICMPGE, _then); break;
 			default:
-				;
+				NEVER();
 			}
 			code.addInsn(BC_ILOAD0);
 			code.addBranch(BC_JA, _end);
@@ -292,11 +337,11 @@ void BytecodeTranslator::Visitor::visitUnaryOpNode(UnaryOpNode *node) {
 			code.addInsn(BC_INEG);
 			break;
 		default:
-			;
+			NEVER();
 		}
 		break;
 	default:
-		;
+		NEVER();
 	}
 	status = Status::Ok();
 }
@@ -326,108 +371,62 @@ void BytecodeTranslator::Visitor::visitIntLiteralNode(IntLiteralNode *node) {
 
 void BytecodeTranslator::Visitor::visitLoadNode(LoadNode *node) {
 	return_type = extend(node->var()->type());
-	switch (return_type) {
-	case VarTypeEx::DOUBLE:
-		code.addInsn(BC_LOADCTXDVAR);
-		break;
-	case VarTypeEx::INT:
-	case VarTypeEx::BOOL:
-		code.addInsn(BC_LOADCTXIVAR);
-		break;
-	case VarTypeEx::STRING:
-		code.addInsn(BC_LOADCTXSVAR);
-		break;
-	default:
-		status = Status::Error("Wrong var type", node->position());
-	}
-	code.addTyped(target.scopes[node->var()->owner()]);
-	code.addTyped(target.vars[node->var()]);
-	status = Status::Ok();
+	status = addVarId(VO_LOAD, node->var(), node->position());
 }
 
 void BytecodeTranslator::Visitor::visitStoreNode(StoreNode *node) {
 	return_type = VarTypeEx::VOID;
-	auto var_type{extend(node->var()->type())};
+	auto var_type{node->var()->type()};
 
 	Visitor value_visitor(this);
 	node->value()->visit(&value_visitor);
 	ASSIGN_STATUS(value_visitor.status);
 
-	ASSIGN_STATUS(add_and_cast(value_visitor, var_type, node->position()));
+	ASSIGN_STATUS(add_and_cast(value_visitor, extend(var_type), node->position()));
 
 	switch (node->op()) {
 	case tINCRSET:
 	case tDECRSET:
-		switch (var_type) {
-		case VarTypeEx::DOUBLE:
-			code.addInsn(BC_LOADCTXDVAR);
-			break;
-		case VarTypeEx::INT:
-		case VarTypeEx::BOOL:
-			code.addInsn(BC_LOADCTXIVAR);
-			break;
-		default:
+		if (var_type != VT_DOUBLE && var_type != VT_INT) {
 			status = StatusEx::Error(
-				"Wrong var type " + to_string(var_type) + " for change-and-set",
+				"Wrong var type "s + typeToName(var_type) + " for change-and-set",
 				node->position()
 			);
 			return;
 		}
-		code.addTyped(target.scopes[node->var()->owner()]);
-		code.addTyped(target.vars[node->var()]);
+		ASSIGN_STATUS(addVarId(VO_LOAD, node->var(), node->position()));
 		switch (node->op()) {
 		case tINCRSET:
 			switch (var_type) {
-			case VarTypeEx::DOUBLE:
+			case VT_DOUBLE:
 				code.addInsn(BC_DADD);
 				break;
-			case VarTypeEx::INT:
-			case VarTypeEx::BOOL:
+			case VT_INT:
 				code.addInsn(BC_IADD);
 				break;
 			default:
-				;
+				NEVER();
 			}
 			break;
 		case tDECRSET:
 			switch (var_type) {
-			case VarTypeEx::DOUBLE:
+			case VT_DOUBLE:
 				code.addInsn(BC_DSUB);
 				break;
-			case VarTypeEx::INT:
-			case VarTypeEx::BOOL:
+			case VT_INT:
 				code.addInsn(BC_ISUB);
 				break;
 			default:
-				;
+				NEVER();
 			}
 			break;
 		default:
-			;
+			NEVER();
 		}
 		[[fallthrough]];
 	case tASSIGN:
-		switch (var_type) {
-		case VarTypeEx::DOUBLE:
-			code.addInsn(BC_STORECTXDVAR);
-			break;
-		case VarTypeEx::INT:
-		case VarTypeEx::BOOL:
-			code.addInsn(BC_STORECTXIVAR);
-			break;
-		case VarTypeEx::STRING:
-			code.addInsn(BC_STORECTXSVAR);
-			break;
-		default:
-			status = StatusEx::Error(
-				"Wrong var type " + to_string(var_type) + " for change-and-set",
-				node->position()
-			);
-			return;
-		}
-		code.addTyped(target.scopes[node->var()->owner()]);
-		code.addTyped(target.vars[node->var()]);
-		break;
+		status = addVarId(VO_STORE, node->var(), node->position());
+		return;
 	default:
 		status = StatusEx::Error("Unknown assignment operator: "s + tokenStr(node->op()));
 		return;
@@ -438,7 +437,7 @@ void BytecodeTranslator::Visitor::visitStoreNode(StoreNode *node) {
 void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 	return_type = VarTypeEx::VOID;
 
-	auto var_type{extend(node->var()->type())};
+	auto var_type{node->var()->type()};
 	auto range{dynamic_cast<BinaryOpNode*>(node->inExpr())};
 	if (range == nullptr || range->kind() != tRANGE) {
 		status = Status::Error("For are only supported with explicit ranges");
@@ -456,9 +455,7 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 	Bytecode store, load, dupl, precmp, inc;
 	/* init store/load */ {
 		switch (var_type) {
-		case VarTypeEx::DOUBLE:
-			store.addInsn(BC_STORECTXDVAR);
-			load.addInsn(BC_LOADCTXDVAR);
+		case VT_DOUBLE:
 			dupl.addInsns({
 				BC_STOREDVAR0,
 				BC_LOADDVAR0,
@@ -473,10 +470,7 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 				BC_DADD
 			});
 			break;
-		case VarTypeEx::INT:
-		case VarTypeEx::BOOL:
-			store.addInsn(BC_STORECTXIVAR);
-			load.addInsn(BC_LOADCTXIVAR);
+		case VT_INT:
 			dupl.addInsns({
 				BC_STOREIVAR0,
 				BC_LOADIVAR0,
@@ -489,22 +483,21 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 			break;
 		default:
 			status = StatusEx::Error(
-				"Type " + to_string(var_type) + " is wrong for for loop",
+				"Type "s + typeToName(var_type) + " is wrong for for loop",
 				node->position()
 			);
 			return;
 		}
-		store.addTyped(target.scopes[node->var()->owner()]);
-		store.addTyped(target.vars[node->var()]);
-		load .addTyped(target.scopes[node->var()->owner()]);
-		load .addTyped(target.vars[node->var()]);
+		ASSIGN_STATUS(addVarIdTo(VO_LOAD, node->var(), node->position(), load));
+		ASSIGN_STATUS(addVarIdTo(VO_STORE, node->var(), node->position(), store));
 	}
 
 	Label _loop(&code), _end(&code);
-	ASSIGN_STATUS(add_and_cast(right_visitor, var_type, node->position()));
+	ASSIGN_STATUS(add_and_cast(right_visitor, extend(var_type), node->position()));
 	// Now, end value is on the stack. Carefully...
+	target.return_depth += 1;
 
-	ASSIGN_STATUS(add_and_cast(left_visitor, var_type, node->position()));
+	ASSIGN_STATUS(add_and_cast(left_visitor, extend(var_type), node->position()));
 	code.addAll(store);
 	code.bind(_loop);
 	code.addAll(dupl); // limit as right
@@ -514,9 +507,12 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 	ASSIGN_STATUS(add_and_cast(block_visitor, VarTypeEx::VOID, node->position()));
 	code.addAll(load);
 	code.addAll(inc);
+	code.addAll(store);
 	code.addBranch(BC_JA, _loop);
+
 	code.bind(_end);
 	code.addInsn(BC_POP);
+	target.return_depth -= 1;
 
 	status = Status::Ok();
 }
@@ -581,6 +577,7 @@ void BytecodeTranslator::Visitor::visitIfNode(IfNode *node) {
 
 void BytecodeTranslator::Visitor::visitBlockNode(BlockNode *node) {
 	return_type = VarTypeEx::VOID;
+	scopes.push_back(target.code.scopes[node->scope()].id);
 	for (size_t i{0}; i < node->nodes(); ++i) {
 		Visitor node_visitor(this);
 		node->nodeAt(i)->visit(&node_visitor);
@@ -612,16 +609,19 @@ void BytecodeTranslator::Visitor::visitFunctionNode(FunctionNode *node) {
 			status = Status::Error("Wrong parameter type");
 			return;
 		}
-		code.addTyped(target.scopes[&function_scope]);
-		code.addTyped(target.vars[function_scope.lookupVariable(node->parameterName(i))]);
+		auto const &scope{target.code.scopes[&function_scope]};
+		code.addTyped(scope.id);
+		code.addTyped(scope.vars.at(node->parameterName(i)));
 	}
 	node->body()->visit(this);
 }
 
 void BytecodeTranslator::Visitor::visitReturnNode(ReturnNode *node) {
 	return_type = VarTypeEx::VOID;
-	Visitor expr_visitor(this);
+	for (size_t i{0}; i != target.return_depth; ++i)
+		code.addInsn(BC_POP);
 	if (node->returnExpr()) {
+		Visitor expr_visitor(this);
 		node->returnExpr()->visit(&expr_visitor);
 		ASSIGN_STATUS(expr_visitor.status);
 
@@ -675,21 +675,7 @@ void BytecodeTranslator::Visitor::visitNativeCallNode(NativeCallNode *node) {
 		auto *var{function_scope.lookupVariable(signature[i].second)};
 		assert(var);
 
-		switch (signature[i].first) {
-		case VT_DOUBLE:
-			code.addInsn(BC_LOADCTXDVAR);
-			break;
-		case VT_INT:
-			code.addInsn(BC_LOADCTXIVAR);
-			break;
-		case VT_STRING:
-			code.addInsn(BC_LOADCTXSVAR);
-			break;
-		default:
-			;
-		}
-		code.addTyped(target.scopes[&function_scope]);
-		code.addTyped(target.vars[var]);
+		ASSIGN_STATUS(addVarId(VO_LOAD, var, node->position()));
 	}
 
 	auto addr{dlsym(target.dl_handle, node->nativeName().c_str())};
@@ -718,15 +704,14 @@ void BytecodeTranslator::Visitor::visitPrintNode(PrintNode *node) {
 		ASSIGN_STATUS(operand_visitor.status);
 		code.addAll(operand_visitor.code);
 
-		switch (operand_visitor.return_type) {
-		case VarTypeEx::DOUBLE:
+		switch (shrink(operand_visitor.return_type)) {
+		case VT_DOUBLE:
 			code.addInsn(BC_DPRINT);
 			break;
-		case VarTypeEx::INT:
-		case VarTypeEx::BOOL:
+		case VT_INT:
 			code.addInsn(BC_IPRINT);
 			break;
-		case VarTypeEx::STRING:
+		case VT_STRING:
 			code.addInsn(BC_SPRINT);
 			break;
 		default:
@@ -755,7 +740,7 @@ Status *BytecodeTranslator::translate(string const &program, mathvm::Code **code
 	for (auto it{Code::FunctionIterator(&target.code)}; it.hasNext(); ) {
 		auto *fun{static_cast<BytecodeCode::TranslatedFunction*>(it.next())};
 		auto *function{fun->function};
-		Visitor visitor(extend(function->returnType()), *function->scope(), target);
+		Visitor visitor(extend(function->returnType()), *function->node()->body()->scope(), fun->scopes, target);
 
 		function->node()->visit(&visitor);
 		status = visitor.status;

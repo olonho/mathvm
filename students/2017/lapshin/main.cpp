@@ -10,7 +10,7 @@ using namespace mathvm;
 using namespace std;
 
 int main(int argc, char** argv) {
-	string impl = "UNKNOWN";
+	string impl = "execute-bytecode";
 	const char* script = NULL;
 	for (int32_t i = 1; i < argc; i++) {
 		string const arg{argv[i]};
