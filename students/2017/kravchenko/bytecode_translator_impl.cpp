@@ -50,7 +50,7 @@ void BytecodeVisitor::registerScopes(Scope *s)
 
 void BytecodeVisitor::registerFunctions(AstFunction *a_fun)
 {
-    printf("registering function %s\n", a_fun->name().c_str());
+    fprintf(stderr, "registering function %s\n", a_fun->name().c_str());
 
     FunctionNode *node = a_fun->node();
     _funcs.push_back(a_fun);
@@ -80,7 +80,7 @@ void BytecodeVisitor::translate(AstFunction *a_fun)
         assert(_scopeSizes.size() == 0);
     }
 
-    printf("\n\n\n");
+    fprintf(stderr, "\n\n\n");
 }
 
 void BytecodeVisitor::translateAstFunction(AstFunction *a_fun)
@@ -680,7 +680,7 @@ void BytecodeVisitor::binaryLogicOp(BinaryOpNode *node)
 
 void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node)
 {
-    printf("visitBinaryOpNode '%s'\n", tokenOp(node->kind()));
+    fprintf(stderr, "visitBinaryOpNode '%s'\n", tokenOp(node->kind()));
 
     TokenKind op = node->kind();
     switch (op) {
@@ -709,7 +709,7 @@ void BytecodeVisitor::visitBinaryOpNode(BinaryOpNode *node)
 
 void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode *node)
 {
-    printf("visitUnaryOpNode '%s'\n", tokenOp(node->kind()));
+    fprintf(stderr, "visitUnaryOpNode '%s'\n", tokenOp(node->kind()));
 
     node->operand()->visit(this);
 
@@ -754,7 +754,7 @@ void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode *node)
 
 void BytecodeVisitor::visitStringLiteralNode(StringLiteralNode *node)
 {
-    printf("visitStringLiteralNode '%s'\n", node->literal().c_str());
+    fprintf(stderr, "visitStringLiteralNode '%s'\n", node->literal().c_str());
 
     uint16_t id = _code->makeStringConstant(node->literal());
     addInsn(BC_SLOAD);
@@ -763,7 +763,7 @@ void BytecodeVisitor::visitStringLiteralNode(StringLiteralNode *node)
 
 void BytecodeVisitor::visitIntLiteralNode(IntLiteralNode *node)
 {
-    printf("visitIntLiteralNode '%ld'\n", node->literal());
+    fprintf(stderr, "visitIntLiteralNode '%ld'\n", node->literal());
 
     addInsn(BC_ILOAD);
     _fun->bytecode()->addInt64(node->literal());
@@ -771,7 +771,7 @@ void BytecodeVisitor::visitIntLiteralNode(IntLiteralNode *node)
 
 void BytecodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node)
 {
-    printf("visitDoubleLiteralNode '%f'\n", node->literal());
+    fprintf(stderr, "visitDoubleLiteralNode '%f'\n", node->literal());
 
     addInsn(BC_DLOAD);
     _fun->bytecode()->addDouble(node->literal());
@@ -779,7 +779,7 @@ void BytecodeVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node)
 
 void BytecodeVisitor::visitLoadNode(LoadNode *node)
 {
-    printf("visitLoadNode var '%s'\n", node->var()->name().c_str());
+    fprintf(stderr, "visitLoadNode var '%s'\n", node->var()->name().c_str());
 
     const AstVar *var = node->var();
     uint16_t scope_id = _scope_map[var->owner()];
@@ -809,7 +809,7 @@ void BytecodeVisitor::visitLoadNode(LoadNode *node)
 
 void BytecodeVisitor::visitStoreNode(StoreNode *node)
 {
-    printf("visitStoreNode var '%s'\n", node->var()->name().c_str());
+    fprintf(stderr, "visitStoreNode var '%s'\n", node->var()->name().c_str());
 
     const AstVar *var = node->var();
     uint16_t scope_id = _scope_map[var->owner()];
@@ -880,7 +880,7 @@ void BytecodeVisitor::visitBlockNode(BlockNode *node)
 {
     _scope = node->scope();
 
-    printf("visiting block for scope %p, scope id = %d\n", _scope, _scope_map[_scope]);
+    fprintf(stderr, "visiting block for scope %p, scope id = %d\n", _scope, _scope_map[_scope]);
 
     enterScope();
 
@@ -897,7 +897,7 @@ void BytecodeVisitor::visitBlockNode(BlockNode *node)
 
 void BytecodeVisitor::visitNativeCallNode(NativeCallNode *node)
 {
-    printf("native call to '%s' with type '%s'\n", node->nativeName().c_str(), typeToName(std::get<0>(node->nativeSignature()[0])));
+    fprintf(stderr, "native call to '%s' with type '%s'\n", node->nativeName().c_str(), typeToName(std::get<0>(node->nativeSignature()[0])));
 
     void *address = dlsym(_dlHandler, node->nativeName().c_str());
     assert(address != NULL);
@@ -1027,7 +1027,7 @@ void BytecodeVisitor::visitIfNode(IfNode *node)
 
 void BytecodeVisitor::visitReturnNode(ReturnNode *node)
 {
-    printf("visitReturnNode\n");
+    fprintf(stderr, "visitReturnNode\n");
 
     if (node->returnExpr()) {
         node->returnExpr()->visit(this);
@@ -1061,7 +1061,7 @@ void BytecodeVisitor::visitReturnNode(ReturnNode *node)
 
 void BytecodeVisitor::visitFunctionNode(FunctionNode *node)
 {
-    printf("visiting function node name %s\n", node->name().c_str());
+    fprintf(stderr, "visiting function node name %s\n", node->name().c_str());
 
     // hack
     if (isNative(node))
