@@ -35,7 +35,6 @@ public:
 	void * const dl_handle;
 
 	BytecodeCode &code;
-	size_t return_depth{0};
 
 	TranslationData(BytecodeCode &code):
 		dl_handle(dlopen(nullptr, RTLD_LAZY | RTLD_NODELETE)),
@@ -444,6 +443,13 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 		return;
 	}
 
+	auto *scope{node->var()->owner()};
+	auto name{"_for_limit_" + to_string(node->position())};
+	scope->declareVariable(name, var_type);
+	auto *limit_var{scope->lookupVariable(name, false)};
+	target.code.scopes[scope].vars[name] = target.code.scopes[scope].vars.size();
+	assert(limit_var);
+
 	Visitor left_visitor(this), right_visitor(this), block_visitor(this);
 	range->left()->visit(&left_visitor);
 	ASSIGN_STATUS(left_visitor.status);
@@ -452,15 +458,10 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 	node->body()->visit(&block_visitor);
 	ASSIGN_STATUS(block_visitor.status);
 
-	Bytecode store, load, dupl, precmp, inc;
+	Bytecode precmp, inc;
 	/* init store/load */ {
 		switch (var_type) {
 		case VT_DOUBLE:
-			dupl.addInsns({
-				BC_STOREDVAR0,
-				BC_LOADDVAR0,
-				BC_LOADDVAR0
-			});
 			precmp.addInsns({
 				BC_DCMP,
 				BC_ILOAD0
@@ -471,11 +472,6 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 			});
 			break;
 		case VT_INT:
-			dupl.addInsns({
-				BC_STOREIVAR0,
-				BC_LOADIVAR0,
-				BC_LOADIVAR0
-			});
 			inc.addInsns({
 				BC_ILOAD1,
 				BC_IADD
@@ -488,31 +484,26 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 			);
 			return;
 		}
-		ASSIGN_STATUS(addVarIdTo(VO_LOAD, node->var(), node->position(), load));
-		ASSIGN_STATUS(addVarIdTo(VO_STORE, node->var(), node->position(), store));
 	}
 
 	Label _loop(&code), _end(&code);
 	ASSIGN_STATUS(add_and_cast(right_visitor, extend(var_type), node->position()));
-	// Now, end value is on the stack. Carefully...
-	target.return_depth += 1;
+	ASSIGN_STATUS(addVarId(VO_STORE, limit_var, node->position()));
 
 	ASSIGN_STATUS(add_and_cast(left_visitor, extend(var_type), node->position()));
-	code.addAll(store);
+	ASSIGN_STATUS(addVarId(VO_STORE, node->var(), node->position()));
 	code.bind(_loop);
-	code.addAll(dupl); // limit as right
-	code.addAll(load); // curret as left
+	ASSIGN_STATUS(addVarId(VO_LOAD, limit_var, node->position()));
+	ASSIGN_STATUS(addVarId(VO_LOAD, node->var(), node->position()));
 	code.addAll(precmp);
 	code.addBranch(BC_IFICMPG, _end);
 	ASSIGN_STATUS(add_and_cast(block_visitor, VarTypeEx::VOID, node->position()));
-	code.addAll(load);
+	ASSIGN_STATUS(addVarId(VO_LOAD, node->var(), node->position()));
 	code.addAll(inc);
-	code.addAll(store);
+	ASSIGN_STATUS(addVarId(VO_STORE, node->var(), node->position()));
 	code.addBranch(BC_JA, _loop);
 
 	code.bind(_end);
-	code.addInsn(BC_POP);
-	target.return_depth -= 1;
 
 	status = Status::Ok();
 }
@@ -618,8 +609,6 @@ void BytecodeTranslator::Visitor::visitFunctionNode(FunctionNode *node) {
 
 void BytecodeTranslator::Visitor::visitReturnNode(ReturnNode *node) {
 	return_type = VarTypeEx::VOID;
-	for (size_t i{0}; i != target.return_depth; ++i)
-		code.addInsn(BC_POP);
 	if (node->returnExpr()) {
 		Visitor expr_visitor(this);
 		node->returnExpr()->visit(&expr_visitor);
@@ -740,7 +729,7 @@ Status *BytecodeTranslator::translate(string const &program, mathvm::Code **code
 	for (auto it{Code::FunctionIterator(&target.code)}; it.hasNext(); ) {
 		auto *fun{static_cast<BytecodeCode::TranslatedFunction*>(it.next())};
 		auto *function{fun->function};
-		Visitor visitor(extend(function->returnType()), *function->node()->body()->scope(), fun->scopes, target);
+		Visitor visitor(extend(function->returnType()), *function->scope(), fun->scopes, target);
 
 		function->node()->visit(&visitor);
 		status = visitor.status;
