@@ -1,0 +1,14 @@
+int x;
+int y;
+
+x = 0;
+y = 0;
+
+while (x < 3) {
+    while (y < 3) {
+        print(x, '\n');
+        y += 1;
+    }
+    x += 1;
+    y = 0;
+}
