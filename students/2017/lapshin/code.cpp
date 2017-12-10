@@ -2,6 +2,8 @@
 
 #include "util.h"
 
+#include "ast.h"
+
 #include <stack>
 #include <variant>
 
@@ -479,12 +481,13 @@ Status *BytecodeCode::execute(vector<Var*> &global_vars) {
 	Evaluator e(*this);
 
 	// Priming the execution
-	/* FIXME */ if (false) {
-	auto &root_scope{scopes[e.frames[0].function.function->scope()]};
+	auto root_scope_id{e.frames[0].function.scopes[1]};
+	// Wait, why 1? 0 is FunctionNode's scope with arguments, 1 is body scope!
+	auto const &root_scope{scopes[root_scope_id]};
 	for (auto const *v: global_vars) {
-		auto var_id{root_scope.vars[v->name()]};
-		e.frames[0].vars[root_scope.id][var_id] = *v;
-	}}
+		auto var_id{root_scope.at(v->name())};
+		e.frames[0].vars[root_scope_id][var_id] = *v;
+	}
 
 	while (e.status == nullptr || !e.status->isError()) {
 		if (e.frame().ip >= e.frame().code().length()) {
@@ -513,7 +516,10 @@ Status *BytecodeCode::execute(vector<Var*> &global_vars) {
 		}
 	}
 	if (e.status->isOk()) {
-		// TODO upload variables back
+		for (auto *v: global_vars) {
+			auto var_id{root_scope.at(v->name())};
+			assign(*v, e.frames[0].vars[root_scope_id][var_id]);
+		}
 	}
 	return e.status;
 }

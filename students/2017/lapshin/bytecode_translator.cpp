@@ -35,6 +35,7 @@ public:
 	void * const dl_handle;
 
 	BytecodeCode &code;
+	unordered_map<Scope const*, uint16_t> scopes;
 
 	TranslationData(BytecodeCode &code):
 		dl_handle(dlopen(nullptr, RTLD_LAZY | RTLD_NODELETE)),
@@ -45,14 +46,15 @@ public:
 	}
 
 	void registerScope(Scope *scope) {
-		if (code.scopes.count(scope) > 0)
+		if (scopes.count(scope) > 0)
 			return;
-		auto &scope_desc{code.scopes[scope]};
-		scope_desc.id = code.scopes.size(); // C++17!!!
+		scopes[scope] = scopes.size(); // C++17!!!
+		auto &scope_desc{code.scopes[scopes[scope]]};
+		assert(scopes.size() == code.scopes.size());
 		for (size_t i{0}; i != scope->childScopeNumber(); ++i)
 			registerScope(scope->childScopeAt(i));
 		for (auto it{Scope::VarIterator(scope)}; it.hasNext(); )
-			scope_desc.vars[it.next()->name()] = scope_desc.vars.size();
+			scope_desc[it.next()->name()] = scope_desc.size();
 		for (auto it{Scope::FunctionIterator(scope)}; it.hasNext(); )
 			code.addFunction(new BytecodeCode::TranslatedFunction(it.next()));
 	}
@@ -117,9 +119,9 @@ Status *BytecodeTranslator::Visitor::addVarIdTo(VarOp op, AstVar const* var, uin
 			return Status::Error("Wrong var type", position);
 		}
 	}
-	auto const &scope{target.code.scopes[var->owner()]};
-	code.addTyped(scope.id);
-	code.addTyped(scope.vars.at(var->name()));
+	auto scope_id{target.scopes[var->owner()]};
+	code.addTyped(scope_id);
+	code.addTyped(target.code.scopes[scope_id].at(var->name()));
 	return Status::Ok();
 }
 
@@ -447,7 +449,8 @@ void BytecodeTranslator::Visitor::visitForNode(ForNode *node) {
 	auto name{"_for_limit_" + to_string(node->position())};
 	scope->declareVariable(name, var_type);
 	auto *limit_var{scope->lookupVariable(name, false)};
-	target.code.scopes[scope].vars[name] = target.code.scopes[scope].vars.size();
+	auto &target_scope{target.code.scopes[target.scopes[scope]]};
+	target_scope[name] = target_scope.size();
 	assert(limit_var);
 
 	Visitor left_visitor(this), right_visitor(this), block_visitor(this);
@@ -568,7 +571,7 @@ void BytecodeTranslator::Visitor::visitIfNode(IfNode *node) {
 
 void BytecodeTranslator::Visitor::visitBlockNode(BlockNode *node) {
 	return_type = VarTypeEx::VOID;
-	scopes.push_back(target.code.scopes[node->scope()].id);
+	scopes.push_back(target.scopes[node->scope()]);
 	for (size_t i{0}; i < node->nodes(); ++i) {
 		Visitor node_visitor(this);
 		node->nodeAt(i)->visit(&node_visitor);
@@ -585,6 +588,8 @@ void BytecodeTranslator::Visitor::visitBlockNode(BlockNode *node) {
 }
 
 void BytecodeTranslator::Visitor::visitFunctionNode(FunctionNode *node) {
+	auto scope_id{target.scopes[&function_scope]};
+	scopes.push_back(scope_id);
 	for (size_t i{0}; i != node->parametersNumber(); ++i) {
 		switch (node->parameterType(i)) {
 		case VT_DOUBLE:
@@ -600,10 +605,8 @@ void BytecodeTranslator::Visitor::visitFunctionNode(FunctionNode *node) {
 			status = Status::Error("Wrong parameter type");
 			return;
 		}
-		auto const &scope{target.code.scopes[&function_scope]};
-		scopes.push_back(scope.id);
-		code.addTyped(scope.id);
-		code.addTyped(scope.vars.at(node->parameterName(i)));
+		code.addTyped(scope_id);
+		code.addTyped(target.code.scopes[scope_id].at(node->parameterName(i)));
 	}
 	node->body()->visit(this);
 }
