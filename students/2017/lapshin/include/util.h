@@ -2,7 +2,34 @@
 
 #include "mathvm.h"
 
+#include <variant>
+
 namespace mathvm::ldvsoft {
+	class VarEx {
+	public:
+		std::variant<double, int64_t, string> storage;
+
+		VarType type() const;
+		VarEx(Var const &v);
+		VarEx(double d);
+		VarEx(int64_t i = 0);
+		VarEx(string const &s);
+
+		friend Var &assign(Var &target, VarEx const &source);
+
+		int64_t const &i() const {
+			return std::get<int64_t>(storage);
+		}
+		double const &d() const {
+			return std::get<double>(storage);
+		}
+		string const &s() const {
+			return std::get<string>(storage);
+		}
+
+		friend ostream &operator<<(ostream &out, VarEx const &v);
+	};
+
 	enum class VarTypeEx {
 		INVALID = VT_INVALID,
 		VOID    = VT_VOID,
