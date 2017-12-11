@@ -7,13 +7,13 @@
 namespace mathvm::ldvsoft {
 	class VarEx {
 	public:
-		std::variant<double, int64_t, string> storage;
+		std::variant<double, int64_t, char const *> storage;
 
 		VarType type() const;
 		VarEx(Var const &v);
 		VarEx(double d);
 		VarEx(int64_t i = 0);
-		VarEx(string const &s);
+		VarEx(char const *s);
 
 		friend Var &assign(Var &target, VarEx const &source);
 
@@ -23,8 +23,8 @@ namespace mathvm::ldvsoft {
 		double const &d() const {
 			return std::get<double>(storage);
 		}
-		string const &s() const {
-			return std::get<string>(storage);
+		char const *s() const {
+			return std::get<char const *>(storage);
 		}
 
 		friend ostream &operator<<(ostream &out, VarEx const &v);

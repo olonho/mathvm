@@ -2,7 +2,7 @@ ROOT   = .
 VM_ROOT = ../../..
 
 #OPT = 0
-NO_JIT = 1
+NO_JIT = 0
 #WITH_SDL = 0
 
 USER_CFLAGS = -std=c++17 -Wall -Wextra

@@ -22,16 +22,16 @@ VarEx::VarEx(Var const &v) {
 		storage.emplace<int64_t>(v.getIntValue());
 		break;
 	case VT_STRING:
-		storage.emplace<string>(v.getStringValue());
+		storage.emplace<char const *>(v.getStringValue());
 		break;
 	default:
 		;
 	}
 }
 
-VarEx::VarEx(double d):        storage{d} {}
-VarEx::VarEx(int64_t i):       storage{i} {}
-VarEx::VarEx(string const &s): storage{s} {}
+VarEx::VarEx(double d):      storage{d} {}
+VarEx::VarEx(int64_t i):     storage{i} {}
+VarEx::VarEx(char const *s): storage{s} {}
 
 Var &assign(Var &target, VarEx const &source) {
 	switch (source.storage.index()) {

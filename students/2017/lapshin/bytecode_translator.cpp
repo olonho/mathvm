@@ -664,7 +664,7 @@ void BytecodeTranslator::Visitor::visitNativeCallNode(NativeCallNode *node) {
 	auto const &signature{node->nativeSignature()};
 
 	return_type = extend(signature[0].first);
-	for (size_t i{1 /* sic! */}; i != signature.size(); ++i) {
+	for (size_t i{signature.size() - 1 /* sic! */}; i != 0; --i) {
 		auto *var{function_scope.lookupVariable(signature[i].second)};
 		assert(var);
 
