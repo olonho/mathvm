@@ -1,22 +1,24 @@
 #include "printer.h"
 #include "parser.h"
+#include "bytecode_translator.h"
 
 using namespace mathvm;
+using namespace mathvm::ldvsoft;
 
 class AstPrinterTranslator: public Translator {
-public:
+private:
 	AstPrinterStyle style;
 
+public:
 	AstPrinterTranslator(AstPrinterStyle const &style);
 	virtual ~AstPrinterTranslator() = default;
 	virtual Status* translate(string const &program, Code **code);
 };
 
 AstPrinterTranslator::AstPrinterTranslator(AstPrinterStyle const &style):
-	style(style)
-{}
+	style(style) {}
 
-Status* AstPrinterTranslator::translate(string const &program, Code **code) {
+Status *AstPrinterTranslator::translate(string const &program, Code **code) {
 	(void) code;
 	Parser parser{};
 	Status *status{parser.parseProgram(program)};
@@ -29,11 +31,12 @@ Status* AstPrinterTranslator::translate(string const &program, Code **code) {
 	return Status::Ok();
 }
 
-Translator* Translator::create(string const &name) {
-	if (name == "printer") {
+Translator *Translator::create(string const &name) {
+	if (name == "printer")
 		return new AstPrinterTranslator(AstPrinter::testStyle());
-	} else if (name == "printer-pretty") {
+	if (name == "printer-pretty")
 		return new AstPrinterTranslator(AstPrinter::prettyStyle());
-	}
+	if (name == "to-bytecode" || name == "execute-bytecode")
+		return new BytecodeTranslator();
 	return nullptr;
 }

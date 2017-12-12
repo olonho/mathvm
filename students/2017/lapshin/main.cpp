@@ -10,23 +10,27 @@ using namespace mathvm;
 using namespace std;
 
 int main(int argc, char** argv) {
-	string impl = "";
+	string impl = "execute-bytecode";
 	const char* script = NULL;
 	for (int32_t i = 1; i < argc; i++) {
-		if (string(argv[i]) == "-j") {
+		string const arg{argv[i]};
+		if (arg == "-j" || arg == "--jit") {
 			impl = "jit";
-		} else if (string(argv[i]) == "-p") {
+		} else if (arg == "-p" || arg == "--printer") {
 			impl = "printer";
-		} else if (string(argv[i]) == "-P") {
+		} else if (arg == "-P" || arg == "--pretty-printer") {
 			impl = "printer-pretty";
-		} else {
+		} else if (arg == "-b" || arg == "--bytecode") {
+			impl = "to-bytecode";
+		} else if (arg[0] != '-') {
 			script = argv[i];
-		}
+		} else
+			std::cerr << "Unknown flag " << arg << std::endl;
 	}
 	Translator* translator = Translator::create(impl);
 
 	if (translator == 0) {
-		cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
+		cout << "TODO: Implement translator factory \"" << impl << "\" in translator.cpp!!!!" << endl;
 		return 1;
 	}
 
@@ -58,7 +62,16 @@ int main(int argc, char** argv) {
 			line, offset, translateStatus->getErrorCstr()
 		);
 	} else {
-		if (impl != "printer" && impl != "printer-pretty") {
+		if (impl == "to-bytecode") {
+			class : public FunctionFilter {
+			public:
+				virtual bool matches(TranslatedFunction *) override {
+					return true;
+				}
+			} filter;
+			code->disassemble(cout, &filter);
+		}
+		if (impl != "printer" && impl != "printer-pretty" && impl != "to-bytecode") {
 			assert(code != 0);
 			vector<Var*> vars;
 
