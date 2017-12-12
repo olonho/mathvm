@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
 			} filter;
 			code->disassemble(cout, &filter);
 		}
-		if (impl != "printer" && impl != "printer-pretty") {
+		if (impl != "printer" && impl != "printer-pretty" && impl != "to-bytecode") {
 			assert(code != 0);
 			vector<Var*> vars;
 

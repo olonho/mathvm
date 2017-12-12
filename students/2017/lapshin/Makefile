@@ -3,7 +3,7 @@ VM_ROOT = ../../..
 
 #OPT = 0
 NO_JIT = 0
-#WITH_SDL = 0
+WITH_SDL = 1
 
 USER_CFLAGS = -std=c++17 -Wall -Wextra
 
@@ -25,7 +25,11 @@ USER_OBJ = \
 
 USER_DEPS += \
 	$(ROOT)/Makefile \
-	include/printer.h
+	include/bytecode.h \
+	include/bytecode_translator.h \
+	include/code.h \
+	include/printer.h \
+	include/util.h
 
 include $(VM_ROOT)/common.mk
 

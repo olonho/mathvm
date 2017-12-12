@@ -674,7 +674,7 @@ void BytecodeTranslator::Visitor::visitNativeCallNode(NativeCallNode *node) {
 	auto addr{dlsym(target.dl_handle, node->nativeName().c_str())};
 	if (!addr) {
 		status = StatusEx::Error(
-			"Cannot load native function " + node->nativeName(),
+			"Cannot load native function " + node->nativeName() + ", reason :" + dlerror(),
 			node->position()
 		);
 		return;

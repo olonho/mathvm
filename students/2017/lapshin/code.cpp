@@ -427,7 +427,16 @@ void BytecodeCode::Evaluator::processD2I(size_t) {
 
 void BytecodeCode::Evaluator::processS2I(size_t) {
 	auto op{stack.top().s()}; stack.pop();
-	stack.emplace(static_cast<int64_t>(stoll(op)));
+// 1. String-to-int version
+/*
+	try {
+		stack.emplace(static_cast<int64_t>(atoll(op)));
+	} catch (exception &e) {
+		status = StatusEx::Error("S2I failed on \""s + op + "\"");
+	}
+*/
+// 2. Pointer-to-int version
+	stack.emplace(reinterpret_cast<int64_t>(op));
 }
 
 void BytecodeCode::Evaluator::processSWAP(size_t) {
