@@ -9,7 +9,7 @@ function double newton(double xbase) {
   double x = xbase;
   double xp = x - 0.01;
   double y = func(x);
-  double yp = func(yp);
+  double yp = func(xp);
   int repeat = 0;
   while ((fabs(y) > 1e-8) && (repeat < 10000))  {
       double temp = x;
