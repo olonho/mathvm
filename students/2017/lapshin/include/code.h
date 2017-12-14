@@ -5,7 +5,7 @@
 
 #include <unordered_map>
 
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 
 class BytecodeCode: public mathvm::Code {
 private:
@@ -33,4 +33,4 @@ public:
 	NativeFunctionDescriptor const &nativeById(uint16_t id) const;
 };
 
-}
+}}

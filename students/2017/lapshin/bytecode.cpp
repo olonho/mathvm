@@ -2,7 +2,7 @@
 
 #include "util.h"
 
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 
 void Bytecode::addAll(Bytecode const &src) {
 	_data.insert(_data.end(), src._data.begin(), src._data.end());
@@ -55,4 +55,4 @@ Status *Bytecode::addCast(VarTypeEx from, VarTypeEx to, uint32_t position) {
 	return Status::Ok();
 }
 
-}
+}}

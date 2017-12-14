@@ -7,9 +7,8 @@
 
 #include <algorithm>
 #include <stack>
-#include <variant>
 
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 
 using namespace asmjit;
 
@@ -102,7 +101,8 @@ private:
 					}
 					break;
 				}
-				static_assert(sizeof(int64_t) == 8 && sizeof(double) == 8 && sizeof(char const*) == 8);
+				static_assert(sizeof(int64_t) == 8 && sizeof(double) == 8 && sizeof(char const*) == 8,
+						"Data sizes are wrong!");
 				x86_ass.add(x86::r13, 8);
 			}
 
@@ -191,7 +191,7 @@ private:
 		if (native_callers.count(id) == 0)
 			native_callers.emplace(
 				piecewise_construct,
-				tuple{id},
+				tuple<uint16_t>{id},
 				tuple<Evaluator &, uint16_t>{*this, id}
 			);
 		return native_callers.at(id);
@@ -711,4 +711,4 @@ NativeFunctionDescriptor const &BytecodeCode::nativeById(uint16_t id) const {
 	return natives.at(id);
 }
 
-}
+}}

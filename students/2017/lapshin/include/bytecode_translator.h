@@ -2,7 +2,7 @@
 
 #include "visitors.h"
 
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 
 class BytecodeTranslator : public Translator {
 private:
@@ -15,4 +15,4 @@ public:
 	virtual Status *translate(string const &program, Code **code_ptr) override;
 };
 
-}
+}}
