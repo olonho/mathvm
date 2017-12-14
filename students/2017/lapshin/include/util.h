@@ -2,13 +2,17 @@
 
 #include "mathvm.h"
 
-#include <variant>
-
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 	class VarEx {
-	public:
-		std::variant<double, int64_t, char const *> storage;
+	private:
+		size_t index;
+		union {
+			double d;
+			int64_t i;
+			char const *s;
+		} storage;
 
+	public:
 		VarType type() const;
 		VarEx(Var const &v);
 		VarEx(double d);
@@ -18,13 +22,13 @@ namespace mathvm::ldvsoft {
 		friend Var &assign(Var &target, VarEx const &source);
 
 		int64_t const &i() const {
-			return std::get<int64_t>(storage);
+			return storage.i;
 		}
 		double const &d() const {
-			return std::get<double>(storage);
+			return storage.d;
 		}
 		char const *s() const {
-			return std::get<char const *>(storage);
+			return storage.s;
 		}
 
 		friend ostream &operator<<(ostream &out, VarEx const &v);
@@ -50,4 +54,4 @@ namespace mathvm::ldvsoft {
 	namespace StatusEx {
 		Status *Error(string const &reason, uint32_t position = Status::INVALID_POSITION);
 	}
-}
+}}

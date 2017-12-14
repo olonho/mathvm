@@ -3,7 +3,7 @@
 #include <sstream>
 #include <deque>
 
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 	struct AstPrinterStyle {
 		bool forceBlockBraces{false};
 		bool forceExpressionBraces{false};
@@ -41,4 +41,4 @@ namespace mathvm::ldvsoft {
 		FOR_NODES(VISITOR_FUNCTION)
 		#undef VISITOR_FUNCTION
 	};
-}
+}}

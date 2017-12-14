@@ -2,7 +2,7 @@
 
 #include "util.h"
 
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 
 AstPrinterStyle AstPrinter::testStyle() {
 	AstPrinterStyle result;
@@ -239,4 +239,4 @@ void AstPrinter::visitPrintNode(PrintNode *node) {
 	wasStatement = false;
 }
 
-}
+}}

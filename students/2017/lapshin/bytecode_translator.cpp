@@ -10,7 +10,7 @@
 
 #include <unordered_map>
 
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 
 using namespace std::literals;
 
@@ -48,13 +48,18 @@ public:
 	void registerScope(Scope *scope) {
 		if (scopes.count(scope) > 0)
 			return;
-		scopes[scope] = scopes.size(); // C++17!!!
+		/* set id */ {
+			auto id = scopes.size();
+			scopes[scope] = id;
+		}
 		auto &scope_desc{code.scopes[scopes[scope]]};
 		assert(scopes.size() == code.scopes.size());
 		for (size_t i{0}; i != scope->childScopeNumber(); ++i)
 			registerScope(scope->childScopeAt(i));
-		for (auto it{Scope::VarIterator(scope)}; it.hasNext(); )
-			scope_desc[it.next()->name()] = scope_desc.size();
+		for (auto it{Scope::VarIterator(scope)}; it.hasNext(); ) {
+			auto id{scope_desc.size()};
+			scope_desc[it.next()->name()] = id;
+		}
 		for (auto it{Scope::FunctionIterator(scope)}; it.hasNext(); )
 			code.addFunction(new BytecodeCode::TranslatedFunction(it.next()));
 	}
@@ -746,4 +751,4 @@ Status *BytecodeTranslator::translate(string const &program, mathvm::Code **code
 	return Status::Ok();
 };
 
-}
+}}

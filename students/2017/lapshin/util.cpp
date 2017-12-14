@@ -2,10 +2,10 @@
 
 #include <sstream>
 
-namespace mathvm::ldvsoft {
+namespace mathvm { namespace ldvsoft {
 
 VarType VarEx::type() const {
-	switch (storage.index()) {
+	switch (index) {
 	case 0:  return VT_DOUBLE;
 	case 1:  return VT_INT;
 	case 2:  return VT_STRING;
@@ -16,33 +16,33 @@ VarType VarEx::type() const {
 VarEx::VarEx(Var const &v) {
 	switch (v.type()) {
 	case VT_DOUBLE:
-		storage.emplace<double>(v.getDoubleValue());
+		storage.d = v.getDoubleValue();
 		break;
 	case VT_INT:
-		storage.emplace<int64_t>(v.getIntValue());
+		storage.i = v.getIntValue();
 		break;
 	case VT_STRING:
-		storage.emplace<char const *>(v.getStringValue());
+		storage.s = v.getStringValue();
 		break;
 	default:
 		;
 	}
 }
 
-VarEx::VarEx(double d):      storage{d} {}
-VarEx::VarEx(int64_t i):     storage{i} {}
-VarEx::VarEx(char const *s): storage{s} {}
+VarEx::VarEx(double d):      index{0} { storage.d = d; }
+VarEx::VarEx(int64_t i):     index{1} { storage.i = i; }
+VarEx::VarEx(char const *s): index{2} { storage.s = s; }
 
 Var &assign(Var &target, VarEx const &source) {
-	switch (source.storage.index()) {
+	switch (source.index) {
 	case 0:
-		target.setDoubleValue(std::get<0>(source.storage));
+		target.setDoubleValue(source.storage.d);
 		break;
 	case 1:
-		target.setDoubleValue(std::get<0>(source.storage));
+		target.setIntValue(source.storage.i);
 		break;
 	case 2:
-		target.setDoubleValue(std::get<0>(source.storage));
+		target.setStringValue(source.storage.s);
 		break;
 	}
 	return target;
@@ -138,4 +138,4 @@ Status* StatusEx::Error(string const &reason, uint32_t position) {
 	return Status::Error(reason.c_str(), position);
 }
 
-}
+}}
