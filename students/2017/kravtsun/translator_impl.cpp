@@ -11,9 +11,10 @@ namespace mathvm {
 static Parser *parseRoutine(const string &program) {
     auto parser = new Parser;
     Status *parseStatus = parser->parseProgram(program);
-    if (!parseStatus->isOk()) {
+    bool isOk = parseStatus->isOk();
+    delete parseStatus;
+    if (!isOk) {
         auto errorMessage = "parser failed: " + parseStatus->getError();
-        delete parseStatus;
         throw std::logic_error(errorMessage);
     }
     return parser;

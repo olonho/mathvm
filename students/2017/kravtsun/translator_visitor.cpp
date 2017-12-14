@@ -358,26 +358,53 @@ void TranslatorVisitor::numeric_op(const TokenKind &op_type, const VarType &type
     current_type_ = type;
 }
 
+
+
 void TranslatorVisitor::logical_op(const TokenKind &op_type, const VarType &type) {
     if (type != VT_INT) {
         throw std::logic_error("wrong kind for logical operation.");
     }
+    auto convert_and_store_booleanized = [&]() {
+        // if 0 store itself (or don't touch).
+        // else store 1.
+        Label non_zero_label{bc_};
+        Label exit_label{bc_};
+        
+        bc_->addInsn(BC_ILOAD0);
+        bc_->addBranch(BC_IFICMPNE, non_zero_label);
+        
+        bc_->addInsn(BC_ILOAD0);
+        bc_->addBranch(BC_JA, exit_label);
+        
+        bc_->bind(non_zero_label);
+        bc_->addInsn(BC_ILOAD1);
+        bc_->bind(exit_label);
+    };
     switch (op_type) {
         case tOR:
+            bc_->addInsn(BC_STOREIVAR0);
+            convert_and_store_booleanized();
+            bc_->addInsn(BC_LOADIVAR0);
+            convert_and_store_booleanized();
         case tAOR:
             bc_->addInsn(BC_IAOR);
             break;
-        case tAAND:
+            
         case tAND:
+            bc_->addInsn(BC_STOREIVAR0);
+            convert_and_store_booleanized();
+            bc_->addInsn(BC_LOADIVAR0);
+            convert_and_store_booleanized();
+        case tAAND:
             bc_->addInsn(BC_IAAND);
             break;
+            
         case tAXOR:
             bc_->addInsn(BC_IAXOR);
             break;
         default:
             throw std::logic_error("wrong kind of logical operation.");
     }
-    // may be excessive.
     current_type_ = VT_INT;
 }
 
