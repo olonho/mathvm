@@ -401,7 +401,7 @@ namespace mathvm {
     }
 
     void BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
-        code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+        void* code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
         if (code == nullptr) {
             throw std::logic_error("Native function not found");
         }
