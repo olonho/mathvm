@@ -55,8 +55,8 @@ int main(int argc, char** argv) {
                translateStatus->getErrorCstr());
     } else {
         if (impl != "printer") {
-          code->disassemble(std::cout);
-          return 0;
+//          code->disassemble(std::cout);
+//          return 0;
 
           assert(code != 0);
           vector<Var*> vars;

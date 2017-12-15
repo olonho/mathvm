@@ -26,7 +26,8 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code)
 
     *code = b_visitor.get_code();
 
-    return res;}
+    return res;
+}
 
 // BytecodeVisitor
 
@@ -39,10 +40,17 @@ void BytecodeVisitor::registerScopes(Scope *s)
 {
     _scope_map[s] = _scope_map.size();
 
+    static bool isMain = true;
+
     for (Scope::VarIterator var_it(s); var_it.hasNext();) {
         AstVar *var = var_it.next();
         _var_map[s][var->name()] = _var_map[s].size();
+        if (isMain)
+            _code->addVarId(var->name(), _var_map[s][var->name()]);
+        fprintf(stderr, "registered variable '%s' in scope %u with id %u\n", var->name().c_str(), _scope_map[s], _var_map[s][var->name()]);
     }
+
+    isMain = false;
 
     for (uint32_t i = 0; i < s->childScopeNumber(); i++)
         registerScopes(s->childScopeAt(i));
@@ -66,6 +74,7 @@ void BytecodeVisitor::registerFunctions(AstFunction *a_fun)
 
 void BytecodeVisitor::translate(AstFunction *a_fun)
 {
+    _code = new BytecodeInterpreter();
     // get functions and scopes ids.
     registerScopes(a_fun->owner());
     registerFunctions(a_fun);
@@ -99,6 +108,29 @@ void BytecodeVisitor::translateAstFunction(AstFunction *a_fun)
     fprintf(stderr, "    params = %d\n", _fun->parametersNumber());
     fprintf(stderr, "    scopeId = %d\n", _fun->scopeId());
     _fun->bytecode()->dump(std::cout);
+}
+
+void BytecodeVisitor::addBranch(Instruction insn, Label &l)
+{
+    switch (insn) {
+        case BC_IFICMPNE:
+        case BC_IFICMPE:
+        case BC_IFICMPG:
+        case BC_IFICMPGE:
+        case BC_IFICMPL:
+        case BC_IFICMPLE:
+            assert(types.top() == VT_INT);
+            types.pop();
+            assert(types.top() == VT_INT);
+            types.pop();
+            break;
+        case BC_JA:
+            break;
+        default:
+            assert(false);
+    }
+
+    _fun->bytecode()->addBranch(insn, l);
 }
 
 void BytecodeVisitor::addInsn(Instruction insn)
@@ -163,10 +195,7 @@ void BytecodeVisitor::addInsn(Instruction insn)
         case BC_IFICMPGE:
         case BC_IFICMPL:
         case BC_IFICMPLE:
-            assert(types.top() == VT_INT);
-            types.pop();
-            assert(types.top() == VT_INT);
-            types.push(VT_INT);
+            assert(false); // should add them with addBranch
             break;
 
 // doubles
@@ -282,8 +311,8 @@ void BytecodeVisitor::addInsn(Instruction insn)
                 types.push(t2);
                 break;
             }
-        case BC_CALL: // takes return address
-            assert(types.top() == VT_INT);
+        case BC_CALL: // does not take return address, interpreter handles it
+            break;
         case BC_POP:
             types.pop();
             break;
@@ -301,29 +330,6 @@ void BytecodeVisitor::addInsn(Instruction insn)
             assert(false);
             break;
     }
-}
-
-void BytecodeVisitor::convertType(VarType to)
-{
-    VarType from = types.top();
-
-    if (from == to)
-        return;
-    if (from == VT_INT && to == VT_DOUBLE) {
-        addInsn(BC_I2D);
-        return;
-    }
-    if (from == VT_DOUBLE && to == VT_INT) {
-        addInsn(BC_D2I);
-        return;
-    }
-    if (from == VT_STRING && to == VT_INT) {
-        addInsn(BC_S2I);
-        return;
-    }
-
-    fprintf(stderr, "trying to convert from %d to %d\n", from, to);
-    assert(false);
 }
 
 /*
@@ -386,6 +392,28 @@ std::vector<uint8_t> BytecodeVisitor::opResType(TokenKind op)
     return res;
 }
 
+void BytecodeVisitor::convertType(VarType to)
+{
+    VarType from = types.top();
+
+    if (from == to)
+        return;
+    if (from == VT_INT && to == VT_DOUBLE) {
+        addInsn(BC_I2D);
+        return;
+    }
+    if (from == VT_DOUBLE && to == VT_INT) {
+        addInsn(BC_D2I);
+        return;
+    }
+    if (from == VT_STRING && to == VT_INT) {
+        addInsn(BC_S2I);
+        return;
+    }
+
+    fprintf(stderr, "trying to convert from %d to %d\n", from, to);
+    assert(false);
+}
 
 // correct types on stack to make them
 // 1) equal
@@ -432,6 +460,7 @@ void BytecodeVisitor::correctTypes(int n, std::vector<uint8_t> resTypes)
         if (lhs != finalType) {
             addInsn(BC_SWAP);
             convertType(finalType);
+            addInsn(BC_SWAP);
         }
     }
 
@@ -509,6 +538,7 @@ void BytecodeVisitor::binaryCompareOp(BinaryOpNode *node)
         operandsType = VT_INT;
     }
 
+    // TODO: can eliminate this for integers (performance)
     if (operandsType == VT_INT)
         addInsn(BC_ICMP);
     else
@@ -520,22 +550,22 @@ void BytecodeVisitor::binaryCompareOp(BinaryOpNode *node)
 
     switch (op) {
         case tEQ:
-            _fun->bytecode()->addBranch(BC_IFICMPE,  thn);
+            addBranch(BC_IFICMPE,  thn);
             break;
         case tNEQ:
-            _fun->bytecode()->addBranch(BC_IFICMPNE, thn);
+            addBranch(BC_IFICMPNE, thn);
             break;
         case tGT:
-            _fun->bytecode()->addBranch(BC_IFICMPG, thn);
+            addBranch(BC_IFICMPG, thn);
             break;
         case tGE:
-            _fun->bytecode()->addBranch(BC_IFICMPGE, thn);
+            addBranch(BC_IFICMPGE, thn);
             break;
         case tLT:
-            _fun->bytecode()->addBranch(BC_IFICMPL, thn);
+            addBranch(BC_IFICMPL, thn);
             break;
         case tLE:
-            _fun->bytecode()->addBranch(BC_IFICMPLE, thn);
+            addBranch(BC_IFICMPLE, thn);
             break;
 
         default:
@@ -543,18 +573,12 @@ void BytecodeVisitor::binaryCompareOp(BinaryOpNode *node)
             assert(false);
     }
 
-    addInsn(BC_POP);
-    addInsn(BC_POP);
     addInsn(BC_ILOAD0);
-    _fun->bytecode()->addBranch(BC_JA, els);
+    addBranch(BC_JA, els);
     _fun->bytecode()->bind(thn);
 
     types.pop();
-    types.push(VT_INT);
-    types.push(VT_INT);
 
-    addInsn(BC_POP);
-    addInsn(BC_POP);
     addInsn(BC_ILOAD1);
     _fun->bytecode()->bind(els);
 }
@@ -575,16 +599,13 @@ void BytecodeVisitor::binaryLogicOp(BinaryOpNode *node)
 
         if (lhs == VT_INT) {
             addInsn(BC_ILOAD0);
-            _fun->bytecode()->addBranch(BC_IFICMPNE, succ);
+            addBranch(BC_IFICMPNE, succ);
         } else {
             addInsn(BC_DLOAD0);
             addInsn(BC_DCMP);
             addInsn(BC_ILOAD0);
-            _fun->bytecode()->addBranch(BC_IFICMPNE, succ);
+            addBranch(BC_IFICMPNE, succ);
         }
-
-        addInsn(BC_POP);
-        addInsn(BC_POP);
 
         node->right()->visit(this);
         VarType rhs = types.top();
@@ -595,27 +616,20 @@ void BytecodeVisitor::binaryLogicOp(BinaryOpNode *node)
 
         if (rhs == VT_INT) {
             addInsn(BC_ILOAD0);
-            _fun->bytecode()->addBranch(BC_IFICMPNE, succ);
+            addBranch(BC_IFICMPNE, succ);
         } else {
             addInsn(BC_DLOAD0);
             addInsn(BC_DCMP);
             addInsn(BC_ILOAD0);
-            _fun->bytecode()->addBranch(BC_IFICMPNE, succ);
+            addBranch(BC_IFICMPNE, succ);
         }
 
-        addInsn(BC_POP);
-        addInsn(BC_POP);
-
         addInsn(BC_ILOAD0);
-        _fun->bytecode()->addBranch(BC_JA, fail);
+        addBranch(BC_JA, fail);
         _fun->bytecode()->bind(succ);
 
         types.pop();
-        types.push(VT_INVALID);
-        types.push(VT_INVALID);
 
-        addInsn(BC_POP);
-        addInsn(BC_POP);
         addInsn(BC_ILOAD1);
         _fun->bytecode()->bind(fail);
 
@@ -632,16 +646,13 @@ void BytecodeVisitor::binaryLogicOp(BinaryOpNode *node)
 
         if (lhs == VT_INT) {
             addInsn(BC_ILOAD0);
-            _fun->bytecode()->addBranch(BC_IFICMPE, fail);
+            addBranch(BC_IFICMPE, fail);
         } else {
             addInsn(BC_DLOAD0);
             addInsn(BC_DCMP);
             addInsn(BC_ILOAD0);
-            _fun->bytecode()->addBranch(BC_IFICMPE, fail);
+            addBranch(BC_IFICMPE, fail);
         }
-
-        addInsn(BC_POP);
-        addInsn(BC_POP);
 
         node->right()->visit(this);
         VarType rhs = types.top();
@@ -652,27 +663,20 @@ void BytecodeVisitor::binaryLogicOp(BinaryOpNode *node)
 
         if (rhs == VT_INT) {
             addInsn(BC_ILOAD0);
-            _fun->bytecode()->addBranch(BC_IFICMPE, fail);
+            addBranch(BC_IFICMPE, fail);
         } else {
             addInsn(BC_DLOAD0);
             addInsn(BC_DCMP);
             addInsn(BC_ILOAD0);
-            _fun->bytecode()->addBranch(BC_IFICMPE, fail);
+            addBranch(BC_IFICMPE, fail);
         }
 
-        addInsn(BC_POP);
-        addInsn(BC_POP);
-
         addInsn(BC_ILOAD1);
-        _fun->bytecode()->addBranch(BC_JA, succ);
+        addBranch(BC_JA, succ);
         _fun->bytecode()->bind(fail);
 
         types.pop();
-        types.push(VT_INVALID);
-        types.push(VT_INVALID);
 
-        addInsn(BC_POP);
-        addInsn(BC_POP);
         addInsn(BC_ILOAD0);
         _fun->bytecode()->bind(succ);
     }
@@ -729,21 +733,27 @@ void BytecodeVisitor::visitUnaryOpNode(UnaryOpNode *node)
                 addInsn(BC_INEG);
             else
                 addInsn(BC_DNEG);
+            break;
         case tNOT:
             if (resType == VT_INT) {
                 addInsn(BC_ILOAD0);
                 addInsn(BC_ICMP);
-                addInsn(BC_STOREIVAR0);
-                addInsn(BC_LOADIVAR0);
-                addInsn(BC_LOADIVAR0);
-                addInsn(BC_IMUL);
             } else {
                 addInsn(BC_DLOAD0);
                 addInsn(BC_DCMP);
-                addInsn(BC_STOREIVAR0);
-                addInsn(BC_LOADIVAR0);
-                addInsn(BC_LOADIVAR0);
-                addInsn(BC_IMUL);
+            }
+            addInsn(BC_ILOAD0);
+            {
+                Label l0(_fun->bytecode());
+                Label l1(_fun->bytecode());
+
+                addBranch(BC_IFICMPE, l1);
+                addInsn(BC_ILOAD0);
+                addBranch(BC_JA, l0);
+                types.pop();
+                _fun->bytecode()->bind(l1);
+                addInsn(BC_ILOAD1);
+                _fun->bytecode()->bind(l0);
             }
             break;
         default:
@@ -783,27 +793,18 @@ void BytecodeVisitor::visitLoadNode(LoadNode *node)
 
     const AstVar *var = node->var();
     uint16_t scope_id = _scope_map[var->owner()];
-    uint16_t var_id = _var_map[_scope][var->name()];
+    uint16_t var_id = _var_map[var->owner()][var->name()];
 
-    if (var->type() == VT_INT) {
-        if (scope_id == _scope_map[_scope])
-            addInsn(BC_LOADIVAR);
-        else
-            addInsn(BC_LOADCTXIVAR);
-    } else if (var->type() == VT_DOUBLE) {
-        if (scope_id == _scope_map[_scope])
-            addInsn(BC_LOADDVAR);
-        else
-            addInsn(BC_LOADCTXDVAR);
-    } else if (var->type() == VT_STRING) {
-        if (scope_id == _scope_map[_scope])
-            addInsn(BC_LOADSVAR);
-        else
-            addInsn(BC_LOADCTXSVAR);
-    }
+    fprintf(stderr, "scope_id %u, var_id %u, var name %s\n", scope_id, var_id, var->name().c_str());
 
-    if (scope_id != _scope_map[_scope])
-        _fun->bytecode()->addUInt16(scope_id);
+    if (var->type() == VT_INT)
+        addInsn(BC_LOADCTXIVAR);
+    else if (var->type() == VT_DOUBLE)
+        addInsn(BC_LOADCTXDVAR);
+    else if (var->type() == VT_STRING)
+        addInsn(BC_LOADCTXSVAR);
+
+    _fun->bytecode()->addUInt16(scope_id);
     _fun->bytecode()->addUInt16(var_id);
 }
 
@@ -813,7 +814,7 @@ void BytecodeVisitor::visitStoreNode(StoreNode *node)
 
     const AstVar *var = node->var();
     uint16_t scope_id = _scope_map[var->owner()];
-    uint16_t var_id = _var_map[_scope][var->name()];
+    uint16_t var_id = _var_map[var->owner()][var->name()];
 
     if (node->op() == tINCRSET || node->op() == tDECRSET) {
         LoadNode n(0, var);
@@ -829,32 +830,22 @@ void BytecodeVisitor::visitStoreNode(StoreNode *node)
             addInsn(BC_IADD);
         if (node->op() == tDECRSET)
             addInsn(BC_ISUB);
-        if (scope_id == _scope_map[_scope])
-            addInsn(BC_STOREIVAR);
-        else
-            addInsn(BC_STORECTXIVAR);
+        addInsn(BC_STORECTXIVAR);
     } else if (var->type() == VT_DOUBLE) {
         if (node->op() == tINCRSET)
             addInsn(BC_DADD);
         if (node->op() == tDECRSET)
             addInsn(BC_DSUB);
-        if (scope_id == _scope_map[_scope])
-            addInsn(BC_STOREDVAR);
-        else
-            addInsn(BC_STORECTXDVAR);
+        addInsn(BC_STORECTXDVAR);
     } else if (var->type() == VT_STRING) {
         if (node->op() == tINCRSET)
             assert(false);
         if (node->op() == tDECRSET)
             assert(false);
-        if (scope_id == _scope_map[_scope])
-            addInsn(BC_STORESVAR);
-        else
-            addInsn(BC_STORECTXSVAR);
+        addInsn(BC_STORECTXSVAR);
     }
 
-    if (scope_id != _scope_map[_scope])
-        _fun->bytecode()->addUInt16(scope_id);
+    _fun->bytecode()->addUInt16(scope_id);
     _fun->bytecode()->addUInt16(var_id);
 }
 
@@ -867,6 +858,8 @@ void BytecodeVisitor::leaveScope()
 {
     size_t curSize = types.size();
     size_t prevSize = _scopeSizes.top();
+
+    assert(curSize >= prevSize);
 
     while (curSize != prevSize) {
         addInsn(BC_POP);
@@ -893,6 +886,8 @@ void BytecodeVisitor::visitBlockNode(BlockNode *node)
     }
 
     leaveScope();
+
+    fprintf(stderr, "leaving block for scope %p, scope id = %d\n", _scope, _scope_map[_scope]);
 }
 
 void BytecodeVisitor::visitNativeCallNode(NativeCallNode *node)
@@ -929,13 +924,23 @@ void BytecodeVisitor::visitForNode(ForNode *node)
     uint16_t scope_id = _scope_map[node->var()->owner()];
     uint16_t var_id = _var_map[node->var()->owner()][node->var()->name()];
 
+    Label begin = _fun->bytecode()->currentLabel();
+
     addInsn(BC_STORECTXIVAR);
     _fun->bytecode()->addUInt16(scope_id);
     _fun->bytecode()->addUInt16(var_id);
 
-    Label begin = _fun->bytecode()->currentLabel();
+    addInsn(BC_STOREIVAR1);
+    addInsn(BC_LOADIVAR1);
+
+    addInsn(BC_LOADCTXIVAR);
+    _fun->bytecode()->addUInt16(scope_id);
+    _fun->bytecode()->addUInt16(var_id);
+
+    addInsn(BC_LOADIVAR1);
+
     Label done(_fun->bytecode());
-    _fun->bytecode()->addBranch(BC_IFICMPG, done);
+    addBranch(BC_IFICMPG, done);
 
     node->body()->visit(this);
 
@@ -944,12 +949,12 @@ void BytecodeVisitor::visitForNode(ForNode *node)
     _fun->bytecode()->addUInt16(var_id);
     addInsn(BC_ILOAD1);
     addInsn(BC_IADD);
-    addInsn(BC_STORECTXIVAR);
-    _fun->bytecode()->addUInt16(scope_id);
-    _fun->bytecode()->addUInt16(var_id);
 
-    _fun->bytecode()->addBranch(BC_JA, begin);
+    addBranch(BC_JA, begin);
     _fun->bytecode()->bind(done);
+
+    types.pop();
+    addInsn(BC_POP);
 }
 
 void BytecodeVisitor::visitWhileNode(WhileNode *node)
@@ -968,21 +973,12 @@ void BytecodeVisitor::visitWhileNode(WhileNode *node)
 
     Label done(_fun->bytecode());
 
-    _fun->bytecode()->addBranch(BC_IFICMPE, done);
-
-    addInsn(BC_POP);
-    addInsn(BC_POP);
+    addBranch(BC_IFICMPE, done);
 
     node->loopBlock()->visit(this);
 
-    _fun->bytecode()->addBranch(BC_JA, repeat);
+    addBranch(BC_JA, repeat);
     _fun->bytecode()->bind(done);
-
-    types.push(VT_INT);
-    types.push(VT_INT);
-
-    addInsn(BC_POP);
-    addInsn(BC_POP);
 }
 
 void BytecodeVisitor::visitIfNode(IfNode *node)
@@ -1000,25 +996,16 @@ void BytecodeVisitor::visitIfNode(IfNode *node)
     Label notThen(_fun->bytecode());
     Label notElse(_fun->bytecode());
 
-    _fun->bytecode()->addBranch(BC_IFICMPE, notThen);
-
-    addInsn(BC_POP);
-    addInsn(BC_POP);
+    addBranch(BC_IFICMPE, notThen);
 
     node->thenBlock()->visit(this);
 
     if (node->elseBlock())
-        _fun->bytecode()->addBranch(BC_JA, notElse);
+        addBranch(BC_JA, notElse);
 
     _fun->bytecode()->bind(notThen);
 
     if (node->elseBlock()) {
-        types.push(VT_INT);
-        types.push(VT_INT);
-
-        addInsn(BC_POP);
-        addInsn(BC_POP);
-
         node->elseBlock()->visit(this);
 
         _fun->bytecode()->bind(notElse);
@@ -1031,7 +1018,7 @@ void BytecodeVisitor::visitReturnNode(ReturnNode *node)
 
     if (node->returnExpr()) {
         node->returnExpr()->visit(this);
-        assert(types.top() == _fun->returnType());
+        convertType(_fun->returnType());
     }
 
 /**
@@ -1052,16 +1039,13 @@ void BytecodeVisitor::visitReturnNode(ReturnNode *node)
             addInsn(BC_STORESVAR0);
     }
 
-    int pops = (int)types.size() - 1; // leave only return address on stack
-    for (int i = 0; i < pops; i++)
-        _fun->bytecode()->addInsn(BC_POP);
-
     addInsn(BC_RETURN);
 }
 
 void BytecodeVisitor::visitFunctionNode(FunctionNode *node)
 {
     fprintf(stderr, "visiting function node name %s\n", node->name().c_str());
+    fprintf(stderr, "scope id is %u\n", _scope_map[_scope]);
 
     // hack
     if (isNative(node))
@@ -1079,27 +1063,35 @@ void BytecodeVisitor::visitFunctionNode(FunctionNode *node)
         else
             assert(false);
     }
-    // return address
-    types.push(VT_INT);
 
     if (!isNative(node)) {
         for (size_t i = 0; i < node->parametersNumber(); i++) {
             VarType paramType = node->parameterType(i);
-            addInsn(BC_SWAP); // return addres
             if (paramType == VT_INT)
-                addInsn(BC_STOREIVAR);
+                addInsn(BC_STORECTXIVAR);
             else if (paramType == VT_DOUBLE)
-                addInsn(BC_STOREDVAR);
+                addInsn(BC_STORECTXDVAR);
             else if (paramType == VT_STRING)
-                addInsn(BC_STORESVAR);
+                addInsn(BC_STORECTXSVAR);
+            fprintf(stderr, "param: scopeId = %u, varId = %u, name = '%s'\n", _scope_map[_scope], _var_map[_scope][node->parameterName(i)], node->parameterName(i).c_str());
+            _fun->bytecode()->addUInt16(_scope_map[_scope]);
             _fun->bytecode()->addUInt16(_var_map[_scope][node->parameterName(i)]);
+        }
+
+        // dirty hack to preserve stack
+        for (size_t i = 0; i < node->parametersNumber(); i++) {
+            VarType paramType = node->parameterType(i);
+            if (paramType == VT_INT)
+                addInsn(BC_ILOAD0);
+            else if (paramType == VT_DOUBLE)
+                addInsn(BC_DLOAD0);
+            else if (paramType == VT_STRING)
+                addInsn(BC_SLOAD0);
+            types.pop();
         }
     }
 
     node->body()->visit(this);
-
-    // return address
-    types.pop();
 
     if (!isNative(node)) {
         if (_fun->bytecode()->getInsn(_fun->bytecode()->current() - 1) != BC_RETURN)
@@ -1116,14 +1108,11 @@ void BytecodeVisitor::visitCallNode(CallNode *node)
     AstFunction *fun = _funcs[_funIdMap[node->name()]];
     assert(node->parametersNumber() == fun->parametersNumber());
 
-    for (int i = node->parametersNumber() - 1, j = 0; i >= 0; i--) {
+    for (int i = node->parametersNumber() - 1; i >= 0; i--) {
         node->parameterAt(i)->visit(this);
-        convertType(fun->parameterType(j));
-        j++;
+        convertType(fun->parameterType(i));
     }
 
-    addInsn(BC_ILOAD);
-    _fun->bytecode()->addInt64(_fun->bytecode()->current() + 8 + 1 + 2);
     addInsn(BC_CALL);
     _fun->bytecode()->addUInt16(_funIdMap[node->name()]);
 

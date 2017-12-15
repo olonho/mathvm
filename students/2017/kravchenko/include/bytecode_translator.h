@@ -5,7 +5,7 @@
 #include "mathvm.h"
 #include "parser.h"
 #include "visitors.h"
-#include "interpreter_code.h"
+#include "bytecode_interpreter.h"
 
 #include <iostream>
 #include <map>
@@ -23,7 +23,7 @@ private:
     typedef std::map<Scope*, std::map<string, uint16_t>> VarMap;
     typedef std::map<string, uint16_t> FunIdMap;
 
-    Code *_code; // DO NOT delete it in distructor
+    BytecodeInterpreter *_code; // DO NOT delete it in distructor
 
     BytecodeFunction *_fun; // current function we translate
     Scope *_scope; // current scope
@@ -40,11 +40,8 @@ private:
     void *_dlHandler;
 
 public:
-    BytecodeVisitor() {
-        _code = new InterpreterCodeImpl();
-    }
-
     virtual ~BytecodeVisitor() {
+        dlclose(_dlHandler);
     }
 
     Code * get_code() {
@@ -73,6 +70,7 @@ private:
     void binaryLogicOp(BinaryOpNode *node);
 
     void addInsn(Instruction insn);
+    void addBranch(Instruction insn, Label &l);
 
     void enterScope();
     void leaveScope();

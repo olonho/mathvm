@@ -44,11 +44,14 @@ function int foo(int x) {
         z -= 2;
         return s + bar(x);
     }
+    print('x is ', x);
     if (x == 0) {
+        print('inside if\n');
         int f;
         f = baz();
         return bar(f - 3);
     }
+    print('outside if\n');
     r = foo(x - 1);
     bar(r);
     return r + baz();

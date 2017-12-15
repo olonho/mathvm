@@ -4,9 +4,11 @@ a = 123;
 if (a - 123) {
     int b; 
     b = 1;
+    print(b);
 } else {
     int b;
     b = 2;
+    print(b);
 }
 
 if (a + 123) {
