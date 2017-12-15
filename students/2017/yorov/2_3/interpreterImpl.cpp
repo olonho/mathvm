@@ -6,6 +6,12 @@
 
 namespace mathvm {
 
+    extern "C" {
+        double nativeDouble(double*, int64_t*, const void*);
+        int64_t nativeInt64(double*, int64_t*, const void*);
+        char* nativeString(double*, int64_t*, const void*);
+    }
+
     double Interpreter::epsilon = 1e-11;
 
     Interpreter::Interpreter(std::ostream& os)
@@ -413,8 +419,46 @@ namespace mathvm {
                         _variables.pushScope(func->id(), func->localsNumber());
                         break;
                     }
-                    case BC_CALLNATIVE:
+                    case BC_CALLNATIVE: {
+                        uint16_t nativeId = bytecode->getUInt16(pointer);
+                        pointer += sizeof(uint16_t);
+                        const std::string* name;
+                        const Signature* signature;
+                        const void* nativeCode = nativeById(nativeId, &signature, &name);
+                        int64_t iReg[4]{};
+                        size_t ip = 0;
+                        double dReg[4]{};
+                        size_t dp = 0;
+                        for (int i = signature->size() - 1; i > 0; --i) {
+                            switch (signature->at(i).first) {
+                                case VT_DOUBLE:
+                                    dReg[dp++] = _stack.popDouble();
+                                    break;
+                                case VT_INT:
+                                    iReg[ip++] = _stack.popInt();
+                                    break;
+                                case VT_STRING:
+                                    iReg[ip++] = (int64_t) constantById(_stack.popUInt16()).data();
+                                    break;
+                                default:
+                                    throw std::logic_error("unexpected arg type");
+                            }
+                        }
+                        switch (signature->at(0).first) {
+                            case VT_DOUBLE:
+                                _stack.pushDouble(nativeDouble(dReg, iReg, nativeCode));
+                                break;
+                            case VT_INT:
+                                _stack.pushInt(nativeInt64(dReg, iReg, nativeCode));
+                                break;
+                            case VT_STRING:
+                                _stack.pushUInt16(makeStringConstant(nativeString(dReg, iReg, nativeCode)));
+                                break;
+                            default:
+                                (void)nativeInt64(dReg, iReg, nativeCode);
+                        }
                         break;
+                    }
                     case BC_RETURN:
                         pointer = bytecode->length();
                         break;

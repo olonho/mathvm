@@ -29,6 +29,8 @@ namespace mathvm {
         void visitScope(Scope* scope);
         void convert(VarType from, VarType to);
 
+        std::unordered_map<uint16_t, bool> _isNativeFunc;
+        std::unordered_map<std::string, uint16_t> _nativeToId;
         Code* _code;
         utils::Context* _context;
         VarType _TOSType;
