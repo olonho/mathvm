@@ -41,7 +41,7 @@ private:
     void cast(const VarType &to);
 
     void numeric_op(const TokenKind &op_type, const VarType &type);
-
+    
     void logical_op(const TokenKind &op_type, const VarType &type);
 
     void compare_op(const TokenKind &op_type, const VarType &type);
