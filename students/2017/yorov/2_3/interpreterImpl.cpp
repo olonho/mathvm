@@ -7,9 +7,9 @@
 namespace mathvm {
 
     extern "C" {
-        double nativeDouble(double*, int64_t*, const void*);
-        int64_t nativeInt64(double*, int64_t*, const void*);
-        char* nativeString(double*, int64_t*, const void*);
+        int nativeInt(void*, void*, const void*);
+        char* nativeString(void*, void*, const void*);
+        double nativeDouble(void*, void*, const void*);
     }
 
     double Interpreter::epsilon = 1e-11;
@@ -52,7 +52,7 @@ namespace mathvm {
                         pointer += sizeof(int64_t);
                         break;
                     case BC_SLOAD:
-                        _stack.pushUInt16(bytecode->getUInt16(pointer));
+                        _stack.pushString(constantById(bytecode->getUInt16(pointer)).data());
                         pointer += sizeof(uint16_t);
                         break;
                     case BC_DLOAD0:
@@ -62,7 +62,7 @@ namespace mathvm {
                         _stack.pushInt(0);
                         break;
                     case BC_SLOAD0:
-                        _stack.pushUInt16(0);
+                        _stack.pushString(std::string("").data());
                         break;
                     case BC_DLOAD1:
                         _stack.pushDouble(1.);
@@ -161,8 +161,8 @@ namespace mathvm {
                         _os << _stack.popDouble();
                         break;
                     case BC_SPRINT: {
-                        uint16_t id = _stack.popUInt16();
-                        _os << constantById(id);
+                        // uint16_t id =
+                        _os << _stack.popString();
                         break;
                     }
                     case BC_I2D:
@@ -172,7 +172,7 @@ namespace mathvm {
                         _stack.pushInt(static_cast<int64_t>(_stack.popDouble()));
                         break;
                     case BC_S2I:
-                        _stack.pushInt(static_cast<int64_t>(_stack.popUInt16()));
+                        _stack.pushInt(stoi(_stack.popString()));
                         break;
                     case BC_SWAP:
                         _stack.swap();
@@ -205,16 +205,16 @@ namespace mathvm {
                         _stack.pushInt(_variables.getCachedInt(3));
                         break;
                     case BC_LOADSVAR0:
-                        _stack.pushUInt16(_variables.getUInt16(0));
+                        _stack.pushString(_variables.getString(0));
                         break;
                     case BC_LOADSVAR1:
-                        _stack.pushUInt16(_variables.getUInt16(1));
+                        _stack.pushString(_variables.getString(1));
                         break;
                     case BC_LOADSVAR2:
-                        _stack.pushUInt16(_variables.getUInt16(2));
+                        _stack.pushString(_variables.getString(2));
                         break;
                     case BC_LOADSVAR3:
-                        _stack.pushUInt16(_variables.getUInt16(3));
+                        _stack.pushString(_variables.getString(3));
                         break;
                     case BC_STOREDVAR0:
                         _variables.setCachedDouble(0, _stack.popDouble());
@@ -241,16 +241,16 @@ namespace mathvm {
                         _variables.setCachedInt(3, _stack.popInt());
                         break;
                     case BC_STORESVAR0:
-                        _variables.setCachedUInt16(0, _stack.popUInt16());
+                        _variables.setCachedString(0, _stack.popString());
                         break;
                     case BC_STORESVAR1:
-                        _variables.setCachedUInt16(1, _stack.popUInt16());
+                        _variables.setCachedString(1, _stack.popString());
                         break;
                     case BC_STORESVAR2:
-                        _variables.setCachedUInt16(2, _stack.popUInt16());
+                        _variables.setCachedString(2, _stack.popString());
                         break;
                     case BC_STORESVAR3:
-                        _variables.setCachedUInt16(3, _stack.popUInt16());
+                        _variables.setCachedString(3, _stack.popString());
                         break;
                     case BC_LOADDVAR: {
                         _stack.pushDouble(_variables.getDouble(bytecode->getUInt16(pointer)));
@@ -263,7 +263,7 @@ namespace mathvm {
                         break;
                     }
                     case BC_LOADSVAR: {
-                        _stack.pushUInt16(_variables.getUInt16(bytecode->getUInt16(pointer)));
+                        _stack.pushString(_variables.getString(bytecode->getUInt16(pointer)));
                         pointer += sizeof(uint16_t);
                         break;
                     }
@@ -278,7 +278,7 @@ namespace mathvm {
                         break;
                     }
                     case BC_STORESVAR: {
-                        _variables.setUInt16(bytecode->getUInt16(pointer), _stack.popUInt16());
+                        _variables.setString(bytecode->getUInt16(pointer), _stack.popString());
                         pointer += sizeof(uint16_t);
                         break;
                     }
@@ -303,7 +303,7 @@ namespace mathvm {
                         pointer += sizeof(uint16_t);
                         uint16_t varId = bytecode->getUInt16(pointer);
                         pointer += sizeof(uint16_t);
-                        _stack.pushUInt16(_variables.getUInt16(contextId, varId));
+                        _stack.pushString(_variables.getString(contextId, varId));
                         break;
                     }
                     case BC_STORECTXDVAR: {
@@ -327,7 +327,7 @@ namespace mathvm {
                         pointer += sizeof(uint16_t);
                         uint16_t varId = bytecode->getUInt16(pointer);
                         pointer += sizeof(uint16_t);
-                        _variables.setUInt16(contextId, varId, _stack.popUInt16());
+                        _variables.setString(contextId, varId, _stack.popString());
                         break;
                     }
                     case BC_DCMP: {
@@ -425,10 +425,11 @@ namespace mathvm {
                         const std::string* name;
                         const Signature* signature;
                         const void* nativeCode = nativeById(nativeId, &signature, &name);
-                        int64_t iReg[4]{};
+                        intptr_t iReg[6]{};
                         size_t ip = 0;
-                        double dReg[4]{};
+                        double dReg[6]{};
                         size_t dp = 0;
+
                         for (int i = signature->size() - 1; i > 0; --i) {
                             switch (signature->at(i).first) {
                                 case VT_DOUBLE:
@@ -438,24 +439,24 @@ namespace mathvm {
                                     iReg[ip++] = _stack.popInt();
                                     break;
                                 case VT_STRING:
-                                    iReg[ip++] = (int64_t) constantById(_stack.popUInt16()).data();
+                                    iReg[ip++] = (intptr_t) _stack.popString();
                                     break;
                                 default:
                                     throw std::logic_error("unexpected arg type");
                             }
                         }
+
                         switch (signature->at(0).first) {
                             case VT_DOUBLE:
                                 _stack.pushDouble(nativeDouble(dReg, iReg, nativeCode));
                                 break;
                             case VT_INT:
-                                _stack.pushInt(nativeInt64(dReg, iReg, nativeCode));
+                                _stack.pushInt(nativeInt(dReg, iReg, nativeCode));
                                 break;
                             case VT_STRING:
-                                _stack.pushUInt16(makeStringConstant(nativeString(dReg, iReg, nativeCode)));
+                                _stack.pushString(nativeString(dReg, iReg, nativeCode));
                                 break;
-                            default:
-                                (void)nativeInt64(dReg, iReg, nativeCode);
+                            default: break;
                         }
                         break;
                     }

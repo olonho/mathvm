@@ -20,7 +20,8 @@ USER_OBJ = \
    $(OBJ)/bytecodeVisitor$(OBJ_SUFF) \
    $(OBJ)/translatorUtil$(OBJ_SUFF) \
    $(OBJ)/interpreterImpl$(OBJ_SUFF) \
-   $(OBJ)/interpreterUtil$(OBJ_SUFF)
+   $(OBJ)/interpreterUtil$(OBJ_SUFF) \
+   $(OBJ)/native$(OBJ_SUFF)
 
 
 include $(VM_ROOT)/common.mk
@@ -33,3 +34,6 @@ all: $(MATHVM)
 
 $(MATHVM): $(OUT) $(USER_OBJ) $(MATHVM_OBJ)
 	$(CXX) -g -o $@ $(USER_OBJ) $(MATHVM_OBJ) $(LIBS)
+
+$(OBJ)/native$(OBJ_SUFF): native.s
+	$(CXX) -g -c native.s -o $(OBJ)/native$(OBJ_SUFF)

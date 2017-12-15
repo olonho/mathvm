@@ -401,21 +401,12 @@ namespace mathvm {
     }
 
     void BytecodeVisitor::visitNativeCallNode(NativeCallNode* node) {
-        void* code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+        code = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
         if (code == nullptr) {
             throw std::logic_error("Native function not found");
         }
         uint16_t nativeId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
         _nativeToId[node->nativeName()] = nativeId;
-        // std::cout << nativeId;
-        // Bytecode* bytecode = _context->function()->bytecode();
-        // bytecode->addInsn(BC_CALLNATIVE);
-        // bytecode->addUInt16(nativeId);
-        //
-        // VarType returnType = node->nativeSignature()[0].first;
-        // if (returnType != VT_VOID && returnType != VT_INVALID) {
-        //     _TOSType = returnType;
-        // }
     }
 
 
@@ -590,12 +581,18 @@ namespace mathvm {
             _code->addFunction(trFunc);
             bool isNative = (func->node()->body()->nodes() > 0 && func->node()->body()->nodeAt(0)->isNativeCallNode());
             _isNativeFunc[trFunc->id()] = isNative;
+            if (isNative) {
+                visitAstFunction(func);
+            }
         }
 
         funcIter = Scope::FunctionIterator{scope};
         while (funcIter.hasNext()) {
             AstFunction* func = funcIter.next();
-            visitAstFunction(func);
+            TranslatedFunction* trFunc = _code->functionByName(func->name());
+            if (!_isNativeFunc[trFunc->id()]) {
+                visitAstFunction(func);
+            }
         }
     }
 
