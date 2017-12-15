@@ -165,7 +165,7 @@ class Status {
       return _msg.c_str();
     }
 
-    const uint32_t getPosition() const {
+    uint32_t getPosition() const {
       return _position;
     }
 
