@@ -7,22 +7,17 @@
 #include <math.h>
 #include <iostream>
 
-namespace mathvm {
+using namespace mathvm;
 
 Status* BytecodeInterpreter::execute(vector<Var*>& initVars)
 {
-    uint16_t mainScopeId = 0;
-
-    /*
-     * I don't know C++ well, but for some reason I have to do it here.
-     * Otherwise the first access to frames map freezes
-     */
-    this->frames = std::map<uint16_t, std::stack<ScopeMap *>>();
+    fun = (BytecodeFunction *)functionById(0);
+    uint16_t mainScopeId = fun->scopeId();
 
     ScopeMap *mainScopeMap = new ScopeMap();
-    frames[mainScopeId] = std::stack<ScopeMap *>();
     frames[mainScopeId].push(mainScopeMap);
-    callStack.push(0);
+    callStack.push(mainScopeId);
+    frameSizes.push(0);
 
     for (Var *var : initVars) {
         uint16_t varId = globalVarIds[var->name()];
@@ -32,26 +27,24 @@ Status* BytecodeInterpreter::execute(vector<Var*>& initVars)
         else if (var->type() == VT_DOUBLE)
             val.doubleVal = var->getDoubleValue();
         else if (var->type() == VT_STRING) {
-            uint16_t id = makeStringConstant(std::string(var->getStringValue()));
-            val.stringVal = id;
+            makeStringConstant(std::string(var->getStringValue()));
+            val.stringVal = var->getStringValue();
         } else
             assert(false);
-//        std::cout << "setting var" << std::endl;
         setVar(mainScopeId, varId, val);
-//        std::cout << "set var" << std::endl;
     }
 
-//    std::cout << "\n\n\n" << std::endl;
-
-    execFun((BytecodeFunction *)functionById(0));
+    execFun();
 
     return Status::Ok();
 }
 
 BcValue BytecodeInterpreter::getVar(uint16_t scopeId, uint16_t varId)
 {
-//    std::cout << "getting var from scope " << scopeId << " varId is " << varId << std::endl;
-    auto &it = (--frames.upper_bound(scopeId));
+    // auto does not work with -O flags, don't know why
+    std::map<uint16_t, std::stack<std::map<uint16_t, std::map<uint16_t, BcValue> >*> >::iterator it = frames.upper_bound(scopeId);
+    --it;
+
     while (true) {
         std::stack<ScopeMap *> &scopeStack = it->second;
         if (scopeStack.size() == 0) {
@@ -65,8 +58,9 @@ BcValue BytecodeInterpreter::getVar(uint16_t scopeId, uint16_t varId)
 
 void BytecodeInterpreter::setVar(uint16_t scopeId, uint16_t varId, BcValue val)
 {
-//    std::cout << "setting var from scope " << scopeId << " varId is " << varId << std::endl;
-    auto &it = (--frames.upper_bound(scopeId));
+    std::map<uint16_t, std::stack<std::map<uint16_t, std::map<uint16_t, BcValue> >*> >::iterator it = frames.upper_bound(scopeId);
+    --it;
+
     while (true) {
         std::stack<ScopeMap *> &scopeStack = it->second;
         if (scopeStack.size() == 0) {
@@ -76,26 +70,19 @@ void BytecodeInterpreter::setVar(uint16_t scopeId, uint16_t varId, BcValue val)
         (*scopeStack.top())[scopeId][varId] = val;
         break;
     }
-
-//    std::cout << "successfully set var to " << getVar(scopeId, varId).intVal << std::endl;
 }
 
-void BytecodeInterpreter::execFun(BytecodeFunction *fn)
+void BytecodeInterpreter::execFun()
 {
-    fun = fn;
     pc = 0;
-
-    frameSizes.push(stack.size());
 
     while (pc < fun->bytecode()->length()) {
         Instruction insn = nextInsn();
 
-        size_t length;
-        std::string name(bytecodeName(insn, &length));
+//        size_t length;
+//        std::string name(bytecodeName(insn, &length));
 //        std::cout << "handling: " << pc - 1 << " " << name << std::endl;
 
-        if (insn == BC_RETURN)
-            break;
         switch (insn) {
 #define CASE(b, d, l) case BC_##b: do_##b(); break;
             FOR_BYTECODES(CASE)
@@ -105,22 +92,85 @@ void BytecodeInterpreter::execFun(BytecodeFunction *fn)
         }
     }
 
-    assert(frameSizes.top() <= stack.size());
-
-    while (stack.size() != frameSizes.top()) {
-//        std::cout << "popping due to frame sizes" << std::endl;
-        stack.pop();
-    }
-
+    ScopeMap *mainScopeMap = frames[fun->scopeId()].top();
+    frames[fun->scopeId()].pop();
+    delete mainScopeMap;
+    callStack.pop();
     frameSizes.pop();
-    if (returnAddress.size() != 0) {
-        fun = std::get<0>(returnAddress.top());
-        pc = std::get<1>(returnAddress.top());
-        returnAddress.pop();
-//        std::cout << "popping frame " << callStack.top() << std::endl;
-        frames[callStack.top()].pop();
-        callStack.pop();
+}
+
+void BytecodeInterpreter::createNativeWrapper(uint16_t nativeFunId)
+{
+    using namespace asmjit;
+    using namespace asmjit::x86;
+
+    X86Assembler jAsm(&this->jrt);
+    X86Compiler jCompiler(&jAsm);
+
+//    FileLogger logger(stdout);
+//    jAsm.setLogger(&logger);
+
+    const Signature *sign;
+    const std::string *name;
+    const void *address = nativeById(nativeFunId, &sign, &name);
+
+    // See x86_64 ABI for registers order
+    // See libs/asmjit/src/x86/x86operand.h:2187 for definitions
+    X86GpReg integerRegs[6] = {rdi, rsi, rdx, rcx, r8, r9};
+    X86XmmReg doubleRegs[8] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
+
+    size_t intRegId = 0;
+    size_t doubleRegId = 0;
+ 
+    jCompiler.addFunc(FuncBuilder2<void, void *, void *>(kCallConvX64Unix));
+
+    // save the pointer to the result on stack, we will need him later
+    jAsm.push(rsi);
+    // mov params pointer to rax, as we will need rdi
+    jAsm.mov(rax, rdi);
+
+    for (size_t i = 1; i < sign->size(); i++) {
+        const mathvm::VarType type = std::get<0>((*sign)[i]);
+        if (type == VT_INT || type == VT_STRING) {
+            assert(intRegId < sizeof(integerRegs)/sizeof(integerRegs[0]));
+            X86GpReg curArgReg = integerRegs[intRegId++];
+            jAsm.mov(curArgReg, qword_ptr(rax));
+        } else if (type == VT_DOUBLE) {
+            assert(doubleRegId < sizeof(doubleRegs)/sizeof(doubleRegs[0]));
+            X86XmmReg curArgReg = doubleRegs[doubleRegId++];
+            jAsm.movsd(curArgReg, qword_ptr(rax));
+        }
+        // now move to the next argument
+        jAsm.add(rax, sizeof(BcValue));
     }
+
+    // ok, args moved, now call native function itself
+    jAsm.call((Ptr)address);
+
+    // save the result to the result pointer
+    jAsm.pop(rbx);
+
+    const mathvm::VarType returnType = std::get<0>((*sign)[0]);
+    if (returnType == VT_INT || returnType == VT_STRING)
+        jAsm.mov(qword_ptr(rbx), rax);
+    else if (returnType == VT_DOUBLE) {
+        jAsm.movsd(qword_ptr(rbx), xmm0);
+    }
+
+    // everything is done! now just return back
+    jAsm.ret();
+
+    jCompiler.endFunc();
+    jCompiler.finalize();
+
+    nativeWrappers[nativeFunId] = (NativeFunWrapper)(jAsm.make());
+}
+
+NativeFunWrapper BytecodeInterpreter::getNativeWrapper(uint16_t nativeFunId)
+{
+    if (nativeWrappers[nativeFunId] == NULL)
+        createNativeWrapper(nativeFunId);
+    return nativeWrappers[nativeFunId];
 }
 
 Instruction BytecodeInterpreter::nextInsn()
@@ -133,8 +183,6 @@ void BytecodeInterpreter::pushInt(int64_t i)
     BcValue val;
     val.intVal = i;
     stack.push(val);
-
-//    std::cout << "pushed int " << i << std::endl;
 }
 
 void BytecodeInterpreter::pushDouble(double d)
@@ -144,10 +192,10 @@ void BytecodeInterpreter::pushDouble(double d)
     stack.push(val);
 }
 
-void BytecodeInterpreter::pushString(uint16_t id)
+void BytecodeInterpreter::pushString(const char *str)
 {
     BcValue val;
-    val.stringVal = id;
+    val.stringVal = str;
     stack.push(val);
 }
 
@@ -167,9 +215,9 @@ double BytecodeInterpreter::popDouble()
     return d;
 }
 
-uint16_t BytecodeInterpreter::popString()
+const char * BytecodeInterpreter::popString()
 {
-    uint16_t s = stack.top().stringVal;
+    const char *s = stack.top().stringVal;
     stack.pop();
 
     return s;
@@ -201,7 +249,7 @@ void BytecodeInterpreter::do_SLOAD()
     uint16_t s = fun->bytecode()->getUInt16(pc);
     pc += sizeof(uint16_t);
 
-    pushString(s);
+    pushString(constantById(s).c_str());
 }
 
 void BytecodeInterpreter::do_DLOAD0()
@@ -216,7 +264,7 @@ void BytecodeInterpreter::do_ILOAD0()
 
 void BytecodeInterpreter::do_SLOAD0()
 {
-    pushString(0);
+    pushString(constantById(0).c_str());
 }
 
 void BytecodeInterpreter::do_DLOAD1()
@@ -365,9 +413,9 @@ void BytecodeInterpreter::do_DPRINT()
 
 void BytecodeInterpreter::do_SPRINT()
 {
-    uint16_t s = popString();
+    const char *s = popString();
 
-    std::cout << constantById(s);
+    std::cout << std::string(s);
 }
 
 void BytecodeInterpreter::do_I2D()
@@ -386,9 +434,9 @@ void BytecodeInterpreter::do_D2I()
 
 void BytecodeInterpreter::do_S2I()
 {
-    uint16_t s = popString();
+    const char *s = popString();
 
-    pushInt(s);
+    pushInt((int64_t)s);
 }
 
 void BytecodeInterpreter::do_SWAP()
@@ -404,7 +452,6 @@ void BytecodeInterpreter::do_SWAP()
 
 void BytecodeInterpreter::do_POP()
 {
-//    std::cout << "popping with stack size " << stack.size() << std::endl;
     stack.pop();
 }
 
@@ -526,28 +573,28 @@ void BytecodeInterpreter::do_STOREIVAR3()
 
 void BytecodeInterpreter::do_STORESVAR0()
 {
-    uint16_t s = popString();
+    const char *s = popString();
 
     reg0.stringVal = s;
 }
 
 void BytecodeInterpreter::do_STORESVAR1()
 {
-    uint16_t s = popString();
+    const char *s = popString();
 
     reg1.stringVal = s;
 }
 
 void BytecodeInterpreter::do_STORESVAR2()
 {
-    uint16_t s = popString();
+    const char *s = popString();
 
     reg2.stringVal = s;
 }
 
 void BytecodeInterpreter::do_STORESVAR3()
 {
-    uint16_t s = popString();
+    const char *s = popString();
 
     reg3.stringVal = s;
 }
@@ -605,8 +652,6 @@ void BytecodeInterpreter::do_LOADCTXIVAR()
     uint16_t varId = fun->bytecode()->getUInt16(pc);
     pc += 2;
 
-//    std::cout << "loading value " << vars[scopeId][varId].intVal << " from ctx " << scopeId << " from var " << varId << std::endl;
-
     pushInt(getVar(scopeId, varId).intVal);
 }
 
@@ -638,8 +683,6 @@ void BytecodeInterpreter::do_STORECTXIVAR()
     pc += 2;
     uint16_t varId = fun->bytecode()->getUInt16(pc);
     pc += 2;
-
-//    std::cout << "storing value " << i << " to ctx " << scopeId << " to var " << varId << std::endl;
 
     BcValue val;
     val.intVal = popInt();
@@ -798,36 +841,71 @@ void BytecodeInterpreter::do_CALL()
 {
     uint16_t funId = fun->bytecode()->getUInt16(pc);
     pc += sizeof(uint16_t);
-    BytecodeFunction *fn = (BytecodeFunction *)functionById(funId);
 
     returnAddress.push(std::make_pair(fun, pc));
 
+    BytecodeFunction *fn = (BytecodeFunction *)functionById(funId);
+    assert(fn->id() != 0);
+
     ScopeMap *callScopeMap = new ScopeMap();
     frames[fn->scopeId()].push(callScopeMap);
-//    std::cout << "pusing frame " << fn->scopeId() << std::endl;;
     callStack.push(fn->scopeId());
+    assert(fn->parametersNumber() <= stack.size());
+    frameSizes.push(stack.size() - fn->parametersNumber());
 
-    execFun(fn);
-
-    delete callScopeMap;
+    pc = 0;
+    fun = fn;
 }
 
 void BytecodeInterpreter::do_CALLNATIVE()
 {
-    // TODO
+    uint16_t funId = fun->bytecode()->getUInt16(pc);
+    pc += 2;
+    NativeFunWrapper fn = getNativeWrapper(funId);
+
+    const Signature *sign;
+    const std::string *name;
+    nativeById(funId, &sign, &name);
+
+    BcValue args[sign->size() - 1];
+    for (int i = 1; i < (int)sign->size(); i++) {
+        const VarType paramType = std::get<0>((*sign)[i]);
+        if (paramType == VT_INT)
+            args[i - 1].intVal = popInt();
+        else if (paramType == VT_STRING)
+            args[i - 1].stringVal = popString();
+        else if (paramType == VT_DOUBLE)
+            args[i - 1].doubleVal = popDouble();
+        else
+            assert(false);
+    }
+
+    fn(&args, &reg0);
 }
 
 void BytecodeInterpreter::do_RETURN()
 {
-    // I handle this instruction in a different manner
-    assert(false);
+    if (fun->id() == 0)
+        return;
+
+    assert(frameSizes.top() <= stack.size());
+
+    while (stack.size() != frameSizes.top())
+        stack.pop();
+
+    fun = std::get<0>(returnAddress.top());
+    pc = std::get<1>(returnAddress.top());
+
+    returnAddress.pop();
+    frameSizes.pop();
+    ScopeMap *currentScopeMap = frames[callStack.top()].top();
+    frames[callStack.top()].pop();
+    delete currentScopeMap;
+    callStack.pop();
 }
 
 void BytecodeInterpreter::do_BREAK()
 {
     // I don't produce this instruction for now
     assert(false);
-}
-
-
 }

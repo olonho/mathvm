@@ -14,7 +14,7 @@
 
 #include <dlfcn.h>
 
-namespace mathvm {
+using namespace mathvm;
 
 class BytecodeVisitor : public AstBaseVisitor
 {
@@ -77,7 +77,5 @@ private:
 
     bool isNative(FunctionNode *node);
 };
-
-}
 
 #endif // __AST_TRANSLATOR_IMPL_H__

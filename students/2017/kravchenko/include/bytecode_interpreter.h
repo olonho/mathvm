@@ -1,28 +1,29 @@
 #pragma once
 
 #include "mathvm.h"
+#include "ast.h"
 #include "parser.h"
 #include "visitors.h"
 #include "asmjit/asmjit.h"
 
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <stack>
-
-namespace mathvm {
 
 typedef union {
     int64_t intVal;
     double doubleVal;
-    uint16_t stringVal; // actually it is its id
+    const char *stringVal; // actually it is its id
 } BcValue;
 
-class BytecodeInterpreter : public Code {
-private:
-    typedef std::map<std::string, uint16_t> GlobalVarMap;
-    typedef std::map<uint16_t, BcValue> VarMap;
-    typedef std::map<uint16_t, VarMap> ScopeMap;
+typedef void (*NativeFunWrapper)(void *, void *);
+typedef std::map<std::string, uint16_t> GlobalVarMap;
+typedef std::map<uint16_t, BcValue> VarMap;
+typedef std::map<uint16_t, VarMap> ScopeMap;
 
+class BytecodeInterpreter : public mathvm::Code {
+private:
     GlobalVarMap globalVarIds;
 
     BcValue reg0;
@@ -31,7 +32,7 @@ private:
     BcValue reg3;
 
     uint32_t pc; // current pc
-    BytecodeFunction *fun; // current fun
+    mathvm::BytecodeFunction *fun; // current fun
 
     std::stack<BcValue> stack;
     std::stack<uint32_t> frameSizes;
@@ -40,9 +41,22 @@ private:
  * so that closures and recursion works fine
  */
     std::map<uint16_t, std::stack<ScopeMap *>> frames;
-    std::stack<std::pair<BytecodeFunction *, uint32_t>> returnAddress;
+    std::stack<std::pair<mathvm::BytecodeFunction *, uint32_t>> returnAddress;
     std::stack<uint16_t> callStack;
 
+// asmjit-related
+
+    /*
+     * native function wrapper just calls native function, passing it
+     * arguments as defined but ABI.
+     *
+     * Wrapper arguments:
+     * pointer to arguements list
+     * pointer to where to save result
+     */
+    std::map<uint16_t, NativeFunWrapper> nativeWrappers;
+
+    asmjit::JitRuntime jrt;
 public:
     BytecodeInterpreter()
     {
@@ -53,27 +67,30 @@ public:
         globalVarIds[name] = id;
     }
 
-    Status* execute(vector<Var*>& vars) override;
+    mathvm::Status* execute(std::vector<mathvm::Var*>&);
 
     virtual ~BytecodeInterpreter() {}
 private:
-    Instruction nextInsn();
+    mathvm::Instruction nextInsn();
 
     void pushDouble(double d);
     void pushInt(int64_t i);
-    void pushString(uint16_t id);
+    void pushString(const char *str);
 
     double popDouble();
     int64_t popInt();
-    uint16_t popString();
+    const char * popString();
 
     BcValue getVar(uint16_t scopeId, uint16_t varId);
     void setVar(uint16_t scopeId, uint16_t varId, BcValue val);
 
-    void enterFrame(BytecodeFunction *fn, uint32_t old_pc);
-    std::pair<BytecodeFunction *, uint32_t> leaveFrame();
+    void enterFrame(mathvm::BytecodeFunction *fn, uint32_t old_pc);
+    std::pair<mathvm::BytecodeFunction *, uint32_t> leaveFrame();
 
-    void execFun(BytecodeFunction *fn);
+    void createNativeWrapper(uint16_t nativeFunId);
+    NativeFunWrapper getNativeWrapper(uint16_t nativeFunId);
+
+    void execFun();
 
     void do_INVALID();
     void do_DLOAD();
@@ -160,5 +177,3 @@ private:
     void do_RETURN();
     void do_BREAK();
 };
-
-}
