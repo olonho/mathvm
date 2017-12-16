@@ -41,8 +41,8 @@ Status* BytecodeInterpreter::execute(vector<Var*>& initVars)
 
 BcValue BytecodeInterpreter::getVar(uint16_t scopeId, uint16_t varId)
 {
-    // auto does not work with -O flags, don't know why
-    std::map<uint16_t, std::stack<std::map<uint16_t, std::map<uint16_t, BcValue> >*> >::iterator it = frames.upper_bound(scopeId);
+    // auto& does not work with -O flags, don't know why
+    std::map<uint16_t, std::stack<ScopeMap *>>::iterator it = frames.upper_bound(scopeId);
     --it;
 
     while (true) {
@@ -58,7 +58,7 @@ BcValue BytecodeInterpreter::getVar(uint16_t scopeId, uint16_t varId)
 
 void BytecodeInterpreter::setVar(uint16_t scopeId, uint16_t varId, BcValue val)
 {
-    std::map<uint16_t, std::stack<std::map<uint16_t, std::map<uint16_t, BcValue> >*> >::iterator it = frames.upper_bound(scopeId);
+    std::map<uint16_t, std::stack<ScopeMap *>>::iterator it = frames.upper_bound(scopeId);
     --it;
 
     while (true) {

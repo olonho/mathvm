@@ -867,7 +867,6 @@ void BytecodeVisitor::leaveScope()
     while (curSize != prevSize) {
         addInsn(BC_POP);
         curSize--;
-        printf("leaving 1\n");
     }
 
     _scopeSizes.pop();

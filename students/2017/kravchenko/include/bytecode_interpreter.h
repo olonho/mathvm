@@ -7,7 +7,6 @@
 #include "asmjit/asmjit.h"
 
 #include <map>
-#include <unordered_map>
 #include <vector>
 #include <stack>
 
@@ -19,6 +18,7 @@ typedef union {
 
 typedef void (*NativeFunWrapper)(void *, void *);
 typedef std::map<std::string, uint16_t> GlobalVarMap;
+// surprisingly, map works MUCH faster than unordered_map
 typedef std::map<uint16_t, BcValue> VarMap;
 typedef std::map<uint16_t, VarMap> ScopeMap;
 
@@ -83,9 +83,6 @@ private:
 
     BcValue getVar(uint16_t scopeId, uint16_t varId);
     void setVar(uint16_t scopeId, uint16_t varId, BcValue val);
-
-    void enterFrame(mathvm::BytecodeFunction *fn, uint32_t old_pc);
-    std::pair<mathvm::BytecodeFunction *, uint32_t> leaveFrame();
 
     void createNativeWrapper(uint16_t nativeFunId);
     NativeFunWrapper getNativeWrapper(uint16_t nativeFunId);
