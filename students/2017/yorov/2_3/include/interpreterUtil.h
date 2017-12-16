@@ -5,6 +5,7 @@
 #include <stack>
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 namespace mathvm {
     namespace utils {
@@ -13,17 +14,17 @@ namespace mathvm {
             Variable();
             Variable(int64_t value);
             Variable(double value);
-            Variable(uint16_t value);
+            Variable(const char* value);
             int64_t intValue();
             double doubleValue();
-            uint16_t stringValue();
+            const char* stringValue();
             VarType& type();
 
         private:
             union {
                 int64_t _intValue;
                 double _doubleValue;
-                uint16_t _stringValue;
+                const char* _stringValue;
             };
 
             VarType _type;
@@ -32,10 +33,10 @@ namespace mathvm {
         struct Stack {
             int64_t popInt();
             double popDouble();
-            uint16_t popUInt16();
+            const char* popString();
             void pushInt(int64_t value);
             void pushDouble(double value);
-            void pushUInt16(uint16_t value);
+            void pushString(const char* value);
             VarType tosType();
             void swap();
             Variable pop();
@@ -53,24 +54,24 @@ namespace mathvm {
             void setInt(uint16_t contextId, uint16_t varId, int64_t value);
             double getDouble(uint16_t contextId, uint16_t varId);
             void setDouble(uint16_t contextId, uint16_t varId, double value);
-            uint16_t getUInt16(uint16_t contextId, uint16_t varId);
-            void setUInt16(uint16_t contextId, uint16_t varId, uint16_t value);
+            const char* getString(uint16_t contextId, uint16_t varId);
+            void setString(uint16_t contextId, uint16_t varId, const char* value);
 
             // current context
             int64_t getInt(uint16_t varId);
             void setInt(uint16_t varId, int64_t value);
             double getDouble(uint16_t varId);
             void setDouble(uint16_t varId, double value);
-            uint16_t getUInt16(uint16_t varId);
-            void setUInt16(uint16_t varId, uint16_t value);
+            const char* getString(uint16_t varId);
+            void setString(uint16_t varId, const char* value);
 
             // cached getter setter
             int64_t getCachedInt(uint16_t varId);
             void setCachedInt(uint16_t varId, int64_t value);
             double getCachedDouble(uint16_t varId);
             void setCachedDouble(uint16_t varId, double value);
-            uint16_t getCachedUInt16(uint16_t varId);
-            void setCachedUInt16(uint16_t varId, uint16_t value);
+            const char* getCachedString(uint16_t varId);
+            void setCachedString(uint16_t varId, const char* value);
 
         private:
 

@@ -1,0 +1,15 @@
+int x = 1;
+int y = 1;
+int z = 1;
+
+function int foo(int a) {
+    function int bar(int b) {
+        if (b <= 0) {
+            return z;
+        }
+        return foo(b - 1);
+    }
+    return bar(a - 1);
+}
+
+print(foo(10));

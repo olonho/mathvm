@@ -1,0 +1,10 @@
+int x;
+int y;
+
+x = 3;
+print('start while\n');
+while (2 > 3 || 3 > 4 || 42 < 24 || 19 > x) {
+    print(x,'\n');
+    x += 1;
+}
+print('end while\n');

@@ -22,6 +22,7 @@ namespace mathvm {
     void BytecodeVisitor::visitAstFunction(AstFunction* astFunction) {
         Scope* scope = astFunction->scope();
         BytecodeFunction* func = static_cast<BytecodeFunction*>(_code->functionByName(astFunction->name()));
+
         utils::Context* innerContext = new utils::Context(func, _context);
         Scope::VarIterator it(scope);
         while (it.hasNext()) {
@@ -405,15 +406,7 @@ namespace mathvm {
             throw std::logic_error("Native function not found");
         }
         uint16_t nativeId = _code->makeNativeFunction(node->nativeName(), node->nativeSignature(), code);
-
-        Bytecode* bytecode = _context->function()->bytecode();
-        bytecode->addInsn(BC_CALLNATIVE);
-        bytecode->addUInt16(nativeId);
-
-        VarType returnType = node->nativeSignature()[0].first;
-        if (returnType != VT_VOID && returnType != VT_INVALID) {
-            _TOSType = returnType;
-        }
+        _nativeToId[node->nativeName()] = nativeId;
     }
 
 
@@ -433,9 +426,13 @@ namespace mathvm {
         }
 
         Bytecode* bytecode = _context->function()->bytecode();
-        bytecode->addInsn(BC_CALL);
-        bytecode->addUInt16(trFunc->id());
-
+        if (_isNativeFunc[trFunc->id()]) {
+            bytecode->addInsn(BC_CALLNATIVE);
+            bytecode->addUInt16(_nativeToId[name]);
+        } else {
+            bytecode->addInsn(BC_CALL);
+            bytecode->addUInt16(trFunc->id());
+        }
         VarType returnType = trFunc->returnType();
         if (returnType != VT_INVALID && returnType != VT_VOID) {
             _TOSType = returnType;
@@ -582,12 +579,20 @@ namespace mathvm {
             }
             trFunc = new BytecodeFunction(func);
             _code->addFunction(trFunc);
+            bool isNative = (func->node()->body()->nodes() > 0 && func->node()->body()->nodeAt(0)->isNativeCallNode());
+            _isNativeFunc[trFunc->id()] = isNative;
+            if (isNative) {
+                visitAstFunction(func);
+            }
         }
 
         funcIter = Scope::FunctionIterator{scope};
         while (funcIter.hasNext()) {
             AstFunction* func = funcIter.next();
-            visitAstFunction(func);
+            TranslatedFunction* trFunc = _code->functionByName(func->name());
+            if (!_isNativeFunc[trFunc->id()]) {
+                visitAstFunction(func);
+            }
         }
     }
 
