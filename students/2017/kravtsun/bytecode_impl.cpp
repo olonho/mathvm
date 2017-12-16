@@ -1,9 +1,15 @@
 #include <iostream>
 #include <csignal>
+#include <dlfcn.h>
 #include "ast.h"
 #include "bytecode_impl.h"
 
+#define LOGGING 0
+
+
 namespace mathvm {
+
+using namespace asmjit;
 
 BytecodeImpl::BytecodeImpl()
         : current_function_(0)
@@ -11,6 +17,15 @@ BytecodeImpl::BytecodeImpl()
         , bc_(nullptr)
 {
     memset(var_, 0, sizeof(var_));
+}
+
+
+BytecodeImpl::~BytecodeImpl() {
+//    jit_runtime_.release()
+//        auto it = NativeFunctionIterator(this);
+//        while (it.hasNext()) {
+//            jitRuntime.release(it.next().code());
+//        }
 }
 
 Status *BytecodeImpl::execute(vector<Var *> &vars) {
@@ -49,7 +64,18 @@ IDSValue &BytecodeImpl::get_var(uint16_t function_id, uint16_t var_id) {
 void BytecodeImpl::execute(Instruction instruction) {
     IDSValue first;
     IDSValue second;
-    
+    uint16_t string_id;
+    char *string_ptr;
+    string str;
+#if LOGGING
+#define PRINT_INST(name, msg, size) \
+    if (instruction == BC_ ## name) { \
+        cout << ip_ << ": " << #name << endl; \
+    }
+FOR_BYTECODES(PRINT_INST)
+#undef PRINT_INST
+#endif
+
 #define LOCAL_VAR(letter) \
     get_var(current_function_, bc_->getUInt16(ip_)).letter
 
@@ -94,7 +120,7 @@ void BytecodeImpl::execute(Instruction instruction) {
             
         LOADER(D, 0.0, 0)
         LOADER(I, 0LL, 0)
-        LOADER(S, makeStringConstant(""), 0)
+        LOADER(S, makeStringConstant1(""), 0)
         LOADER(D, 1., 1)
         LOADER(I, 1LL, 1)
         LOADER(D, -1., M1)
@@ -128,7 +154,8 @@ void BytecodeImpl::execute(Instruction instruction) {
             std::cout << popD();
             break;
         case BC_SPRINT:
-            std::cout << constantById(popS());
+            string_id = popS();
+            std::cout << stringById(string_id);
             break;
     
         case BC_I2D:
@@ -138,7 +165,16 @@ void BytecodeImpl::execute(Instruction instruction) {
             push(static_cast<int64_t>(popD()));
             break;
         case BC_S2I:
-            push<int64_t>(stoll(constantById(popS())));
+            string_id = popS();
+            string_ptr = stringById(string_id);
+            str = string(string_ptr);
+            if (str.empty()) {
+                push<int64_t>(string_ptr != nullptr);
+            } else if (std::all_of(str.begin(), str.end(), [](char c) -> bool { return isdigit(c); })) {
+                push<int64_t>(stoll(str));
+            } else {
+                push<int64_t>(1LL);
+            }
             break;
     
         case BC_SWAP:
@@ -247,6 +283,7 @@ void BytecodeImpl::execute(Instruction instruction) {
             call();
             break;
         case BC_CALLNATIVE:
+            callnative();
             break;
         case BC_RETURN:
             ret();
@@ -264,9 +301,179 @@ void BytecodeImpl::execute(Instruction instruction) {
 }
 
 void BytecodeImpl::call() {
-    call_frames_.emplace_back(current_function_, ip_ + 2);
     auto function_id = bc_->getUInt16(ip_);
+    ip_ += 2;
+    
+    call_frames_.emplace_back(current_function_, ip_);
     enter_function(function_id);
+}
+
+
+using namespace asmjit;
+
+typedef int64_t (*IntReturnFunc)();
+typedef uintptr_t (*PtrReturnFunc)();
+typedef void (*VoidReturnFunc)();
+typedef double (*DoubleReturnFunc)();
+
+//void BytecodeImpl::callnative(uint16_t function_id, const std::string &native_name) {
+void BytecodeImpl::callnative() {
+    X86Assembler assembler_(&jit_runtime_);
+    X86Compiler compiler_(&assembler_);
+    
+//    FileLogger logger_(stdout);
+//    assembler_.setLogger(&logger_);
+
+    auto function_id = bc_->getUInt16(ip_);
+    ip_ += 2;
+
+//    compiler_.reset(true);
+//    compiler_.attach(&assembler_);
+    const Signature *signature = nullptr;
+    const string *name = nullptr;
+    
+    auto address = nativeById(function_id, &signature, &name);
+
+#if LOGGING
+    cout << "native calling: " << *name << endl;
+#endif
+
+    const auto ASMJIT_DOUBLE_TYPE = kX86VarTypeXmmSd;
+    const auto ASMJIT_INT_TYPE = kVarTypeInt64;
+    const auto ASMJIT_PTR_TYPE = kVarTypeUIntPtr;
+    auto asmjit_type_from_var_type = [=](VarType type) -> uint32_t {
+        switch (type) {
+            case VT_STRING:
+                return ASMJIT_PTR_TYPE;
+            case VT_INT:
+                return ASMJIT_INT_TYPE;
+            case VT_DOUBLE:
+                return ASMJIT_DOUBLE_TYPE;
+            default:
+                return kInvalidVar;
+        }
+    };
+
+    FuncBuilderX native_prototype;
+    for (size_t i = 0; i < signature->size(); ++i) {
+        VarType sig_type = signature->at(i).first;
+        auto asmjit_type = asmjit_type_from_var_type(sig_type);
+        if (i == 0) {
+            native_prototype.setRet(asmjit_type);
+        } else {
+            native_prototype.addArg(asmjit_type);
+        }
+    }
+
+    auto main_prototype = FuncBuilderX();
+    main_prototype.setRet(native_prototype.getRet());
+    compiler_.addFunc(main_prototype);
+    
+    assert(signature != nullptr && !signature->empty());
+
+    vector<asmjit::Var *> vars;
+    
+    const uint32_t SCOPE = kConstScopeGlobal;
+    
+    using namespace asmjit::x86;
+    
+    double double_value;
+    int64_t integer_value;
+    uint16_t string_id;
+    char *string_ptr;
+
+//    for (auto i = static_cast<uint32_t>(signature->size() - 1); i >= 1; --i) {
+    for (uint32_t  i = 1; i < signature->size(); ++i) {
+        const VarType sig_type = signature->at(i).first;
+        auto parameter_name = signature->at(i).second;
+        auto arg_var_name = ("arg" + std::to_string(i) + "_" + parameter_name).c_str();
+
+        if (sig_type == VT_DOUBLE) {
+            double_value = popD();
+            auto constant = compiler_.newDoubleConst(SCOPE, double_value);
+            auto double_var = new X86XmmVar(compiler_.newXmmSd(arg_var_name));
+            compiler_.movsd(*double_var, constant);
+            vars.push_back(double_var);
+        } else if (sig_type == VT_INT) {
+            integer_value = popI();
+            auto constant = compiler_.newInt64Const(SCOPE, integer_value);
+            auto integer_var = new X86GpVar(compiler_.newGpVar(ASMJIT_INT_TYPE, arg_var_name));
+            compiler_.mov(*integer_var, constant);
+            vars.push_back(integer_var);
+        } else if (sig_type == VT_STRING) {
+            string_id = popS();
+            string_ptr = stringById(string_id);
+            auto string_var = new X86GpVar(compiler_.newGpVar(ASMJIT_PTR_TYPE, arg_var_name));
+            compiler_.mov(*string_var, imm_ptr(string_ptr));
+            vars.push_back(string_var);
+        } else {
+            throw std::logic_error("Invalid sig_type");
+        }
+    }
+    
+    auto callNode = compiler_.call(imm_ptr(address), native_prototype);
+    for (uint32_t i = 0; i < vars.size(); ++i) {
+        callNode->setArg(i, *vars[i]);
+    }
+
+    auto return_type = signature->at(0).first;
+
+    if (return_type == VT_DOUBLE) {
+        X86XmmVar return_value = compiler_.newXmmSd("return_value");
+        callNode->setRet(0, return_value);
+        compiler_.ret(return_value);
+    } else if (return_type != VT_VOID) {
+        asmjit::X86GpVar return_value;
+        if (return_type == VT_INT) {
+            return_value = compiler_.newGpVar(ASMJIT_INT_TYPE, "return_value");
+        } else if (return_type == VT_STRING) {
+            return_value = compiler_.newGpVar(ASMJIT_PTR_TYPE, "return_value");
+        } else {
+            throw std::logic_error("running native: Unknown return type.");
+        }
+        callNode->setRet(0, return_value);
+        compiler_.ret(return_value);
+    } else {
+        compiler_.ret();
+    }
+    
+    compiler_.endFunc();
+    auto compiler_error = compiler_.finalize();
+    if (compiler_error != kErrorOk) {
+        throw std::logic_error("AsmjitCompiler failed: " + std::to_string(compiler_error));
+    }
+    
+    void *generated_code = assembler_.make();
+    if (generated_code == nullptr) {
+        throw std::logic_error("Failed to call native: " + std::to_string(assembler_.getLastError()));
+    }
+    
+    { // retrieve_value.
+        uintptr_t sptr;
+        string string_value;
+        switch (signature->front().first) {
+            case VT_DOUBLE:
+                double_value = reinterpret_cast<DoubleReturnFunc>(generated_code)();
+                push(double_value);
+                break;
+            case VT_INT:
+                integer_value = reinterpret_cast<IntReturnFunc>(generated_code)();
+                push(integer_value);
+                break;
+            case VT_STRING:
+                sptr = reinterpret_cast<PtrReturnFunc>(generated_code)();
+                string_id = makeStringNonConstant1(reinterpret_cast<char *>(sptr));
+                push(string_id);
+                break;
+            case VT_VOID:
+                reinterpret_cast<VoidReturnFunc>(generated_code)();
+            default:
+                break;
+        }
+    }
+    for (auto const &var : vars) {
+        delete var;
+    }
 }
 
 void BytecodeImpl::ret() {

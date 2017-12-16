@@ -1,10 +1,13 @@
 #ifndef BYTECODE_TRANSLATOR_H
 #define BYTECODE_TRANSLATOR_H
 
+#include <string>
+#include <map>
 #include "mathvm.h"
 #include "ast.h"
 #include "visitors.h"
 #include "parser.h"
+#include "bytecode_impl.h"
 
 namespace mathvm {
 
@@ -18,7 +21,7 @@ class TranslatorVisitor : public AstVisitor {
             , var_id(variable_id)
         {}
     };
-    Code *code_;
+    BytecodeImpl *code_;
     Bytecode *bc_;
     TranslatedFunction *current_function_;
 
@@ -27,7 +30,7 @@ class TranslatorVisitor : public AstVisitor {
     uint16_t local_count_;
 
 public:
-    TranslatorVisitor(Code *code, Bytecode *bc, TranslatedFunction *top_function);
+    TranslatorVisitor(BytecodeImpl *code, Bytecode *bc, TranslatedFunction *top_function);
 
     ~TranslatorVisitor() final;
 
@@ -48,8 +51,10 @@ private:
 
     VariableInfo *resolve(const std::string &name);
 
+    // push to TOS.
     void load_variable(const std::string &name, const VarType &type);
 
+    // pop from TOS.
     void store_variable(const std::string &name, const VarType &type);
     
     vector<VariableInfo*> new_variables;

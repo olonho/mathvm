@@ -100,7 +100,16 @@ tags
 .idea/**/libraries
 
 # CMake
-cmake-build-debug/
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+build
 
 # Mongo Explorer plugin:
 .idea/**/mongoSettings.xml
@@ -145,4 +154,6 @@ build
 
 cmake-build-release
 cmake-build-debug
+
+Project.cbp
 
