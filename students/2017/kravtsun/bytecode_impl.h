@@ -4,6 +4,9 @@
 #include "mathvm.h"
 #include <bits/stdc++.h>
 
+#include <asmjit/asmjit.h>
+#include <type_traits>
+
 namespace mathvm {
 using namespace std;
 
@@ -40,7 +43,38 @@ public:
     
     Status *execute(vector<Var *> &vars) override;
     
+    uint16_t makeStringConstant1(const string& str) {
+        auto id = static_cast<uint16_t>(constants_.size());
+        constants_.push_back(str);
+        return id;
+    }
+    
+    uint16_t makeStringNonConstant1(char *data) {
+        auto id = static_cast<uint16_t>(constants_.size() + non_constants_.size());
+        non_constants_.push_back(data);
+        return id;
+    }
+
+    char *stringById(uint16_t id) {
+        if (id < constants_.size()) {
+            return const_cast<char *>(constants_[id].c_str());
+        } else {
+            auto ncid = static_cast<uint16_t>(id - constants_.size());
+            return non_constants_[ncid];
+        }
+    }
+
+    virtual ~BytecodeImpl();
+    
+    // from declaration proxies to their native functions.
+    map<uint16_t, string> native_map_;
+    map<string, uint16_t> natives_ids_;
+    
 private:
+    
+    vector<string> constants_;
+    vector<char *> non_constants_;
+    
     vector<Frame> frames_;
     map<uint16_t, vector<int>> frame_reference_;
     vector<uint8_t> stack_;
@@ -51,9 +85,19 @@ private:
     Bytecode *bc_;
     IDSValue var_[4];
     
+//    void *stdlib_handle_;
+    // Runtime specialized for JIT code execution.
+    asmjit::JitRuntime jit_runtime_;
+//    asmjit::StaticRuntime staticRuntime;
+//    asmjit::FileLogger logger_;
+//    asmjit::X86Assembler assembler_;
+//    asmjit::X86Compiler compiler_; // if you intend to use it.
+
     void execute(Instruction instruction);
     
     void call();
+    
+    void callnative();
     
     void ret();
     
@@ -62,6 +106,7 @@ private:
         const int tsize = sizeof(T);
         auto bytes = reinterpret_cast<uint8_t *>(&result);
         for (int i = tsize - 1; i >= 0; --i) {
+            assert(!stack_.empty());
             bytes[i] = stack_.back();
             stack_.pop_back();
         }
@@ -81,7 +126,7 @@ private:
     template<class T>
     void push(T value) {
         const int tsize = sizeof(T);
-        auto bytes = reinterpret_cast<uint8_t  *>(&value);
+        auto bytes = reinterpret_cast<uint8_t *>(&value);
         std::copy(bytes, bytes + tsize, std::back_inserter(stack_));
     }
     

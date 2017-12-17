@@ -1,9 +1,9 @@
 ROOT   = .
-VM_ROOT = ../../..
+VM_ROOT = ../../../..
 
-OPT = 1
-NO_JIT = 0
-WITH_SDL = 1
+#OPT = 0
+NO_JIT = 1
+#WITH_SDL = 0
 
 USER_CFLAGS = -std=c++11
 
@@ -15,13 +15,15 @@ endif
 
 USER_OBJ = \
    $(JIT_OBJ) \
-   $(OBJ)/ast_printer$(OBJ_SUFF) \
-   $(OBJ)/bytecode_impl$(OBJ_SUFF) \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translator_impl$(OBJ_SUFF) \
-   $(OBJ)/translator_visitor$(OBJ_SUFF) \
+   $(OBJ)/print_translator$(OBJ_SUFF) \
+   $(OBJ)/interpreter_code$(OBJ_SUFF) \
+   $(OBJ)/bytecode_translator$(OBJ_SUFF) 
 
 include $(VM_ROOT)/common.mk
+
+INCLUDE += -I$(ROOT)/include
 
 MATHVM = $(BIN)/mvm
 

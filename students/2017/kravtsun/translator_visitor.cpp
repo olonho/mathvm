@@ -1,8 +1,10 @@
+#include <dlfcn.h>
 #include "translator_visitor.h"
+#include "bytecode_impl.h"
 
 namespace mathvm {
 
-TranslatorVisitor::TranslatorVisitor(Code *code, Bytecode *bc, TranslatedFunction *top_function)
+TranslatorVisitor::TranslatorVisitor(BytecodeImpl *code, Bytecode *bc, TranslatedFunction *top_function)
         : code_(code)
         , bc_(bc)
         , current_function_(top_function)
@@ -57,6 +59,7 @@ void TranslatorVisitor::visitBinaryOpNode(BinaryOpNode *node) {
         default:
             throw std::logic_error("wrong type of binary operation.");
     }
+    // current_type_ is set in ops
 }
 
 void TranslatorVisitor::visitUnaryOpNode(UnaryOpNode *node) {
@@ -89,7 +92,7 @@ void TranslatorVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 
 void TranslatorVisitor::visitStringLiteralNode(StringLiteralNode *node) {
     bc_->addInsn(BC_SLOAD);
-    const uint16_t constant_id = code_->makeStringConstant(node->literal());
+    const uint16_t constant_id = code_->makeStringConstant1(node->literal());
     bc_->addUInt16(constant_id);
     current_type_ = VT_STRING;
 }
@@ -141,14 +144,17 @@ void TranslatorVisitor::visitForNode(ForNode *node) {
     range->left()->visit(this);
     cast(VT_INT);
     store_variable(var_name, var_type);
-    range->right()->visit(this);
-    cast(VT_INT);
-    bc_->addInsn(BC_STOREIVAR0);
     
     Label condition_label{bc_};
     Label exit_label{bc_};
     
     bc_->bind(condition_label);
+    
+    range->right()->visit(this);
+    cast(VT_INT);
+    bc_->addInsn(BC_STOREIVAR0);
+    
+
     load_variable(var_name, var_type);
     bc_->addInsn(BC_LOADIVAR0);
     bc_->addBranch(BC_IFICMPG, exit_label);
@@ -229,7 +235,24 @@ void TranslatorVisitor::visitBlockNode(BlockNode *node) {
         func_it.next()->node()->visit(this);
     }
     
-    node->visitChildren(this);
+    for (uint32_t i = 0; i < node->nodes(); ++i) {
+        auto child_node = node->nodeAt(i);
+        child_node->visit(this);
+        if (!dynamic_cast<NativeCallNode *>(child_node)) {
+            assert(current_type_ != VT_INVALID);
+            int bytes = 0;
+            if (current_type_ == VT_STRING) {
+                bytes = sizeof(uint16_t);
+            } else if (current_type_ != VT_VOID) {
+                bytes = 8;
+            }
+            for (int j = 0; j < bytes; ++j) {
+                bc_->addInsn(BC_POP);
+            }
+            current_type_ = VT_VOID;
+        }
+    }
+    
     current_scope_ = old_scope;
 }
 
@@ -253,6 +276,15 @@ void TranslatorVisitor::visitFunctionNode(FunctionNode *node) {
         store_variable(param_name, param_type);
     }
     
+    // trying to find native call node.
+//    NativeCallNode *native_call_node;
+//    if (node->body()->nodes() > 0 && (native_call_node = dynamic_cast<NativeCallNode *>(node->body()->nodeAt(0)))) {
+//        assert(node->body()->nodes() == 2);
+//        auto native_name = native_call_node->nativeName();
+//        code_->native_map_[current_function_->id()] = native_name;
+//        visitNativeCallNode(native_call_node);
+//        return;
+//    }
     node->body()->visit(this);
     current_function_->setLocalsNumber(local_count_);
     
@@ -272,13 +304,17 @@ void TranslatorVisitor::visitReturnNode(ReturnNode *node) {
 }
 
 void TranslatorVisitor::visitCallNode(CallNode *node) {
-    auto function = code_->functionByName(node->name());
+    const auto function_name = node->name();
+    auto function = code_->functionByName(function_name);
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
         node->parameterAt(i)->visit(this);
         cast(function->parameterType(i));
     }
+    
+    uint16_t function_id = function->id();
     bc_->addInsn(BC_CALL);
-    bc_->addUInt16(function->id());
+    bc_->addUInt16(function_id);
+    
     current_type_ = function->returnType();
 }
 
@@ -521,20 +557,39 @@ void TranslatorVisitor::store_variable(const string &name, const VarType &type) 
 }
 
 void TranslatorVisitor::visitNativeCallNode(NativeCallNode *node) {
-    // TODO fix nullptr native code.
-    const auto &signature = node->nativeSignature();
-    auto func_id = code_->makeNativeFunction(node->nativeName(), signature, nullptr);
-    
-    for (auto const &sign_element : signature) {
-        auto param_type = sign_element.first;
-        auto param_name = sign_element.second;
-//        node->parameterAt(i)->visit(this);
-        cast(param_type);
+    static void *stdlib_handle = nullptr;
+    if (stdlib_handle == nullptr) {
+//        stdlib_handle = dlopen("/lib/x86_64-linux-gnu/libc.so.6", RTLD_LAZY | RTLD_GLOBAL);
+//        if (!stdlib_handle) {
+//            throw std::logic_error("Unable to dynamically load stdlib.");
+//        }
+        stdlib_handle = RTLD_DEFAULT;
     }
+    
+    const auto &signature = node->nativeSignature();
+    const auto &native_name = node->nativeName();
+    void *address = dlsym(stdlib_handle, native_name.c_str());
+    const char *error_message = dlerror();
+    if (error_message != nullptr) {
+        throw std::logic_error(error_message);
+    }
+    
+    uint16_t native_id = code_->makeNativeFunction(native_name, signature, address);
+    
+    for (size_t i = signature.size() - 1; i >= 1; --i) {
+        auto param_type = signature[i].first;
+        auto param_name = signature[i].second;
+        current_type_ = param_type;
+        load_variable(param_name, param_type);
+//        store_variable(param_name, param_type);
+    }
+    
+//    code_->native_functions_[native_name] = native_id;
     bc_->addInsn(BC_CALLNATIVE);
-    bc_->addUInt16(func_id);
-//    current_type_ = function->returnType();
-    current_type_ = VT_VOID;
+    bc_->addUInt16(native_id);
+    
+    code_->natives_ids_[native_name] = native_id;
+    current_type_ = signature.front().first;
 }
 
 void TranslatorVisitor::visitPrintNode(PrintNode *node) {

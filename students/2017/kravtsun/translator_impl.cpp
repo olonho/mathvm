@@ -35,16 +35,19 @@ Status *MyBytecodeTranslator::translate(const string &program, Code **code) {
     try {
         auto interpreter = new BytecodeImpl();
         auto main_function = new BytecodeFunction(parser->top());
+        
         interpreter->addFunction(main_function);
         auto bc = main_function->bytecode();
         auto bc_visitor = new TranslatorVisitor(interpreter, bc, main_function);
         parser->top()->node()->visit(bc_visitor);
-        if (print_) {
-            bc->dump(std::cout);
-        }
+        
         delete bc_visitor;
         delete parser;
         *code = interpreter;
+        
+        if (print_) {
+            interpreter->disassemble(std::cout);
+        }
     }
     catch(std::exception &e) {
         return Status::Error(e.what());
@@ -59,6 +62,7 @@ Translator* Translator::create(const string &impl) {
         return nullptr;
     } else {
         return new MyBytecodeTranslator(impl == "translator");
+//        return new MyBytecodeTranslator(true);
     }
 }
 

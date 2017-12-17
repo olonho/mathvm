@@ -24,6 +24,7 @@ private:
 
     void print();
     void printIndent();
+    bool isNative(FunctionNode *node);
     bool containsBlock(AstNode *node);
 public:
     AstPrinter(std::ostream &out): _out(out) {
