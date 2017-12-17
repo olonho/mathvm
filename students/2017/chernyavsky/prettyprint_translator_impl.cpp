@@ -1,11 +1,11 @@
 #include <iomanip>
 #include <parser.h>
 #include <sstream>
-#include "pretty_print.h"
+#include "prettyprint_translator.h"
 
 namespace mathvm {
 
-    static inline const char *typeToString(VarType type) {
+    static inline const char* typeToString(VarType type) {
         switch (type) {
             case VT_VOID:
                 return "void";
@@ -21,7 +21,7 @@ namespace mathvm {
         }
     }
 
-    static inline string escapeString(const string &str) {
+    static inline string escapeString(const string& str) {
         stringstream escapedStr;
         for (auto ch : str) {
             if (ch == '\'') {
@@ -41,12 +41,12 @@ namespace mathvm {
         return escapedStr.str();
     }
 
-    void AstPrettyPrintVisitor::visitTopNode(FunctionNode *node) {
+    void PrettyPrintVisitor::visitTopNode(FunctionNode* node) {
         printStatements(node->body(), false);
         printNewLine();
     }
 
-    void AstPrettyPrintVisitor::visitBinaryOpNode(BinaryOpNode *node) {
+    void PrettyPrintVisitor::visitBinaryOpNode(BinaryOpNode* node) {
         _out << '(';
         node->left()->visit(this);
         _out << ' ' << tokenOp(node->kind()) << ' ';
@@ -54,34 +54,34 @@ namespace mathvm {
         _out << ')';
     }
 
-    void AstPrettyPrintVisitor::visitUnaryOpNode(UnaryOpNode *node) {
+    void PrettyPrintVisitor::visitUnaryOpNode(UnaryOpNode* node) {
         _out << tokenOp(node->kind());
         node->operand()->visit(this);
     }
 
-    void AstPrettyPrintVisitor::visitStringLiteralNode(StringLiteralNode *node) {
+    void PrettyPrintVisitor::visitStringLiteralNode(StringLiteralNode* node) {
         _out << '\'' << escapeString(node->literal()) << '\'';
     }
 
-    void AstPrettyPrintVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
+    void PrettyPrintVisitor::visitDoubleLiteralNode(DoubleLiteralNode* node) {
         _out << setprecision(6) << fixed << node->literal();
     }
 
-    void AstPrettyPrintVisitor::visitIntLiteralNode(IntLiteralNode *node) {
+    void PrettyPrintVisitor::visitIntLiteralNode(IntLiteralNode* node) {
         _out << node->literal();
     }
 
-    void AstPrettyPrintVisitor::visitLoadNode(LoadNode *node) {
+    void PrettyPrintVisitor::visitLoadNode(LoadNode* node) {
         _out << node->var()->name();
     }
 
-    void AstPrettyPrintVisitor::visitStoreNode(StoreNode *node) {
+    void PrettyPrintVisitor::visitStoreNode(StoreNode* node) {
         _out << node->var()->name();
         _out << ' ' << tokenOp(node->op()) << ' ';
         node->value()->visit(this);
     }
 
-    void AstPrettyPrintVisitor::visitForNode(ForNode *node) {
+    void PrettyPrintVisitor::visitForNode(ForNode* node) {
         _out << "for (";
         _out << node->var()->name() << " in ";
         node->inExpr()->visit(this);
@@ -89,14 +89,14 @@ namespace mathvm {
         node->body()->visit(this);
     }
 
-    void AstPrettyPrintVisitor::visitWhileNode(WhileNode *node) {
+    void PrettyPrintVisitor::visitWhileNode(WhileNode* node) {
         _out << "while (";
         node->whileExpr()->visit(this);
         _out << ") ";
         node->loopBlock()->visit(this);
     }
 
-    void AstPrettyPrintVisitor::visitIfNode(IfNode *node) {
+    void PrettyPrintVisitor::visitIfNode(IfNode* node) {
         _out << "if (";
         node->ifExpr()->visit(this);
         _out << ") ";
@@ -108,7 +108,7 @@ namespace mathvm {
         }
     }
 
-    void AstPrettyPrintVisitor::visitBlockNode(BlockNode *node) {
+    void PrettyPrintVisitor::visitBlockNode(BlockNode* node) {
         _out << '{';
         indent();
         printStatements(node);
@@ -117,7 +117,7 @@ namespace mathvm {
         _out << '}';
     }
 
-    void AstPrettyPrintVisitor::visitFunctionNode(FunctionNode *node) {
+    void PrettyPrintVisitor::visitFunctionNode(FunctionNode* node) {
         _out << "function " << typeToString(node->returnType()) << ' ' << node->name() << '(';
         if (node->parametersNumber() > 0) {
             for (uint32_t i = 0; i < node->parametersNumber(); i++) {
@@ -129,7 +129,7 @@ namespace mathvm {
         }
         _out << ") ";
 
-        BlockNode *body = node->body();
+        BlockNode* body = node->body();
         if (body->nodes() > 0 && body->nodeAt(0)->isNativeCallNode()) {
             body->nodeAt(0)->visit(this);
         } else {
@@ -137,7 +137,7 @@ namespace mathvm {
         }
     }
 
-    void AstPrettyPrintVisitor::visitReturnNode(ReturnNode *node) {
+    void PrettyPrintVisitor::visitReturnNode(ReturnNode* node) {
         _out << "return";
         if (node->returnExpr() != nullptr) {
             _out << ' ';
@@ -145,7 +145,7 @@ namespace mathvm {
         }
     }
 
-    void AstPrettyPrintVisitor::visitCallNode(CallNode *node) {
+    void PrettyPrintVisitor::visitCallNode(CallNode* node) {
         _out << node->name() << "(";
         if (node->parametersNumber() > 0) {
             for (uint32_t i = 0; i < node->parametersNumber(); i++) {
@@ -158,11 +158,11 @@ namespace mathvm {
         _out << ")";
     }
 
-    void AstPrettyPrintVisitor::visitNativeCallNode(NativeCallNode *node) {
+    void PrettyPrintVisitor::visitNativeCallNode(NativeCallNode* node) {
         _out << "native '" << node->nativeName() << "';";
     }
 
-    void AstPrettyPrintVisitor::visitPrintNode(PrintNode *node) {
+    void PrettyPrintVisitor::visitPrintNode(PrintNode* node) {
         _out << "print(";
         if (node->operands() > 0) {
             for (uint32_t i = 0; i < node->operands(); i++) {
@@ -175,19 +175,19 @@ namespace mathvm {
         _out << ")";
     }
 
-    void AstPrettyPrintVisitor::indent() {
+    void PrettyPrintVisitor::indent() {
         _offset += _indentation;
     }
 
-    void AstPrettyPrintVisitor::dedent() {
+    void PrettyPrintVisitor::dedent() {
         _offset -= _indentation;
     }
 
-    void AstPrettyPrintVisitor::printNewLine() {
+    void PrettyPrintVisitor::printNewLine() {
         _out << endl << string(_offset, ' ');
     }
 
-    void AstPrettyPrintVisitor::printStatements(const BlockNode *node, bool insertNewLine) {
+    void PrettyPrintVisitor::printStatements(const BlockNode* node, bool insertNewLine) {
         Scope::VarIterator varIterator(node->scope());
         while (varIterator.hasNext()) {
             if (insertNewLine) {
@@ -196,7 +196,7 @@ namespace mathvm {
                 insertNewLine = true;
             }
 
-            AstVar *var = varIterator.next();
+            AstVar* var = varIterator.next();
             _out << typeToString(var->type()) << ' ' << var->name() << ';';
 
         }
@@ -209,7 +209,7 @@ namespace mathvm {
                 insertNewLine = true;
             }
 
-            AstFunction *function = functionIterator.next();
+            AstFunction* function = functionIterator.next();
             function->node()->visit(this);
         }
 
@@ -220,7 +220,7 @@ namespace mathvm {
                 insertNewLine = true;
             }
 
-            AstNode *lastNode = node->nodeAt(i);
+            AstNode* lastNode = node->nodeAt(i);
             lastNode->visit(this);
             if (!lastNode->isForNode() && !lastNode->isWhileNode() && !lastNode->isIfNode()) {
                 _out << ';';
@@ -228,12 +228,12 @@ namespace mathvm {
         }
     }
 
-    Status *PrettyPrintTranslatorImpl::translate(const string &program, Code **result) {
+    Status* PrettyPrintTranslatorImpl::translate(const string& program, Code** result) {
         Parser parser;
 
-        Status *status = parser.parseProgram(program);
+        Status* status = parser.parseProgram(program);
         if (status->isOk()) {
-            AstPrettyPrintVisitor prettyPrinter(cout);
+            PrettyPrintVisitor prettyPrinter(cout);
             prettyPrinter.visitTopNode(parser.top()->node());
         }
 

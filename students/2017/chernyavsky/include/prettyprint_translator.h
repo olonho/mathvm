@@ -4,15 +4,15 @@
 
 namespace mathvm {
 
-    struct AstPrettyPrintVisitor : AstBaseVisitor {
+    struct PrettyPrintVisitor : AstBaseVisitor {
 
-        explicit AstPrettyPrintVisitor(ostream &out, size_t indentation = 4)
+        explicit PrettyPrintVisitor(ostream& out, size_t indentation = 4)
                 : _out(out),
                   _indentation(indentation),
                   _offset(0) {
         }
 
-        ~AstPrettyPrintVisitor() = default;
+        ~PrettyPrintVisitor() = default;
 
 #define VISITOR_FUNCTION(type, name) \
         void visit##type(type* node) override;
@@ -21,7 +21,7 @@ namespace mathvm {
 
 #undef VISITOR_FUNCTION
 
-        void visitTopNode(FunctionNode *node);
+        void visitTopNode(FunctionNode* node);
 
     private:
 
@@ -31,10 +31,10 @@ namespace mathvm {
 
         void printNewLine();
 
-        void printStatements(const BlockNode *node, bool insertNewLine = true);
+        void printStatements(const BlockNode* node, bool insertNewLine = true);
 
     private:
-        ostream &_out;
+        ostream& _out;
         size_t _indentation;
         size_t _offset;
     };
@@ -46,7 +46,7 @@ namespace mathvm {
 
         virtual ~PrettyPrintTranslatorImpl() = default;
 
-        virtual Status *translate(const string &program, Code **code);
+        virtual Status* translate(const string& program, Code** code);
     };
 
 }
