@@ -35,25 +35,30 @@ namespace mathvm
 
         int64_t getInt() const
         {
-            assert(VT_INT == _type);
+            // assert(VT_INT == _type);
             return _intValue;
         }
 
         double getDouble() const
         {
-            assert(VT_DOUBLE == _type);
+            // assert(VT_DOUBLE == _type);
             return _doubleValue;
         }
 
         void setDouble(double val)
         {
-            assert(VT_DOUBLE == _type);
+            // assert(VT_DOUBLE == _type);
             this->_doubleValue = val;
         }
 
         void setInt(int64_t val)
         {
-            assert(VT_INT == _type);
+            // switch(_type) {
+            //     case VT_DOUBLE: std::cout << "DOUBLE" << std::endl; break;
+            //     case VT_INT: std::cout << "INT" << std::endl; break; 
+            //     default: break;               
+            // }
+            // assert(VT_INT == _type);
             this->_intValue = val;
         }
 

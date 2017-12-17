@@ -28,16 +28,7 @@ int main(int argc, char** argv) {
         cout << "TODO: Implement translator factory in translator.cpp!!!!" << endl;
         return 1;
     }
-    const char* expr = "int i;\n"
-            "double d;\n"
-            "\n"
-            "i = 1;\n"
-            "d = 2.0;\n"
-            "\n"
-            "print ('i+1=', i+1,'\\n');\n"
-            "print ('d+1=', d+1.0,'\\n');\n"
-            "print ('i+123456789012345=', i+123456789012345,'\\n');\n"
-            "print ('d+1e9=',d+1e9,'\\n');";
+    const char* expr = "int a; int b; a = 1; b = a + 2; print(a, '\\n'); print(b, '\\n');";
     bool isDefaultExpr = true;
 
     if (script != NULL) {

@@ -379,6 +379,15 @@ namespace mathvm {
             {
                 AstNode *cld = node->nodeAt(i);
                 cld->visit(this);
+                if (dynamic_cast<CallNode*>(cld) != nullptr)
+                {
+                    auto n = dynamic_cast<CallNode*>(cld);
+                    VarType vt = _code->functionByName(n->name())->returnType();
+                    if (vt == VT_INT || vt == VT_DOUBLE || vt == VT_STRING) {
+                        auto bcode = _code->getFunctionCode();
+                        bcode->addInsn(BC_POP);
+                    }
+                }
             }     
         }
 
