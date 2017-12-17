@@ -50,7 +50,7 @@ int start; start = timestamp();
 int frames; frames = 0;
 while (videoCheckEvent() == 0) {
     drawFrame();
-    int fps; 
+    int fps;
     fps = frames * 1000000 / (timestamp() - start);
     print('FPS ', fps, '\r');
     frames += 1;

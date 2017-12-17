@@ -81,6 +81,11 @@ namespace mathvm {
                 return result;
             }
 
+            if (from == VT_DOUBLE && to == VT_INT) {
+                result.emplace_back(BC_D2I);
+                return result;
+            }
+
             if (from == VT_STRING && to == VT_INT) {
                 result.emplace_back(BC_S2I);
                 return result;
