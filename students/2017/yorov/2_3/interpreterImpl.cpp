@@ -172,7 +172,7 @@ namespace mathvm {
                         _stack.pushInt(static_cast<int64_t>(_stack.popDouble()));
                         break;
                     case BC_S2I:
-                        _stack.pushInt(stoi(_stack.popString()));
+                        _stack.pushInt(strlen(_stack.popString()) != 0);
                         break;
                     case BC_SWAP:
                         _stack.swap();

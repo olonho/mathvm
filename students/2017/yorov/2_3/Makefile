@@ -3,7 +3,7 @@ VM_ROOT = ../../../..
 
 #OPT = 0
 NO_JIT = 1
-#WITH_SDL = 0
+WITH_SDL = 1
 
 USER_CFLAGS = -std=c++11
 
