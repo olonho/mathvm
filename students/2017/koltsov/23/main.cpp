@@ -58,6 +58,10 @@ int main(int argc, char** argv) {
           assert(code != 0);
           vector<Var*> vars;
 
+#ifdef PRINT_CODE
+          code->disassemble();
+#endif
+
           if (isDefaultExpr) {
             Var* xVar = new Var(VT_DOUBLE, "x");
             Var* yVar = new Var(VT_DOUBLE, "y");

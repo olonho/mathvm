@@ -1,0 +1,4 @@
+int x = 1;
+int y = x + 123 / 4;
+print(x, '\n');
+print(y, '\n');

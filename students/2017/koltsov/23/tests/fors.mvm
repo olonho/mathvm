@@ -1,0 +1,34 @@
+int x = 0;
+int i;
+
+for (i in 1..10) {
+    i += 1;
+    int j;
+//    print(i, ' ', x, '\n');
+
+    if (i < -123) {
+        x += 1;
+    }
+
+    for (j in 1..10) {
+        int k;
+//        print('\t', j, ' ', x, '\n');
+        if (j <= -43) {
+            x += 1;
+        }
+
+        for (k in 1..10) {
+//            print('\t\t', k, ' ', x, '\n');
+            if (k) {
+                x += 1;
+            }
+            x += 1;
+        }
+        if (j <= 999 && i < -1) {
+            x += 1;
+        }
+    }
+}
+
+
+print(x, '\n');

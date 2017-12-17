@@ -1,0 +1,8 @@
+function int fact(int n) {
+  if (n < 3) {
+    return n;
+  }
+    return n*fact(n-1);
+}
+
+print(fact(9), '\n');
