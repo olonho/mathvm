@@ -3,7 +3,8 @@
 
 #include <ostream>
 
-#include "../include/mathvm.h"
+#include "mathvm.h"
+#include "ast.h"
 
 namespace mathvm {
 

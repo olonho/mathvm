@@ -1,5 +1,5 @@
 ROOT   = .
-VM_ROOT = ../../../..
+VM_ROOT = ../../..
 
 #OPT = 0
 NO_JIT = 1
@@ -16,7 +16,8 @@ endif
 USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
-   $(OBJ)/translator_impl$(OBJ_SUFF)
+   $(OBJ)/bytecodeTranslator$(OBJ_SUFF) \
+   $(OBJ)/printer$(OBJ_SUFF)
 
 include $(VM_ROOT)/common.mk
 

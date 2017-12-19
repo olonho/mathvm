@@ -3,16 +3,15 @@
 #include <string>
 #include <regex>
 
-#include "../vm/parser.h"
-#include "translator_impl.h"
+#include "parser.h"
+#include "include/printer.h"
 
 
 namespace mathvm {
 
     Translator* Translator::create(const string& impl) {
-        if (impl == "" || impl == "intepreter") {
-            // return new BytecodeTranslatorImpl();
-            return 0;
+        if (impl == "" || impl == "interpreter") {
+            return new BytecodeTranslatorImpl();
         }
 
         if (impl == "jit") {
