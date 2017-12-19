@@ -23,7 +23,7 @@ USER_OBJ = \
    
 USER_OBJ_DEPS=$(USER_OBJ:.o=.d)
 
-USER_DEPS=interpret.h translator.h code.h
+USER_DEPS=interpret.h translator.h code.h printer.h
 
 include $(VM_ROOT)/common.mk
 

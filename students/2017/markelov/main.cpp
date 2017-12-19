@@ -6,6 +6,7 @@
 #include <stack>
 
 #include "translator.h"
+#include "printer.h"
 
 using namespace mathvm;
 using namespace std;
@@ -15,6 +16,8 @@ using namespace std;
 #else
 #define DDI(arg)
 #endif
+
+#define PRINTER
 
 
 
@@ -28,6 +31,7 @@ int main(int argc, char* argv[]) {
     std::string prog((std::istreambuf_iterator<char>(src_stream)),
                      std::istreambuf_iterator<char>());
 
+#ifndef PRINTER
     Code* code = 0;
     vector<Var*> vars;
     Translator * tr = Translator::create();
@@ -71,4 +75,14 @@ out:
     if (exec_status)
         delete exec_status;
     return 0;
+#else
+    Parser parser;
+    Status * parse_stat = parser.parseProgram(prog);
+    if (parse_stat->isError()) {
+        cout << parse_stat->getError();
+    } else {
+        PrettyPrinter printer(parser.top());
+    }
+    delete parse_stat;
+#endif
 }
