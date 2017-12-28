@@ -6,7 +6,6 @@
 
 namespace mathvm {
 
-
 Status* PrinterTranslatorImpl::translate(const string& program, Code* *code) {
     Parser parser;
     Status* status = parser.parseProgram(program);
@@ -21,7 +20,7 @@ Status* PrinterTranslatorImpl::translate(const string& program, Code* *code) {
     return status;
 }
 
-PrinterVisitor::PrinterVisitor(ostream &strm) : _expr_counter(0), _indent(0), _strm(strm) {
+PrinterVisitor::PrinterVisitor(ostream &strm) : _indent(0), _strm(strm) {
 
 }
 
@@ -29,6 +28,10 @@ void PrinterVisitor::visitBinaryOpNode(BinaryOpNode *node) {
     node->left()->visit(this);
     _strm << ' ' << tokenOp(node->kind()) << ' ';
     node->right()->visit(this);
+}
+
+void PrinterVisitor::indent() {
+    _strm << std::string(_indent * _indent_size, ' ');
 }
 
 void PrinterVisitor::visitBlockNode(BlockNode *node) {
@@ -41,53 +44,47 @@ void PrinterVisitor::visitBlockNode(BlockNode *node) {
     counter++;
 
     for (Scope::VarIterator it(node->scope()); it.hasNext();) {
+        indent();
         AstVar *var = it.next();
-        _strm << std::string(_indent * _indent_size, ' ');
         _strm << typeToName(var->type()) << " " << var->name() << ";" << std::endl;
     }
 
     for (Scope::FunctionIterator it(node->scope()); it.hasNext();) {
+        indent();
         AstFunction *foo = it.next();
-        _strm << std::string(_indent * _indent_size, ' ');
         foo->node()->visit(this);
     }
 
-
     for (uint32_t i = 0; i < node->nodes(); ++i) {
-
+        indent();
         AstNode *cld = node->nodeAt(i);
         cld->visit(this);
+
+        if (!cld->isIfNode() && !cld->isWhileNode() && !cld->isForNode())
+            _strm << ';' << std::endl;
 
         if (cld->isNativeCallNode()) {
             break;
         }
     }
 
-
     counter--;
     if (counter != 0 && !(node->nodes() > 0 && node->nodeAt(0)->isNativeCallNode())) {
         _indent--;
-        _strm << std::string(_indent * _indent_size, ' ') << "}" << std::endl;
+        indent();
+        _strm << "}" << std::endl;
     }
 }
 
 void PrinterVisitor::visitCallNode(CallNode *node) {
-    if (_expr_counter == 0) {
-        _strm << std::string(_indent * _indent_size, ' ');
-    }
     _strm << node->name() << '(';
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-        _expr_counter++;
         node->parameterAt(i)->visit(this);
-        _expr_counter--;
         if (i + 1 < node->parametersNumber()) {
             _strm << ", ";
         }
     }
     _strm << ")";
-    if (_expr_counter == 0) {
-        _strm << ";" << std::endl;
-    }
 }
 
 void PrinterVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
@@ -95,11 +92,8 @@ void PrinterVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
 }
 
 void PrinterVisitor::visitForNode(ForNode *node) {
-    _strm << std::string(_indent * _indent_size, ' ');
     _strm << "for (" << node->var()->name() << " in ";
-    _expr_counter++;
     node->inExpr()->visit(this);
-    _expr_counter--;
     _strm << ") ";
 
     node->body()->visit(this);
@@ -123,18 +117,15 @@ void PrinterVisitor::visitFunctionNode(FunctionNode *node) {
 }
 
 void PrinterVisitor::visitIfNode(IfNode *node) {
-    _strm << std::string(_indent * _indent_size, ' ');
     _strm << "if (";
-    _expr_counter++;
     node->ifExpr()->visit(this);
-    _expr_counter--;
     _strm << ") ";
 
     node->thenBlock()->visit(this);
 
     if (node->elseBlock() != 0) {
-        _strm << std::string(_indent * _indent_size, ' ');
-        _strm << " else ";
+        indent();
+        _strm << "else ";
         node->elseBlock()->visit(this);
     }
 }
@@ -148,39 +139,28 @@ void PrinterVisitor::visitLoadNode(LoadNode *node) {
 }
 
 void PrinterVisitor::visitNativeCallNode(NativeCallNode *node) {
-    _strm << "native '" << node->nativeName() << "\';";
+    _strm << "native '" << node->nativeName();
 }
 
 void PrinterVisitor::visitPrintNode(PrintNode *node) {
-    _strm << std::string(_indent * _indent_size, ' ');
     _strm << "print(";
     for (uint32_t i = 0; i < node->operands(); i++) {
-        _expr_counter++;
         node->operandAt(i)->visit(this);
-        _expr_counter--;
         if (i + 1 != node->operands()) {
             _strm << ", ";
         }
     }
-    _strm << ");" << std::endl;
+    _strm << ")";
 }
 
 void PrinterVisitor::visitReturnNode(ReturnNode *node) {
-    _expr_counter++;
-    _strm << std::string(_indent * _indent_size, ' ');
     _strm << "return ";
     node->visitChildren(this);
-    _strm << ";" << std::endl;
-    _expr_counter--;
 }
 
 void PrinterVisitor::visitStoreNode(StoreNode *node) {
-    _expr_counter++;
-    _strm << std::string(_indent * _indent_size, ' ');
     _strm << node->var()->name() << " " << tokenOp(node->op()) << " ";
     node->visitChildren(this);
-    _strm << ";" << std::endl;
-    _expr_counter--;
 }
 
 void PrinterVisitor::visitStringLiteralNode(StringLiteralNode *node) {
@@ -191,8 +171,8 @@ void PrinterVisitor::visitStringLiteralNode(StringLiteralNode *node) {
 
     _strm << '\'';
     for (auto c : node->literal()) {
-        auto it = mapping.find(c);
-        if (it != mapping.end()) {
+        const auto it = mapping.find(c);
+        if (it != mapping.cend()) {
             _strm << it->second;
             continue;
         }
@@ -208,11 +188,8 @@ void PrinterVisitor::visitUnaryOpNode(UnaryOpNode *node) {
 }
 
 void PrinterVisitor::visitWhileNode(WhileNode *node) {
-    _strm << std::string(_indent * _indent_size, ' ');
     _strm << "while (";
-     _expr_counter++;
     node->whileExpr()->visit(this);
-    _expr_counter--;
     _strm << ") ";
     node->loopBlock()->visit(this);
 }

@@ -1,0 +1,5 @@
+function int foo() {
+    return 1;
+}
+
+print(1, '1', 1.0, foo());

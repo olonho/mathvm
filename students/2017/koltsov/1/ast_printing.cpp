@@ -7,7 +7,7 @@
 using std::cout;
 using std::endl;
 
-#define DEBUG1
+#define DEBUG
 
 namespace mathvm {
 #define VISITOR_FUNCTION(type, name)                        \

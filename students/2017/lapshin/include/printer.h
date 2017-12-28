@@ -1,8 +1,9 @@
 #include "visitors.h"
+
 #include <sstream>
 #include <deque>
 
-namespace mathvm {
+namespace mathvm { namespace ldvsoft {
 	struct AstPrinterStyle {
 		bool forceBlockBraces{false};
 		bool forceExpressionBraces{false};
@@ -40,4 +41,4 @@ namespace mathvm {
 		FOR_NODES(VISITOR_FUNCTION)
 		#undef VISITOR_FUNCTION
 	};
-}
+}}

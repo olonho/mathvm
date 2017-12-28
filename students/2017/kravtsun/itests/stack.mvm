@@ -1,0 +1,12 @@
+int a = 1;
+int b = 2;
+int c = 1;
+
+function int getB() {
+    int d = 4;
+    c += d;
+    return b;
+}
+
+print(a + 10 * getB() + 100 * c);
+

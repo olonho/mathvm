@@ -14,6 +14,8 @@
 #include <dlfcn.h>
 #include <fstream>
 
+#include "asmjit/asmjit.h"
+
 namespace my {
 
 class Code;
@@ -73,6 +75,9 @@ public:
 	uint16_t minID() { return minid; }
 };
 
+using namespace asmjit;
+using namespace asmjit::x86;
+
 class Code : public mathvm::Code
 {
 	union Val {
@@ -84,10 +89,67 @@ class Code : public mathvm::Code
 	class Function
 	{
 	    const mathvm::Signature * sign;
-	    const void * addr;
-	    std::vector<Val> val;
+
+		JitRuntime runtime;
+		X86Assembler as;
+		X86Compiler c;
+
+		void (*foo)(void *, void *, void *);
 	public:
-	    Function(const mathvm::Signature * sign, const void * addr, std::vector<Val> val) : sign(sign), addr(addr), val(val) {}
+	    Function(const mathvm::Signature * sign) : sign(sign), runtime(), as(&runtime), c(&as) {
+
+			c.addFunc(FuncBuilder3<void, void*, void*, void*>(kCallConvX64Unix));
+
+			c.emit(kX86InstIdPush, rbx);
+			// store fun pointer
+			c.emit(kX86InstIdPush, rdi);
+			// move res pointer
+			c.emit(kX86InstIdMov, rbx, rsi);
+			// move args pointer
+			c.emit(kX86InstIdMov, rax, rdx);
+
+			constexpr int iCntMax = 6;
+			int iCnt = 0;
+
+			constexpr int dCntMax = 8;
+			int dCnt = 0;
+
+			const asmjit::X86GpReg* regs[] = { &rdi, &rsi, &rdx, &rcx, &r8, &r9 };
+			std::vector<X86Mem> mem;
+
+			for (size_t i = 1; i < sign->size(); ++i) {
+				auto p = c.intptr_ptr(rax, (i - 1) * 8);
+				mem.push_back(p);
+
+				if (dCnt < dCntMax && sign->at(i).first == mathvm::VarType::VT_DOUBLE) {
+					c.emit(kX86InstIdMovsd, xmm(dCnt), p);
+					dCnt++;
+				} else if (iCnt < iCntMax) {
+					c.emit(kX86InstIdMov, *regs[iCnt], p);
+					iCnt++;
+				} else {
+					assert(false);
+				}
+			}
+
+			// pop fun pointer
+			c.emit(kX86InstIdPop, rax);
+			c.emit(kX86InstIdCall, rax);
+
+			auto p = c.intptr_ptr(rbx);
+			if (sign->at(0).first == mathvm::VarType::VT_DOUBLE) {
+				c.emit(kX86InstIdMovsd, p, xmm(0));
+			} else {
+				c.emit(kX86InstIdMov, p, rax);
+			}
+
+			c.emit(kX86InstIdPop, rbx);
+			c.ret();
+			c.endFunc();
+			c.finalize();
+
+			foo = asmjit_cast<void (*)(void *, void *, void *)>(as.make());
+		}
 
 	    std::string strType(std::pair<mathvm::VarType, std::string> type) {
 	        if (type.first == mathvm::VarType::VT_DOUBLE) {
@@ -97,64 +159,14 @@ class Code : public mathvm::Code
 	        return "int";
 	    }
 
-	    void generate() {
-	        std::ofstream out("tmp.c");
-	        out << "void wrapper(void * addr, void * res, void * args) {\n";
-
-			// cast to fun ptr
-			out << strType((*sign)[0]);
-	        out << "(*foo)(";
-
-	        if (sign->size() > 1) {
-	            out << strType((*sign)[1]);
-	        }
-
-	        for (size_t i = 2; i < sign->size(); ++i) {
-	            out << ", " << strType((*sign)[i]);
-	        }
-
-	        out << ")" << " = " << "addr;\n";
-
-			// init args
-	        for (size_t i = 1; i < sign->size(); ++i) {
-	            out << strType((*sign)[i]) << " * arg" << i << " = " << "args + " << (i - 1) * sizeof(Val) << ";\n";
-	        }
-
-			// call
-	        out << "*((" << strType((*sign)[0]) << "*) res) = foo(";
-	        if (sign->size() > 1) {
-	            out << "*arg1";
-	        }
-	        for (size_t i = 2; i < sign->size(); ++i) {
-	            out << ", *arg" << i;
-	        }
-	        out << ");\n";
-	        out << "}";
-	    }
-
-	    void compile() {
-	        assert(system("gcc tmp.c -shared -o tmp.so") == 0);
-	    }
-
-	    Val call() {
-	        void * wd = dlopen("./tmp.so", RTLD_NOW);
-			assert(wd);
-
-			void (*wp)(void*, void*, void *) = reinterpret_cast<void (*)(void*, void*, void *)>(dlsym(wd, "wrapper"));
-			assert(wp);
-
-	        Val res;
-			res.I = 0;
-	        wp(const_cast<void*>(addr), &res, val.data());
-
-	        dlclose(wd);
-
-		assert(system("rm tmp.c tmp.so") == 0);
-
-	        return res;
-	    }
+	    Val call(const void * addr, std::vector<Val> val) {
+			Val res;
+			foo(const_cast<void*>(addr), &res, &val[0]);
+			return res;
+		}
 	};
 
+	std::map<const mathvm::Signature*, Function*> funs;
 
 	class MyFrame {
 		typedef std::unordered_map<uint16_t, Val> Scope;

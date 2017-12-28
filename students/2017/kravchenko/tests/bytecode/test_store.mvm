@@ -1,0 +1,60 @@
+int a;
+int b;
+int c;
+
+a = 1;
+a = 5;
+a = 123;
+
+b = 123;
+c = 123;
+a = 321;
+
+double x;
+double y;
+
+y = 0.123;
+
+x = a;
+a = x;
+
+x += a;
+a += b;
+c -= y;
+
+
+
+
+
+x = 1 + 2 + 3.0 - 1.1;
+y = x * 3;
+y = a / x;
+b = 123 % 5;
+c = (b | a) & 255;
+a = (!a) ^ a
+
+
+string s;
+string str;
+
+s = '123';
+str = '321';
+
+a = s;
+
+b = s == str;
+b = s != str;
+b = a < c;
+b = a <= c;
+b = a > c;
+b = a >= c;
+
+int aa;
+aa = x || y;
+aa = x && y;
+
+aa = s || str;
+aa = s && str;
+
+aa = a || c;
+aa = a && c;

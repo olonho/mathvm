@@ -1,0 +1,13 @@
+function int foo(int a) {
+    double x;
+    x = 123.123;
+    function string bar(int a, double b) {
+        a = 123;
+        return '123';
+    }
+    bar(1, 1);
+    return a;
+}
+
+int x;
+x = foo(666);

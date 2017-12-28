@@ -18,7 +18,7 @@ namespace mathvm {
             , _type(VT_DOUBLE)
         {}
 
-        Variable::Variable(uint16_t value)
+        Variable::Variable(const char* value)
             : _stringValue(value)
             , _type(VT_STRING)
         {}
@@ -31,7 +31,7 @@ namespace mathvm {
             return _doubleValue;
         }
 
-        uint16_t Variable::stringValue() {
+        const char* Variable::stringValue() {
             return _stringValue;
         }
 
@@ -54,7 +54,7 @@ namespace mathvm {
             return pop().doubleValue();
         }
 
-        uint16_t Stack::popUInt16() {
+        const char* Stack::popString() {
             return pop().stringValue();
         }
 
@@ -66,7 +66,7 @@ namespace mathvm {
             vars.push(Variable(value));
         }
 
-        void Stack::pushUInt16(uint16_t value) {
+        void Stack::pushString(const char* value) {
             vars.push(Variable(value));
         }
 
@@ -99,7 +99,9 @@ namespace mathvm {
             assert(!_contextsIdCount.empty());
             _variables[_contextsIdCount.top().first].pop();
             _contextsIdCount.pop();
-            refreshCache();
+            if (!_contextsIdCount.empty()) {
+                refreshCache();
+            }
         }
 
         void ContextsVariable::checkCache(uint16_t varId) {
@@ -126,12 +128,12 @@ namespace mathvm {
             _cache[varId] = Variable(value);
         }
 
-        uint16_t ContextsVariable::getCachedUInt16(uint16_t varId) {
+        const char* ContextsVariable::getCachedString(uint16_t varId) {
             checkCache(varId);
             return _cache[varId].stringValue();
         }
 
-        void ContextsVariable::setCachedUInt16(uint16_t varId, uint16_t value) {
+        void ContextsVariable::setCachedString(uint16_t varId, const char* value) {
             assert(varId < 4);
             _cache[varId] = Variable(value);
         }
@@ -162,16 +164,16 @@ namespace mathvm {
             getVar(contextId, varId) = Variable(value);
         }
 
-        uint16_t ContextsVariable::getUInt16(uint16_t contextId, uint16_t varId) {
+        const char* ContextsVariable::getString(uint16_t contextId, uint16_t varId) {
             if (contextId == _contextsIdCount.top().first && varId < 4) {
-                return getCachedUInt16(varId);
+                return getCachedString(varId);
             }
 
             Variable& value = getVar(contextId, varId);
             return value.stringValue();
         }
 
-        void ContextsVariable::setUInt16(uint16_t contextId, uint16_t varId, uint16_t value) {
+        void ContextsVariable::setString(uint16_t contextId, uint16_t varId, const char* value) {
             getVar(contextId, varId) = Variable(value);
         }
 
@@ -187,16 +189,17 @@ namespace mathvm {
         double ContextsVariable::getDouble(uint16_t varId) {
             return getDouble(_contextsIdCount.top().first, varId);
         }
+
         void ContextsVariable::setDouble(uint16_t varId, double value) {
             setDouble(_contextsIdCount.top().first, varId, value);
         }
 
-        uint16_t ContextsVariable::getUInt16(uint16_t varId) {
-            return getUInt16(_contextsIdCount.top().first, varId);
+        const char* ContextsVariable::getString(uint16_t varId) {
+            return getString(_contextsIdCount.top().first, varId);
         }
 
-        void ContextsVariable::setUInt16(uint16_t varId, uint16_t value) {
-            setUInt16(_contextsIdCount.top().first, varId, value);
+        void ContextsVariable::setString(uint16_t varId, const char* value) {
+            setString(_contextsIdCount.top().first, varId, value);
         }
 
         Variable& ContextsVariable::getVar(uint16_t contextId, uint16_t varId) {
@@ -218,10 +221,10 @@ namespace mathvm {
                         break;
 
                     case VT_STRING:
-                        setUInt16(ctxIdCount.first, i, _cache[i].stringValue());
+                        setString(ctxIdCount.first, i, _cache[i].stringValue());
                         break;
 
-                    default: getVar(ctxIdCount.first, i).type() = VT_INVALID;
+                    default: break;
                 }
             }
         }

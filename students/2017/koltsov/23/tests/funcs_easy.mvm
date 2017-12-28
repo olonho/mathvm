@@ -1,0 +1,22 @@
+function int foo(int i) {
+    return i + 1;
+}
+
+function void bar() {
+}
+
+function double x() {
+    return 3.14;
+}
+
+function string s(int x, int y) {
+    return 'abc';
+}
+
+int i;
+i += 5;
+print(foo(5), '\n');
+bar();
+foo(6);
+print(x(), '\n');
+print(s(3, 6), '\n');

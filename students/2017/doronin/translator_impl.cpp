@@ -2,6 +2,7 @@
 #include "parser.h"
 #include "visitors.h"
 #include "printer_translator_impl.h"
+#include "q_bytecode_translator_impl.h"
 
 namespace mathvm {
 
@@ -11,8 +12,7 @@ Translator* Translator::create(const string& impl) {
         return new PrinterTranslatorImpl();
     }
     if (impl == "" || impl == "intepreter") {
-        //return new BytecodeTranslatorImpl();
-        return 0;
+        return new QBytecodeTranslatorImpl();
     }
     if (impl == "jit") {
         //return new MachCodeTranslatorImpl();

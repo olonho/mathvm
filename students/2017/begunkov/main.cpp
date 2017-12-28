@@ -21,6 +21,7 @@ int main(int argc, char** argv) {
                         script = argv[i];
                 }
         }
+//        script = "/home/sil/dev/mathvm/tests/for.mvm";
         Translator* translator = Translator::create(impl);
 
         if (translator == 0) {
@@ -65,6 +66,7 @@ int main(int argc, char** argv) {
                                 vars.push_back(yVar);
                                 xVar->setDoubleValue(42.0);
                         }
+//                        code->disassemble(cout);
                         Status* execStatus = code->execute(vars);
                         if (execStatus->isError()) {
                                 printf("Cannot execute expression: error: %s\n",

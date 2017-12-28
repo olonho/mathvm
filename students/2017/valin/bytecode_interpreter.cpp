@@ -394,7 +394,7 @@ void Code::I2D()
 void Code::D2I()
 {
     Val &v = stack.top();
-    v.I = (double) v.D;
+    v.I = (int) v.D;
 }
 
 void Code::S2I()
@@ -675,10 +675,13 @@ void Code::DCMP()
     r = stack.top();
     stack.pop();
 
-    double d = l.I - r.I;
-    d = d ? d / abs(d) : 0;
-
-    v.I = (int) d;
+    if (l.D < r.D) {
+        v.I = -1;
+    } else if (l.D > r.D) {
+        v.I = 1;
+    } else {
+        v.I = 0;
+    }
 
     stack.push(v);
 }
@@ -829,7 +832,6 @@ void Code::CALLNATIVE()
     const std::string * names;
     const void * addr = nativeById(funID, &sign, &names);
 
-    Val ret;
     int argn = sign->size() - 1;
     std::vector<Val> args;
 
@@ -838,10 +840,16 @@ void Code::CALLNATIVE()
         stack.pop();
     }
 
-    Function func(sign, addr, args);
-    func.generate();
-    func.compile();
-    ret = func.call();
+    Val ret;
+    auto fun = funs.find(sign);
+    if (fun == funs.end()) {
+        Function * f = new Function(sign);
+        funs[sign] = f;
+        ret = f->call(addr, args);
+    } else {
+        ret = fun->second->call(addr, args);
+    }
+
     stack.push(ret);
 }
 

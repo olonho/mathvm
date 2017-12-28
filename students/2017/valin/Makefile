@@ -2,8 +2,8 @@ ROOT   = .
 VM_ROOT = ../../..
 
 #OPT = 0
-NO_JIT = 1
-#WITH_SDL = 0
+NO_JIT = 0
+WITH_SDL = 1
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
