@@ -122,7 +122,7 @@ public:
         pout << indent << "}";
         BlockNode* elseBlock = node->elseBlock();
         if (elseBlock) {
-            pout << " else (";
+            pout << " else {";
             elseBlock->visit(this);
             pout << indent << "}";
         }
