@@ -9,7 +9,24 @@
 using namespace mathvm;
 using namespace std;
 
+typedef long long int64;
+
+int64 cnt = 0;
+
+int64 fib(int x) {
+    cnt++;
+    if (x <= 1) {
+        return x;
+    }
+    int64 r;
+    r = fib(x - 1);
+    return r + fib(x - 2);
+}
+
 int main(int argc, char** argv) {
+//    cout << fib(35) << endl;
+//    cout << cnt << endl;
+//    return 0;
     string impl = "";
     const char* script = NULL;
     for (int32_t i = 1; i < argc; i++) {
@@ -56,29 +73,16 @@ int main(int argc, char** argv) {
     } else {
         if (impl != "printer") {
           assert(code != 0);
-          vector<Var*> vars;
 
-          if (isDefaultExpr) {
-            Var* xVar = new Var(VT_DOUBLE, "x");
-            Var* yVar = new Var(VT_DOUBLE, "y");
-            vars.push_back(xVar);
-            vars.push_back(yVar);
-            xVar->setDoubleValue(42.0);
-          }
+          vector<Var*> vars;
           Status* execStatus = code->execute(vars);
           if (execStatus->isError()) {
-            printf("Cannot execute expression: error: %s\n",
-                   execStatus->getErrorCstr());
-          } else {
-            if (isDefaultExpr) {
-              printf("x evaluated to %f\n", vars[0]->getDoubleValue());
-              for (uint32_t i = 0; i < vars.size(); i++) {
-                delete vars[i];
-              }
-            }
+              printf("Cannot execute expression: error: %s\n",
+                     execStatus->getErrorCstr());
           }
-          delete code;
+
           delete execStatus;
+          delete code;
         }
     }
     delete translateStatus;

@@ -5,7 +5,7 @@ VM_ROOT = ../../..
 NO_JIT = 1
 #WITH_SDL = 0
 
-USER_CFLAGS = -std=c++11
+USER_CFLAGS = -std=c++11 -O2
 
 ifneq ($(NO_JIT), 1)
 JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
@@ -17,7 +17,9 @@ USER_OBJ = \
    $(JIT_OBJ) \
    $(OBJ)/main$(OBJ_SUFF) \
    $(OBJ)/translator_impl$(OBJ_SUFF) \
-   $(OBJ)/printer_translator$(OBJ_SUFF)
+   $(OBJ)/printer_translator$(OBJ_SUFF) \
+   $(OBJ)/bytecode_visitor$(OBJ_SUFF) \
+   $(OBJ)/interpreter_code$(OBJ_SUFF) \
 
 include $(VM_ROOT)/common.mk
 
