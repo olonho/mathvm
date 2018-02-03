@@ -63,7 +63,7 @@ public:
     }
 
     virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
-        cerr << "[DoubleLiteral]" << endl;
+        cerr << "printer [DoubleLiteral]" << node->literal() << endl;
 
         pout << node->literal();
     }
