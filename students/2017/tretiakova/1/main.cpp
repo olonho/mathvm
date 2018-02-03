@@ -1,4 +1,7 @@
 #include "../include/mathvm.h"
+#include "include/ast_to_bytecode_impl.h"
+#include "include/bytecode_code.h"
+#include "include/ast_printer_impl.h"
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -15,12 +18,15 @@ int main(int argc, char** argv) {
     for (int32_t i = 1; i < argc; i++) {
       if (string(argv[i]) == "-j") {
         impl = "jit";
-      }  if (string(argv[i]) == "-p") {
+      } else if (string(argv[i]) == "-p") {
         impl = "printer";
+      } else if (string(argv[i]) == "-i") {
+        impl = "interpreter";
       } else {
         script = argv[i];
       }
     }
+
     Translator* translator = Translator::create(impl);
 
     const char* expr = "double x; double y;"
@@ -54,8 +60,8 @@ int main(int argc, char** argv) {
           vector<Var*> vars;
 
           if (isDefaultExpr) {
-            Var* xVar = new Var(VT_DOUBLE, "x");
-            Var* yVar = new Var(VT_DOUBLE, "y");
+            LocalVar* xVar = new LocalVar(VT_DOUBLE, "x");
+            LocalVar* yVar = new LocalVar(VT_DOUBLE, "y");
             vars.push_back(xVar);
             vars.push_back(yVar);
             xVar->setDoubleValue(42.0);

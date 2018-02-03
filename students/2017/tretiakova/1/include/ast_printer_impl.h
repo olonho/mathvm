@@ -63,7 +63,7 @@ public:
     }
 
     virtual void visitDoubleLiteralNode(DoubleLiteralNode* node) {
-        cerr << "[DoubleLiteral]" << endl;
+        cerr << "printer [DoubleLiteral]" << node->literal() << endl;
 
         pout << node->literal();
     }
@@ -122,7 +122,7 @@ public:
         pout << indent << "}";
         BlockNode* elseBlock = node->elseBlock();
         if (elseBlock) {
-            pout << " else (";
+            pout << " else {";
             elseBlock->visit(this);
             pout << indent << "}";
         }
