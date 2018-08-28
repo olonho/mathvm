@@ -10,8 +10,8 @@
  basic. Language has 3 types: 
      - 64-bit integer type, called 'int'
      - ANSI C compatible double type, called 'double'
-     - immutable strings, called 'string' 
- 
+     - immutable strings (C equivalent: const char*), called 'string'
+
   Every variable is scoped, scope is marked with curly braces ({ and }).
  Variable has to be declared before first use, otherwise translation
  error will happen.
@@ -23,7 +23,6 @@
 
   Variables in topmost scope could be bound to 'Var' class
  instances, to allow interoperability between MVM programs and C++. 
-
 
  Literals can be:
    - integer, such as 42 or 123456789012345
@@ -41,7 +40,7 @@
          }
 
                Implementation.
- 
+
    We provide generic source -> AST (abstract syntax tree)
  translator, so that implementors can focus on VM-specific issues.
  It means we give scanner and top-down parser, generating tree
@@ -52,18 +51,16 @@
                 Tests.
 
   Directory 'tests' contains set of tests on basic language features,
- along with test driver 'run.py'. Generally, for every MVM program 
+ along with test scripts taskN.py. Generally, for every MVM program 
  we have an .expect file, which contains expected result of execution
- for given MVM program. By default, 'run.py' will run all tests it
- knows about.
- 
-  
+ for given MVM program.
+
                 Source tree layout.
 
   Folder 'include' contains generic declarations of language constructs
  (as AST nodes), set of bytecodes with description, and certain basic
  interfaces.
-  
+
   Folder 'tests' contains MVM tests. Feel free to implement your own tests.
 
   Folder 'vm' contain source code for the VM.
