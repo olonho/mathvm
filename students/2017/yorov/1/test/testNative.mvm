@@ -1,4 +1,0 @@
-function double foo() {
-    function double sin(double x) native 'sin';
-    return 0;
-}

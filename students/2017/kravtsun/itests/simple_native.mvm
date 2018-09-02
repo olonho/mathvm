@@ -1,7 +1,0 @@
-string s;
-s = 'Hello';
-function string malloc1(int len) native 'malloc';
-string s2;
-s2 = malloc1(10);
-s2 = s;
-
