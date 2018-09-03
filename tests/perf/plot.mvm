@@ -58,6 +58,6 @@ while (videoCheckEvent() == 0 && frames < 100) {
     frames += 1;
 }
 int end = timestamp();
-print('render 100 frames took ', end - start, 'us\n');
+print('render 100 frames took ', (end - start) / 1000, 'ms\n');
 
 videoDenitFramebuffer();

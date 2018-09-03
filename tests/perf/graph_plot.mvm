@@ -83,7 +83,7 @@ for (repeat in 0 .. 1000) {
 }
 int end = timestamp();
 
-print('Drawing took ', end - start, 'us\n');
+print('Drawing took ', (end - start) / 1000, 'ms\n');
 
 //while (videoCheckEvent() == 0) {}
 

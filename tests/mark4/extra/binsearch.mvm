@@ -1,0 +1,22 @@
+function int check(double value) {
+    double dx = (value - 0.6);
+    return dx * dx * dx + 0.1 > 0.0;
+}
+
+double left = 0.0;
+double right = 1.0;
+
+double mid = (left + right) * 0.5;
+while (mid != left && mid != right) {
+    if (check(mid)) {
+        right = mid;
+    } else {
+        left = mid;
+    }
+    mid = (left + right) * 0.5;
+}
+
+print(mid, '\n');
+
+int r = mid * 1e16;
+print(r, '\n');

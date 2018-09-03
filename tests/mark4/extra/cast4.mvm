@@ -1,0 +1,12 @@
+function int good(int a, int b) {
+    return (b != 0) && (a % b == 0);
+}
+
+if (good(0, 0)) { print(1); } else { print(0); }
+if (good(0, 1)) { print(1); } else { print(0); }
+if (good(1, 0)) { print(1); } else { print(0); }
+if (good(1, 1)) { print(1); } else { print(0); }
+
+if (good(10, 5)) { print(1); } else { print(0); }
+if (good(10, 2)) { print(1); } else { print(0); }
+if (good(10, 1)) { print(1); } else { print(0); }

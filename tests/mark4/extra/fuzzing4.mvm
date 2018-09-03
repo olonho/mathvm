@@ -1,0 +1,27 @@
+int a;
+int b;
+
+function void foo(int x) {
+    int c;
+    int d;
+    function int v1(int y) {
+        c = 1;
+        d = 2;
+        x = c * 10 + d;
+        return x * 10 + y;
+    }
+    function int v2(int z) {
+        c = 2;
+        d = 1;
+        x = c * 10 + d;
+        return x * 10 + z;
+    }
+    a = v1(5) + v2(7);
+    b = v2(5) + v1(7);
+    print(a, ' ', b, '\n');
+}
+
+a = 42;
+b = 21;
+foo(1);
+print(a - b, '\n');

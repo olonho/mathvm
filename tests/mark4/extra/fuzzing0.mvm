@@ -1,0 +1,11 @@
+int a;
+
+function int foo(int b) {
+    int c;
+    c = 1 + 2;
+    return a + 10 * (b + 10 * (c));
+}
+
+a = 1;
+
+print(foo(2), '\n');

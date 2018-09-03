@@ -87,4 +87,4 @@ for (n in 10000000..(10000000+count)) {
     factorize(n, 0);
 }
 int end = timestamp();
-print('factorize ', count, ' numbers took ', end - start, 'us\n');
+print('factorize ', count, ' numbers took ', (end - start) / 1000, 'ms\n');

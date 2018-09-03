@@ -1,0 +1,56 @@
+int a;
+int b;
+int c;
+
+a = 1;
+b = 0;
+c = 2;
+
+if (a || b || c) { print(1); } else { print(0); }
+if (a && b || c) { print(1); } else { print(0); }
+if (a || b && c) { print(1); } else { print(0); }
+if (a && b && c) { print(1); } else { print(0); }
+if (a || c || b) { print(1); } else { print(0); }
+if (a && c || b) { print(1); } else { print(0); }
+if (a || c && b) { print(1); } else { print(0); }
+if (a && c && b) { print(1); } else { print(0); }
+if (b || a || c) { print(1); } else { print(0); }
+if (b && a || c) { print(1); } else { print(0); }
+if (b || a && c) { print(1); } else { print(0); }
+if (b && a && c) { print(1); } else { print(0); }
+if (b || c || a) { print(1); } else { print(0); }
+if (b && c || a) { print(1); } else { print(0); }
+if (b || c && a) { print(1); } else { print(0); }
+if (b && c && a) { print(1); } else { print(0); }
+if (c || a || b) { print(1); } else { print(0); }
+if (c && a || b) { print(1); } else { print(0); }
+if (c || a && b) { print(1); } else { print(0); }
+if (c && a && b) { print(1); } else { print(0); }
+if (c || b || a) { print(1); } else { print(0); }
+if (c && b || a) { print(1); } else { print(0); }
+if (c || b && a) { print(1); } else { print(0); }
+if (c && b && a) { print(1); } else { print(0); }
+print('\n');
+if (a || a) { print(1); } else { print(0); }
+if (a && a) { print(1); } else { print(0); }
+if (a || b) { print(1); } else { print(0); }
+if (a && b) { print(1); } else { print(0); }
+if (a || c) { print(1); } else { print(0); }
+if (a && c) { print(1); } else { print(0); }
+if (b || a) { print(1); } else { print(0); }
+if (b && a) { print(1); } else { print(0); }
+if (b || b) { print(1); } else { print(0); }
+if (b && b) { print(1); } else { print(0); }
+if (b || c) { print(1); } else { print(0); }
+if (b && c) { print(1); } else { print(0); }
+if (c || a) { print(1); } else { print(0); }
+if (c && a) { print(1); } else { print(0); }
+if (c || b) { print(1); } else { print(0); }
+if (c && b) { print(1); } else { print(0); }
+if (c || c) { print(1); } else { print(0); }
+if (c && c) { print(1); } else { print(0); }
+print('\n');
+if (a) { print(1); } else { print(0); }
+if (b) { print(1); } else { print(0); }
+if (c) { print(1); } else { print(0); }
+print('\n');

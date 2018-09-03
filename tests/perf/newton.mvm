@@ -30,4 +30,4 @@ for (repeat in 0 .. 100000) {
 int end = timestamp();
 print('root=', root, '\n');
 
-print('Newton took ', end - start, 'us\n');
+print('Newton took ', (end - start) / 1000, 'ms\n');

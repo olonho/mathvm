@@ -1,0 +1,61 @@
+int x;
+function void initSum() {
+    x = 0;
+}
+function int addSum(int digit) {
+    int INT_MAX = 9223372036854775808;
+    int ok = (digit >= 0 && digit < 10) && (x < INT_MAX / 10 || x == INT_MAX / 10 && digit <= INT_MAX % 10);
+    if (ok) {
+        x = x * 10 + digit;
+    } else {
+        x = INT_MAX;
+    }
+    return ok;
+}
+
+
+
+int rndIdx;
+function void srand() {
+    rndIdx = 0;
+}
+function int rand() {
+    rndIdx = rndIdx ^ 1;
+    if (rndIdx == 1) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+
+
+
+initSum();
+srand();
+int i;
+for (i in 1..18) {
+    addSum(rand());
+}
+print(x, '\n');
+
+
+
+if (addSum(2)) { print(1); } else { print(0); }
+print('\n', x, '\n');
+if (addSum(1)) { print(1); } else { print(0); }
+print('\n', x, '\n');
+
+print('begin\n', x, '\n', x + 1, '\nend\n');
+
+if (addSum(-1)) { print(1); } else { print(0); }
+print('\n', x, '\n');
+if (addSum(10)) { print(1); } else { print(0); }
+print('\n', x, '\n');
+
+initSum();
+if (addSum(-1)) { print(1); } else { print(0); }
+print('\n', x, '\n');
+initSum();
+if (addSum(10)) { print(1); } else { print(0); }
+print('\n', x, '\n');
+

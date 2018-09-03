@@ -1,0 +1,16 @@
+int a;
+int b;
+
+function int set_b() {
+    b = 1;
+    return 1;
+}
+
+a = 0;
+b = 0;
+
+if (a && set_b()) {
+    print(1, ' ', b, '\n');
+} else {
+    print(0, ' ', b, '\n');
+}

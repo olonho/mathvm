@@ -1,0 +1,40 @@
+int a;
+int b;
+int u;
+int v;
+
+function void foo(int x) {
+    int c;
+    int d;
+    int e;
+    function int get_x() {
+        a = a * 10 + x;
+        return x;
+    }
+    function void set_x(int y) {
+        b = b * 10 + x;
+        x = y;
+    }
+    function void set_y(int y) {
+        y = x;
+        u = u * 10 + y;
+    }
+    function void set_e(int y) {
+        e = y;
+        v = v * 10 + e;
+    }
+    set_x(get_x());
+    c = get_x();
+    d = -1;
+    set_y(7);
+    set_y(d);
+    set_e(d);
+    print(c, ' ', d, ' ', e, ' ', x, '\n');
+}
+
+a = 0;
+b = 0;
+u = 0;
+v = 0;
+foo(5);
+print(a, ' ', b, ' ', u, ' ', v, '\n');

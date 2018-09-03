@@ -99,7 +99,7 @@ function void drawFrame() {
   int fb;
   fb = videoGrabFramebuffer();
   if (!fb) {
-    print('fb', fb, '\n');
+    print('fb=', fb, '\n');
     return;
   }
   double tOld;
@@ -125,16 +125,16 @@ sinMvm(0);
 cosMvm(0);
 
 int start;
-while (videoCheckEvent() == 0) {
+if (videoCheckEvent() == 0) {
   chainsaw = 0.01;
   start = timestamp();
   while(chainsaw < 1.0) {
     drawFrame();
-    chainsaw += 0.01;
+    chainsaw += 0.04;
   }
   print('Rendered all lissajous by ', 
-    (timestamp() - start) / 1000000,
-    ' secs', '\r\n');
+    (timestamp() - start) / 1000,
+    ' ms', '\r\n');
 }
 
 videoDenitFramebuffer();

@@ -1,0 +1,28 @@
+int a;
+int b;
+int c;
+
+function int foo(int x) {
+    int p;
+    int q;
+    int r;
+    function int bar(int y, int b, int c) {
+        return 0;
+    }
+    function int baz(int z, int a, int d) {
+        b = 42;
+        return z * 100 + a * 10 + c;
+    }
+    p = 4;
+    q = 5;
+    r = 6;
+    bar(p, q, r);
+    return baz(p, q, r);
+}
+
+a = 1;
+b = 2;
+c = 3;
+
+print(foo(42), '\n');
+print(a, '\n', b, '\n', c, '\n');

@@ -1,0 +1,128 @@
+int a;
+int b;
+int c;
+int d;
+int e;
+int f;
+
+a = 1;
+b = 0;
+c = 10;
+d = 0;
+e = 0;
+f = 0;
+
+if (a) {
+    d = d * 10 + 1;
+} else {
+    d = d * 10 + 0;
+}
+if (b) {
+    d = d * 10 + 1;
+} else {
+    d = d * 10 + 0;
+}
+if (c) {
+    d = d * 10 + 1;
+} else {
+    d = d * 10 + 0;
+}
+
+
+
+if (a && a) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+if (a && b) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+if (a && c) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+if (b && a) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+if (b && b) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+if (b && c) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+if (c && a) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+if (c && b) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+if (c && c) {
+    e = e * 10 + 1;
+} else {
+    e = e * 10 + 0;
+}
+
+
+
+if (a || a) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+if (a || b) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+if (a || c) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+if (b || a) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+if (b || b) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+if (b || c) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+if (c || a) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+if (c || b) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+if (c || c) {
+    f = f * 10 + 1;
+} else {
+    f = f * 10 + 0;
+}
+
+
+print(d, ' ', e, ' ', f, '\n');

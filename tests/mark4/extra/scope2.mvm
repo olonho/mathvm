@@ -1,0 +1,35 @@
+int seed = 42;
+function int rnd() {
+    seed = (6364136223846793005 * seed + 1442695040888963407);
+    return seed;
+}
+
+function int up(int val) {
+    return (val ^ rnd()) % 256;
+}
+
+function int f1(int x, int y, int z) {
+    if (z <= 0) {
+        return (x * 16) ^ y;
+    }
+    return f1(up(x), up(y), z - 2) + 16 * f2(255 - x, 255 - y, z - 1) + 256 * f3(y, x, z - 2);
+}
+
+function int f2(int x, int y, int z) {
+    if (z <= 0) {
+        return (x * 16) ^ y;
+    }
+    return f1(up(x), up(y), z - 2) + 16 * f2(255 - x, 255 - y, z - 2) + 256 * f3(y, x, z - 1);
+}
+
+function int f3(int x, int y, int z) {
+    if (z <= 0) {
+        return (x * 16) ^ y;
+    }
+    return f1(up(x), up(y), z - 1) + 16 * f2(255 - x, 255 - y, z - 2) + 256 * f3(y, x, z - 2);
+}
+
+int i;
+for (i in 1..10) {
+    print(f1(0, 0, i), ' ', f2(0, 0, i), ' ', f3(0, 0, i), '\n');
+}
