@@ -9,14 +9,7 @@ NO_JIT = 1
 # This flag enables SDL dependencies (should be 1 for task #4).
 #WITH_SDL = 1
 
-ifneq ($(NO_JIT), 1)
-JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
-else
-JIT_OBJ =
-endif
-
 USER_OBJ = \
-	$(JIT_OBJ) \
 	$(OBJ)/main$(OBJ_SUFF) \
 	$(OBJ)/translator_impl$(OBJ_SUFF)
 

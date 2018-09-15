@@ -5,14 +5,14 @@
 // Zlib - See LICENSE.md file in the package.
 
 // [Guard]
-#ifndef _ASMJIT_BASE_VECTYPES_H
-#define _ASMJIT_BASE_VECTYPES_H
+#ifndef _ASMJIT_BASE_SIMDTYPES_H
+#define _ASMJIT_BASE_SIMDTYPES_H
 
 // [Dependencies]
 #include "../base/globals.h"
 
 // [Api-Begin]
-#include "../apibegin.h"
+#include "../asmjit_apibegin.h"
 
 namespace asmjit {
 
@@ -20,135 +20,135 @@ namespace asmjit {
 //! \{
 
 // ============================================================================
-// [asmjit::Vec64]
+// [asmjit::Data64]
 // ============================================================================
 
-//! 64-bit vector register data.
-union Vec64 {
+//! 64-bit data useful for creating SIMD constants.
+union Data64 {
   // --------------------------------------------------------------------------
   // [Construction / Destruction]
   // --------------------------------------------------------------------------
 
   //! Set all eight 8-bit signed integers.
-  static ASMJIT_INLINE Vec64 fromSB(int8_t x0) noexcept {
-    Vec64 self;
-    self.setSB(x0);
+  static ASMJIT_INLINE Data64 fromI8(int8_t x0) noexcept {
+    Data64 self;
+    self.setI8(x0);
     return self;
   }
 
   //! Set all eight 8-bit unsigned integers.
-  static ASMJIT_INLINE Vec64 fromUB(uint8_t x0) noexcept {
-    Vec64 self;
-    self.setUB(x0);
+  static ASMJIT_INLINE Data64 fromU8(uint8_t x0) noexcept {
+    Data64 self;
+    self.setU8(x0);
     return self;
   }
 
   //! Set all eight 8-bit signed integers.
-  static ASMJIT_INLINE Vec64 fromSB(
+  static ASMJIT_INLINE Data64 fromI8(
     int8_t x0, int8_t x1, int8_t x2, int8_t x3, int8_t x4, int8_t x5, int8_t x6, int8_t x7) noexcept {
 
-    Vec64 self;
-    self.setSB(x0, x1, x2, x3, x4, x5, x6, x7);
+    Data64 self;
+    self.setI8(x0, x1, x2, x3, x4, x5, x6, x7);
     return self;
   }
 
   //! Set all eight 8-bit unsigned integers.
-  static ASMJIT_INLINE Vec64 fromUB(
+  static ASMJIT_INLINE Data64 fromU8(
     uint8_t x0, uint8_t x1, uint8_t x2, uint8_t x3, uint8_t x4, uint8_t x5, uint8_t x6, uint8_t x7) noexcept {
 
-    Vec64 self;
-    self.setUB(x0, x1, x2, x3, x4, x5, x6, x7);
+    Data64 self;
+    self.setU8(x0, x1, x2, x3, x4, x5, x6, x7);
     return self;
   }
 
   //! Set all four 16-bit signed integers.
-  static ASMJIT_INLINE Vec64 fromSW(int16_t x0) noexcept {
-    Vec64 self;
-    self.setSW(x0);
+  static ASMJIT_INLINE Data64 fromI16(int16_t x0) noexcept {
+    Data64 self;
+    self.setI16(x0);
     return self;
   }
 
   //! Set all four 16-bit unsigned integers.
-  static ASMJIT_INLINE Vec64 fromUW(uint16_t x0) noexcept {
-    Vec64 self;
-    self.setUW(x0);
+  static ASMJIT_INLINE Data64 fromU16(uint16_t x0) noexcept {
+    Data64 self;
+    self.setU16(x0);
     return self;
   }
 
   //! Set all four 16-bit signed integers.
-  static ASMJIT_INLINE Vec64 fromSW(int16_t x0, int16_t x1, int16_t x2, int16_t x3) noexcept {
-    Vec64 self;
-    self.setSW(x0, x1, x2, x3);
+  static ASMJIT_INLINE Data64 fromI16(int16_t x0, int16_t x1, int16_t x2, int16_t x3) noexcept {
+    Data64 self;
+    self.setI16(x0, x1, x2, x3);
     return self;
   }
 
   //! Set all four 16-bit unsigned integers.
-  static ASMJIT_INLINE Vec64 fromUW(uint16_t x0, uint16_t x1, uint16_t x2, uint16_t x3) noexcept {
-    Vec64 self;
-    self.setUW(x0, x1, x2, x3);
+  static ASMJIT_INLINE Data64 fromU16(uint16_t x0, uint16_t x1, uint16_t x2, uint16_t x3) noexcept {
+    Data64 self;
+    self.setU16(x0, x1, x2, x3);
     return self;
   }
 
   //! Set all two 32-bit signed integers.
-  static ASMJIT_INLINE Vec64 fromSD(int32_t x0) noexcept {
-    Vec64 self;
-    self.setSD(x0);
+  static ASMJIT_INLINE Data64 fromI32(int32_t x0) noexcept {
+    Data64 self;
+    self.setI32(x0);
     return self;
   }
 
   //! Set all two 32-bit unsigned integers.
-  static ASMJIT_INLINE Vec64 fromUD(uint32_t x0) noexcept {
-    Vec64 self;
-    self.setUD(x0);
+  static ASMJIT_INLINE Data64 fromU32(uint32_t x0) noexcept {
+    Data64 self;
+    self.setU32(x0);
     return self;
   }
 
   //! Set all two 32-bit signed integers.
-  static ASMJIT_INLINE Vec64 fromSD(int32_t x0, int32_t x1) noexcept {
-    Vec64 self;
-    self.setSD(x0, x1);
+  static ASMJIT_INLINE Data64 fromI32(int32_t x0, int32_t x1) noexcept {
+    Data64 self;
+    self.setI32(x0, x1);
     return self;
   }
 
   //! Set all two 32-bit unsigned integers.
-  static ASMJIT_INLINE Vec64 fromUD(uint32_t x0, uint32_t x1) noexcept {
-    Vec64 self;
-    self.setUD(x0, x1);
+  static ASMJIT_INLINE Data64 fromU32(uint32_t x0, uint32_t x1) noexcept {
+    Data64 self;
+    self.setU32(x0, x1);
     return self;
   }
 
   //! Set 64-bit signed integer.
-  static ASMJIT_INLINE Vec64 fromSQ(int64_t x0) noexcept {
-    Vec64 self;
-    self.setSQ(x0);
+  static ASMJIT_INLINE Data64 fromI64(int64_t x0) noexcept {
+    Data64 self;
+    self.setI64(x0);
     return self;
   }
 
   //! Set 64-bit unsigned integer.
-  static ASMJIT_INLINE Vec64 fromUQ(uint64_t x0) noexcept {
-    Vec64 self;
-    self.setUQ(x0);
+  static ASMJIT_INLINE Data64 fromU64(uint64_t x0) noexcept {
+    Data64 self;
+    self.setU64(x0);
     return self;
   }
 
   //! Set all two SP-FP values.
-  static ASMJIT_INLINE Vec64 fromSF(float x0) noexcept {
-    Vec64 self;
-    self.setSF(x0);
+  static ASMJIT_INLINE Data64 fromF32(float x0) noexcept {
+    Data64 self;
+    self.setF32(x0);
     return self;
   }
 
   //! Set all two SP-FP values.
-  static ASMJIT_INLINE Vec64 fromSF(float x0, float x1) noexcept {
-    Vec64 self;
-    self.setSF(x0, x1);
+  static ASMJIT_INLINE Data64 fromF32(float x0, float x1) noexcept {
+    Data64 self;
+    self.setF32(x0, x1);
     return self;
   }
 
   //! Set all two SP-FP values.
-  static ASMJIT_INLINE Vec64 fromDF(double x0) noexcept {
-    Vec64 self;
-    self.setDF(x0);
+  static ASMJIT_INLINE Data64 fromF64(double x0) noexcept {
+    Data64 self;
+    self.setF64(x0);
     return self;
   }
 
@@ -157,12 +157,12 @@ union Vec64 {
   // --------------------------------------------------------------------------
 
   //! Set all eight 8-bit signed integers.
-  ASMJIT_INLINE void setSB(int8_t x0) noexcept {
-    setUB(static_cast<uint8_t>(x0));
+  ASMJIT_INLINE void setI8(int8_t x0) noexcept {
+    setU8(static_cast<uint8_t>(x0));
   }
 
   //! Set all eight 8-bit unsigned integers.
-  ASMJIT_INLINE void setUB(uint8_t x0) noexcept {
+  ASMJIT_INLINE void setU8(uint8_t x0) noexcept {
     if (ASMJIT_ARCH_64BIT) {
       uint64_t xq = static_cast<uint64_t>(x0) * ASMJIT_UINT64_C(0x0101010101010101);
       uq[0] = xq;
@@ -175,7 +175,7 @@ union Vec64 {
   }
 
   //! Set all eight 8-bit signed integers.
-  ASMJIT_INLINE void setSB(
+  ASMJIT_INLINE void setI8(
     int8_t x0, int8_t x1, int8_t x2, int8_t x3, int8_t x4, int8_t x5, int8_t x6, int8_t x7) noexcept {
 
     sb[0] = x0; sb[1] = x1; sb[2] = x2; sb[3] = x3;
@@ -183,7 +183,7 @@ union Vec64 {
   }
 
   //! Set all eight 8-bit unsigned integers.
-  ASMJIT_INLINE void setUB(
+  ASMJIT_INLINE void setU8(
     uint8_t x0, uint8_t x1, uint8_t x2, uint8_t x3, uint8_t x4, uint8_t x5, uint8_t x6, uint8_t x7) noexcept {
 
     ub[0] = x0; ub[1] = x1; ub[2] = x2; ub[3] = x3;
@@ -191,12 +191,12 @@ union Vec64 {
   }
 
   //! Set all four 16-bit signed integers.
-  ASMJIT_INLINE void setSW(int16_t x0) noexcept {
-    setUW(static_cast<uint16_t>(x0));
+  ASMJIT_INLINE void setI16(int16_t x0) noexcept {
+    setU16(static_cast<uint16_t>(x0));
   }
 
   //! Set all four 16-bit unsigned integers.
-  ASMJIT_INLINE void setUW(uint16_t x0) noexcept {
+  ASMJIT_INLINE void setU16(uint16_t x0) noexcept {
     if (ASMJIT_ARCH_64BIT) {
       uint64_t xq = static_cast<uint64_t>(x0) * ASMJIT_UINT64_C(0x0001000100010001);
       uq[0] = xq;
@@ -209,57 +209,57 @@ union Vec64 {
   }
 
   //! Set all four 16-bit signed integers.
-  ASMJIT_INLINE void setSW(int16_t x0, int16_t x1, int16_t x2, int16_t x3) noexcept {
+  ASMJIT_INLINE void setI16(int16_t x0, int16_t x1, int16_t x2, int16_t x3) noexcept {
     sw[0] = x0; sw[1] = x1; sw[2] = x2; sw[3] = x3;
   }
 
   //! Set all four 16-bit unsigned integers.
-  ASMJIT_INLINE void setUW(uint16_t x0, uint16_t x1, uint16_t x2, uint16_t x3) noexcept {
+  ASMJIT_INLINE void setU16(uint16_t x0, uint16_t x1, uint16_t x2, uint16_t x3) noexcept {
     uw[0] = x0; uw[1] = x1; uw[2] = x2; uw[3] = x3;
   }
 
   //! Set all two 32-bit signed integers.
-  ASMJIT_INLINE void setSD(int32_t x0) noexcept {
+  ASMJIT_INLINE void setI32(int32_t x0) noexcept {
     sd[0] = x0; sd[1] = x0;
   }
 
   //! Set all two 32-bit unsigned integers.
-  ASMJIT_INLINE void setUD(uint32_t x0) noexcept {
+  ASMJIT_INLINE void setU32(uint32_t x0) noexcept {
     ud[0] = x0; ud[1] = x0;
   }
 
   //! Set all two 32-bit signed integers.
-  ASMJIT_INLINE void setSD(int32_t x0, int32_t x1) noexcept {
+  ASMJIT_INLINE void setI32(int32_t x0, int32_t x1) noexcept {
     sd[0] = x0; sd[1] = x1;
   }
 
   //! Set all two 32-bit unsigned integers.
-  ASMJIT_INLINE void setUD(uint32_t x0, uint32_t x1) noexcept {
+  ASMJIT_INLINE void setU32(uint32_t x0, uint32_t x1) noexcept {
     ud[0] = x0; ud[1] = x1;
   }
 
   //! Set 64-bit signed integer.
-  ASMJIT_INLINE void setSQ(int64_t x0) noexcept {
+  ASMJIT_INLINE void setI64(int64_t x0) noexcept {
     sq[0] = x0;
   }
 
   //! Set 64-bit unsigned integer.
-  ASMJIT_INLINE void setUQ(uint64_t x0) noexcept {
+  ASMJIT_INLINE void setU64(uint64_t x0) noexcept {
     uq[0] = x0;
   }
 
   //! Set all two SP-FP values.
-  ASMJIT_INLINE void setSF(float x0) noexcept {
+  ASMJIT_INLINE void setF32(float x0) noexcept {
     sf[0] = x0; sf[1] = x0;
   }
 
   //! Set all two SP-FP values.
-  ASMJIT_INLINE void setSF(float x0, float x1) noexcept {
+  ASMJIT_INLINE void setF32(float x0, float x1) noexcept {
     sf[0] = x0; sf[1] = x1;
   }
 
   //! Set all two SP-FP values.
-  ASMJIT_INLINE void setDF(double x0) noexcept {
+  ASMJIT_INLINE void setF64(double x0) noexcept {
     df[0] = x0;
   }
 
@@ -291,166 +291,166 @@ union Vec64 {
 };
 
 // ============================================================================
-// [asmjit::Vec128]
+// [asmjit::Data128]
 // ============================================================================
 
-//! 128-bit vector register data.
-union Vec128 {
+//! 128-bit data useful for creating SIMD constants.
+union Data128 {
   // --------------------------------------------------------------------------
   // [Construction / Destruction]
   // --------------------------------------------------------------------------
 
   //! Set all sixteen 8-bit signed integers.
-  static ASMJIT_INLINE Vec128 fromSB(int8_t x0) noexcept {
-    Vec128 self;
-    self.setSB(x0);
+  static ASMJIT_INLINE Data128 fromI8(int8_t x0) noexcept {
+    Data128 self;
+    self.setI8(x0);
     return self;
   }
 
   //! Set all sixteen 8-bit unsigned integers.
-  static ASMJIT_INLINE Vec128 fromUB(uint8_t x0) noexcept {
-    Vec128 self;
-    self.setUB(x0);
+  static ASMJIT_INLINE Data128 fromU8(uint8_t x0) noexcept {
+    Data128 self;
+    self.setU8(x0);
     return self;
   }
 
   //! Set all sixteen 8-bit signed integers.
-  static ASMJIT_INLINE Vec128 fromSB(
+  static ASMJIT_INLINE Data128 fromI8(
     int8_t x0 , int8_t x1 , int8_t x2 , int8_t x3 ,
     int8_t x4 , int8_t x5 , int8_t x6 , int8_t x7 ,
     int8_t x8 , int8_t x9 , int8_t x10, int8_t x11,
     int8_t x12, int8_t x13, int8_t x14, int8_t x15) noexcept {
 
-    Vec128 self;
-    self.setSB(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
+    Data128 self;
+    self.setI8(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
     return self;
   }
 
   //! Set all sixteen 8-bit unsigned integers.
-  static ASMJIT_INLINE Vec128 fromUB(
+  static ASMJIT_INLINE Data128 fromU8(
     uint8_t x0 , uint8_t x1 , uint8_t x2 , uint8_t x3 ,
     uint8_t x4 , uint8_t x5 , uint8_t x6 , uint8_t x7 ,
     uint8_t x8 , uint8_t x9 , uint8_t x10, uint8_t x11,
     uint8_t x12, uint8_t x13, uint8_t x14, uint8_t x15) noexcept {
 
-    Vec128 self;
-    self.setUB(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
+    Data128 self;
+    self.setU8(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
     return self;
   }
 
   //! Set all eight 16-bit signed integers.
-  static ASMJIT_INLINE Vec128 fromSW(int16_t x0) noexcept {
-    Vec128 self;
-    self.setSW(x0);
+  static ASMJIT_INLINE Data128 fromI16(int16_t x0) noexcept {
+    Data128 self;
+    self.setI16(x0);
     return self;
   }
 
   //! Set all eight 16-bit unsigned integers.
-  static ASMJIT_INLINE Vec128 fromUW(uint16_t x0) noexcept {
-    Vec128 self;
-    self.setUW(x0);
+  static ASMJIT_INLINE Data128 fromU16(uint16_t x0) noexcept {
+    Data128 self;
+    self.setU16(x0);
     return self;
   }
 
   //! Set all eight 16-bit signed integers.
-  static ASMJIT_INLINE Vec128 fromSW(
+  static ASMJIT_INLINE Data128 fromI16(
     int16_t x0, int16_t x1, int16_t x2, int16_t x3, int16_t x4, int16_t x5, int16_t x6, int16_t x7) noexcept {
 
-    Vec128 self;
-    self.setSW(x0, x1, x2, x3, x4, x5, x6, x7);
+    Data128 self;
+    self.setI16(x0, x1, x2, x3, x4, x5, x6, x7);
     return self;
   }
 
   //! Set all eight 16-bit unsigned integers.
-  static ASMJIT_INLINE Vec128 fromUW(
+  static ASMJIT_INLINE Data128 fromU16(
     uint16_t x0, uint16_t x1, uint16_t x2, uint16_t x3, uint16_t x4, uint16_t x5, uint16_t x6, uint16_t x7) noexcept {
 
-    Vec128 self;
-    self.setUW(x0, x1, x2, x3, x4, x5, x6, x7);
+    Data128 self;
+    self.setU16(x0, x1, x2, x3, x4, x5, x6, x7);
     return self;
   }
 
   //! Set all four 32-bit signed integers.
-  static ASMJIT_INLINE Vec128 fromSD(int32_t x0) noexcept {
-    Vec128 self;
-    self.setSD(x0);
+  static ASMJIT_INLINE Data128 fromI32(int32_t x0) noexcept {
+    Data128 self;
+    self.setI32(x0);
     return self;
   }
 
   //! Set all four 32-bit unsigned integers.
-  static ASMJIT_INLINE Vec128 fromUD(uint32_t x0) noexcept {
-    Vec128 self;
-    self.setUD(x0);
+  static ASMJIT_INLINE Data128 fromU32(uint32_t x0) noexcept {
+    Data128 self;
+    self.setU32(x0);
     return self;
   }
 
   //! Set all four 32-bit signed integers.
-  static ASMJIT_INLINE Vec128 fromSD(int32_t x0, int32_t x1, int32_t x2, int32_t x3) noexcept {
-    Vec128 self;
-    self.setSD(x0, x1, x2, x3);
+  static ASMJIT_INLINE Data128 fromI32(int32_t x0, int32_t x1, int32_t x2, int32_t x3) noexcept {
+    Data128 self;
+    self.setI32(x0, x1, x2, x3);
     return self;
   }
 
   //! Set all four 32-bit unsigned integers.
-  static ASMJIT_INLINE Vec128 fromUD(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3) noexcept {
-    Vec128 self;
-    self.setUD(x0, x1, x2, x3);
+  static ASMJIT_INLINE Data128 fromU32(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3) noexcept {
+    Data128 self;
+    self.setU32(x0, x1, x2, x3);
     return self;
   }
 
   //! Set all two 64-bit signed integers.
-  static ASMJIT_INLINE Vec128 fromSQ(int64_t x0) noexcept {
-    Vec128 self;
-    self.setSQ(x0);
+  static ASMJIT_INLINE Data128 fromI64(int64_t x0) noexcept {
+    Data128 self;
+    self.setI64(x0);
     return self;
   }
 
   //! Set all two 64-bit unsigned integers.
-  static ASMJIT_INLINE Vec128 fromUQ(uint64_t x0) noexcept {
-    Vec128 self;
-    self.setUQ(x0);
+  static ASMJIT_INLINE Data128 fromU64(uint64_t x0) noexcept {
+    Data128 self;
+    self.setU64(x0);
     return self;
   }
 
   //! Set all two 64-bit signed integers.
-  static ASMJIT_INLINE Vec128 fromSQ(int64_t x0, int64_t x1) noexcept {
-    Vec128 self;
-    self.setSQ(x0, x1);
+  static ASMJIT_INLINE Data128 fromI64(int64_t x0, int64_t x1) noexcept {
+    Data128 self;
+    self.setI64(x0, x1);
     return self;
   }
 
   //! Set all two 64-bit unsigned integers.
-  static ASMJIT_INLINE Vec128 fromUQ(uint64_t x0, uint64_t x1) noexcept {
-    Vec128 self;
-    self.setUQ(x0, x1);
+  static ASMJIT_INLINE Data128 fromU64(uint64_t x0, uint64_t x1) noexcept {
+    Data128 self;
+    self.setU64(x0, x1);
     return self;
   }
 
   //! Set all four SP-FP floats.
-  static ASMJIT_INLINE Vec128 fromSF(float x0) noexcept {
-    Vec128 self;
-    self.setSF(x0);
+  static ASMJIT_INLINE Data128 fromF32(float x0) noexcept {
+    Data128 self;
+    self.setF32(x0);
     return self;
   }
 
   //! Set all four SP-FP floats.
-  static ASMJIT_INLINE Vec128 fromSF(float x0, float x1, float x2, float x3) noexcept {
-    Vec128 self;
-    self.setSF(x0, x1, x2, x3);
+  static ASMJIT_INLINE Data128 fromF32(float x0, float x1, float x2, float x3) noexcept {
+    Data128 self;
+    self.setF32(x0, x1, x2, x3);
     return self;
   }
 
   //! Set all two DP-FP floats.
-  static ASMJIT_INLINE Vec128 fromDF(double x0) noexcept {
-    Vec128 self;
-    self.setDF(x0);
+  static ASMJIT_INLINE Data128 fromF64(double x0) noexcept {
+    Data128 self;
+    self.setF64(x0);
     return self;
   }
 
   //! Set all two DP-FP floats.
-  static ASMJIT_INLINE Vec128 fromDF(double x0, double x1) noexcept {
-    Vec128 self;
-    self.setDF(x0, x1);
+  static ASMJIT_INLINE Data128 fromF64(double x0, double x1) noexcept {
+    Data128 self;
+    self.setF64(x0, x1);
     return self;
   }
 
@@ -459,12 +459,12 @@ union Vec128 {
   // --------------------------------------------------------------------------
 
   //! Set all sixteen 8-bit signed integers.
-  ASMJIT_INLINE void setSB(int8_t x0) noexcept {
-    setUB(static_cast<uint8_t>(x0));
+  ASMJIT_INLINE void setI8(int8_t x0) noexcept {
+    setU8(static_cast<uint8_t>(x0));
   }
 
   //! Set all sixteen 8-bit unsigned integers.
-  ASMJIT_INLINE void setUB(uint8_t x0) noexcept  {
+  ASMJIT_INLINE void setU8(uint8_t x0) noexcept  {
     if (ASMJIT_ARCH_64BIT) {
       uint64_t xq = static_cast<uint64_t>(x0) * ASMJIT_UINT64_C(0x0101010101010101);
       uq[0] = xq;
@@ -480,7 +480,7 @@ union Vec128 {
   }
 
   //! Set all sixteen 8-bit signed integers.
-  ASMJIT_INLINE void setSB(
+  ASMJIT_INLINE void setI8(
     int8_t x0 , int8_t x1 , int8_t x2 , int8_t x3 ,
     int8_t x4 , int8_t x5 , int8_t x6 , int8_t x7 ,
     int8_t x8 , int8_t x9 , int8_t x10, int8_t x11,
@@ -493,7 +493,7 @@ union Vec128 {
   }
 
   //! Set all sixteen 8-bit unsigned integers.
-  ASMJIT_INLINE void setUB(
+  ASMJIT_INLINE void setU8(
     uint8_t x0 , uint8_t x1 , uint8_t x2 , uint8_t x3 ,
     uint8_t x4 , uint8_t x5 , uint8_t x6 , uint8_t x7 ,
     uint8_t x8 , uint8_t x9 , uint8_t x10, uint8_t x11,
@@ -506,12 +506,12 @@ union Vec128 {
   }
 
   //! Set all eight 16-bit signed integers.
-  ASMJIT_INLINE void setSW(int16_t x0) noexcept {
-    setUW(static_cast<uint16_t>(x0));
+  ASMJIT_INLINE void setI16(int16_t x0) noexcept {
+    setU16(static_cast<uint16_t>(x0));
   }
 
   //! Set all eight 16-bit unsigned integers.
-  ASMJIT_INLINE void setUW(uint16_t x0) noexcept {
+  ASMJIT_INLINE void setU16(uint16_t x0) noexcept {
     if (ASMJIT_ARCH_64BIT) {
       uint64_t xq = static_cast<uint64_t>(x0) * ASMJIT_UINT64_C(0x0001000100010001);
       uq[0] = xq;
@@ -527,7 +527,7 @@ union Vec128 {
   }
 
   //! Set all eight 16-bit signed integers.
-  ASMJIT_INLINE void setSW(
+  ASMJIT_INLINE void setI16(
     int16_t x0, int16_t x1, int16_t x2, int16_t x3, int16_t x4, int16_t x5, int16_t x6, int16_t x7) noexcept {
 
     sw[0] = x0; sw[1] = x1; sw[2] = x2; sw[3] = x3;
@@ -535,7 +535,7 @@ union Vec128 {
   }
 
   //! Set all eight 16-bit unsigned integers.
-  ASMJIT_INLINE void setUW(
+  ASMJIT_INLINE void setU16(
     uint16_t x0, uint16_t x1, uint16_t x2, uint16_t x3, uint16_t x4, uint16_t x5, uint16_t x6, uint16_t x7) noexcept {
 
     uw[0] = x0; uw[1] = x1; uw[2] = x2; uw[3] = x3;
@@ -543,12 +543,12 @@ union Vec128 {
   }
 
   //! Set all four 32-bit signed integers.
-  ASMJIT_INLINE void setSD(int32_t x0) noexcept {
-    setUD(static_cast<uint32_t>(x0));
+  ASMJIT_INLINE void setI32(int32_t x0) noexcept {
+    setU32(static_cast<uint32_t>(x0));
   }
 
   //! Set all four 32-bit unsigned integers.
-  ASMJIT_INLINE void setUD(uint32_t x0) noexcept {
+  ASMJIT_INLINE void setU32(uint32_t x0) noexcept {
     if (ASMJIT_ARCH_64BIT) {
       uint64_t t = (static_cast<uint64_t>(x0) << 32) + x0;
       uq[0] = t;
@@ -563,52 +563,52 @@ union Vec128 {
   }
 
   //! Set all four 32-bit signed integers.
-  ASMJIT_INLINE void setSD(int32_t x0, int32_t x1, int32_t x2, int32_t x3) noexcept {
+  ASMJIT_INLINE void setI32(int32_t x0, int32_t x1, int32_t x2, int32_t x3) noexcept {
     sd[0] = x0; sd[1] = x1; sd[2] = x2; sd[3] = x3;
   }
 
   //! Set all four 32-bit unsigned integers.
-  ASMJIT_INLINE void setUD(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3) noexcept {
+  ASMJIT_INLINE void setU32(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3) noexcept {
     ud[0] = x0; ud[1] = x1; ud[2] = x2; ud[3] = x3;
   }
 
   //! Set all two 64-bit signed integers.
-  ASMJIT_INLINE void setSQ(int64_t x0) noexcept {
+  ASMJIT_INLINE void setI64(int64_t x0) noexcept {
     sq[0] = x0; sq[1] = x0;
   }
 
   //! Set all two 64-bit unsigned integers.
-  ASMJIT_INLINE void setUQ(uint64_t x0) noexcept {
+  ASMJIT_INLINE void setU64(uint64_t x0) noexcept {
     uq[0] = x0; uq[1] = x0;
   }
 
   //! Set all two 64-bit signed integers.
-  ASMJIT_INLINE void setSQ(int64_t x0, int64_t x1) noexcept {
+  ASMJIT_INLINE void setI64(int64_t x0, int64_t x1) noexcept {
     sq[0] = x0; sq[1] = x1;
   }
 
   //! Set all two 64-bit unsigned integers.
-  ASMJIT_INLINE void setUQ(uint64_t x0, uint64_t x1) noexcept {
+  ASMJIT_INLINE void setU64(uint64_t x0, uint64_t x1) noexcept {
     uq[0] = x0; uq[1] = x1;
   }
 
   //! Set all four SP-FP floats.
-  ASMJIT_INLINE void setSF(float x0) noexcept {
+  ASMJIT_INLINE void setF32(float x0) noexcept {
     sf[0] = x0; sf[1] = x0; sf[2] = x0; sf[3] = x0;
   }
 
   //! Set all four SP-FP floats.
-  ASMJIT_INLINE void setSF(float x0, float x1, float x2, float x3) noexcept {
+  ASMJIT_INLINE void setF32(float x0, float x1, float x2, float x3) noexcept {
     sf[0] = x0; sf[1] = x1; sf[2] = x2; sf[3] = x3;
   }
 
   //! Set all two DP-FP floats.
-  ASMJIT_INLINE void setDF(double x0) noexcept {
+  ASMJIT_INLINE void setF64(double x0) noexcept {
     df[0] = x0; df[1] = x0;
   }
 
   //! Set all two DP-FP floats.
-  ASMJIT_INLINE void setDF(double x0, double x1) noexcept {
+  ASMJIT_INLINE void setF64(double x0, double x1) noexcept {
     df[0] = x0; df[1] = x1;
   }
 
@@ -640,31 +640,31 @@ union Vec128 {
 };
 
 // ============================================================================
-// [asmjit::Vec256]
+// [asmjit::Data256]
 // ============================================================================
 
-//! 256-bit vector register data.
-union Vec256 {
+//! 256-bit data useful for creating SIMD constants.
+union Data256 {
   // --------------------------------------------------------------------------
   // [Construction / Destruction]
   // --------------------------------------------------------------------------
 
   //! Set all thirty two 8-bit signed integers.
-  static ASMJIT_INLINE Vec256 fromSB(int8_t x0) noexcept {
-    Vec256 self;
-    self.setSB(x0);
+  static ASMJIT_INLINE Data256 fromI8(int8_t x0) noexcept {
+    Data256 self;
+    self.setI8(x0);
     return self;
   }
 
   //! Set all thirty two 8-bit unsigned integers.
-  static ASMJIT_INLINE Vec256 fromUB(uint8_t x0) noexcept {
-    Vec256 self;
-    self.setUB(x0);
+  static ASMJIT_INLINE Data256 fromU8(uint8_t x0) noexcept {
+    Data256 self;
+    self.setU8(x0);
     return self;
   }
 
   //! Set all thirty two 8-bit signed integers.
-  static ASMJIT_INLINE Vec256 fromSB(
+  static ASMJIT_INLINE Data256 fromI8(
     int8_t x0 , int8_t x1 , int8_t x2 , int8_t x3 ,
     int8_t x4 , int8_t x5 , int8_t x6 , int8_t x7 ,
     int8_t x8 , int8_t x9 , int8_t x10, int8_t x11,
@@ -674,15 +674,15 @@ union Vec256 {
     int8_t x24, int8_t x25, int8_t x26, int8_t x27,
     int8_t x28, int8_t x29, int8_t x30, int8_t x31) noexcept {
 
-    Vec256 self;
-    self.setSB(
+    Data256 self;
+    self.setI8(
       x0,  x1 , x2 , x3 , x4 , x5 , x6 , x7 , x8 , x9 , x10, x11, x12, x13, x14, x15,
       x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31);
     return self;
   }
 
   //! Set all thirty two 8-bit unsigned integers.
-  static ASMJIT_INLINE Vec256 fromUB(
+  static ASMJIT_INLINE Data256 fromU8(
     uint8_t x0 , uint8_t x1 , uint8_t x2 , uint8_t x3 ,
     uint8_t x4 , uint8_t x5 , uint8_t x6 , uint8_t x7 ,
     uint8_t x8 , uint8_t x9 , uint8_t x10, uint8_t x11,
@@ -692,137 +692,137 @@ union Vec256 {
     uint8_t x24, uint8_t x25, uint8_t x26, uint8_t x27,
     uint8_t x28, uint8_t x29, uint8_t x30, uint8_t x31) noexcept {
 
-    Vec256 self;
-    self.setUB(
+    Data256 self;
+    self.setU8(
       x0,  x1 , x2 , x3 , x4 , x5 , x6 , x7 , x8 , x9 , x10, x11, x12, x13, x14, x15,
       x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31);
     return self;
   }
 
   //! Set all sixteen 16-bit signed integers.
-  static ASMJIT_INLINE Vec256 fromSW(int16_t x0) noexcept {
-    Vec256 self;
-    self.setSW(x0);
+  static ASMJIT_INLINE Data256 fromI16(int16_t x0) noexcept {
+    Data256 self;
+    self.setI16(x0);
     return self;
   }
 
   //! Set all sixteen 16-bit unsigned integers.
-  static ASMJIT_INLINE Vec256 fromUW(uint16_t x0) noexcept {
-    Vec256 self;
-    self.setUW(x0);
+  static ASMJIT_INLINE Data256 fromU16(uint16_t x0) noexcept {
+    Data256 self;
+    self.setU16(x0);
     return self;
   }
 
   //! Set all sixteen 16-bit signed integers.
-  static ASMJIT_INLINE Vec256 fromSW(
+  static ASMJIT_INLINE Data256 fromI16(
     int16_t x0, int16_t x1, int16_t x2 , int16_t x3 , int16_t x4 , int16_t x5 , int16_t x6 , int16_t x7 ,
     int16_t x8, int16_t x9, int16_t x10, int16_t x11, int16_t x12, int16_t x13, int16_t x14, int16_t x15) noexcept {
 
-    Vec256 self;
-    self.setSW(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
+    Data256 self;
+    self.setI16(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
     return self;
   }
 
   //! Set all sixteen 16-bit unsigned integers.
-  static ASMJIT_INLINE Vec256 fromUW(
+  static ASMJIT_INLINE Data256 fromU16(
     uint16_t x0, uint16_t x1, uint16_t x2 , uint16_t x3 , uint16_t x4 , uint16_t x5 , uint16_t x6 , uint16_t x7 ,
     uint16_t x8, uint16_t x9, uint16_t x10, uint16_t x11, uint16_t x12, uint16_t x13, uint16_t x14, uint16_t x15) noexcept {
 
-    Vec256 self;
-    self.setUW(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
+    Data256 self;
+    self.setU16(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
     return self;
   }
 
   //! Set all eight 32-bit signed integers.
-  static ASMJIT_INLINE Vec256 fromSD(int32_t x0) noexcept {
-    Vec256 self;
-    self.setSD(x0);
+  static ASMJIT_INLINE Data256 fromI32(int32_t x0) noexcept {
+    Data256 self;
+    self.setI32(x0);
     return self;
   }
 
   //! Set all eight 32-bit unsigned integers.
-  static ASMJIT_INLINE Vec256 fromUD(uint32_t x0) noexcept {
-    Vec256 self;
-    self.setUD(x0);
+  static ASMJIT_INLINE Data256 fromU32(uint32_t x0) noexcept {
+    Data256 self;
+    self.setU32(x0);
     return self;
   }
 
   //! Set all eight 32-bit signed integers.
-  static ASMJIT_INLINE Vec256 fromSD(
+  static ASMJIT_INLINE Data256 fromI32(
     int32_t x0, int32_t x1, int32_t x2, int32_t x3,
     int32_t x4, int32_t x5, int32_t x6, int32_t x7) noexcept {
 
-    Vec256 self;
-    self.setSD(x0, x1, x2, x3, x4, x5, x6, x7);
+    Data256 self;
+    self.setI32(x0, x1, x2, x3, x4, x5, x6, x7);
     return self;
   }
 
   //! Set all eight 32-bit unsigned integers.
-  static ASMJIT_INLINE Vec256 fromUD(
+  static ASMJIT_INLINE Data256 fromU32(
     uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
     uint32_t x4, uint32_t x5, uint32_t x6, uint32_t x7) noexcept {
 
-    Vec256 self;
-    self.setUD(x0, x1, x2, x3, x4, x5, x6, x7);
+    Data256 self;
+    self.setU32(x0, x1, x2, x3, x4, x5, x6, x7);
     return self;
   }
 
   //! Set all four 64-bit signed integers.
-  static ASMJIT_INLINE Vec256 fromSQ(int64_t x0) noexcept {
-    Vec256 self;
-    self.setSQ(x0);
+  static ASMJIT_INLINE Data256 fromI64(int64_t x0) noexcept {
+    Data256 self;
+    self.setI64(x0);
     return self;
   }
 
   //! Set all four 64-bit unsigned integers.
-  static ASMJIT_INLINE Vec256 fromUQ(uint64_t x0) noexcept {
-    Vec256 self;
-    self.setUQ(x0);
+  static ASMJIT_INLINE Data256 fromU64(uint64_t x0) noexcept {
+    Data256 self;
+    self.setU64(x0);
     return self;
   }
 
   //! Set all four 64-bit signed integers.
-  static ASMJIT_INLINE Vec256 fromSQ(int64_t x0, int64_t x1, int64_t x2, int64_t x3) noexcept {
-    Vec256 self;
-    self.setSQ(x0, x1, x2, x3);
+  static ASMJIT_INLINE Data256 fromI64(int64_t x0, int64_t x1, int64_t x2, int64_t x3) noexcept {
+    Data256 self;
+    self.setI64(x0, x1, x2, x3);
     return self;
   }
 
   //! Set all four 64-bit unsigned integers.
-  static ASMJIT_INLINE Vec256 fromUQ(uint64_t x0, uint64_t x1, uint64_t x2, uint64_t x3) noexcept {
-    Vec256 self;
-    self.setUQ(x0, x1, x2, x3);
+  static ASMJIT_INLINE Data256 fromU64(uint64_t x0, uint64_t x1, uint64_t x2, uint64_t x3) noexcept {
+    Data256 self;
+    self.setU64(x0, x1, x2, x3);
     return self;
   }
 
   //! Set all eight SP-FP floats.
-  static ASMJIT_INLINE Vec256 fromSF(float x0) noexcept {
-    Vec256 self;
-    self.setSF(x0);
+  static ASMJIT_INLINE Data256 fromF32(float x0) noexcept {
+    Data256 self;
+    self.setF32(x0);
     return self;
   }
 
   //! Set all eight SP-FP floats.
-  static ASMJIT_INLINE Vec256 fromSF(
+  static ASMJIT_INLINE Data256 fromF32(
     float x0, float x1, float x2, float x3,
     float x4, float x5, float x6, float x7) noexcept {
 
-    Vec256 self;
-    self.setSF(x0, x1, x2, x3, x4, x5, x6, x7);
+    Data256 self;
+    self.setF32(x0, x1, x2, x3, x4, x5, x6, x7);
     return self;
   }
 
   //! Set all four DP-FP floats.
-  static ASMJIT_INLINE Vec256 fromDF(double x0) noexcept {
-    Vec256 self;
-    self.setDF(x0);
+  static ASMJIT_INLINE Data256 fromF64(double x0) noexcept {
+    Data256 self;
+    self.setF64(x0);
     return self;
   }
 
   //! Set all four DP-FP floats.
-  static ASMJIT_INLINE Vec256 fromDF(double x0, double x1, double x2, double x3) noexcept {
-    Vec256 self;
-    self.setDF(x0, x1, x2, x3);
+  static ASMJIT_INLINE Data256 fromF64(double x0, double x1, double x2, double x3) noexcept {
+    Data256 self;
+    self.setF64(x0, x1, x2, x3);
     return self;
   }
 
@@ -831,21 +831,21 @@ union Vec256 {
   // --------------------------------------------------------------------------
 
   //! Set all thirty two 8-bit signed integers.
-  ASMJIT_INLINE void setSB(int8_t x0) noexcept {
-    setUB(static_cast<uint8_t>(x0));
+  ASMJIT_INLINE void setI8(int8_t x0) noexcept {
+    setU8(static_cast<uint8_t>(x0));
   }
 
   //! Set all thirty two 8-bit unsigned integers.
-  ASMJIT_INLINE void setUB(uint8_t x0) noexcept {
+  ASMJIT_INLINE void setU8(uint8_t x0) noexcept {
     if (ASMJIT_ARCH_64BIT) {
-      uint64_t xq = static_cast<uint64_t>(x0)* ASMJIT_UINT64_C(0x0101010101010101);
+      uint64_t xq = static_cast<uint64_t>(x0) * ASMJIT_UINT64_C(0x0101010101010101);
       uq[0] = xq;
       uq[1] = xq;
       uq[2] = xq;
       uq[3] = xq;
     }
     else {
-      uint32_t xd = static_cast<uint32_t>(x0)* static_cast<uint32_t>(0x01010101U);
+      uint32_t xd = static_cast<uint32_t>(x0) * static_cast<uint32_t>(0x01010101U);
       ud[0] = xd;
       ud[1] = xd;
       ud[2] = xd;
@@ -858,7 +858,7 @@ union Vec256 {
   }
 
   //! Set all thirty two 8-bit signed integers.
-  ASMJIT_INLINE void setSB(
+  ASMJIT_INLINE void setI8(
     int8_t x0 , int8_t x1 , int8_t x2 , int8_t x3 ,
     int8_t x4 , int8_t x5 , int8_t x6 , int8_t x7 ,
     int8_t x8 , int8_t x9 , int8_t x10, int8_t x11,
@@ -879,7 +879,7 @@ union Vec256 {
   }
 
   //! Set all thirty two 8-bit unsigned integers.
-  ASMJIT_INLINE void setUB(
+  ASMJIT_INLINE void setU8(
     uint8_t x0 , uint8_t x1 , uint8_t x2 , uint8_t x3 ,
     uint8_t x4 , uint8_t x5 , uint8_t x6 , uint8_t x7 ,
     uint8_t x8 , uint8_t x9 , uint8_t x10, uint8_t x11,
@@ -900,21 +900,21 @@ union Vec256 {
   }
 
   //! Set all sixteen 16-bit signed integers.
-  ASMJIT_INLINE void setSW(int16_t x0) noexcept {
-    setUW(static_cast<uint16_t>(x0));
+  ASMJIT_INLINE void setI16(int16_t x0) noexcept {
+    setU16(static_cast<uint16_t>(x0));
   }
 
   //! Set all eight 16-bit unsigned integers.
-  ASMJIT_INLINE void setUW(uint16_t x0) noexcept {
+  ASMJIT_INLINE void setU16(uint16_t x0) noexcept {
     if (ASMJIT_ARCH_64BIT) {
-      uint64_t xq = static_cast<uint64_t>(x0)* ASMJIT_UINT64_C(0x0001000100010001);
+      uint64_t xq = static_cast<uint64_t>(x0) * ASMJIT_UINT64_C(0x0001000100010001);
       uq[0] = xq;
       uq[1] = xq;
       uq[2] = xq;
       uq[3] = xq;
     }
     else {
-      uint32_t xd = static_cast<uint32_t>(x0)* static_cast<uint32_t>(0x00010001U);
+      uint32_t xd = static_cast<uint32_t>(x0) * static_cast<uint32_t>(0x00010001U);
       ud[0] = xd;
       ud[1] = xd;
       ud[2] = xd;
@@ -927,7 +927,7 @@ union Vec256 {
   }
 
   //! Set all sixteen 16-bit signed integers.
-  ASMJIT_INLINE void setSW(
+  ASMJIT_INLINE void setI16(
     int16_t x0, int16_t x1, int16_t x2 , int16_t x3 , int16_t x4 , int16_t x5 , int16_t x6 , int16_t x7,
     int16_t x8, int16_t x9, int16_t x10, int16_t x11, int16_t x12, int16_t x13, int16_t x14, int16_t x15) noexcept {
 
@@ -938,7 +938,7 @@ union Vec256 {
   }
 
   //! Set all sixteen 16-bit unsigned integers.
-  ASMJIT_INLINE void setUW(
+  ASMJIT_INLINE void setU16(
     uint16_t x0, uint16_t x1, uint16_t x2 , uint16_t x3 , uint16_t x4 , uint16_t x5 , uint16_t x6 , uint16_t x7,
     uint16_t x8, uint16_t x9, uint16_t x10, uint16_t x11, uint16_t x12, uint16_t x13, uint16_t x14, uint16_t x15) noexcept {
 
@@ -949,12 +949,12 @@ union Vec256 {
   }
 
   //! Set all eight 32-bit signed integers.
-  ASMJIT_INLINE void setSD(int32_t x0) noexcept {
-    setUD(static_cast<uint32_t>(x0));
+  ASMJIT_INLINE void setI32(int32_t x0) noexcept {
+    setU32(static_cast<uint32_t>(x0));
   }
 
   //! Set all eight 32-bit unsigned integers.
-  ASMJIT_INLINE void setUD(uint32_t x0) noexcept {
+  ASMJIT_INLINE void setU32(uint32_t x0) noexcept {
     if (ASMJIT_ARCH_64BIT) {
       uint64_t xq = (static_cast<uint64_t>(x0) << 32) + x0;
       uq[0] = xq;
@@ -975,7 +975,7 @@ union Vec256 {
   }
 
   //! Set all eight 32-bit signed integers.
-  ASMJIT_INLINE void setSD(
+  ASMJIT_INLINE void setI32(
     int32_t x0, int32_t x1, int32_t x2, int32_t x3,
     int32_t x4, int32_t x5, int32_t x6, int32_t x7) noexcept {
 
@@ -984,7 +984,7 @@ union Vec256 {
   }
 
   //! Set all eight 32-bit unsigned integers.
-  ASMJIT_INLINE void setUD(
+  ASMJIT_INLINE void setU32(
     uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
     uint32_t x4, uint32_t x5, uint32_t x6, uint32_t x7) noexcept {
 
@@ -993,33 +993,33 @@ union Vec256 {
   }
 
   //! Set all four 64-bit signed integers.
-  ASMJIT_INLINE void setSQ(int64_t x0) noexcept {
+  ASMJIT_INLINE void setI64(int64_t x0) noexcept {
     sq[0] = x0; sq[1] = x0; sq[2] = x0; sq[3] = x0;
   }
 
   //! Set all four 64-bit unsigned integers.
-  ASMJIT_INLINE void setUQ(uint64_t x0) noexcept {
+  ASMJIT_INLINE void setU64(uint64_t x0) noexcept {
     uq[0] = x0; uq[1] = x0; uq[2] = x0; uq[3] = x0;
   }
 
   //! Set all four 64-bit signed integers.
-  ASMJIT_INLINE void setSQ(int64_t x0, int64_t x1, int64_t x2, int64_t x3) noexcept {
+  ASMJIT_INLINE void setI64(int64_t x0, int64_t x1, int64_t x2, int64_t x3) noexcept {
     sq[0] = x0; sq[1] = x1; sq[2] = x2; sq[3] = x3;
   }
 
   //! Set all four 64-bit unsigned integers.
-  ASMJIT_INLINE void setUQ(uint64_t x0, uint64_t x1, uint64_t x2, uint64_t x3) noexcept {
+  ASMJIT_INLINE void setU64(uint64_t x0, uint64_t x1, uint64_t x2, uint64_t x3) noexcept {
     uq[0] = x0; uq[1] = x1; uq[2] = x2; uq[3] = x3;
   }
 
   //! Set all eight SP-FP floats.
-  ASMJIT_INLINE void setSF(float x0) noexcept {
+  ASMJIT_INLINE void setF32(float x0) noexcept {
     sf[0] = x0; sf[1] = x0; sf[2] = x0; sf[3] = x0;
     sf[4] = x0; sf[5] = x0; sf[6] = x0; sf[7] = x0;
   }
 
   //! Set all eight SP-FP floats.
-  ASMJIT_INLINE void setSF(
+  ASMJIT_INLINE void setF32(
     float x0, float x1, float x2, float x3,
     float x4, float x5, float x6, float x7) noexcept {
 
@@ -1028,12 +1028,12 @@ union Vec256 {
   }
 
   //! Set all four DP-FP floats.
-  ASMJIT_INLINE void setDF(double x0) noexcept {
+  ASMJIT_INLINE void setF64(double x0) noexcept {
     df[0] = x0; df[1] = x0; df[2] = x0; df[3] = x0;
   }
 
   //! Set all four DP-FP floats.
-  ASMJIT_INLINE void setDF(double x0, double x1, double x2, double x3) noexcept {
+  ASMJIT_INLINE void setF64(double x0, double x1, double x2, double x3) noexcept {
     df[0] = x0; df[1] = x1; df[2] = x2; df[3] = x3;
   }
 
@@ -1069,7 +1069,7 @@ union Vec256 {
 } // asmjit namespace
 
 // [Api-End]
-#include "../apiend.h"
+#include "../asmjit_apiend.h"
 
 // [Guard]
-#endif // _ASMJIT_BASE_VECTYPES_H
+#endif // _ASMJIT_BASE_SIMDTYPES_H
