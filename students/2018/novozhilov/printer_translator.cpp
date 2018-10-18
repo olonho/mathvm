@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <typeinfo>
 #include "parser.h"
-#include "printer_translator.h"
+#include "include/printer_translator.h"
 
 using namespace mathvm;
 
