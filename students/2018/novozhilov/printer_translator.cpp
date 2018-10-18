@@ -9,7 +9,7 @@
 
 using namespace mathvm;
 
-Status *PrinterTranslator::translate(const std::string &program, Code **code) {
+Status *PrinterTranslator::translate(const std::string &program, Code **code __attribute__ ((unused))) {
     Parser parser;
 
     Status *status = parser.parseProgram(program);
@@ -24,7 +24,6 @@ Status *PrinterTranslator::translate(const std::string &program, Code **code) {
 // --------------------------------- Visitor ---------------------------------
 
 void PrettyPrinterVisitor::visitForNode(ForNode *node) {
-    printIndent();
     out << "for (" << node->var()->name() << " in ";
     node->inExpr()->visit(this);
     out << ") {" << endl;
@@ -34,7 +33,6 @@ void PrettyPrinterVisitor::visitForNode(ForNode *node) {
 }
 
 void PrettyPrinterVisitor::visitPrintNode(PrintNode *node) {
-    printIndent();
     out << "print(";
     uint32_t operands = node->operands();
     if (operands > 0) {
@@ -52,7 +50,6 @@ void PrettyPrinterVisitor::visitLoadNode(LoadNode *node) {
 }
 
 void PrettyPrinterVisitor::visitIfNode(IfNode *node) {
-    printIndent();
     out << "if (";
     node->ifExpr()->visit(this);
     out << ") {" << endl;
@@ -78,7 +75,6 @@ void PrettyPrinterVisitor::visitDoubleLiteralNode(DoubleLiteralNode *node) {
 }
 
 void PrettyPrinterVisitor::visitStoreNode(StoreNode *node) {
-    printIndent();
     out << node->var()->name();
     printTokenKind(node->op());
     node->value()->visit(this);
@@ -107,7 +103,6 @@ void PrettyPrinterVisitor::visitStringLiteralNode(StringLiteralNode *node) {
 }
 
 void PrettyPrinterVisitor::visitWhileNode(WhileNode *node) {
-    printIndent();
     out << "while (";
     node->whileExpr()->visit(this);
     out << ") {" << endl;
@@ -121,7 +116,7 @@ void PrettyPrinterVisitor::visitIntLiteralNode(IntLiteralNode *node) {
 }
 
 void PrettyPrinterVisitor::visitUnaryOpNode(UnaryOpNode *node) {
-    printTokenKind(node->kind());
+    printTokenKindNoSpaces(node->kind());
     node->operand()->visit(this);
 }
 
@@ -140,7 +135,7 @@ void PrettyPrinterVisitor::visitBlockNode(BlockNode *node) {
         AstVar *variable = varIterator.next();
         printIndent();
         printVarType(variable->type());
-        out << " " << variable->name() << ";" << endl;
+        out << variable->name() << ";" << endl;
     }
 
     Scope::FunctionIterator functionIterator(scope);
@@ -180,14 +175,13 @@ bool isNativeFunc(FunctionNode *node) {
 }
 
 void PrettyPrinterVisitor::visitFunctionNode(FunctionNode *node, bool isTop) {
-    printIndent();
-
     bool isNativeFunction = isNativeFunc(node);
 
     if (!isTop) {
+        printIndent();
         out << "function ";
         printVarType(node->returnType());
-        out << " " << node->name() << "(";
+        out << node->name() << "(";
         uint32_t parametersNumber = node->parametersNumber();
         if (parametersNumber > 0) {
             printVarType(node->parameterType(0));
@@ -202,14 +196,14 @@ void PrettyPrinterVisitor::visitFunctionNode(FunctionNode *node, bool isTop) {
         if (isNativeFunction) {
             out << " native ";
         } else {
-            out << "{" << endl;
+            out << " {" << endl;
         }
     }
 
     node->body()->visit(this);
-    printIndent();
 
     if (!isTop && !isNativeFunction) {
+        printIndent();
         out << "}" << endl;
     }
 }
@@ -247,7 +241,7 @@ string PrettyPrinterVisitor::getTab() const {
 }
 
 void PrettyPrinterVisitor::printIndent() const {
-//    out << getTab() << endl;
+    out << getTab();
 }
 
 void PrettyPrinterVisitor::printVarType(VarType const &varType) const {
@@ -269,8 +263,12 @@ void PrettyPrinterVisitor::printVarType(VarType const &varType) const {
 
 void PrettyPrinterVisitor::printTokenKind(TokenKind const &kind) const {
     out << " ";
+    printTokenKindNoSpaces(kind);
+    out << " ";
+}
+
+void PrettyPrinterVisitor::printTokenKindNoSpaces(TokenKind const &kind) const {
 #define TOKEN_TO_STRING(t, s, p) if (kind == t) out << s;
     FOR_TOKENS(TOKEN_TO_STRING)
 #undef TOKEN_TO_STRING
-    out << " ";
 }

@@ -7,7 +7,7 @@
 namespace mathvm {
     class PrettyPrinterVisitor : public AstBaseVisitor {
     private:
-        const string TAB = "  ";
+        const string TAB = "    ";
 
         std::ostream &out;
         int indent;
@@ -17,8 +17,9 @@ namespace mathvm {
 
         void printVarType(VarType const& varType) const;
         void printTokenKind(TokenKind const& kind) const;
+        void printTokenKindNoSpaces(TokenKind const& kind) const;
     public:
-        explicit PrettyPrinterVisitor(std::ostream &out) : out(out), indent(0) {}
+        explicit PrettyPrinterVisitor(std::ostream &out) : out(out), indent(-1) {}
 
         void visitTopNode(FunctionNode *node);
 
