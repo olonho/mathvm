@@ -23,7 +23,7 @@ Status* BytecodeTranslatorImpl::translate(const std::string &program, Code **cod
     return status;
 }
 
-BytecodeGenerator::BytecodeGenerator(Code *code) : _code(code), _context(nullptr) {}
+BytecodeGenerator::BytecodeGenerator(Code *code) : _code(code), _context(nullptr), _info(), _infoCollector(new InfoCollector(this)) {}
 
 void BytecodeGenerator::generateCodeForTopFunction(AstFunction *function) {
     auto* bytecodeFunction = new BytecodeFunction(function);
@@ -59,6 +59,7 @@ void BytecodeGenerator::visitForNode(ForNode *node) {
     inExpr->left()->visit(this);
 
     const AstVar *var = node->var();
+    VarType type = var->type();
     storeValueToVar(var);
 
     Bytecode *bytecode = getBytecode();
@@ -67,13 +68,13 @@ void BytecodeGenerator::visitForNode(ForNode *node) {
     Label endLabel(bytecode);
 
     bytecode->bind(startLabel);
-    loadValueFromVar(var);
+    loadValueFromVar(var, type);
     inExpr->right()->visit(this);
 
     bytecode->addBranch(BC_IFICMPL, endLabel);
     node->body()->visit(this);
 
-    loadValueFromVar(var);
+    loadValueFromVar(var, type);
     bytecode->addInsn(BC_ILOAD1);
     bytecode->addInsn(BC_IADD);
     storeValueToVar(var);
@@ -122,8 +123,9 @@ void BytecodeGenerator::visitPrintNode(PrintNode *node) {
     
     uint32_t operands = node->operands();
     for (uint32_t i = 0; i < operands; ++i) {
-        node->operandAt(i)->visit(this);
-        switch (getTypeOnStackTop()) {
+        AstNode *operand = node->operandAt(i);
+        operand->visit(this);
+        switch (getNodeType(operand)) {
             case VT_INT:
                 bytecode->addInsn(BC_IPRINT);
                 break;
@@ -140,7 +142,7 @@ void BytecodeGenerator::visitPrintNode(PrintNode *node) {
 }
 
 void BytecodeGenerator::visitLoadNode(LoadNode *node) {
-    loadValueFromVar(node->var());
+    loadValueFromVar(node->var(), getNodeType(node));
 }
 
 void BytecodeGenerator::visitStoreNode(StoreNode *node) {
@@ -153,14 +155,17 @@ void BytecodeGenerator::visitStoreNode(StoreNode *node) {
             break;
         case tINCRSET:
         case tDECRSET: {
-            loadValueFromVar(var);
             VarType type = var->type();
-            if (type == VT_INT) {
-                bytecode->addInsn(op == tINCRSET ? BC_IADD : BC_ISUB);
-            } else if (type == VT_DOUBLE) {
-                bytecode->addInsn(op == tINCRSET ? BC_DADD : BC_DSUB);
-            } else {
-                bytecode->addInsn(BC_INVALID);
+            loadValueFromVar(var, type);
+            switch (type) {
+                case VT_INT:
+                    bytecode->addInsn(op == tINCRSET ? BC_IADD : BC_ISUB);
+                    break;
+                case VT_DOUBLE:
+                    bytecode->addInsn(op == tINCRSET ? BC_DADD : BC_DSUB);
+                    break;
+                default:
+                    bytecode->addInsn(BC_INVALID);
             }
             break;
         }
@@ -174,29 +179,31 @@ void BytecodeGenerator::visitIntLiteralNode(IntLiteralNode *node) {
     Bytecode *bytecode = getBytecode();
     bytecode->addInsn(BC_ILOAD);
     bytecode->addInt64(node->literal());
-    setTypeOnStackTop(VT_INT);
+    castVarOnStackTop(VT_STRING, getNodeType(node));
 }
 
 void BytecodeGenerator::visitDoubleLiteralNode(DoubleLiteralNode *node) {
     Bytecode *bytecode = getBytecode();
     bytecode->addInsn(BC_DLOAD);
     bytecode->addDouble(node->literal());
-    setTypeOnStackTop(VT_DOUBLE);
+    castVarOnStackTop(VT_DOUBLE, getNodeType(node));
 }
 
 void BytecodeGenerator::visitStringLiteralNode(StringLiteralNode *node) {
     Bytecode *bytecode = getBytecode();
     bytecode->addInsn(BC_SLOAD);
     bytecode->addUInt16(_code->makeStringConstant(node->literal()));
-    setTypeOnStackTop(VT_STRING);
+    castVarOnStackTop(VT_INT, getNodeType(node));
 }
 
 void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode *node) {
     node->operand()->visit(this);
     Bytecode *bytecode = getBytecode();
+    VarType type = getNodeType(node);
+
     switch (node->kind()) {
         case tSUB: {
-            switch (getTypeOnStackTop()) {
+            switch (type) {
                 case VT_INT:
                     bytecode->addInsn(BC_INEG);
                     break;
@@ -209,7 +216,7 @@ void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode *node) {
         }
 
         case tNOT: {
-            if (getTypeOnStackTop() != VT_INT) {
+            if (type != VT_INT) {
                 throw std::runtime_error("illegal type on stack");
             }
             Label oneLabel(bytecode);
@@ -260,24 +267,14 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode *node) {
     }
 }
 
-VarType BytecodeGenerator::processBinaryOperands(BinaryOpNode *node, bool castToInt) {
-    node->left()->visit(this);
-    if (castToInt) {
-        castVarOnStackTop(VT_INT);
-    }
-    VarType leftType = getTypeOnStackTop();
-
-    node->right()->visit(this);
-    castVarOnStackTop(leftType);
-    return leftType;
-}
-
 void BytecodeGenerator::processArithmeticOperation(BinaryOpNode *node) {
-    VarType leftType = processBinaryOperands(node);
-    if (!(leftType == VT_INT || leftType == VT_DOUBLE)) {
+    node->visitChildren(this);
+
+    VarType type = getNodeType(node);
+    if (!(type == VT_INT || type == VT_DOUBLE)) {
         throw std::runtime_error("illegal type on stack");
     }
-    bool intType = leftType == VT_INT;
+    bool intType = type == VT_INT;
 
     Bytecode *bytecode = getBytecode();
     
@@ -304,12 +301,12 @@ void BytecodeGenerator::processArithmeticOperation(BinaryOpNode *node) {
         default:
             throw std::runtime_error("illegal operation kind");
     }
-    setTypeOnStackTop(leftType);
 }
 
 void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {
-    VarType leftType = processBinaryOperands(node);
-    if (leftType != VT_INT) {
+    node->visitChildren(this);
+
+    if (getNodeType(node) != VT_INT) {
         throw std::runtime_error("illegal type on stack");
     }
 
@@ -330,12 +327,14 @@ void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {
         default:
             throw std::runtime_error("illegal operation kind");
     }
-
-    setTypeOnStackTop(leftType);
 }
 
 void BytecodeGenerator::processComparingOperation(BinaryOpNode *node) {
-    processBinaryOperands(node, true);
+    node->visitChildren(this);
+
+    if (getNodeType(node) != VT_INT) {
+        throw std::runtime_error("illegal type on stack");
+    }
 
     Bytecode *bytecode = getBytecode();
     Instruction instruction;
@@ -362,8 +361,7 @@ void BytecodeGenerator::processComparingOperation(BinaryOpNode *node) {
         default:
             throw std::runtime_error("illegal operation kind");
     }
-    bytecode->addInsn(instruction);
-    setTypeOnStackTop(VT_INT);
+    bytecode->addInsn(instruction);;
 }
 
 void BytecodeGenerator::visitCallNode(CallNode *node) {
@@ -373,14 +371,19 @@ void BytecodeGenerator::visitCallNode(CallNode *node) {
     }
 
     for (uint32_t i = node->parametersNumber(); i > 0; --i) {
-        node->parameterAt(i - 1)->visit(this);
-        castVarOnStackTop(function->parameterType(i - 1));
+        AstNode *parameter = node->parameterAt(i - 1);
+        parameter->visit(this);
     }
 
     Bytecode *bytecode = getBytecode();
     bytecode->addInsn(BC_CALL);
     bytecode->addUInt16(function->id());
-    setTypeOnStackTop(function->returnType());
+
+    castVarOnStackTop(function->returnType(), getNodeType(node));
+
+    if (!_info.returnValueUsed[node->position()] && function->returnType() != VT_VOID) {
+        bytecode->addInsn(BC_POP);
+    }
 }
 
 void BytecodeGenerator::visitNativeCallNode(NativeCallNode *node __attribute__ ((unused))) {
@@ -388,15 +391,10 @@ void BytecodeGenerator::visitNativeCallNode(NativeCallNode *node __attribute__ (
 }
 
 void BytecodeGenerator::visitReturnNode(ReturnNode *node) {
-    BytecodeFunction *function = _context->getFunction();
-    VarType returnType = function->returnType();
-
     AstNode *returnExpr = node->returnExpr();
     if (returnExpr != nullptr) {
         returnExpr->visit(this);
-        castVarOnStackTop(returnType);
     }
-    setTypeOnStackTop(returnType);
     getBytecode()->addInsn(BC_RETURN);
 }
 
@@ -421,12 +419,12 @@ void BytecodeGenerator::visitBlockNode(BlockNode *node) {
 
     functionIterator = Scope::FunctionIterator(node->scope());
     while (functionIterator.hasNext()) {
-        generateCodeForFunction(functionIterator.next());
+        AstFunction *function = functionIterator.next();
+        function->node()->visit(this);
+        generateCodeForFunction(function);
     }
 
     node->visitChildren(this);
-//    TODO
-//    setTosType(VT_VOID);
 }
 
 // ----------------------------- private -----------------------------
@@ -459,11 +457,9 @@ void BytecodeGenerator::storeValueToVar(AstVar const *var) {
     if (!inSameContext) {
         getBytecode()->addUInt16(context->getContextId());
     }
-
-    setTypeOnStackTop(var->type());
 }
 
-void BytecodeGenerator::loadValueFromVar(AstVar const *var) {
+void BytecodeGenerator::loadValueFromVar(AstVar const *var, VarType targetType) {
     Context* context = findOwnerContextOfVar(var->name());
     bool inSameContext = context == _context;
 
@@ -487,38 +483,11 @@ void BytecodeGenerator::loadValueFromVar(AstVar const *var) {
     if (!inSameContext) {
         getBytecode()->addUInt16(context->getContextId());
     }
-
-    setTypeOnStackTop(var->type());
+    castVarOnStackTop(var->type(), targetType);
 }
 
-VarType BytecodeGenerator::getTypeOnStackTop() {
-    return _context->getTypeOnStackTop();
-}
-
-void BytecodeGenerator::setTypeOnStackTop(VarType type) {
-    _context->setTypeOnStackTop(type);
-}
-
-void BytecodeGenerator::castVarOnStackTop(VarType type) {
-    VarType typeOnStack = getTypeOnStackTop();
-    if (typeOnStack == type) {
-        return;
-    }
-
-    Bytecode *bytecode = getBytecode();
-    if (typeOnStack == VT_INT && type == VT_DOUBLE) {
-        bytecode->addInsn(BC_I2D);
-    } else if (typeOnStack == VT_DOUBLE && type == VT_INT) {
-        bytecode->addInsn(BC_D2I);
-    } else if (typeOnStack == VT_STRING && type == VT_INT) {
-        bytecode->addInsn(BC_S2I);
-    } else if (typeOnStack == VT_STRING && type == VT_DOUBLE) {
-        bytecode->addInsn(BC_S2I);
-        bytecode->addInsn(BC_I2D);
-    } else {
-        throw std::runtime_error("cast error");
-    }
-    setTypeOnStackTop(type);
+VarType BytecodeGenerator::getNodeType(AstNode *node) {
+    return _info.expressionType[node->position()];
 }
 
 Context *BytecodeGenerator::findOwnerContextOfVar(string name) {
@@ -528,4 +497,24 @@ Context *BytecodeGenerator::findOwnerContextOfVar(string name) {
         }
     }
     return nullptr;
+}
+
+void BytecodeGenerator::castVarOnStackTop(VarType sourceType, VarType targetType) {
+    if (sourceType == targetType) {
+        return;
+    }
+
+    Bytecode *bytecode = getBytecode();
+    if (sourceType == VT_INT && targetType == VT_DOUBLE) {
+        bytecode->addInsn(BC_I2D);
+    } else if (sourceType == VT_DOUBLE && targetType == VT_INT) {
+        bytecode->addInsn(BC_D2I);
+    } else if (sourceType == VT_STRING && targetType == VT_INT) {
+        bytecode->addInsn(BC_S2I);
+    } else if (sourceType == VT_STRING && targetType == VT_DOUBLE) {
+        bytecode->addInsn(BC_S2I);
+        bytecode->addInsn(BC_I2D);
+    } else {
+//        throw std::runtime_error("cast error");
+    }
 }
