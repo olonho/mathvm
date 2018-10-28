@@ -3,89 +3,226 @@
 
 using namespace mathvm;
 
-void BytecodeGenerator::InfoCollector::visitForNode(ForNode *node) {
+BytecodeGenerator::TypeInfoCollector::TypeInfoCollector(BytecodeGenerator *bytecodeGenerator)
+        : _bytecodeGenerator(bytecodeGenerator), _returnTypes(), _info(_bytecodeGenerator->_info) {}
+
+void BytecodeGenerator::TypeInfoCollector::visitForNode(ForNode *node) {
     VarType type = node->var()->type();
     uint32_t index = node->inExpr()->position();
-    _bytecodeGenerator->_info.expressionType[index] = type;
+    _info.expressionType[index] = type;
     node->inExpr()->visit(this);
 
     node->body()->visit(this);
 }
 
-void BytecodeGenerator::InfoCollector::visitPrintNode(PrintNode *node) {
+void BytecodeGenerator::TypeInfoCollector::visitPrintNode(PrintNode *node) {
     node->visitChildren(this);
 }
 
-void BytecodeGenerator::InfoCollector::visitLoadNode(LoadNode *node) {
+void BytecodeGenerator::TypeInfoCollector::visitLoadNode(LoadNode *node) {
     VarType type = node->var()->type();
-    _bytecodeGenerator->_info.expressionType[node->position()] = type;
+    _info.expressionType[node->position()] = type;
 }
 
-void BytecodeGenerator::InfoCollector::visitIfNode(IfNode *node) {
-    _bytecodeGenerator->_info.expressionType[node->ifExpr()->position()] = VT_INT;
+void BytecodeGenerator::TypeInfoCollector::visitIfNode(IfNode *node) {
+    _info.expressionType[node->ifExpr()->position()] = VT_INT;
     node->visitChildren(this);
 }
 
-void BytecodeGenerator::InfoCollector::visitWhileNode(WhileNode *node) {
-    _bytecodeGenerator->_info.expressionType[node->whileExpr()->position()] = VT_INT;
+void BytecodeGenerator::TypeInfoCollector::visitWhileNode(WhileNode *node) {
+    _info.expressionType[node->whileExpr()->position()] = VT_INT;
     node->visitChildren(this);
 }
 
-void BytecodeGenerator::InfoCollector::visitBlockNode(BlockNode *node) {
+void BytecodeGenerator::TypeInfoCollector::visitBlockNode(BlockNode *node) {
     node->visitChildren(this);
 }
 
-void BytecodeGenerator::InfoCollector::visitBinaryOpNode(BinaryOpNode *node) {
-    VarType type = _bytecodeGenerator->_info.expressionType[node->position()];
-    _bytecodeGenerator->_info.expressionType[node->left()->position()] = type;
-    _bytecodeGenerator->_info.expressionType[node->right()->position()] = type;
-    node->visitChildren(this);
+void BytecodeGenerator::TypeInfoCollector::visitBinaryOpNode(BinaryOpNode *node) {
+    VarType type = getNodeType(node);
+
+    if (type != VT_INVALID) {
+        _info.expressionType[node->left()->position()] = type;
+        _info.expressionType[node->right()->position()] = type;
+        node->visitChildren(this);
+    } else {
+        node->left()->visit(this);
+        type = getNodeType(node->left());
+        assert(type != VT_INVALID);
+        _info.expressionType[node->position()] = type;
+        _info.expressionType[node->right()->position()] = type;
+        node->right()->visit(this);
+    }
 }
 
-void BytecodeGenerator::InfoCollector::visitUnaryOpNode(UnaryOpNode *node) {
-    _bytecodeGenerator->_info.expressionType[node->operand()->position()] = _bytecodeGenerator->_info.expressionType[node->position()];
-    node->visitChildren(this);
+void BytecodeGenerator::TypeInfoCollector::visitUnaryOpNode(UnaryOpNode *node) {
+    VarType type = getNodeType(node);
+    if (type != VT_INVALID) {
+        _info.expressionType[node->operand()->position()] = type;
+        node->visitChildren(this);
+    } else {
+        node->visitChildren(this);
+        type = getNodeType(node->operand());
+        assert(type != VT_INVALID);
+        _info.expressionType[node->position()] = type;
+    }
 }
 
-void BytecodeGenerator::InfoCollector::visitNativeCallNode(NativeCallNode *node) {
+void BytecodeGenerator::TypeInfoCollector::visitNativeCallNode(NativeCallNode *node) {
     // TODO
     AstVisitor::visitNativeCallNode(node);
 }
 
-void BytecodeGenerator::InfoCollector::visitFunctionNode(FunctionNode *node) {
+void BytecodeGenerator::TypeInfoCollector::visitFunctionNode(FunctionNode *node) {
     _returnTypes.push(node->returnType());
     node->visitChildren(this);
     _returnTypes.pop();
 }
 
-void BytecodeGenerator::InfoCollector::visitReturnNode(ReturnNode *node) {
+void BytecodeGenerator::TypeInfoCollector::visitReturnNode(ReturnNode *node) {
     if (node->returnExpr() != nullptr) {
-        _bytecodeGenerator->_info.expressionType[node->returnExpr()->position()] = _returnTypes.top();
+        _info.expressionType[node->returnExpr()->position()] = _returnTypes.top();
     }
     node->visitChildren(this);
 }
 
-void BytecodeGenerator::InfoCollector::visitStoreNode(StoreNode *node) {
+void BytecodeGenerator::TypeInfoCollector::visitStoreNode(StoreNode *node) {
     VarType type = node->var()->type();
-    _bytecodeGenerator->_info.expressionType[node->value()->position()] = type;
+    _info.expressionType[node->value()->position()] = type;
     node->visitChildren(this);
 }
 
-void BytecodeGenerator::InfoCollector::visitCallNode(CallNode *node) {
+void BytecodeGenerator::TypeInfoCollector::visitCallNode(CallNode *node) {
     uint32_t index = node->position();
-    bool callUsedInExpression = _bytecodeGenerator->_info.expressionType.find(index) != _bytecodeGenerator->_info.expressionType.end();
-    _bytecodeGenerator->_info.returnValueUsed[index] = callUsedInExpression;
-    _bytecodeGenerator->_info.expressionType[index] = callUsedInExpression ? _bytecodeGenerator->_info.expressionType[index] : VT_VOID;
-
     TranslatedFunction *function = _bytecodeGenerator->_code->functionByName(node->name());
+
+    VarType type = getNodeType(node);
+    _info.expressionType[index] = type != VT_INVALID ? _info.expressionType[index] : function->returnType();
+
+
     uint16_t parametersNumber = function->parametersNumber();
 
     for (uint16_t i = 0; i < parametersNumber; ++i) {
         uint32_t parameterIndex = node->parameterAt(i)->position();
-        _bytecodeGenerator->_info.expressionType[parameterIndex] = function->parameterType(i);
+        _info.expressionType[parameterIndex] = function->parameterType(i);
     }
     node->visitChildren(this);
 }
 
-BytecodeGenerator::InfoCollector::InfoCollector(BytecodeGenerator *bytecodeGenerator) 
-    : _bytecodeGenerator(bytecodeGenerator), _returnTypes() {}
+void BytecodeGenerator::TypeInfoCollector::visitIntLiteralNode(IntLiteralNode *node) {
+    if (getNodeType(node) == VT_INVALID) {
+        _info.expressionType[node->position()] = VT_INT;
+    }
+}
+
+void BytecodeGenerator::TypeInfoCollector::visitDoubleLiteralNode(DoubleLiteralNode *node) {
+    if (getNodeType(node) == VT_INVALID) {
+        _info.expressionType[node->position()] = VT_DOUBLE;
+    }
+}
+
+void BytecodeGenerator::TypeInfoCollector::visitStringLiteralNode(StringLiteralNode *node) {
+    if (getNodeType(node) == VT_INVALID) {
+        _info.expressionType[node->position()] = VT_STRING;
+    }
+}
+
+VarType BytecodeGenerator::TypeInfoCollector::getNodeType(AstNode *node) {
+    return _info.expressionType.find(node->position()) == _info.expressionType.end()
+           ? VT_INVALID
+           : _info.expressionType[node->position()];
+}
+
+// -------------------------------------------------------------------------------------------
+
+BytecodeGenerator::FunctionCollector::FunctionCollector(BytecodeGenerator *_bytecodeGenerator)
+        : _bytecodeGenerator(_bytecodeGenerator) {}
+
+void BytecodeGenerator::FunctionCollector::visitFunctionNode(FunctionNode *node) {
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCollector::visitBlockNode(BlockNode *node) {
+    Scope::FunctionIterator functionIterator(node->scope());
+    while (functionIterator.hasNext()) {
+        AstFunction *function = functionIterator.next();
+        auto *bytecodeFunction = new BytecodeFunction(function);
+        uint16_t functionId = _bytecodeGenerator->_code->addFunction(bytecodeFunction);
+        bytecodeFunction->setScopeId(functionId);
+        function->setInfo(bytecodeFunction);
+        function->node()->visit(this);
+    }
+}
+
+// -------------------------------------------------------------------------------------------
+
+BytecodeGenerator::FunctionCallCollector::FunctionCallCollector(BytecodeGenerator *_bytecodeGenerator)
+    : _bytecodeGenerator(_bytecodeGenerator), _info(_bytecodeGenerator->_info), _parentIsBlockNode(false) {}
+
+void BytecodeGenerator::FunctionCallCollector::visitFunctionNode(FunctionNode *node) {
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitBlockNode(BlockNode *node) {
+    Scope::FunctionIterator functionIterator(node->scope());
+    while (functionIterator.hasNext()) {
+        functionIterator.next()->node()->visit(this);
+    }
+
+    uint32_t nodesNumber = node->nodes();
+    for (uint32_t i = 0; i < nodesNumber; ++i) {
+        _parentIsBlockNode = true;
+        node->nodeAt(i)->visit(this);
+    }
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitForNode(ForNode *node) {
+    _parentIsBlockNode = false;
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitPrintNode(PrintNode *node) {
+    _parentIsBlockNode = false;
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitIfNode(IfNode *node) {
+    _parentIsBlockNode = false;
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitCallNode(CallNode *node) {
+    _info.returnValueUsed[node->position()] = !_parentIsBlockNode;
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitStoreNode(StoreNode *node) {
+    _parentIsBlockNode = false;
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitWhileNode(WhileNode *node) {
+    _parentIsBlockNode = false;
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitBinaryOpNode(BinaryOpNode *node) {
+    _parentIsBlockNode = false;
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitUnaryOpNode(UnaryOpNode *node) {
+    _parentIsBlockNode = false;
+    node->visitChildren(this);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitNativeCallNode(NativeCallNode *node) {
+    // TODO
+    AstVisitor::visitNativeCallNode(node);
+}
+
+void BytecodeGenerator::FunctionCallCollector::visitReturnNode(ReturnNode *node) {
+    _parentIsBlockNode = false;
+    node->visitChildren(this);
+}
+
+

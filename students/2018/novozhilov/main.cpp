@@ -5,6 +5,7 @@
 #include <memory>
 #include <streambuf>
 #include <string>
+#include "include/bytecode_printer.h"
 
 using namespace mathvm;
 using namespace std;
@@ -23,10 +24,12 @@ int main(int argc, char** argv) {
     string impl;
     string script_file;
 
+    bool bytecodePrinterMode = argv[1] == "-bp"s;
+
     if (argc == 3) {
         if (argv[1] == "-p"s) {
             impl = "printer";
-        } else if (argv[1] == "-i"s) {
+        } else if (argv[1] == "-i"s || argv[1] == "-bp"s) {
             impl = "interpreter";
         } else if (argv[1] == "-j"s) {
             impl = "jit";
@@ -65,14 +68,17 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (impl != "printer") {
+    if (bytecodePrinterMode) {
+        assert(code);
+        printBytecode(code, cout);
+    } else if (impl != "printer") {
         assert(code);
 
         vector<Var*> vars;
         unique_ptr<Status> execStatus{code->execute(vars)};
 
         if (execStatus->isError()) {
-            cerr << "Cannot execute expression, error: " << execStatus->getErrorCstr();
+            cout << "Cannot execute expression, error: " << execStatus->getErrorCstr();
         }
 
         delete code;

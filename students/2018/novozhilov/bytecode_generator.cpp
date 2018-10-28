@@ -23,29 +23,39 @@ Status* BytecodeTranslatorImpl::translate(const std::string &program, Code **cod
     return status;
 }
 
-BytecodeGenerator::BytecodeGenerator(Code *code) : _code(code), _context(nullptr), _info(), _infoCollector(new InfoCollector(this)) {}
+BytecodeGenerator::BytecodeGenerator(Code *code) : _code(code), _context(nullptr), _info(), _infoCollector(new TypeInfoCollector(this)) {}
 
 void BytecodeGenerator::generateCodeForTopFunction(AstFunction *function) {
     auto* bytecodeFunction = new BytecodeFunction(function);
     _code->addFunction(bytecodeFunction);
+
+    auto *functionCollector = new FunctionCollector(this);
+    function->node()->visit(functionCollector);
+    delete functionCollector;
+
+    auto *callCollector = new FunctionCallCollector(this);
+    function->node()->visit(callCollector);
+    delete callCollector;
+
     generateCodeForFunction(function);
     bytecodeFunction->bytecode()->addInsn(BC_STOP);
 }
 
 void BytecodeGenerator::generateCodeForFunction(AstFunction *function) {
-    auto* bcFunc = (BytecodeFunction*) _code->functionByName(function->name());
+    auto *bytecodeFunction = dynamic_cast<BytecodeFunction*>(_code->functionByName(function->name()));
 
-    _context = new Context(bcFunc, _context, function->scope());
+    _context = new Context(bytecodeFunction, _context, function->scope());
 
     for (uint i = 0; i < function->parametersNumber(); ++i) {
         AstVar* var = function->scope()->lookupVariable(function->parameterName(i), false);
         storeValueToVar(var);
     }
 
+    function->node()->visit(_infoCollector);
     function->node()->visit(this);
 
-    bcFunc->setScopeId(_context->getContextId());
-    bcFunc->setLocalsNumber(_context->getVarsCount());
+    bytecodeFunction->setScopeId(_context->getContextId());
+    bytecodeFunction->setLocalsNumber(_context->getVarsCount());
 
     Context* parentContext = _context->getParentContext();
     delete _context;
@@ -133,9 +143,9 @@ void BytecodeGenerator::visitPrintNode(PrintNode *node) {
                 bytecode->addInsn(BC_DPRINT);
                 break;
             case VT_STRING:
-                bytecode->addInsn(BC_DPRINT);
+                bytecode->addInsn(BC_SPRINT);
                 break;
-            default: 
+            default:
                 throw std::runtime_error("undefined variable type");
         }
     }
@@ -179,7 +189,7 @@ void BytecodeGenerator::visitIntLiteralNode(IntLiteralNode *node) {
     Bytecode *bytecode = getBytecode();
     bytecode->addInsn(BC_ILOAD);
     bytecode->addInt64(node->literal());
-    castVarOnStackTop(VT_STRING, getNodeType(node));
+    castVarOnStackTop(VT_INT, getNodeType(node));
 }
 
 void BytecodeGenerator::visitDoubleLiteralNode(DoubleLiteralNode *node) {
@@ -193,7 +203,7 @@ void BytecodeGenerator::visitStringLiteralNode(StringLiteralNode *node) {
     Bytecode *bytecode = getBytecode();
     bytecode->addInsn(BC_SLOAD);
     bytecode->addUInt16(_code->makeStringConstant(node->literal()));
-    castVarOnStackTop(VT_INT, getNodeType(node));
+    castVarOnStackTop(VT_STRING, getNodeType(node));
 }
 
 void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode *node) {
@@ -399,6 +409,10 @@ void BytecodeGenerator::visitReturnNode(ReturnNode *node) {
 }
 
 void BytecodeGenerator::visitFunctionNode(FunctionNode *node) {
+//    uint32_t parametersNumber = node->parametersNumber();
+//    for (uint32_t i = 0; i < parametersNumber; ++i) {
+//        _context->addVar(node->parameterName(i), node->parameterType(i));
+//    }
     node->body()->visit(this);
 }
 
@@ -411,16 +425,6 @@ void BytecodeGenerator::visitBlockNode(BlockNode *node) {
     Scope::FunctionIterator functionIterator(node->scope());
     while (functionIterator.hasNext()) {
         AstFunction *function = functionIterator.next();
-        BytecodeFunction *bytecodeFunction = new BytecodeFunction(function);
-        uint16_t functionId = _code->addFunction(bytecodeFunction);
-        bytecodeFunction->setScopeId(functionId);
-        function->setInfo(bytecodeFunction);
-    }
-
-    functionIterator = Scope::FunctionIterator(node->scope());
-    while (functionIterator.hasNext()) {
-        AstFunction *function = functionIterator.next();
-        function->node()->visit(this);
         generateCodeForFunction(function);
     }
 
@@ -515,6 +519,6 @@ void BytecodeGenerator::castVarOnStackTop(VarType sourceType, VarType targetType
         bytecode->addInsn(BC_S2I);
         bytecode->addInsn(BC_I2D);
     } else {
-//        throw std::runtime_error("cast error");
+        throw std::runtime_error("cast error");
     }
 }
