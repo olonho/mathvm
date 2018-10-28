@@ -30,6 +30,7 @@ namespace mathvm {
 
         explicit Context(BytecodeFunction* function, Context *parentScope = nullptr, Scope *scope = nullptr);
         uint16_t addVar(Var* var);
+        uint16_t addVar(string const &name, VarType type);
         uint16_t addVar(AstVar* var);
 
         Var* getVarById(uint16_t index);

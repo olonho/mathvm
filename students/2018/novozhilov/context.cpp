@@ -82,5 +82,9 @@ uint16_t Context::getVarsCount() {
     return _variables.size();
 }
 
+uint16_t Context::addVar(string const &name, VarType type) {
+    return addVar(new Var(type, name));
+}
+
 
 

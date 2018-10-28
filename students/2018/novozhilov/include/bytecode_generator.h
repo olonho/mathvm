@@ -57,13 +57,14 @@ namespace mathvm {
         void visitReturnNode(ReturnNode *node) override;
 
     private:
-        class InfoCollector;
+        class TypeInfoCollector;
 
         Code *_code;
         Context *_context;
         AstInfo _info;
-        BytecodeGenerator::InfoCollector *_infoCollector;
+        BytecodeGenerator::TypeInfoCollector *_infoCollector;
 
+    private:
         Bytecode *getBytecode();
 
         void storeValueToVar(AstVar const *var);
@@ -81,13 +82,14 @@ namespace mathvm {
         VarType getNodeType(AstNode *node);
 
     private:
-        class InfoCollector : public AstVisitor {
+        class TypeInfoCollector : public AstVisitor {
         private:
             BytecodeGenerator *_bytecodeGenerator;
             std::stack<VarType> _returnTypes;
+            AstInfo &_info;
 
         public:
-            explicit InfoCollector(BytecodeGenerator *bytecodeGenerator);
+            explicit TypeInfoCollector(BytecodeGenerator *bytecodeGenerator);
 
             void visitForNode(ForNode *node) override;
 
@@ -114,6 +116,62 @@ namespace mathvm {
             void visitStoreNode(StoreNode *node) override;
 
             void visitCallNode(CallNode *node) override;
+
+            void visitIntLiteralNode(IntLiteralNode *node) override;
+
+            void visitDoubleLiteralNode(DoubleLiteralNode *node) override;
+
+            void visitStringLiteralNode(StringLiteralNode *node) override;
+
+        private:
+            VarType getNodeType(AstNode *node);
+        };
+
+    private:
+        class FunctionCollector : public AstVisitor {
+        private:
+            BytecodeGenerator *_bytecodeGenerator;
+        public:
+            explicit FunctionCollector(BytecodeGenerator *_bytecodeGenerator);
+
+            void visitBlockNode(BlockNode *node) override;
+
+            void visitFunctionNode(FunctionNode *node) override;
+        };
+
+
+    private:
+        class FunctionCallCollector : public AstVisitor {
+        private:
+            BytecodeGenerator *_bytecodeGenerator;
+            AstInfo &_info;
+            bool _parentIsBlockNode;
+        public:
+            explicit FunctionCallCollector(BytecodeGenerator *_bytecodeGenerator);
+
+            void visitForNode(ForNode *node) override;
+
+            void visitPrintNode(PrintNode *node) override;
+
+            void visitIfNode(IfNode *node) override;
+
+            void visitCallNode(CallNode *node) override;
+
+            void visitStoreNode(StoreNode *node) override;
+
+            void visitWhileNode(WhileNode *node) override;
+
+            void visitBlockNode(BlockNode *node) override;
+
+            void visitBinaryOpNode(BinaryOpNode *node) override;
+
+            void visitUnaryOpNode(UnaryOpNode *node) override;
+
+            void visitNativeCallNode(NativeCallNode *node) override;
+
+            void visitReturnNode(ReturnNode *node) override;
+
+            void visitFunctionNode(FunctionNode *node) override;
         };
     };
 
