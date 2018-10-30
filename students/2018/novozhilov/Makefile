@@ -14,7 +14,7 @@ USER_OBJ = \
 	$(OBJ)/translator_impl$(OBJ_SUFF) \
 	$(OBJ)/printer_translator$(OBJ_SUFF)
 
-USER_CFLAGS = -std=c++14 -g
+USER_CFLAGS = -std=c++17 -g
 
 include $(VM_ROOT)/common.mk
 
