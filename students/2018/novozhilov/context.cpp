@@ -1,3 +1,5 @@
+#include <utility>
+
 //
 // Created by jetbrains on 23.10.18.
 //
@@ -9,9 +11,8 @@ using namespace mathvm;
 Context::Context(BytecodeFunction *function, Context *parentContext, Scope *scope)
     : _function(function)
     , _parentContext(parentContext)
-    , _bytecodePosition(0)
     , _scopeId(parentContext ? parentContext->getContextId() + static_cast<uint16_t>(1) : static_cast<uint16_t >(0))
-    , _variables(scope->variablesCount()) {
+    , _variables(function->localsNumber()) {
     if (scope != nullptr) {
         Scope::VarIterator iterator(scope);
         while (iterator.hasNext()) {
@@ -23,31 +24,38 @@ Context::Context(BytecodeFunction *function, Context *parentContext, Scope *scop
 
 uint16_t Context::addVar(Var *var) {
     auto index = static_cast<uint16_t>(_variables.size());
-    _variables.push_back(var);
+    StackValue value;
+    switch (var->type()) {
+        case VT_INT:
+            value = StackValue(var->getIntValue());
+            break;
+        case VT_DOUBLE:
+            value = StackValue(var->getDoubleValue());
+            break;
+        case VT_STRING:
+            value = StackValue(var->getStringValue());
+            break;
+        default:
+            throw std::runtime_error("invalid type");
+    }
+    _variables.push_back(value);
     _variableById[var->name()] = index;
     return index;
 }
 
-Var *Context::getVarById(uint16_t index) {
+StackValue Context::getVarById(uint16_t index) {
     if (index >= _variables.size()) {
         throw std::runtime_error("index out of bounds");
     }
     return _variables[index];
 }
 
-Var *Context::getVar(string name) {
-    if (_variableById.find(name) == _variableById.end()) {
-        throw std::runtime_error("no var named " + name);
-    }
-    return _variables[_variableById[name]];
+bool Context::containsVariable(string name) {
+    return _variableById.find(name) != _variableById.end();
 }
 
 Context *Context::getParentContext() {
     return _parentContext;
-}
-
-uint32_t Context::getBytecodePosition() {
-    return _bytecodePosition;
 }
 
 uint16_t Context::getContextId() {
@@ -66,24 +74,23 @@ uint16_t Context::getVarId(string name) {
     return _variableById[name];
 }
 
-BytecodeFunction *Context::getFunction() {
-    return _function;
-}
-
-VarType Context::getTypeOnStackTop() {
-    return _typeOnStackTop;
-}
-
-void Context::setTypeOnStackTop(VarType type) {
-    _typeOnStackTop = type;
-}
-
 uint16_t Context::getVarsCount() {
-    return _variables.size();
+    return static_cast<uint16_t>(_variables.size());
 }
 
-uint16_t Context::addVar(string const &name, VarType type) {
-    return addVar(new Var(type, name));
+Context *Context::getContextById(uint16_t id) {
+    Context *context = this;
+    while (context != nullptr) {
+        if (context->getContextId() == id) {
+            return context;
+        }
+        context = context->getParentContext();
+    }
+    return nullptr;
+}
+
+void Context::setVarById(StackValue var, uint16_t index) {
+    _variables[index] = std::move(var);
 }
 
 
