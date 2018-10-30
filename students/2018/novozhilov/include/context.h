@@ -5,50 +5,46 @@
 #ifndef VIRTUAL_MACHINES_SCOPE_H
 #define VIRTUAL_MACHINES_SCOPE_H
 
-#include <vector>
 #include <map>
+#include <vector>
+#include <variant>
 #include <mathvm.h>
 #include <ast.h>
 
 using namespace std;
 
 namespace mathvm {
+    using StackValue = variant<int64_t , double , string>;
+
     class Context {
+    public:
+
     private:
         typedef map<string, uint16_t> VariableMap;
 
         BytecodeFunction* _function;
         Context* _parentContext;
-        uint32_t _bytecodePosition;
         uint16_t _scopeId;
 
-        vector<Var*> _variables;
+        vector<StackValue> _variables;
         VariableMap _variableById;
-        VarType _typeOnStackTop;
 
     public:
-
         explicit Context(BytecodeFunction* function, Context *parentScope = nullptr, Scope *scope = nullptr);
         uint16_t addVar(Var* var);
-        uint16_t addVar(string const &name, VarType type);
         uint16_t addVar(AstVar* var);
 
-        Var* getVarById(uint16_t index);
+        StackValue getVarById(uint16_t index);
+        void setVarById(StackValue var, uint16_t index);
         uint16_t getVarId(string name);
-        Var* getVar(string name);
+        bool containsVariable(string name);
         Context* getParentContext();
-
-        uint32_t getBytecodePosition();
 
         uint16_t getContextId();
 
         Bytecode *getBytecode();
 
-        BytecodeFunction *getFunction();
-
-        VarType getTypeOnStackTop();
-
-        void setTypeOnStackTop(VarType type);
+        Context *getContextById(uint16_t id);
 
         uint16_t getVarsCount();
     };

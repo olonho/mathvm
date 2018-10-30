@@ -6,7 +6,7 @@
 #include <mathvm.h>
 #include "parser.h"
 #include "include/bytecode_generator.h"
-#include "include/interpreter_code.h"
+#include "include/bytecode_interpreter.h"
 
 using namespace mathvm;
 auto &out = std::cout;
@@ -409,10 +409,6 @@ void BytecodeGenerator::visitReturnNode(ReturnNode *node) {
 }
 
 void BytecodeGenerator::visitFunctionNode(FunctionNode *node) {
-//    uint32_t parametersNumber = node->parametersNumber();
-//    for (uint32_t i = 0; i < parametersNumber; ++i) {
-//        _context->addVar(node->parameterName(i), node->parameterType(i));
-//    }
     node->body()->visit(this);
 }
 
@@ -439,6 +435,7 @@ Bytecode *BytecodeGenerator::getBytecode() {
 
 void BytecodeGenerator::storeValueToVar(AstVar const *var) {
     Context* context = findOwnerContextOfVar(var->name());
+    assert(context != nullptr);
     bool inSameContext = context == _context;
 
     Instruction insn;
@@ -465,6 +462,7 @@ void BytecodeGenerator::storeValueToVar(AstVar const *var) {
 
 void BytecodeGenerator::loadValueFromVar(AstVar const *var, VarType targetType) {
     Context* context = findOwnerContextOfVar(var->name());
+    assert(context != nullptr);
     bool inSameContext = context == _context;
 
     Instruction insn;
@@ -496,7 +494,7 @@ VarType BytecodeGenerator::getNodeType(AstNode *node) {
 
 Context *BytecodeGenerator::findOwnerContextOfVar(string name) {
     for (Context* context = _context; context != nullptr; context = context->getParentContext()) {
-        if (context->getVar(name) != nullptr) {
+        if (context->containsVariable(name)) {
             return context;
         }
     }
