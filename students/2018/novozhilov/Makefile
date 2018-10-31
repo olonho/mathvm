@@ -12,7 +12,6 @@ NO_JIT = 1
 USER_OBJ = \
 	$(OBJ)/bytecode_generator$(OBJ_SUFF) \
 	$(OBJ)/bytecode_interpreter$(OBJ_SUFF) \
-	$(OBJ)/bytecode_printer$(OBJ_SUFF) \
 	$(OBJ)/context$(OBJ_SUFF) \
 	$(OBJ)/info_collector$(OBJ_SUFF) \
 	$(OBJ)/main$(OBJ_SUFF) \
