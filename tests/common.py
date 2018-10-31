@@ -64,14 +64,17 @@ def load_tests():
     if options.executable is None:
         options.executable = os.path.join('./build', options.kind, 'mvm')
 
-    test_files = glob.glob(os.path.join(options.testdir, '*.mvm'))
-
+    test_files = []
+    for path, _, files in list(os.walk(options.testdir)):
+        for file in files:
+            if not file.endswith('.mvm'):
+                continue
+            full_path = os.path.join(path, file)
+            test_name = full_path.split(options.testdir)[1]
+            test_files.append(test_name[:-4])
     tests = []
+
     for t in test_files:
-        m = re.search(r"([\w-]+)\.mvm", t)
-        if m is None:
-            continue
-        t = m.group(1)
         tests.append((options.executable, options.testdir, t))
 
     return tests
