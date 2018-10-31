@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
 
     if (bytecodePrinterMode) {
         assert(code);
-        printBytecode(code, cout);
+        code->disassemble();
     } else if (impl != "printer") {
         assert(code);
 
