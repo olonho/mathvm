@@ -1,0 +1,195 @@
+function int timestamp() native 'native_timestamp';
+function void setMem(string base, int offset, int value, int width) native 'unsafe_setMem';
+function int getMem(string base, int offset, int width) native 'unsafe_getMem';
+function string malloc(int size) native 'malloc';
+function void free(string ptr) native 'free';
+function string memset(string ptr, int ch, int count) native 'memset';
+function int strlen(string s) native 'strlen';
+
+function int getI(string ptr, int idx) {
+    return getMem(ptr, idx * 8, 8);
+}
+function void setI(string ptr, int idx, int val) {
+    setMem(ptr, idx * 8, val, 8);
+}
+function int getS(string ptr, int idx) {
+    return getMem(ptr, idx, 1);
+}
+function void setS(string ptr, int idx, int val) {
+    setMem(ptr, idx, val, 1);
+}
+
+function int min(int a, int b) {
+    if (a <= b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+function int max(int a, int b) {
+    if (a >= b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+function int abs(int v) {
+    if (v >= 0) {
+        return v;
+    } else {
+        return -v;
+    }
+}
+
+int FLDBASE = 16;
+int FLDSIZE_Y = FLDBASE + 1;
+int FLDSIZE_X = FLDBASE * 2 + 1;
+
+function string randomart(string rawS, int rawLen) {
+    string augS = ' .o+=*BOX@%&#/^SE';
+    int augLen = strlen(augS) - 1;
+
+    string field = malloc(FLDSIZE_X * FLDSIZE_Y);
+    memset(field, 0, FLDSIZE_X * FLDSIZE_Y);
+
+    function int getF(int x, int y) {
+        return getS(field, x * FLDSIZE_Y + y);
+    }
+    function void setF(int x, int y, int val) {
+        setS(field, x * FLDSIZE_Y + y, val);
+    }
+
+    int x = FLDSIZE_X / 2;
+    int y = FLDSIZE_Y / 2;
+
+    int i;
+    for (i in 0..rawLen-1) {
+        int input = getS(rawS, i);
+        int b;
+        for (b in 0..3) {
+            if (input & 1) {
+                x += 1;
+            } else {
+                x -= 1;
+            }
+            if (input & 2) {
+                y += 1;
+            } else {
+                y -= 1;
+            }
+
+            x = max(x, 0);
+            y = max(y, 0);
+            x = min(x, FLDSIZE_X - 1);
+            y = min(y, FLDSIZE_Y - 1);
+
+            setF(x, y, getF(x, y) + 1);
+            input = input / 4;
+        }
+    }
+
+    setF(FLDSIZE_X / 2, FLDSIZE_Y / 2, augLen - 1);
+    setF(x, y, augLen);
+
+    string retval = malloc((FLDSIZE_X + 3) * (FLDSIZE_Y + 2));
+
+    string p = retval;
+    function void putC(int c) {
+        setS(p, 0, c);
+        int pi = p;
+        p = pi + 1;
+    }
+    function void putS(string s) {
+        putC(getS(s, 0));
+    }
+
+    putS('+');
+    for (i in 0 .. FLDSIZE_X - 1) {
+        putS('-');
+    }
+    putS('+');
+    putS('\n');
+
+    for (y in 0..FLDSIZE_Y-1) {
+        putS('|');
+        for (x in 0..FLDSIZE_X-1) {
+            putC(getS(augS, min(getF(x, y), augLen)));
+        }
+        putS('|');
+        putS('\n');
+    }
+
+    putS('+');
+    for (i in 0..FLDSIZE_X-1) {
+        putS('-');
+    }
+    putS('+');
+    putS('\n');
+
+    free(field);
+
+    return retval;
+}
+
+int seed = 42;
+function int rnd() {
+    seed = (6364136223846793005 * seed + 1442695040888963407);
+    return seed;
+}
+
+function int quality(string s) {
+    int cnt0 = 0;
+    int cnt1 = 0;
+    int cnt2 = 0;
+    int len = strlen(s);
+    int i;
+    for (i in 0..len-1) {
+        if (getS(s, i) == getS(' ', 0)) {
+            cnt0 += 1;
+        }
+        if (getS(s, i) == getS('%', 0)) {
+            cnt1 += 1;
+        }
+        if (getS(s, i) == getS('E', 0)) {
+            cnt2 += 1;
+        }
+    }
+    int q0 = 1000 * abs(cnt0 - len*3/4) / len;
+    int q1 = 1000 * cnt1 / len;
+    int q2 = 1000 * cnt2 / len;
+    return q0 + q1 + q2 / 10;
+}
+
+function string generate() {
+    int len = 512;
+    string input = malloc(len / 8);
+    int i;
+    for (i in 0..(len / 64) - 1) {
+        setI(input, i, rnd());
+    }
+    string output = randomart(input, len / 8);
+    free(input);
+    return output;
+}
+
+int start = timestamp();
+
+int q = 0;
+int best = 42;
+int i;
+for (i in 1..4096) {
+    seed = i;
+    string s = generate();
+    if (quality(s) > q) {
+        q = quality(s);
+        best = i;
+    }
+    free(s);
+}
+print('q=', q, '\n');
+print('best=', best, '\n');
+seed = best;
+print(generate());
+
+int end = timestamp();
+print('randomart took ', (end - start) / 1000, 'ms\n');
