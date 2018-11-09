@@ -150,6 +150,12 @@ void BytecodeInterpreter::executeFunction(BytecodeFunction *function) {
             case BC_STORECTXSVAR:
                 storeVar(bytecode, instruction, i);
                 break;
+            case BC_DCMP:
+                compare(popDouble(), popDouble());
+                break;
+            case BC_ICMP:
+                compare(popInt(), popInt());
+                break;
             case BC_JA:
                 jump(bytecode, i);
                 break;
@@ -323,7 +329,7 @@ void BytecodeInterpreter::conditionalJump(Bytecode *bytecode, Instruction instru
     }
 
     if (condition) {
-        i += offset;
+        i += offset - 2;
     }
 }
 
@@ -358,4 +364,13 @@ int64_t BytecodeInterpreter::getInt64(Bytecode *bytecode, uint32_t &i) {
     return getTyped<int64_t >(bytecode, i);
 }
 
-
+template<class T>
+void BytecodeInterpreter::compare(T upper, T lower) {
+    if (upper < lower) {
+        pushInt(-1);
+    } else if (upper > lower) {
+        pushInt(1);
+    } else {
+        pushInt(0);
+    }
+}

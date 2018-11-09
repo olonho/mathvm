@@ -78,6 +78,7 @@ namespace mathvm {
         void processArithmeticOperation(BinaryOpNode *node);
         void processLogicOperation(BinaryOpNode *node);
         void processComparingOperation(BinaryOpNode *node);
+        bool isNumberType(VarType type);
 
         VarType getNodeType(AstNode *node);
 
@@ -125,6 +126,8 @@ namespace mathvm {
 
         private:
             VarType getNodeType(AstNode *node);
+
+            bool isArithmeticOperation(TokenKind const &kind);
         };
 
     private:

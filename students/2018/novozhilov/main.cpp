@@ -5,7 +5,6 @@
 #include <memory>
 #include <streambuf>
 #include <string>
-#include "include/bytecode_printer.h"
 
 using namespace mathvm;
 using namespace std;
