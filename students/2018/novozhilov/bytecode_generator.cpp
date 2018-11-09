@@ -223,24 +223,15 @@ void BytecodeGenerator::visitUnaryOpNode(UnaryOpNode *node) {
                 default:
                     throw std::runtime_error("illegal type on stack");
             }
+            break;
         }
 
         case tNOT: {
             if (type != VT_INT) {
                 throw std::runtime_error("illegal type on stack");
             }
-            Label oneLabel(bytecode);
-            Label endLabel(bytecode);
-
             bytecode->addInsn(BC_ILOAD1);
-            bytecode->addBranch(BC_IFICMPE, oneLabel);
-            // x == 0
-            bytecode->addInsn(BC_ILOAD1);
-            bytecode->addBranch(BC_JA, endLabel);
-            bytecode->bind(oneLabel);
-            // x == 1
-            bytecode->addInsn(BC_ILOAD0);
-            bytecode->bind(endLabel);
+            bytecode->addInsn(BC_IAXOR);
             break;
         }
         default:
@@ -278,9 +269,13 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode *node) {
 }
 
 void BytecodeGenerator::processArithmeticOperation(BinaryOpNode *node) {
-    node->visitChildren(this);
-
     VarType type = getNodeType(node);
+
+    node->right()->visit(this);
+    castVarOnStackTop(getNodeType(node->right()), type);
+    node->left()->visit(this);
+    castVarOnStackTop(getNodeType(node->left()), type);
+
     if (!(type == VT_INT || type == VT_DOUBLE)) {
         throw std::runtime_error("illegal type on stack");
     }
@@ -340,13 +335,33 @@ void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {
 }
 
 void BytecodeGenerator::processComparingOperation(BinaryOpNode *node) {
-    node->visitChildren(this);
+    Bytecode *bytecode = getBytecode();
 
-    if (getNodeType(node) != VT_INT) {
+    VarType leftType = getNodeType(node->left());
+    VarType rightType = getNodeType(node->right());
+
+    if (!isNumberType(leftType) || !isNumberType(rightType)) {
         throw std::runtime_error("illegal type on stack");
     }
 
-    Bytecode *bytecode = getBytecode();
+    VarType type;
+    Instruction comparingInstruction;
+    if (leftType == VT_DOUBLE || rightType == VT_DOUBLE) {
+        type = VT_DOUBLE;
+        comparingInstruction = BC_DCMP;
+    } else {
+        type = VT_INT;
+        comparingInstruction = BC_ICMP;
+    }
+
+    node->right()->visit(this);
+    castVarOnStackTop(getNodeType(node->right()), type);
+    node->left()->visit(this);
+    castVarOnStackTop(getNodeType(node->left()), type);
+
+    bytecode->addInsn(comparingInstruction);
+    bytecode->addInsn(BC_ILOAD0);
+
     Instruction instruction;
 
     switch (node->kind()) {
@@ -371,7 +386,16 @@ void BytecodeGenerator::processComparingOperation(BinaryOpNode *node) {
         default:
             throw std::runtime_error("illegal operation kind");
     }
-    bytecode->addInsn(instruction);;
+    Label elseLabel(bytecode);
+    Label endLabel(bytecode);
+    bytecode->addBranch(instruction, elseLabel);
+    // false
+    bytecode->addInsn(BC_ILOAD0);
+    bytecode->addBranch(BC_JA, endLabel);
+    // true
+    bytecode->bind(elseLabel);
+    bytecode->addInsn(BC_ILOAD1);
+    bytecode->bind(endLabel);
 }
 
 void BytecodeGenerator::visitCallNode(CallNode *node) {
@@ -519,4 +543,8 @@ void BytecodeGenerator::castVarOnStackTop(VarType sourceType, VarType targetType
     } else {
         throw std::runtime_error("cast error");
     }
+}
+
+bool BytecodeGenerator::isNumberType(VarType type) {
+    return type == VT_INT || type == VT_DOUBLE;
 }

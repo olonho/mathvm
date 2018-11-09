@@ -7,10 +7,11 @@ BytecodeGenerator::TypeInfoCollector::TypeInfoCollector(BytecodeGenerator *bytec
         : _bytecodeGenerator(bytecodeGenerator), _returnTypes(), _info(_bytecodeGenerator->_info) {}
 
 void BytecodeGenerator::TypeInfoCollector::visitForNode(ForNode *node) {
+    node->inExpr()->visit(this);
+
     VarType type = node->var()->type();
     uint32_t index = node->inExpr()->position();
     _info.expressionType[index] = type;
-    node->inExpr()->visit(this);
 
     node->body()->visit(this);
 }
@@ -25,13 +26,13 @@ void BytecodeGenerator::TypeInfoCollector::visitLoadNode(LoadNode *node) {
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitIfNode(IfNode *node) {
-    _info.expressionType[node->ifExpr()->position()] = VT_INT;
     node->visitChildren(this);
+    _info.expressionType[node->ifExpr()->position()] = VT_INT;
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitWhileNode(WhileNode *node) {
-    _info.expressionType[node->whileExpr()->position()] = VT_INT;
     node->visitChildren(this);
+    _info.expressionType[node->whileExpr()->position()] = VT_INT;
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitBlockNode(BlockNode *node) {
@@ -39,33 +40,25 @@ void BytecodeGenerator::TypeInfoCollector::visitBlockNode(BlockNode *node) {
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitBinaryOpNode(BinaryOpNode *node) {
-    VarType type = getNodeType(node);
-
-    if (type != VT_INVALID) {
-        _info.expressionType[node->left()->position()] = type;
-        _info.expressionType[node->right()->position()] = type;
-        node->visitChildren(this);
-    } else {
-        node->left()->visit(this);
+    node->visitChildren(this);
+    VarType type;
+    if (isArithmeticOperation(node->kind())) {
         type = getNodeType(node->left());
         assert(type != VT_INVALID);
-        _info.expressionType[node->position()] = type;
-        _info.expressionType[node->right()->position()] = type;
-        node->right()->visit(this);
+    } else {
+        type = VT_INT;
     }
+
+    _info.expressionType[node->right()->position()] = type;
+    _info.expressionType[node->position()] = type;
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitUnaryOpNode(UnaryOpNode *node) {
-    VarType type = getNodeType(node);
-    if (type != VT_INVALID) {
-        _info.expressionType[node->operand()->position()] = type;
-        node->visitChildren(this);
-    } else {
-        node->visitChildren(this);
-        type = getNodeType(node->operand());
-        assert(type != VT_INVALID);
-        _info.expressionType[node->position()] = type;
-    }
+    node->visitChildren(this);
+    VarType type = getNodeType(node->operand());
+    assert(type != VT_INVALID);
+    _info.expressionType[node->position()] = type;
+
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitNativeCallNode(NativeCallNode *node) {
@@ -80,33 +73,32 @@ void BytecodeGenerator::TypeInfoCollector::visitFunctionNode(FunctionNode *node)
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitReturnNode(ReturnNode *node) {
+    node->visitChildren(this);
     if (node->returnExpr() != nullptr) {
         _info.expressionType[node->returnExpr()->position()] = _returnTypes.top();
     }
-    node->visitChildren(this);
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitStoreNode(StoreNode *node) {
     VarType type = node->var()->type();
-    _info.expressionType[node->value()->position()] = type;
     node->visitChildren(this);
+    _info.expressionType[node->value()->position()] = type;
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitCallNode(CallNode *node) {
     uint32_t index = node->position();
     TranslatedFunction *function = _bytecodeGenerator->_code->functionByName(node->name());
 
-    VarType type = getNodeType(node);
-    _info.expressionType[index] = type != VT_INVALID ? _info.expressionType[index] : function->returnType();
 
+    _info.expressionType[index] = function->returnType();
 
     uint16_t parametersNumber = function->parametersNumber();
 
+    node->visitChildren(this);
     for (uint16_t i = 0; i < parametersNumber; ++i) {
         uint32_t parameterIndex = node->parameterAt(i)->position();
         _info.expressionType[parameterIndex] = function->parameterType(i);
     }
-    node->visitChildren(this);
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitIntLiteralNode(IntLiteralNode *node) {
@@ -131,6 +123,19 @@ VarType BytecodeGenerator::TypeInfoCollector::getNodeType(AstNode *node) {
     return _info.expressionType.find(node->position()) == _info.expressionType.end()
            ? VT_INVALID
            : _info.expressionType[node->position()];
+}
+
+bool BytecodeGenerator::TypeInfoCollector::isArithmeticOperation(TokenKind const &kind) {
+    switch (kind) {
+        case tADD:
+        case tSUB:
+        case tMUL:
+        case tDIV:
+        case tMOD:
+            return true;
+        default:
+            return false;
+    }
 }
 
 // -------------------------------------------------------------------------------------------
