@@ -203,6 +203,11 @@ void BytecodeGenerator::FunctionCallCollector::visitIfNode(IfNode *node) {
 
 void BytecodeGenerator::FunctionCallCollector::visitCallNode(CallNode *node) {
     _info.returnValueUsed[node->position()] = !_parentIsBlockNode;
+    uint32_t parametersNumber = node->parametersNumber();
+    for (uint32_t i = parametersNumber; i > 0; --i) {
+        _info.returnValueUsed[node->parameterAt(i - 1)->position()] = true;
+    }
+    node->visitChildren(this);
 }
 
 void BytecodeGenerator::FunctionCallCollector::visitStoreNode(StoreNode *node) {
