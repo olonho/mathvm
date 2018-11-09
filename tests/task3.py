@@ -8,7 +8,11 @@ disabled_tests = {
     'fib_closure',
     'ackermann',
     'ackermann_closure',
+    'complex',
+    'complex2'
 }
+
+skip_extra = True
 
 def run_test(mvm, test_dir, test):
     try:
@@ -42,7 +46,7 @@ if __name__ == '__main__':
     failed_tests = {}
     actual_disabled_tests = set()
 
-    for mvm, test_dir, test in load_tests():
+    for mvm, test_dir, test in load_tests(skip_extra):
         if test in disabled_tests:
             actual_disabled_tests.add(test)
             continue

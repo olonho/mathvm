@@ -7,19 +7,24 @@ import os
 import re
 import subprocess
 
+
 def make_diff(expect_file, actual_data):
     pipe = subprocess.Popen(['/usr/bin/diff', '-u', '-b', expect_file, '-'],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     (out, err) = pipe.communicate(actual_data)
     return out
 
+
 def kw_compare(str1, str2):
     def remove_comments(str):
-        return re.sub(r'//.*?\n' , '', str)
+        return re.sub(r'//.*?\n', '', str)
+
     def split(str):
         return re.split(r'[^a-zA-Z0-9_]+', str)
+
     def counts(tokens):
         return collections.Counter(tokens)
+
     v1 = counts(split(remove_comments(str1)))
     v2 = counts(split(remove_comments(str2)))
     for kw in ['function', 'native', 'int', 'double', 'string', 'print', 'for', 'while']:
@@ -27,13 +32,16 @@ def kw_compare(str1, str2):
             return False
     return True
 
+
 def read_file(name):
     with open(name, 'r') as f:
         return f.read()
 
+
 def write_file(name, content):
     with open(name, 'w') as f:
         f.write(content)
+
 
 def run_mvm(bin, impl, file):
     pipe = subprocess.Popen([bin, impl, file],
@@ -43,7 +51,8 @@ def run_mvm(bin, impl, file):
         raise Exception("Program exited with code %d" % (pipe.returncode))
     return out
 
-def load_tests():
+
+def load_tests(skip_extra=False):
     parser = optparse.OptionParser()
     parser.add_option('-e', '--executable',
                       action='store',
@@ -65,7 +74,10 @@ def load_tests():
         options.executable = os.path.join('./build', options.kind, 'mvm')
 
     test_files = []
+
     for path, _, files in list(os.walk(options.testdir)):
+        if skip_extra and path.endswith('extra'):
+            continue
         for file in files:
             if not file.endswith('.mvm'):
                 continue
