@@ -43,12 +43,17 @@ void BytecodeGenerator::TypeInfoCollector::visitBinaryOpNode(BinaryOpNode *node)
     node->visitChildren(this);
     VarType type;
     if (isArithmeticOperation(node->kind())) {
-        type = getNodeType(node->left());
-        assert(type != VT_INVALID);
+        VarType leftType = getNodeType(node->left());
+        VarType rightType = getNodeType(node->right());
+        if (leftType == VT_DOUBLE || rightType == VT_DOUBLE) {
+            type = VT_DOUBLE;
+        } else {
+            type = VT_INT;
+        }
     } else {
         type = VT_INT;
     }
-
+    _info.expressionType[node->left()->position()] = type;
     _info.expressionType[node->right()->position()] = type;
     _info.expressionType[node->position()] = type;
 }
