@@ -5,7 +5,7 @@
 #ifndef MATHVM_PRINT_VISITOR_H
 #define MATHVM_PRINT_VISITOR_H
 
-#include "../../../include/visitors.h"
+#include "../../../../include/visitors.h"
 #include <cstdarg>
 
 namespace mathvm {

@@ -1,14 +1,15 @@
 #include "../../../include/mathvm.h"
 #include "../../../vm/parser.h"
-#include "print_visitor.h"
+#include "printer/print_visitor.h"
 #include "source_translator.h"
+#include "bytecodeTranslatorImpl.h"
 
 namespace mathvm {
 
 // Implement me!
     Translator *Translator::create(const string &impl) {
-        if (impl == "" || impl == "intepreter") {
-//       return new BytecodeTranslatorImpl();
+        if (impl == "" || impl == "interpreter") {
+            return new BytecodeTranslatorImpl();
         }
         if (impl == "jit") {
 //       return new MachCodeTranslatorImpl();

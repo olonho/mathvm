@@ -19,7 +19,8 @@ USER_OBJ = \
 	$(JIT_OBJ) \
 	$(OBJ)/main$(OBJ_SUFF) \
 	$(OBJ)/translator_impl$(OBJ_SUFF) \
-	$(OBJ)/print_visitor$(OBJ_SUFF)
+	$(OBJ)/printer/print_visitor$(OBJ_SUFF) \
+	$(OBJ)/bytecode_translator_visitor$(OBJ_SUFF) \
 
 USER_CFLAGS = -std=c++14
 
@@ -27,7 +28,10 @@ include $(VM_ROOT)/common.mk
 
 MATHVM = $(BIN)/mvm
 
-all: $(MATHVM)
+all: customdirs | $(MATHVM)
+
+customdirs:
+	mkdir -p $(OBJ)/printer
 
 ifeq ($(OPT), 1)
 KIND = opt

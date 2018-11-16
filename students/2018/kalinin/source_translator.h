@@ -7,7 +7,7 @@
 
 
 #include "../../../include/mathvm.h"
-#include "print_visitor.h"
+#include "printer/print_visitor.h"
 #include "../../../vm/parser.h"
 
 namespace mathvm {
@@ -20,6 +20,7 @@ namespace mathvm {
                 AstFunction *astFunction = p.top();
                 auto *print_visitor = new Print_visitor();
                 astFunction->node()->visit(print_visitor);
+                delete print_visitor;
             }
             return status;
         }

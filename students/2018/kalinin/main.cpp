@@ -22,6 +22,21 @@ int main(int argc, char **argv) {
     string impl;
     string script_file;
 
+//    Bytecode b1;
+//    Label l1(&b1);
+//    Label l2(&b1);
+//
+////    b1.addBranch(BC_IFICMPE, l1);
+//    b1.addInsn(BC_CALL);
+//    b1.addInt16(10);
+////    b1.addBranch(BC_JA, l2);
+////    b1.bind(l1);
+////    b1.addInsn(BC_DMUL);
+////    b1.bind(l2);
+//    b1.addInsn(BC_DLOAD0);
+//    b1.dump(cout);
+//    return 0;
+
     if (argc == 3) {
         if (argv[1] == "-p"s) {
             impl = "printer";
@@ -64,18 +79,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (impl != "printer") {
-        assert(code);
-
-        vector<Var *> vars;
-        unique_ptr<Status> execStatus{code->execute(vars)};
-
-        if (execStatus->isError()) {
-            cerr << "Cannot execute expression, error: " << execStatus->getErrorCstr();
-        }
-
-        delete code;
-    }
+//    if (impl != "printer") {
+//        assert(code);
+//
+//        vector<Var *> vars;
+//        unique_ptr<Status> execStatus{code->execute(vars)};
+//
+//        if (execStatus->isError()) {
+//            cerr << "Cannot execute expression, error: " << execStatus->getErrorCstr();
+//        }
+//
+//        delete code;
+//    }
 
     return 0;
 }
