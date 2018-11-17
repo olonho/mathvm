@@ -16,7 +16,6 @@ namespace mathvm {
     class Bytecode_translator_visitor : public AstBaseVisitor {
         Context *ctx{};
         Bytecode *bytecode{};
-        map<uint32_t, VarType> nodeTypes{};
         map<uint16_t, Context *> contextList{};
         map<uint32_t, Context *> nodeContext{};
 
@@ -59,58 +58,45 @@ namespace mathvm {
 
     class TypeEvaluter : public AstBaseVisitor {
         Context *ctx;
-        map<uint32_t, VarType> *nodeTypes{};
         map<uint16_t, Context *> *contextList{};
         map<uint32_t, Context *> *nodeContext{};
         VarType returnType;
 
     public:
-        TypeEvaluter(Context *ctx, map<uint32_t, VarType> *nodeTypes,
-                     map<uint16_t, Context *> *contextList, map<uint32_t, Context *> *nodeContext,
+        TypeEvaluter(Context *ctx, map<uint16_t, Context *> *contextList, map<uint32_t, Context *> *nodeContext,
                      VarType returnType) :
-                ctx(ctx), nodeTypes(nodeTypes), contextList(contextList), nodeContext(nodeContext),
+                ctx(ctx), contextList(contextList), nodeContext(nodeContext),
                 returnType(returnType) {}
 
-#define VISITOR_FUNCTION(type, name) \
-    virtual void visit##type(type* node) { matchNodeAndContext(node); register##type(node); }
+        void visitFunctionNode(FunctionNode *node) override;
 
-        FOR_NODES(VISITOR_FUNCTION)
+        void visitBlockNode(BlockNode *node) override;
 
-#undef VISITOR_FUNCTION
+        void visitIfNode(IfNode *node) override;
+
+        void visitWhileNode(WhileNode *node) override;
+
+        void visitStoreNode(StoreNode *node) override;
+
+        void visitLoadNode(LoadNode *node) override;
+
+        void visitBinaryOpNode(BinaryOpNode *node) override;
+
+        void visitUnaryOpNode(UnaryOpNode *node) override;
+
+        void visitDoubleLiteralNode(DoubleLiteralNode *node) override;
+
+        void visitIntLiteralNode(IntLiteralNode *node) override;
+
+        void visitStringLiteralNode(StringLiteralNode *node) override;
+
+        void visitForNode(ForNode *node) override;
+
+        void visitReturnNode(ReturnNode *node) override;
+
+        void visitPrintNode(PrintNode *node) override;
 
     private:
-        void registerFunctionNode(FunctionNode *node);
-
-        void registerBlockNode(BlockNode *node);
-
-        void registerIfNode(IfNode *node);
-
-        void registerWhileNode(WhileNode *node);
-
-        void registerStoreNode(StoreNode *node);
-
-        void registerLoadNode(LoadNode *node);
-
-        void registerBinaryOpNode(BinaryOpNode *node);
-
-        void registerUnaryOpNode(UnaryOpNode *node);
-
-        void registerDoubleLiteralNode(DoubleLiteralNode *node);
-
-        void registerIntLiteralNode(IntLiteralNode *node);
-
-        void registerStringLiteralNode(StringLiteralNode *node);
-
-        void registerForNode(ForNode *node);
-
-        void registerReturnNode(ReturnNode *node);
-
-        void registerPrintNode(PrintNode *node);
-
-        void registerCallNode(CallNode *node);
-
-        void registerNativeCallNode(NativeCallNode *node);
-
         void fillContext(Scope *scope);
 
         VarType checkBooleanOperation(VarType left, VarType right, TokenKind op);

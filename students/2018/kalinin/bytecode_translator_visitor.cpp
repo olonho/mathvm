@@ -9,7 +9,7 @@ using namespace mathvm;
 void Bytecode_translator_visitor::visitFunctionNode(mathvm::FunctionNode *node) {
     if (node->name() == "<top>") {
         ctx = new Context();
-        node->visit(new TypeEvaluter(ctx, &nodeTypes, &contextList, &nodeContext, VT_VOID));
+        node->visit(new TypeEvaluter(ctx, &contextList, &nodeContext, VT_VOID));
     }
     node->body()->visit(this);
 }
@@ -53,11 +53,11 @@ void Context::addFun(BytecodeFunction *func) {
 uint16_t Context::count = 0;
 //===================================[TypeEvaluter]==========================================================
 
-void TypeEvaluter::registerLoadNode(LoadNode *node) {
+void TypeEvaluter::visitLoadNode(LoadNode *node) {
     setType(node, node->var()->type());
 }
 
-void TypeEvaluter::registerBinaryOpNode(BinaryOpNode *node) {
+void TypeEvaluter::visitBinaryOpNode(BinaryOpNode *node) {
     node->visitChildren(this);
     VarType left = getType(node->left());
     VarType right = getType(node->right());
@@ -84,7 +84,7 @@ void TypeEvaluter::registerBinaryOpNode(BinaryOpNode *node) {
     setType(node, result);
 }
 
-void TypeEvaluter::registerUnaryOpNode(UnaryOpNode *node) {
+void TypeEvaluter::visitUnaryOpNode(UnaryOpNode *node) {
     node->visitChildren(this);
     VarType value = getType(node->operand());
     if (value == VT_INT || value == VT_DOUBLE) {
@@ -94,19 +94,19 @@ void TypeEvaluter::registerUnaryOpNode(UnaryOpNode *node) {
     }
 }
 
-void TypeEvaluter::registerIntLiteralNode(IntLiteralNode *node) {
+void TypeEvaluter::visitIntLiteralNode(IntLiteralNode *node) {
     setType(node, VT_INT);
 }
 
-void TypeEvaluter::registerDoubleLiteralNode(DoubleLiteralNode *node) {
+void TypeEvaluter::visitDoubleLiteralNode(DoubleLiteralNode *node) {
     setType(node, VT_DOUBLE);
 }
 
-void TypeEvaluter::registerStringLiteralNode(StringLiteralNode *node) {
+void TypeEvaluter::visitStringLiteralNode(StringLiteralNode *node) {
     setType(node, VT_STRING);
 }
 
-void TypeEvaluter::registerFunctionNode(FunctionNode *node) {
+void TypeEvaluter::visitFunctionNode(FunctionNode *node) {
     node->body()->visit(this);
     setType(node, VT_VOID);
 }
@@ -131,7 +131,7 @@ void TypeEvaluter::fillContext(Scope *scope) {
     }
 }
 
-void TypeEvaluter::registerBlockNode(BlockNode *node) {
+void TypeEvaluter::visitBlockNode(BlockNode *node) {
     ctx = ctx->addChild(node->scope());
     registerContext();
     matchNodeAndContext(node);
@@ -140,7 +140,7 @@ void TypeEvaluter::registerBlockNode(BlockNode *node) {
     setType(node, VT_VOID);
 }
 
-void TypeEvaluter::registerIfNode(IfNode *node) {
+void TypeEvaluter::visitIfNode(IfNode *node) {
     node->ifExpr()->visit(this);
     VarType ifExprType = getType(node->ifExpr());
     if (ifExprType != VT_INT && ifExprType != VT_DOUBLE) {
@@ -153,7 +153,7 @@ void TypeEvaluter::registerIfNode(IfNode *node) {
     setType(node, VT_VOID);
 }
 
-void TypeEvaluter::registerWhileNode(WhileNode *node) {
+void TypeEvaluter::visitWhileNode(WhileNode *node) {
     node->whileExpr()->visit(this);
     VarType whileType = getType(node->whileExpr());
     if (whileType != VT_INT && whileType != VT_DOUBLE) {
@@ -163,7 +163,7 @@ void TypeEvaluter::registerWhileNode(WhileNode *node) {
     setType(node, VT_VOID);
 }
 
-void TypeEvaluter::registerStoreNode(StoreNode *node) {
+void TypeEvaluter::visitStoreNode(StoreNode *node) {
     VarType varType = node->var()->type();
     node->value()->visit(this);
     VarType expretionType = getType(node->value());
@@ -183,7 +183,7 @@ void TypeEvaluter::registerStoreNode(StoreNode *node) {
     setType(node, VT_VOID);
 }
 
-void TypeEvaluter::registerForNode(ForNode *node) {
+void TypeEvaluter::visitForNode(ForNode *node) {
     node->inExpr()->visit(this);
     VarType iteratorType = node->var()->type();
     VarType expressionType = getType(node->inExpr());
@@ -194,7 +194,7 @@ void TypeEvaluter::registerForNode(ForNode *node) {
     setType(node, VT_VOID);
 }
 
-void TypeEvaluter::registerReturnNode(ReturnNode *node) {
+void TypeEvaluter::visitReturnNode(ReturnNode *node) {
     if (node->returnExpr() == nullptr) {
         if (returnType != VT_VOID) {
             throw CompileError("MismatchTypeException", node->position());
@@ -210,7 +210,7 @@ void TypeEvaluter::registerReturnNode(ReturnNode *node) {
     setType(node, VT_VOID);
 }
 
-void TypeEvaluter::registerPrintNode(PrintNode *node) {
+void TypeEvaluter::visitPrintNode(PrintNode *node) {
     node->visitChildren(this);
     for (uint32_t i = 0; i < node->operands(); ++i) {
         VarType type = getType(node->operandAt(i));
@@ -221,24 +221,16 @@ void TypeEvaluter::registerPrintNode(PrintNode *node) {
     setType(node, VT_VOID);
 }
 
-void TypeEvaluter::registerCallNode(CallNode *node) {
-    //TODO
-}
-
-void TypeEvaluter::registerNativeCallNode(NativeCallNode *node) {
-    //TODO
-}
-
 void TypeEvaluter::registerContext() {
     (*contextList)[ctx->getId()] = ctx;
 }
 
 VarType TypeEvaluter::getType(AstNode *node) {
-    return (*nodeTypes)[node->position()];
+    return *((VarType *) node->info());
 }
 
 void TypeEvaluter::setType(AstNode *node, VarType type) {
-    (*nodeTypes)[node->position()] = type;
+    node->setInfo(&type);
 }
 
 void TypeEvaluter::matchNodeAndContext(AstNode *node) {
