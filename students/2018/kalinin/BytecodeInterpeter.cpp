@@ -5,5 +5,7 @@
 #include "BytecodeInterpeter.h"
 
 mathvm::Status *mathvm::BytecodeInterpeter::execute(std::vector<mathvm::Var *> &vars) {
-    return nullptr;
+    auto *topFunction =  dynamic_cast<BytecodeFunction*>(functionByName("<top>"));
+    topFunction->bytecode()->dump(cout);
+    return Status::Ok();
 }

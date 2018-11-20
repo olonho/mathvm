@@ -5,6 +5,7 @@
 #define MATHVM_BYTECODE_TRANSLATOR_VISITOR_H
 
 #include "../../../include/visitors.h"
+#include "BytecodeInterpeter.h"
 #include <unordered_map>
 #include <stdexcept>
 
@@ -15,11 +16,10 @@ namespace mathvm {
 
     class BytecodeTranslator : public AstBaseVisitor {
         Context *ctx{};
-        Bytecode *bytecode = new Bytecode;
-        Code *code{};
+        Bytecode *bytecode{};
 
     public:
-        explicit BytecodeTranslator(Code *code) : code(code) {};
+        explicit BytecodeTranslator(Context *ctx, Bytecode *bytecode) : ctx(ctx), bytecode(bytecode) {};
 
         void visitFunctionNode(FunctionNode *node) override;
 
@@ -148,10 +148,11 @@ namespace mathvm {
     class Context {
         class ChildsIterator;
 
-        static vector<BytecodeFunction *> functionList;
-        vector<Var *> varList{};
         unordered_map<string, uint16_t> variablesById{};
+        vector<Var *> varList{};
         unordered_map<string, uint16_t> functionsById{};
+        static vector<BytecodeFunction *> functionList;
+        unordered_map<string, uint16_t> constantsById{};
 
         static vector<Context *> contextList;
         Context *parent{};
@@ -192,6 +193,8 @@ namespace mathvm {
         BytecodeFunction *getFunction(string name);
 
         void addFun(AstFunction *func);
+
+        uint16_t makeStringConstant(string literal);
 
         Context *getParentContext();
 

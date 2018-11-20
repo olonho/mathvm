@@ -5,12 +5,17 @@
 #ifndef MATHVM_BYTECODEINTERPETER_H
 #define MATHVM_BYTECODEINTERPETER_H
 
-#include "../../../include/mathvm.h"
+#include "bytecode_translator_visitor.h"
 
 namespace mathvm {
+    class Context;
+
     class BytecodeInterpeter : public Code {
+        Context *ctx{};
 
     public:
+        explicit BytecodeInterpeter(Context *ctx) : ctx(ctx) {};
+
         Status *execute(vector<Var *> &vars);
 
     };

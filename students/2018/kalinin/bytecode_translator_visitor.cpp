@@ -8,7 +8,6 @@ using namespace mathvm;
 
 void BytecodeTranslator::visitFunctionNode(mathvm::FunctionNode *node) {
     if (node->name() == "<top>") {
-        ctx = Context::getRoot();
         node->body()->visit(new TypeEvaluter(ctx));
     }
     node->body()->visit(this);
@@ -92,7 +91,7 @@ void BytecodeTranslator::visitDoubleLiteralNode(DoubleLiteralNode *node) {
 
 void BytecodeTranslator::visitStringLiteralNode(StringLiteralNode *node) {
     bytecode->addInsn(BC_SLOAD);
-    bytecode->addInt16(code->makeStringConstant(node->literal()));
+    bytecode->addInt16(ctx->makeStringConstant(node->literal()));
 }
 
 void BytecodeTranslator::visitLoadNode(LoadNode *node) {
@@ -449,9 +448,9 @@ void BytecodeTranslator::translateFunctionsBody(Scope *scope) {
         func->node()->visit(this);
 
         //TODO for debug
-        cout << "============[ " << func->name() << " ]============" << endl;
-        bytecode->dump(cout);
-        cout << "========================" << endl;
+//        cout << "============[ " << func->name() << " ]============" << endl;
+//        bytecode->dump(cout);
+//        cout << "========================" << endl;
     }
     bytecode = currentBytecode;
 }
@@ -539,6 +538,12 @@ void Context::init(Context *parentContext) {
 
 Context::ChildsIterator *Context::childsIterator() {
     return iter;
+}
+
+uint16_t Context::makeStringConstant(string literal) {
+    uint16_t id = static_cast<unsigned short>(constantsById.size());
+    constantsById[literal] = id;
+    return id;
 }
 
 //===================================[TypeEvaluter]==========================================================

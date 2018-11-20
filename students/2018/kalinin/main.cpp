@@ -79,18 +79,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-//    if (impl != "printer") {
-//        assert(code);
-//
-//        vector<Var *> vars;
-//        unique_ptr<Status> execStatus{code->execute(vars)};
-//
-//        if (execStatus->isError()) {
-//            cerr << "Cannot execute expression, error: " << execStatus->getErrorCstr();
-//        }
-//
-//        delete code;
-//    }
+    if (impl != "printer") {
+        assert(code);
+
+        vector<Var *> vars;
+        unique_ptr<Status> execStatus{code->execute(vars)};
+
+        if (execStatus->isError()) {
+            cerr << "Cannot execute expression, error: " << execStatus->getErrorCstr();
+        }
+
+        delete code;
+    }
 
     return 0;
 }

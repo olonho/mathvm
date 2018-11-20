@@ -18,14 +18,16 @@ Status *BytecodeTranslatorImpl::translate(const string &program, Code **code) {
     Status *status = p.parseProgram(program);
     if (status->isOk()) {
         AstFunction *astFunction = p.top();
-        *code = new BytecodeInterpeter;
-        auto *translatorVisitor = new BytecodeTranslator(*code);
+        Context *ctx = Context::getRoot();
+        auto *bytecodeFunction = new BytecodeFunction(astFunction);
+        auto *translatorVisitor = new BytecodeTranslator(ctx, bytecodeFunction->bytecode());
         try {
             astFunction->node()->visit(translatorVisitor);
         } catch (CompileError e) {
             status = Status::Error(e.getMsg(), e.getPosition());
         }
-        translatorVisitor->getBytecode()->dump(cout);
+        *code = new BytecodeInterpeter(ctx);
+        (*code)->addFunction(bytecodeFunction);
         delete translatorVisitor;
     }
     return status;
