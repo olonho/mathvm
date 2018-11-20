@@ -9,6 +9,7 @@
 #include "../../../vm/parser.h"
 #include "printer/print_visitor.h"
 #include "bytecode_translator_visitor.h"
+#include "BytecodeInterpeter.h"
 
 using namespace mathvm;
 
@@ -17,15 +18,16 @@ Status *BytecodeTranslatorImpl::translate(const string &program, Code **code) {
     Status *status = p.parseProgram(program);
     if (status->isOk()) {
         AstFunction *astFunction = p.top();
-        auto *translator_visitor = new Bytecode_translator_visitor();
+        *code = new BytecodeInterpeter;
+        auto *translatorVisitor = new BytecodeTranslator(*code);
         try {
-            astFunction->node()->visit(translator_visitor);
+            astFunction->node()->visit(translatorVisitor);
         } catch (CompileError e) {
             status = Status::Error(e.getMsg(), e.getPosition());
         }
-        delete translator_visitor;
+        translatorVisitor->getBytecode()->dump(cout);
+        delete translatorVisitor;
     }
-    cout << status->isError() << endl;
     return status;
 }
 

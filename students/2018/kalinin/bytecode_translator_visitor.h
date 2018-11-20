@@ -13,60 +13,13 @@ using namespace std;
 namespace mathvm {
     class Context;
 
-    class Bytecode_translator_visitor : public AstBaseVisitor {
+    class BytecodeTranslator : public AstBaseVisitor {
         Context *ctx{};
-        Bytecode *bytecode{};
-        map<uint16_t, Context *> contextList{};
-        map<uint32_t, Context *> nodeContext{};
+        Bytecode *bytecode = new Bytecode;
+        Code *code{};
 
     public:
-        void visitFunctionNode(FunctionNode *node) override;
-
-        void visitBlockNode(BlockNode *node) override;
-
-        void visitIfNode(IfNode *node) override;
-//
-//        void visitWhileNode(WhileNode *node) override;
-//
-//        void visitStoreNode(StoreNode *node) override;
-//
-//        void visitLoadNode(LoadNode *node) override;
-//
-//        void visitBinaryOpNode(BinaryOpNode *node) override;
-//
-//        void visitUnaryOpNode(UnaryOpNode *node) override;
-//
-//        void visitDoubleLiteralNode(DoubleLiteralNode *node) override;
-//
-//        void visitIntLiteralNode(IntLiteralNode *node) override;
-//
-//        void visitStringLiteralNode(StringLiteralNode *node) override;
-//
-//        void visitForNode(ForNode *node) override;
-//
-//        void visitReturnNode(ReturnNode *node) override;
-//
-//        void visitPrintNode(PrintNode *node) override;
-//
-//        void visitCallNode(CallNode *node) override;
-//
-//        void visitNativeCallNode(NativeCallNode *node) override;
-
-    private :
-//        void fillContext(Scope *scope);
-    };
-
-    class TypeEvaluter : public AstBaseVisitor {
-        Context *ctx;
-        map<uint16_t, Context *> *contextList{};
-        map<uint32_t, Context *> *nodeContext{};
-        VarType returnType;
-
-    public:
-        TypeEvaluter(Context *ctx, map<uint16_t, Context *> *contextList, map<uint32_t, Context *> *nodeContext,
-                     VarType returnType) :
-                ctx(ctx), contextList(contextList), nodeContext(nodeContext),
-                returnType(returnType) {}
+        explicit BytecodeTranslator(Code *code) : code(code) {};
 
         void visitFunctionNode(FunctionNode *node) override;
 
@@ -96,75 +49,197 @@ namespace mathvm {
 
         void visitPrintNode(PrintNode *node) override;
 
+        void visitCallNode(CallNode *node) override;
+
+//        void visitNativeCallNode(NativeCallNode *node) override;
+
+        Bytecode *getBytecode();
+
+    private :
+        VarType getType(AstNode *node);
+
+        void translateBooleanOperation(BinaryOpNode *node, TokenKind op);
+
+        void translateCompareOperation(AstNode *left, AstNode *right, TokenKind op);
+
+        void translateArithmeticOperation(BinaryOpNode *node, TokenKind op);
+
+        void translateNegateNumber(UnaryOpNode *node);
+
+        void translateInverseBoolean(UnaryOpNode *node);
+
+        void translateLoadVariable(const AstVar *var);
+
+        void translateStoreVariable(const AstVar *var);
+
+        void translateCastTypes(VarType sourse, VarType target);
+
+        void translateFunctionsBody(Scope *scope);
+
+        bool isExpressionNode(AstNode *node);
+    };
+
+    class TypeEvaluter : public AstBaseVisitor {
+        Context *ctx;
+        VarType returnType = VT_VOID;
+
+    public:
+        explicit TypeEvaluter(Context *ctx) : ctx(ctx) {}
+
+        void visitFunctionNode(FunctionNode *node) override;
+
+        void visitBlockNode(BlockNode *node) override;
+
+        void visitIfNode(IfNode *node) override;
+
+        void visitWhileNode(WhileNode *node) override;
+
+        void visitStoreNode(StoreNode *node) override;
+
+        void visitLoadNode(LoadNode *node) override;
+
+        void visitBinaryOpNode(BinaryOpNode *node) override;
+
+        void visitUnaryOpNode(UnaryOpNode *node) override;
+
+        void visitDoubleLiteralNode(DoubleLiteralNode *node) override;
+
+        void visitIntLiteralNode(IntLiteralNode *node) override;
+
+        void visitStringLiteralNode(StringLiteralNode *node) override;
+
+        void visitForNode(ForNode *node) override;
+
+        void visitReturnNode(ReturnNode *node) override;
+
+        void visitPrintNode(PrintNode *node) override;
+
+        void visitCallNode(CallNode *node) override;
+
+//        void visitNativeCallNode(NativeCallNode *node) override;
+
     private:
         void fillContext(Scope *scope);
 
-        VarType checkBooleanOperation(VarType left, VarType right, TokenKind op);
+        VarType checkCompareOperation(VarType left, VarType right);
 
-        VarType checkEqualsOperation(VarType left, VarType right, TokenKind op);
+        VarType checkEqualsOperation(VarType left, VarType right);
 
-        VarType checkArithmeticOperationWithoutPlus(VarType left, VarType right, TokenKind op);
+        VarType checkArithmeticOperation(VarType left, VarType right);
 
-        VarType checkIntegerModOperation(VarType left, VarType right, TokenKind op);
+        VarType checkIntegerOperation(VarType left, VarType right);
 
-        VarType checkPlusOperation(VarType left, VarType right, TokenKind op);
+        VarType checkRangeOperation(VarType left, VarType right);
 
-        void matchNodeAndContext(AstNode *node);
+        VarType checkFunctionCallParameter(VarType expected, VarType actual);
 
-        void registerContext();
+        void checkFunctionParameters(AstFunction *func);
 
         void setType(AstNode *node, VarType type);
 
         VarType getType(AstNode *node);
+
+        bool containsFunction(string name);
+
+        void visitFunctions(Scope *scope);
     };
 
     //TODO add general context list
     class Context {
-        unordered_map<string, uint16_t> variables{};
-        unordered_map<string, uint16_t> functions{};
-        vector<Var *> var_buffer{};
-        vector<BytecodeFunction *> fun_buffer{};
-        Context *parent;
-        vector<Context *> childs{};
-        static uint16_t count;
-        uint16_t id;
+        class ChildsIterator;
 
-        Context(Scope *currentScope, Context *parentContext) {
-            parent = parentContext;
-            id = count + (uint16_t) 1;
-            count++;
+        static vector<BytecodeFunction *> functionList;
+        vector<Var *> varList{};
+        unordered_map<string, uint16_t> variablesById{};
+        unordered_map<string, uint16_t> functionsById{};
+
+        static vector<Context *> contextList;
+        Context *parent{};
+        vector<Context *> childs{};
+
+        uint16_t id{};
+        ChildsIterator *iter{};
+        static Context *instanse;
+
+    private:
+        Context() {
+            init(nullptr);
         }
+
+        explicit Context(Context *parentContext) {
+            init(parentContext);
+        }
+
+        void init(Context *parentContext);
 
     public:
-        Context() {
-            id = count;
-            parent = nullptr;
-            count++;
-        }
+        static Context *getRoot();
 
-        Context *addChild(Scope *scope) {
-            auto *child = new Context(scope, this);
-            childs.push_back(child);
-            return child;
-        }
+        Context *addChild();
 
-        uint16_t getId() {
-            return id;
-        }
+        Context *getLastChildren();
 
-        Var *getLocalVar(string name) {
-            return var_buffer[variables[name]];
-        }
+        uint16_t getId();
 
         Context *getVarContext(string name);
 
-        Context *getParentContext() {
-            return parent;
-        }
-
         void addVar(Var *var);
 
-        void addFun(BytecodeFunction *func);
+        uint16_t VarNumber();
+
+        uint16_t getVarId(string name);
+
+        BytecodeFunction *getFunction(string name);
+
+        void addFun(AstFunction *func);
+
+        Context *getParentContext();
+
+        ChildsIterator *childsIterator();
+
+//        FunctionsIterator* functionsIterator();
+
+    private:
+        class ChildsIterator {
+            friend Context;
+            vector<Context *> *childs{};
+            uint32_t count = 0;
+
+        private:
+            explicit ChildsIterator(vector<Context *> *childs) : childs(childs) {};
+
+        public:
+            bool hasNext() {
+                return count < childs->size() - 1;
+            }
+
+            Context *next() {
+                Context *res = (*childs)[count];
+                count++;
+                return res;
+            }
+        };
+
+    public:
+        class FunctionsIterator {
+            unordered_map<string, uint16_t> *functions{};
+            unordered_map<string, uint16_t>::iterator iter{};
+            vector<BytecodeFunction *> *functionList{};
+
+        public:
+            explicit FunctionsIterator(Context *ctx)
+                    : functions(&ctx->functionsById), iter(functions->begin()), functionList(&ctx->functionList) {}
+
+            bool hasNext() {
+                return iter != functions->end();
+            }
+
+            BytecodeFunction *next() {
+                uint32_t res = (*iter).second;
+                iter++;
+                return (*functionList)[res];
+            }
+        };
     };
 
     class CompileError : std::exception {

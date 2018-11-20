@@ -21,6 +21,7 @@ USER_OBJ = \
 	$(OBJ)/translator_impl$(OBJ_SUFF) \
 	$(OBJ)/printer/print_visitor$(OBJ_SUFF) \
 	$(OBJ)/bytecode_translator_visitor$(OBJ_SUFF) \
+	$(OBJ)/BytecodeInterpeter$(OBJ_SUFF)
 
 USER_CFLAGS = -std=c++14
 
