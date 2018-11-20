@@ -8,8 +8,8 @@
 #include "../../../include/mathvm.h"
 #include "../../../vm/parser.h"
 #include "printer/print_visitor.h"
-#include "bytecode_translator_visitor.h"
-#include "BytecodeInterpeter.h"
+#include "translator/BytecodeGenerator.h"
+#include "translator/BytecodeInterpeter.h"
 
 using namespace mathvm;
 
@@ -20,7 +20,7 @@ Status *BytecodeTranslatorImpl::translate(const string &program, Code **code) {
         AstFunction *astFunction = p.top();
         Context *ctx = Context::getRoot();
         auto *bytecodeFunction = new BytecodeFunction(astFunction);
-        auto *translatorVisitor = new BytecodeTranslator(ctx, bytecodeFunction->bytecode());
+        auto *translatorVisitor = new BytecodeGenerator(ctx, bytecodeFunction->bytecode());
         try {
             astFunction->node()->visit(translatorVisitor);
         } catch (CompileError e) {

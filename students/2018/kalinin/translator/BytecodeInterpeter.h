@@ -5,7 +5,7 @@
 #ifndef MATHVM_BYTECODEINTERPETER_H
 #define MATHVM_BYTECODEINTERPETER_H
 
-#include "bytecode_translator_visitor.h"
+#include "BytecodeGenerator.h"
 
 namespace mathvm {
     class Context;

@@ -20,8 +20,10 @@ USER_OBJ = \
 	$(OBJ)/main$(OBJ_SUFF) \
 	$(OBJ)/translator_impl$(OBJ_SUFF) \
 	$(OBJ)/printer/print_visitor$(OBJ_SUFF) \
-	$(OBJ)/bytecode_translator_visitor$(OBJ_SUFF) \
-	$(OBJ)/BytecodeInterpeter$(OBJ_SUFF)
+	$(OBJ)/translator/BytecodeGenerator$(OBJ_SUFF) \
+    $(OBJ)/translator/TypeEvaluter$(OBJ_SUFF) \
+    $(OBJ)/translator/Context$(OBJ_SUFF) \
+	$(OBJ)/translator/BytecodeInterpeter$(OBJ_SUFF)
 
 USER_CFLAGS = -std=c++14
 
@@ -33,6 +35,7 @@ all: customdirs | $(MATHVM)
 
 customdirs:
 	mkdir -p $(OBJ)/printer
+	mkdir -p $(OBJ)/translator
 
 ifeq ($(OPT), 1)
 KIND = opt
