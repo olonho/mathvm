@@ -94,3 +94,33 @@ uint16_t Context::makeStringConstant(string literal) {
     constantsById[literal] = id;
     return id;
 }
+
+vector<StackContext *> StackContext::contextList{};
+
+void StackContext::setInt16(int ind, uint16_t value) {
+    (*variables)[ind] = value;
+}
+
+void StackContext::setInt64(int ind, uint64_t value) {
+    (*variables)[ind] = value;
+}
+
+void StackContext::setDouble(int ind, double value) {
+    (*variables)[ind] = value;
+}
+
+uint16_t StackContext::getInt16(int ind) {
+    return (*variables)[ind].i16;
+}
+
+uint64_t StackContext::getInt64(int ind) {
+    return (*variables)[ind].i;
+}
+
+double StackContext::getDouble(int ind) {
+    return (*variables)[ind].d;
+}
+
+
+
+

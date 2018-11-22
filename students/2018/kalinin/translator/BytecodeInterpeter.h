@@ -10,11 +10,28 @@
 namespace mathvm {
     class Context;
 
+    union Val {
+        Val() {}
+
+        Val(uint64_t i) : i(i) {}
+
+        Val(double d) : d(d) {}
+
+        Val(uint16_t i16) : i16(i16) {}
+
+        double d;
+        uint64_t i;
+        uint16_t i16;
+    };
+
     class BytecodeInterpeter : public Code {
         Context *ctx{};
+        vector<Val> stack{};
 
     public:
         explicit BytecodeInterpeter(Context *ctx) : ctx(ctx) {};
+
+        void interpate(Instruction ins, uint32_t offset);
 
         Status *execute(vector<Var *> &vars);
 

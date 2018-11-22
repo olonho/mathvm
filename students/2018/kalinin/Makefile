@@ -25,7 +25,7 @@ USER_OBJ = \
     $(OBJ)/translator/Context$(OBJ_SUFF) \
 	$(OBJ)/translator/BytecodeInterpeter$(OBJ_SUFF)
 
-USER_CFLAGS = -std=c++14
+USER_CFLAGS = -std=c++17
 
 include $(VM_ROOT)/common.mk
 

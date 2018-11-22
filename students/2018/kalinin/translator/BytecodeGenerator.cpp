@@ -10,8 +10,11 @@ using namespace mathvm;
 void BytecodeGenerator::visitFunctionNode(mathvm::FunctionNode *node) {
     if (node->name() == "<top>") {
         node->body()->visit(new TypeEvaluter(ctx));
+        node->body()->visit(this);
+        bytecode->addInsn(BC_RETURN);
+    } else {
+        node->body()->visit(this);
     }
-    node->body()->visit(this);
 }
 
 void BytecodeGenerator::visitIfNode(IfNode *node) {

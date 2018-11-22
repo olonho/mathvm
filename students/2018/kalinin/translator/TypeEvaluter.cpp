@@ -66,6 +66,9 @@ void TypeEvaluter::visitFunctionNode(FunctionNode *node) {
     auto *function = ctx->getFunction(node->name());
     function->setLocalsNumber(ctx->VarNumber());
     function->setScopeId(ctx->getLastChildren()->getId());
+    for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
+        ctx->getLastChildren()->addVar(new Var(node->parameterType(i), node->parameterName(i)));
+    }
     setType(node, VT_VOID);
 }
 

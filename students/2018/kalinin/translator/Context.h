@@ -8,6 +8,7 @@
 #include <cstdint>
 #include "../../../../include/mathvm.h"
 #include "../../../../include/ast.h"
+#include "BytecodeInterpeter.h"
 #include <unordered_map>
 
 namespace mathvm {
@@ -89,6 +90,36 @@ namespace mathvm {
         };
     };
 
+    union Val;
+
+    class StackContext {
+        static vector<StackContext *> contextList;
+        vector<Val> *variables;
+
+    public:
+        StackContext(Context *context) {
+            contextList.push_back(this);
+            variables = new vector<Val>(context->VarNumber());
+        }
+
+        ~StackContext() {
+            contextList.pop_back();
+            delete variables;
+        }
+
+
+        void setInt16(int ind, uint16_t value);
+
+        void setInt64(int ind, uint64_t value);
+
+        void setDouble(int ind, double value);
+
+        uint16_t getInt16(int ind);
+
+        uint64_t getInt64(int ind);
+
+        double getDouble(int ind);
+    };
 }
 
 #endif //MATHVM_CONTEXT_H
