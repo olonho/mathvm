@@ -136,20 +136,24 @@ namespace mathvm {
     union Val;
 
     class StackContext {
-        static vector<StackContext *> contextList;
-        vector<Val> *variables;
+        vector<Val> variables{};
+        StackContext *parent{};
+        StackContext *prev{};
+        uint16_t id{};
 
+
+        //TODO положить variables в кучу?
     public:
-        StackContext(SubContext *context) {
-            contextList.push_back(this);
-            variables = new vector<Val>(context->VarNumber());
+        StackContext() : parent(nullptr), id(0) {};
+
+        explicit StackContext(BytecodeFunction *function, StackContext *prev) :
+                prev(prev),
+                id(static_cast<uint16_t>(function->id() + 1)) {
+            auto *parent = findParentById(function->id(), prev);
+            this->parent = parent;
         }
 
-        ~StackContext() {
-            contextList.pop_back();
-            delete variables;
-        }
-
+        ~StackContext() = default;
 
         void setInt16(int ind, uint16_t value);
 
@@ -162,6 +166,23 @@ namespace mathvm {
         uint64_t getInt64(int ind);
 
         double getDouble(int ind);
+
+        void setInt16ToParent(uint16_t parentId, int ind, uint16_t value);
+
+        void setInt64ToParent(uint16_t parentId, int ind, uint64_t value);
+
+        void setDoubleToParent(uint16_t parentId, int ind, double value);
+
+        uint16_t getInt16FromParent(uint16_t parentId, int ind);
+
+        uint64_t getInt64FromParent(uint16_t parentId, int ind);
+
+        double getDoubleFromParent(uint16_t parentId, int ind);
+
+        void removePreviousContext();
+
+    private:
+        StackContext *findParentById(uint16_t id, StackContext *parent);
     };
 }
 

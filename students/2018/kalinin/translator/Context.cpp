@@ -6,6 +6,8 @@
 
 using namespace mathvm;
 
+//TODO заменить рекурсию на цикл везде где можно
+
 vector<BytecodeFunction *> Context::functionList{};
 
 unordered_map<string, uint16_t> Context::constantsById{};
@@ -150,30 +152,70 @@ uint16_t SubContext::getId() {
     return ownContext->getId();
 }
 
-vector<StackContext *> StackContext::contextList{};
-
 void StackContext::setInt16(int ind, uint16_t value) {
-    (*variables)[ind] = value;
+    variables[ind] = value;
 }
 
 void StackContext::setInt64(int ind, uint64_t value) {
-    (*variables)[ind] = value;
+    variables[ind] = value;
 }
 
 void StackContext::setDouble(int ind, double value) {
-    (*variables)[ind] = value;
+    variables[ind] = value;
 }
 
 uint16_t StackContext::getInt16(int ind) {
-    return (*variables)[ind].i16;
+    return variables[ind].i16;
 }
 
 uint64_t StackContext::getInt64(int ind) {
-    return (*variables)[ind].i;
+    return variables[ind].i;
 }
 
 double StackContext::getDouble(int ind) {
-    return (*variables)[ind].d;
+    return variables[ind].d;
+}
+
+void StackContext::setInt16ToParent(uint16_t parentId, int ind, uint16_t value) {
+    auto *parentWithVar = findParentById(parentId, parent);
+    parentWithVar->setInt16(ind, value);
+}
+
+void StackContext::setInt64ToParent(uint16_t parentId, int ind, uint64_t value) {
+    auto *parentWithVar = findParentById(parentId, parent);
+    parentWithVar->setInt64(ind, value);
+}
+
+void StackContext::setDoubleToParent(uint16_t parentId, int ind, double value) {
+    auto *parentWithVar = findParentById(parentId, parent);
+    parentWithVar->setDouble(ind, value);
+}
+
+uint16_t StackContext::getInt16FromParent(uint16_t parentId, int ind) {
+    auto *parentWithVar = findParentById(parentId, parent);
+    return parentWithVar->getInt16(ind);
+}
+
+uint64_t StackContext::getInt64FromParent(uint16_t parentId, int ind) {
+    auto *parentWithVar = findParentById(parentId, parent);
+    return parentWithVar->getInt64(ind);
+}
+
+double StackContext::getDoubleFromParent(uint16_t parentId, int ind) {
+    auto *parentWithVar = findParentById(parentId, parent);
+    return parentWithVar->getDouble(ind);
+}
+
+StackContext *StackContext::findParentById(uint16_t id, StackContext *parent) {
+    auto *res = parent;
+    while (parent->id != id) {
+        res = res->parent;
+    }
+    return res;
+}
+
+void StackContext::removePreviousContext() {
+    delete prev;
 }
 
 
