@@ -86,10 +86,6 @@ uint16_t Context::getVarId(string name) {
     return root->getVarId(name);
 }
 
-int Context::getChildsNumber() {
-    return static_cast<int>(childs.size());
-}
-
 Context *Context::getChildAt(int ind) {
     return childs[ind];
 }
@@ -116,10 +112,6 @@ void SubContext::addFun(AstFunction *func) {
 
 SubContext *SubContext::getParent() {
     return parent;
-}
-
-SubContext *SubContext::getLastChildren() {
-    return childs.back();
 }
 
 SubContext *SubContext::addChild() {

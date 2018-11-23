@@ -56,8 +56,6 @@ namespace mathvm {
 
         void nextSubContext();
 
-        int getChildsNumber();
-
         Context *getChildAt(int ind);
 
         virtual Context *addChild();
@@ -96,8 +94,6 @@ namespace mathvm {
         }
 
         SubContext *addChild() override;
-
-        SubContext *getLastChildren();
 
         Context *getVarContext(string name) override;
 
