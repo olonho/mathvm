@@ -18,7 +18,11 @@ endif
 USER_OBJ = \
 	$(JIT_OBJ) \
 	$(OBJ)/main$(OBJ_SUFF) \
-	$(OBJ)/translator_impl$(OBJ_SUFF)
+	$(OBJ)/translator_impl$(OBJ_SUFF) \
+	$(OBJ)/source_translator$(OBJ_SUFF) \
+	$(OBJ)/typer$(OBJ_SUFF) \
+	$(OBJ)/bytecode_translator$(OBJ_SUFF) \
+	$(OBJ)/bytecode_interpreter$(OBJ_SUFF)
 
 USER_CFLAGS = -std=c++14
 
@@ -38,8 +42,8 @@ test: $(MATHVM)
 	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
 	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
 	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
-	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
-	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
+	$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
+	$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
 	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
 
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
