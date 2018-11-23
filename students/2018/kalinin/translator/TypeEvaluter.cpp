@@ -65,9 +65,9 @@ void TypeEvaluter::visitFunctionNode(FunctionNode *node) {
     node->body()->visit(this);
     auto *function = ctx->getFunction(node->name());
     function->setLocalsNumber(ctx->VarNumber());
-    function->setScopeId(ctx->getLastChildren()->getId());
+    function->setScopeId(ctx->getParent()->getId());
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-        ctx->getLastChildren()->addVar(new Var(node->parameterType(i), node->parameterName(i)));
+        ctx->subContext()->addVar(new Var(node->parameterType(i), node->parameterName(i)));
     }
     setType(node, VT_VOID);
 }
@@ -77,7 +77,7 @@ void TypeEvaluter::fillContext(Scope *scope) {
     while (variableIterator.hasNext()) {
         auto *astVar = variableIterator.next();
         auto *var = new Var(astVar->type(), astVar->name());
-        ctx->addVar(var);
+        ctx->subContext()->addVar(var);
     }
 
     Scope::FunctionIterator functionIterator(scope);
@@ -87,16 +87,16 @@ void TypeEvaluter::fillContext(Scope *scope) {
             throw CompileError("Override function", func->node()->position());
         }
         checkFunctionParameters(func);
-        ctx->addFun(func);
+        ctx->subContext()->addFun(func);
     }
 }
 
 void TypeEvaluter::visitBlockNode(BlockNode *node) {
-    ctx = ctx->addChild();
+    ctx->createAndMoveToLowerLevel();
     fillContext(node->scope());
     visitFunctions(node->scope());
     node->visitChildren(this);
-    ctx = ctx->getParentContext();
+    ctx->moveToUperLevel();
     setType(node, VT_VOID);
 }
 
@@ -140,6 +140,9 @@ void TypeEvaluter::visitStoreNode(StoreNode *node) {
 }
 
 void TypeEvaluter::visitForNode(ForNode *node) {
+    if (node->var() == nullptr) {
+        throw CompileError("Variable is not in scope", node->position());
+    }
     node->inExpr()->visit(this);
     VarType iteratorType = node->var()->type();
     if (!node->inExpr()->isBinaryOpNode() || node->inExpr()->asBinaryOpNode()->kind() != tRANGE) {
@@ -252,8 +255,10 @@ void TypeEvaluter::visitFunctions(Scope *scope) {
     VarType currentReturnType = returnType;
     while (functionIterator.hasNext()) {
         auto *func = functionIterator.next();
+        ctx = ctx->addChild();
         returnType = func->returnType();
         func->node()->visit(this);
+        ctx = ctx->getParent();
     }
     returnType = currentReturnType;
 }

@@ -11,7 +11,7 @@
 namespace mathvm {
 
     class TypeEvaluter : public AstBaseVisitor {
-        Context *ctx;
+        Context *ctx{};
         VarType returnType = VT_VOID;
 
     public:

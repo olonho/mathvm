@@ -6,35 +6,74 @@
 
 using namespace mathvm;
 
-void Context::addVar(Var *var) {
-    varList.push_back(var);
-    variablesById[var->name()] = static_cast<unsigned short>(varList.size() - 1);
-}
-
-void Context::addFun(AstFunction *func) {
-    auto *byteCodeFunction = new BytecodeFunction(func);
-    uint16_t functionId = static_cast<uint16_t>(functionList.size());
-    byteCodeFunction->assignId(functionId);
-    functionList.push_back(byteCodeFunction);
-    functionsById[func->name()] = functionId;
-}
-
-Context *Context::instanse = nullptr;
-
-vector<Context *> Context::contextList{};
-
 vector<BytecodeFunction *> Context::functionList{};
 
-Context *Context::getParentContext() {
-    return parent;
+unordered_map<string, uint16_t> Context::constantsById{};
+
+BytecodeFunction *Context::getFunction(string name) {
+    if (functionsById.find(name) != functionsById.end()) {
+        return functionList[functionsById[name]];
+    }
+    if (parent == nullptr) {
+        return nullptr;
+    }
+    return parent->getFunction(name);
 }
 
 uint16_t Context::getId() {
     return id;
 }
 
-Context *Context::getLastChildren() {
-    return childs.back();
+uint16_t Context::makeStringConstant(string literal) {
+    uint16_t id = static_cast<unsigned short>(constantsById.size());
+    constantsById[literal] = id;
+    return id;
+}
+
+Context *Context::getParent() {
+    return parent;
+}
+
+Context *Context::getVarContext(string name) {
+    auto *result = root->getVarContext(name);
+    if (result != nullptr) {
+        return result;
+    }
+    if (parent == nullptr) {
+        return nullptr;
+    }
+    return parent->getVarContext(name);
+}
+
+uint16_t Context::VarNumber() {
+    return static_cast<uint16_t>(varList.size());
+}
+
+SubContext *Context::subContext() {
+    return currentSubContext;
+}
+
+void Context::createAndMoveToLowerLevel() {
+    if (root == nullptr) {
+        root = new SubContext(this);
+        currentSubContext = root;
+    } else {
+        currentSubContext = currentSubContext->addChild();
+    }
+}
+
+void Context::moveToUperLevel() {
+    currentSubContext = currentSubContext->getParent();
+}
+
+void Context::nextSubContext() {
+    if (currentSubContext == nullptr) {
+        currentSubContext = root;
+    } else if (currentSubContext->childsIterator()->hasNext()) {
+        currentSubContext = currentSubContext->childsIterator()->next();
+    } else {
+        moveToUperLevel();
+    }
 }
 
 Context *Context::addChild() {
@@ -43,56 +82,80 @@ Context *Context::addChild() {
     return child;
 }
 
-uint16_t Context::VarNumber() {
-    return static_cast<uint16_t>(variablesById.size());
+uint16_t Context::getVarId(string name) {
+    return root->getVarId(name);
 }
 
-BytecodeFunction *Context::getFunction(string name) {
-    if (parent == nullptr) {
-        return nullptr;
-    }
-    if (functionsById.find(name) != functionsById.end()) {
-        return functionList[functionsById[name]];
-    }
-    return parent->getFunction(name);
+int Context::getChildsNumber() {
+    return static_cast<int>(childs.size());
 }
 
-Context *Context::getVarContext(string name) {
-    if (parent == nullptr) {
-        return nullptr;
+Context *Context::getChildAt(int ind) {
+    return childs[ind];
+}
+
+void Context::destroySubContext() {
+    delete root;
+}
+
+void SubContext::addVar(Var *var) {
+    ownContext->varList.push_back(var);
+    variablesById[var->name()] = static_cast<unsigned short>(ownContext->varList.size() - 1);
+}
+
+void SubContext::addFun(AstFunction *func) {
+    if (parent != nullptr) {
+        throw CompileError("Function must be declared in main scope");
     }
+    auto *byteCodeFunction = new BytecodeFunction(func);
+    uint16_t functionId = static_cast<uint16_t>(functionList.size());
+    byteCodeFunction->assignId(functionId);
+    functionList.push_back(byteCodeFunction);
+    ownContext->functionsById[func->name()] = functionId;
+}
+
+SubContext *SubContext::getParent() {
+    return parent;
+}
+
+SubContext *SubContext::getLastChildren() {
+    return childs.back();
+}
+
+SubContext *SubContext::addChild() {
+    auto *child = new SubContext(ownContext, this);
+    childs.push_back(child);
+    return child;
+}
+
+Context *SubContext::getVarContext(string name) {
     if (variablesById.find(name) != variablesById.end()) {
         return this;
+    }
+    if (parent == nullptr) {
+        if (ownContext->getParent() != nullptr) {
+            return ownContext->getParent()->getVarContext(name);
+        } else {
+            return nullptr;
+        }
     }
     return parent->getVarContext(name);
 }
 
-uint16_t Context::getVarId(string name) {
+uint16_t SubContext::getVarId(string name) {
     return variablesById[name];
 }
 
-Context *Context::getRoot() {
-    if (instanse == nullptr) {
-        instanse = new Context();
-    }
-    return instanse;
-}
-
-void Context::init(Context *parentContext) {
-    parent = parentContext;
-    id = static_cast<uint16_t>(contextList.size());
-    iter = new ChildsIterator(&childs);
-    contextList.push_back(this);
-}
-
-Context::ChildsIterator *Context::childsIterator() {
+SubContext::ChildsIterator *SubContext::childsIterator() {
     return iter;
 }
 
-uint16_t Context::makeStringConstant(string literal) {
-    uint16_t id = static_cast<unsigned short>(constantsById.size());
-    constantsById[literal] = id;
-    return id;
+BytecodeFunction *SubContext::getFunction(string name) {
+    return ownContext->getFunction(name);
+}
+
+uint16_t SubContext::getId() {
+    return ownContext->getId();
 }
 
 vector<StackContext *> StackContext::contextList{};

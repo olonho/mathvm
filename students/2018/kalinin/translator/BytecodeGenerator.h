@@ -82,9 +82,11 @@ namespace mathvm {
 
     class CompileError : std::exception {
         const char *msg;
-        uint32_t position;
+        uint32_t position{};
 
     public:
+        explicit CompileError(const char *msg) : msg(msg) {}
+
         CompileError(const char *msg, uint32_t position) : msg(msg), position(position) {}
 
         const char *getMsg() {

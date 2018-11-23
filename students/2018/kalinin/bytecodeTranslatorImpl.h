@@ -18,7 +18,7 @@ Status *BytecodeTranslatorImpl::translate(const string &program, Code **code) {
     Status *status = p.parseProgram(program);
     if (status->isOk()) {
         AstFunction *astFunction = p.top();
-        Context *ctx = Context::getRoot();
+        Context *ctx = new Context();
         auto *bytecodeFunction = new BytecodeFunction(astFunction);
         auto *translatorVisitor = new BytecodeGenerator(ctx, bytecodeFunction->bytecode());
         try {
@@ -26,6 +26,7 @@ Status *BytecodeTranslatorImpl::translate(const string &program, Code **code) {
         } catch (CompileError e) {
             status = Status::Error(e.getMsg(), e.getPosition());
         }
+        bytecodeFunction->bytecode()->dump(cout);
         *code = new BytecodeInterpeter(ctx);
         (*code)->addFunction(bytecodeFunction);
         delete translatorVisitor;

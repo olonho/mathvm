@@ -13,77 +13,124 @@
 
 namespace mathvm {
 
+    class SubContext;
+
     class Context {
-        class ChildsIterator;
-
-        unordered_map<string, uint16_t> variablesById{};
-        vector<Var *> varList{};
-        unordered_map<string, uint16_t> functionsById{};
-        static vector<BytecodeFunction *> functionList;
-        unordered_map<string, uint16_t> constantsById{};
-
-        static vector<Context *> contextList;
-        Context *parent{};
-        vector<Context *> childs{};
+        friend SubContext;
 
         uint16_t id{};
-        ChildsIterator *iter{};
-        static Context *instanse;
+        vector<Context *> childs{};
+        SubContext *root{};
+        Context *parent{};
+        unordered_map<string, uint16_t> functionsById{};
+        vector<Var *> varList{};
+        SubContext *currentSubContext{};
 
-    private:
-        Context() {
-            init(nullptr);
-        }
-
-        explicit Context(Context *parentContext) {
-            init(parentContext);
-        }
-
-        void init(Context *parentContext);
+    protected:
+        static vector<BytecodeFunction *> functionList;
+        static unordered_map<string, uint16_t> constantsById;
 
     public:
-        static Context *getRoot();
+        Context() : id(0), root(nullptr), parent(nullptr) {}
 
-        Context *addChild();
+        explicit Context(Context *parent) : id(static_cast<uint16_t>(parent->getId() + 1)), root(nullptr),
+                                            parent(parent) {}
 
-        Context *getLastChildren();
+        virtual uint16_t getId();
 
-        uint16_t getId();
+        virtual Context *getParent();
 
-        Context *getVarContext(string name);
+        virtual Context *getVarContext(string name);
 
-        void addVar(Var *var);
+        virtual uint16_t getVarId(string name);
+
+        virtual BytecodeFunction *getFunction(string name);
 
         uint16_t VarNumber();
 
-        uint16_t getVarId(string name);
+        SubContext *subContext();
 
-        BytecodeFunction *getFunction(string name);
+        void createAndMoveToLowerLevel();
 
-        void addFun(AstFunction *func);
+        void moveToUperLevel();
+
+        void nextSubContext();
+
+        int getChildsNumber();
+
+        Context *getChildAt(int ind);
+
+        virtual Context *addChild();
 
         uint16_t makeStringConstant(string literal);
 
-        Context *getParentContext();
+        void destroySubContext();
+    };
+
+
+    class SubContext : public Context {
+        class ChildsIterator;
+
+        unordered_map<string, uint16_t> variablesById{};
+
+        vector<SubContext *> childs{};
+        Context *ownContext{};
+        SubContext *parent{};
+        ChildsIterator *iter{};
+
+    public:
+        explicit SubContext(Context *own) : ownContext(own), parent(nullptr) {
+            iter = new ChildsIterator(&childs);
+        }
+
+        SubContext(Context *own, SubContext *parentContext) : ownContext(own), parent(parentContext) {
+            iter = new ChildsIterator(&childs);
+        }
+
+        virtual ~SubContext() {
+            for (unsigned int i = 0; i < childs.size(); ++i) {
+                auto *child = childs.back();
+                childs.pop_back();
+                delete child;
+            }
+        }
+
+        SubContext *addChild() override;
+
+        SubContext *getLastChildren();
+
+        Context *getVarContext(string name) override;
+
+        void addVar(Var *var);
+
+        uint16_t getVarId(string name) override;
+
+        BytecodeFunction *getFunction(string name) override;
+
+        void addFun(AstFunction *func);
+
+        SubContext *getParent() override;
+
+        uint16_t getId() override;
 
         ChildsIterator *childsIterator();
 
     private:
         class ChildsIterator {
-            friend Context;
-            vector<Context *> *childs{};
+            friend SubContext;
+            vector<SubContext *> *childs{};
             uint32_t count = 0;
 
         private:
-            explicit ChildsIterator(vector<Context *> *childs) : childs(childs) {};
+            explicit ChildsIterator(vector<SubContext *> *childs) : childs(childs) {};
 
         public:
             bool hasNext() {
-                return count < childs->size() - 1;
+                return count < childs->size();
             }
 
-            Context *next() {
-                Context *res = (*childs)[count];
+            SubContext *next() {
+                SubContext *res = (*childs)[count];
                 count++;
                 return res;
             }
@@ -97,7 +144,7 @@ namespace mathvm {
         vector<Val> *variables;
 
     public:
-        StackContext(Context *context) {
+        StackContext(SubContext *context) {
             contextList.push_back(this);
             variables = new vector<Val>(context->VarNumber());
         }

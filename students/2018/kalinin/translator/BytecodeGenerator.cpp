@@ -61,6 +61,10 @@ void BytecodeGenerator::visitForNode(ForNode *node) {
     rangeNode->right()->visit(this);
     bytecode->addBranch(BC_IFICMPL, endLabel);
     node->body()->visit(this);
+    bytecode->addInsn(BC_ILOAD1);
+    translateLoadVariable(node->var());
+    bytecode->addInsn(BC_IADD);
+    translateStoreVariable(node->var());
     bytecode->addBranch(BC_JA, loopLabel);
     bytecode->bind(endLabel);
 }
@@ -70,8 +74,7 @@ Bytecode *BytecodeGenerator::getBytecode() {
 }
 
 void BytecodeGenerator::visitBlockNode(BlockNode *node) {
-    Context *currentCtx = ctx;
-    ctx = currentCtx->childsIterator()->next();
+    ctx->nextSubContext();
     translateFunctionsBody(node->scope());
     for (uint32_t i = 0; i < node->nodes(); ++i) {
         AstNode *children = node->nodeAt(i);
@@ -80,7 +83,7 @@ void BytecodeGenerator::visitBlockNode(BlockNode *node) {
             bytecode->addInsn(BC_POP);
         }
     }
-    ctx = currentCtx;
+    ctx->nextSubContext();
 }
 
 void BytecodeGenerator::visitIntLiteralNode(IntLiteralNode *node) {
@@ -349,9 +352,9 @@ void BytecodeGenerator::translateInverseBoolean(UnaryOpNode *node) {
 }
 
 void BytecodeGenerator::translateLoadVariable(const AstVar *var) {
-    Context *varContext = ctx->getVarContext(var->name());
+    Context *varContext = ctx->subContext()->getVarContext(var->name());
     uint16_t varId = varContext->getVarId(var->name());
-    bool varInCurrentCtx = varContext == ctx;
+    bool varInCurrentCtx = varContext->getId() == ctx->getId();
     if (varInCurrentCtx) {
         switch (var->type()) {
             case VT_INT:
@@ -386,9 +389,9 @@ void BytecodeGenerator::translateLoadVariable(const AstVar *var) {
 }
 
 void BytecodeGenerator::translateStoreVariable(const AstVar *var) {
-    Context *varContext = ctx->getVarContext(var->name());
+    Context *varContext = ctx->subContext()->getVarContext(var->name());
     uint16_t varId = varContext->getVarId(var->name());
-    bool varInCurrentCtx = varContext == ctx;
+    bool varInCurrentCtx = varContext->getId() == ctx->getId();
     if (varInCurrentCtx) {
         switch (var->type()) {
             case VT_INT:
@@ -446,15 +449,21 @@ bool BytecodeGenerator::isExpressionNode(AstNode *node) {
 void BytecodeGenerator::translateFunctionsBody(Scope *scope) {
     Scope::FunctionIterator functionIterator(scope);
     Bytecode *currentBytecode = bytecode;
+    Context *currentContext = ctx;
+    int childNumber = 0;
     while (functionIterator.hasNext()) {
         auto *func = functionIterator.next();
-        bytecode = ctx->getFunction(func->name())->bytecode();
+        bytecode = currentContext->getFunction(func->name())->bytecode();
+        ctx = currentContext->getChildAt(childNumber);
         func->node()->visit(this);
+        ctx->destroySubContext();
+        childNumber++;
 
         //TODO for debug
-//        cout << "============[ " << func->name() << " ]============" << endl;
-//        bytecode->dump(cout);
-//        cout << "========================" << endl;
+        cout << "============[ " << func->name() << " ]============" << endl;
+        bytecode->dump(cout);
+        cout << "========================" << endl;
     }
+    ctx = currentContext;
     bytecode = currentBytecode;
 }
