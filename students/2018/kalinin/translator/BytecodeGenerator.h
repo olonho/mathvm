@@ -69,9 +69,9 @@ namespace mathvm {
 
         void translateInverseBoolean(UnaryOpNode *node);
 
-        void translateLoadVariable(const AstVar *var);
+        void translateLoadVariable(string varName, VarType type);
 
-        void translateStoreVariable(const AstVar *var);
+        void translateStoreVariable(string varName, VarType varType);
 
         void translateCastTypes(VarType sourse, VarType target);
 

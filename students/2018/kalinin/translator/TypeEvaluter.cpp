@@ -64,10 +64,10 @@ void TypeEvaluter::visitStringLiteralNode(StringLiteralNode *node) {
 void TypeEvaluter::visitFunctionNode(FunctionNode *node) {
     node->body()->visit(this);
     auto *function = ctx->getFunction(node->name());
-    function->setLocalsNumber(ctx->VarNumber());
+    function->setLocalsNumber(static_cast<uint16_t>(ctx->varNumber() + node->parametersNumber()));
     function->setScopeId(ctx->getParent()->getId());
     for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-        ctx->subContext()->addVar(new Var(node->parameterType(i), node->parameterName(i)));
+        ctx->getRoot()->addVar(new Var(node->parameterType(i), node->parameterName(i)));
     }
     setType(node, VT_VOID);
 }

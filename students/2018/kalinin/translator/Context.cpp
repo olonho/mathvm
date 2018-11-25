@@ -12,6 +12,8 @@ vector<BytecodeFunction *> Context::functionList{};
 
 unordered_map<string, uint16_t> Context::constantsById{};
 
+vector<string> Context::constantsList{};
+
 BytecodeFunction *Context::getFunction(string name) {
     if (functionsById.find(name) != functionsById.end()) {
         return functionList[functionsById[name]];
@@ -27,8 +29,12 @@ uint16_t Context::getId() {
 }
 
 uint16_t Context::makeStringConstant(string literal) {
+    if (constantsById.find(literal) != constantsById.end()) {
+        return constantsById[literal];
+    }
     uint16_t id = static_cast<unsigned short>(constantsById.size());
     constantsById[literal] = id;
+    constantsList.push_back(literal);
     return id;
 }
 
@@ -47,11 +53,14 @@ Context *Context::getVarContext(string name) {
     return parent->getVarContext(name);
 }
 
-uint16_t Context::VarNumber() {
+uint16_t Context::varNumber() {
     return static_cast<uint16_t>(varList.size());
 }
 
 SubContext *Context::subContext() {
+    if (currentSubContext == nullptr) {
+        return root;
+    }
     return currentSubContext;
 }
 
@@ -94,6 +103,18 @@ Context *Context::getChildAt(int ind) {
 
 void Context::destroySubContext() {
     delete root;
+}
+
+string Context::getStringConstantById(uint16_t ind) {
+    return constantsList[ind];
+}
+
+BytecodeFunction *Context::getFunctiontById(uint16_t ind) {
+    return functionList[ind];
+}
+
+SubContext *Context::getRoot() {
+    return root;
 }
 
 void SubContext::addVar(Var *var) {
@@ -153,27 +174,27 @@ uint16_t SubContext::getId() {
 }
 
 void StackContext::setInt16(int ind, uint16_t value) {
-    variables[ind] = value;
+    (*variables)[ind].i16 = value;
 }
 
-void StackContext::setInt64(int ind, uint64_t value) {
-    variables[ind] = value;
+void StackContext::setInt64(int ind, int64_t value) {
+    (*variables)[ind].i = value;
 }
 
 void StackContext::setDouble(int ind, double value) {
-    variables[ind] = value;
+    (*variables)[ind].d = value;
 }
 
 uint16_t StackContext::getInt16(int ind) {
-    return variables[ind].i16;
+    return (*variables)[ind].i16;
 }
 
-uint64_t StackContext::getInt64(int ind) {
-    return variables[ind].i;
+int64_t StackContext::getInt64(int ind) {
+    return (*variables)[ind].i;
 }
 
 double StackContext::getDouble(int ind) {
-    return variables[ind].d;
+    return (*variables)[ind].d;
 }
 
 void StackContext::setInt16ToParent(uint16_t parentId, int ind, uint16_t value) {
@@ -181,7 +202,7 @@ void StackContext::setInt16ToParent(uint16_t parentId, int ind, uint16_t value) 
     parentWithVar->setInt16(ind, value);
 }
 
-void StackContext::setInt64ToParent(uint16_t parentId, int ind, uint64_t value) {
+void StackContext::setInt64ToParent(uint16_t parentId, int ind, int64_t value) {
     auto *parentWithVar = findParentById(parentId, parent);
     parentWithVar->setInt64(ind, value);
 }
@@ -196,7 +217,7 @@ uint16_t StackContext::getInt16FromParent(uint16_t parentId, int ind) {
     return parentWithVar->getInt16(ind);
 }
 
-uint64_t StackContext::getInt64FromParent(uint16_t parentId, int ind) {
+int64_t StackContext::getInt64FromParent(uint16_t parentId, int ind) {
     auto *parentWithVar = findParentById(parentId, parent);
     return parentWithVar->getInt64(ind);
 }
@@ -208,14 +229,14 @@ double StackContext::getDoubleFromParent(uint16_t parentId, int ind) {
 
 StackContext *StackContext::findParentById(uint16_t id, StackContext *parent) {
     auto *res = parent;
-    while (parent->id != id) {
+    while (res->id != id) {
         res = res->parent;
     }
     return res;
 }
 
-void StackContext::removePreviousContext() {
-    delete prev;
+StackContext *StackContext::previousContext() {
+    return prev;
 }
 
 

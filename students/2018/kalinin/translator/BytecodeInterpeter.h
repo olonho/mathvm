@@ -16,35 +16,92 @@ namespace mathvm {
     union Val {
         Val() {}
 
-        Val(uint64_t i) : i(i) {}
+        Val(int64_t i) : i(i) {}
 
         Val(double d) : d(d) {}
 
         Val(uint16_t i16) : i16(i16) {}
 
         double d;
-        uint64_t i;
+        int64_t i;
         uint16_t i16;
+    };
+
+    enum ArithmeticOperation {
+        OR, AND, XOR, ADD, SUB, MUL, DIV, MOD
+    };
+
+    enum CompareOperation {
+        EQ, NEQ, GT, GE, LT, LE
+    };
+
+    struct CallStack {
+        uint32_t offset = 0;
+        Bytecode *bytecode{};
+        CallStack *prev{};
+
+        explicit CallStack(Bytecode *bytecode) : bytecode(bytecode), prev(nullptr) {};
+
+        CallStack(Bytecode *bytecode, CallStack *prev) : bytecode(bytecode), prev(prev) {};
     };
 
     class BytecodeInterpeter : public Code {
         Context *globalCtx{};
         vector<Val> stack{};
         StackContext *ctx{};
-        uint32_t offset = 0;
+        CallStack *callStack{};
 
     public:
-        explicit BytecodeInterpeter(Context *globalCtx) : globalCtx(globalCtx) {
-            init();
+        explicit BytecodeInterpeter(Bytecode *bytecode, Context *globalCtx) : globalCtx(globalCtx) {
+            init(bytecode);
         };
 
-        void interpate(Instruction ins, uint32_t offset);
+        void interpate();
 
         Status *execute(vector<Var *> &vars);
 
     private:
-        void init();
+        void init(Bytecode *bytecode);
 
+        template<class T>
+        T shiftAndGetValue();
+
+        Instruction shiftAndGetInstruction();
+
+        void pushInt64(int64_t value);
+
+        void pushInt16(uint16_t value);
+
+        void pushDouble(double value);
+
+        int64_t popInt64();
+
+        uint16_t popInt16();
+
+        double popDouble();
+
+        void evalIntegerExpession(ArithmeticOperation op);
+
+        void evalDoubleExpession(ArithmeticOperation op);
+
+        void callFunction();
+
+        void returnFromFunction();
+
+        void loadValueFromUpperContext(VarType type);
+
+        void storeValueToUpperContext(VarType type);
+
+        void compare(VarType type);
+
+        void evalIfExpression(CompareOperation op);
+    };
+
+    class RunTimeError : std::exception {
+        const char *msg;
+
+    public:
+        explicit RunTimeError(const char *msg) : msg(msg) {}
     };
 }//mathvm
 

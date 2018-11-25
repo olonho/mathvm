@@ -26,8 +26,7 @@ Status *BytecodeTranslatorImpl::translate(const string &program, Code **code) {
         } catch (CompileError e) {
             status = Status::Error(e.getMsg(), e.getPosition());
         }
-        *code = new BytecodeInterpeter(ctx);
-        (*code)->addFunction(bytecodeFunction);
+        *code = new BytecodeInterpeter(bytecodeFunction->bytecode(), ctx);
         delete translatorVisitor;
     }
     return status;

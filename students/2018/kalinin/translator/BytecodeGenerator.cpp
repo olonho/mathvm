@@ -11,8 +11,11 @@ void BytecodeGenerator::visitFunctionNode(mathvm::FunctionNode *node) {
     if (node->name() == "<top>") {
         node->body()->visit(new TypeEvaluter(ctx));
         node->body()->visit(this);
-        bytecode->addInsn(BC_RETURN);
+        bytecode->addInsn(BC_STOP);
     } else {
+        for (int32_t i = node->parametersNumber() - 1; i >= 0; --i) {
+            translateStoreVariable(node->parameterName(i), node->parameterType(i));
+        }
         node->body()->visit(this);
     }
 }
@@ -43,7 +46,7 @@ void BytecodeGenerator::visitWhileNode(WhileNode *node) {
     bytecode->bind(loopLabel);
     node->whileExpr()->visit(this);
     bytecode->addInsn(BC_ILOAD0);
-    bytecode->addBranch(BC_IFICMPE, endLabel);
+    bytecode->addBranch(BC_IFICMPNE, endLabel);
     node->loopBlock()->visit(this);
     bytecode->addBranch(BC_JA, loopLabel);
     bytecode->bind(endLabel);
@@ -53,18 +56,19 @@ void BytecodeGenerator::visitForNode(ForNode *node) {
     Label loopLabel(bytecode);
     Label endLabel(bytecode);
     auto *rangeNode = node->inExpr()->asBinaryOpNode();
+    const AstVar *var = node->var();
 
     rangeNode->left()->visit(this);
-    translateStoreVariable(node->var());
+    translateStoreVariable(var->name(), var->type());
     bytecode->bind(loopLabel);
-    translateLoadVariable(node->var());
+    translateLoadVariable(var->name(), var->type());
     rangeNode->right()->visit(this);
-    bytecode->addBranch(BC_IFICMPL, endLabel);
+    bytecode->addBranch(BC_IFICMPLE, endLabel);
     node->body()->visit(this);
     bytecode->addInsn(BC_ILOAD1);
-    translateLoadVariable(node->var());
+    translateLoadVariable(var->name(), var->type());
     bytecode->addInsn(BC_IADD);
-    translateStoreVariable(node->var());
+    translateStoreVariable(var->name(), var->type());
     bytecode->addBranch(BC_JA, loopLabel);
     bytecode->bind(endLabel);
 }
@@ -103,14 +107,14 @@ void BytecodeGenerator::visitStringLiteralNode(StringLiteralNode *node) {
 
 void BytecodeGenerator::visitLoadNode(LoadNode *node) {
     node->visitChildren(this);
-    translateLoadVariable(node->var());
+    translateLoadVariable(node->var()->name(), node->var()->type());
 }
 
 void BytecodeGenerator::visitStoreNode(StoreNode *node) {
     TokenKind op = node->op();
     const AstVar *var = node->var();
     if (op == tINCRSET || op == tDECRSET) {
-        translateLoadVariable(var);
+        translateLoadVariable(var->name(), var->type());
         node->value()->visit(this);
         translateCastTypes(getType(node->value()), var->type());
         if (op == tINCRSET) {
@@ -130,7 +134,7 @@ void BytecodeGenerator::visitStoreNode(StoreNode *node) {
         node->value()->visit(this);
         translateCastTypes(getType(node->value()), var->type());
     }
-    translateStoreVariable(var);
+    translateStoreVariable(var->name(), var->type());
 }
 
 void BytecodeGenerator::visitReturnNode(ReturnNode *node) {
@@ -351,12 +355,12 @@ void BytecodeGenerator::translateInverseBoolean(UnaryOpNode *node) {
     bytecode->bind(endLabel);
 }
 
-void BytecodeGenerator::translateLoadVariable(const AstVar *var) {
-    Context *varContext = ctx->subContext()->getVarContext(var->name());
-    uint16_t varId = varContext->getVarId(var->name());
+void BytecodeGenerator::translateLoadVariable(string varName, VarType varType) {
+    Context *varContext = ctx->subContext()->getVarContext(varName);
+    uint16_t varId = varContext->getVarId(varName);
     bool varInCurrentCtx = varContext->getId() == ctx->getId();
     if (varInCurrentCtx) {
-        switch (var->type()) {
+        switch (varType) {
             case VT_INT:
                 bytecode->addInsn(BC_LOADIVAR);
                 break;
@@ -370,7 +374,7 @@ void BytecodeGenerator::translateLoadVariable(const AstVar *var) {
                 break;
         }
     } else {
-        switch (var->type()) {
+        switch (varType) {
             case VT_INT:
                 bytecode->addInsn(BC_LOADCTXIVAR);
                 break;
@@ -388,12 +392,12 @@ void BytecodeGenerator::translateLoadVariable(const AstVar *var) {
     bytecode->addInt16(varId);
 }
 
-void BytecodeGenerator::translateStoreVariable(const AstVar *var) {
-    Context *varContext = ctx->subContext()->getVarContext(var->name());
-    uint16_t varId = varContext->getVarId(var->name());
+void BytecodeGenerator::translateStoreVariable(string varName, VarType varType) {
+    Context *varContext = ctx->subContext()->getVarContext(varName);
+    uint16_t varId = varContext->getVarId(varName);
     bool varInCurrentCtx = varContext->getId() == ctx->getId();
     if (varInCurrentCtx) {
-        switch (var->type()) {
+        switch (varType) {
             case VT_INT:
                 bytecode->addInsn(BC_STOREIVAR);
                 break;
@@ -407,7 +411,7 @@ void BytecodeGenerator::translateStoreVariable(const AstVar *var) {
                 break;
         }
     } else {
-        switch (var->type()) {
+        switch (varType) {
             case VT_INT:
                 bytecode->addInsn(BC_STORECTXIVAR);
                 break;
@@ -460,9 +464,9 @@ void BytecodeGenerator::translateFunctionsBody(Scope *scope) {
         childNumber++;
 
         //TODO for debug
-        cout << "============[ " << func->name() << " ]============" << endl;
-        bytecode->dump(cout);
-        cout << "========================" << endl;
+//        cout << "============[ " << func->name() << " ]============" << endl;
+//        bytecode->dump(cout);
+//        cout << "========================" << endl;
     }
     ctx = currentContext;
     bytecode = currentBytecode;
