@@ -7,18 +7,11 @@
 using namespace mathvm;
 
 Status *BytecodeInterpeter::execute(std::vector<Var *> &vars) {
-//    callStack->bytecode->dump(cout);
-//    cout << "++++++++++++++++++++++++++++++++\n" << endl;
-    interpate();
-    return Status::Ok();
-}
-
-void BytecodeInterpeter::interpate() {
     while (true) {
         Instruction ins = shiftAndGetInstruction();
         switch (ins) {
             case BC_INVALID:
-                throw RunTimeError("Run time error");
+                return Status::Error("Runtime Error", callStack->offset);
             case BC_DLOAD:
                 pushDouble(shiftAndGetValue<double>());
                 break;
@@ -210,7 +203,7 @@ void BytecodeInterpeter::interpate() {
                 //TODO
                 break;
             case BC_STOP:
-                return;
+                return Status::Ok();
             case BC_CALL:
                 callFunction();
                 break;

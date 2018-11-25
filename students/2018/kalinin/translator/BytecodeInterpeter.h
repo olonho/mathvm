@@ -56,8 +56,6 @@ namespace mathvm {
             init(bytecode);
         };
 
-        void interpate();
-
         Status *execute(vector<Var *> &vars);
 
     private:

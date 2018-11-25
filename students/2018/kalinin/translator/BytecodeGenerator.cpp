@@ -498,11 +498,6 @@ void BytecodeGenerator::translateFunctionsBody(Scope *scope) {
         func->node()->visit(this);
         ctx->destroySubContext();
         childNumber++;
-
-        //TODO for debug
-//        cout << "============[ " << func->name() << " ]============" << endl;
-//        bytecode->dump(cout);
-//        cout << "========================" << endl;
     }
     ctx = currentContext;
     bytecode = currentBytecode;

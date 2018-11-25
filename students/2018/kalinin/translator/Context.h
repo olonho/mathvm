@@ -37,6 +37,15 @@ namespace mathvm {
         explicit Context(Context *parent) : id(static_cast<uint16_t>(parent->getId() + 1)), root(nullptr),
                                             parent(parent) {}
 
+        virtual ~Context() {
+            int childsNumber = static_cast<int>(childs.size());
+            for (int i = 0; i < childsNumber; ++i) {
+                auto *child = childs.back();
+                childs.pop_back();
+                delete child;
+            }
+        }
+
         virtual uint16_t getId();
 
         virtual Context *getParent();
@@ -69,7 +78,7 @@ namespace mathvm {
 
         void destroySubContext();
 
-        SubContext* getRoot();
+        SubContext *getRoot();
     };
 
 
@@ -118,6 +127,10 @@ namespace mathvm {
 
         ChildsIterator *childsIterator();
 
+        bool declareVariable(string name);
+
+        SubContext *findParentWithVariable(string name);
+
     private:
         class ChildsIterator {
             friend SubContext;
@@ -150,8 +163,6 @@ namespace mathvm {
 
     public:
 
-
-        //TODO положить variables в кучу?
     public:
         explicit StackContext(uint16_t globalsSize) : parent(nullptr), id(0) {
             this->variables = new vector<Val>(globalsSize);
@@ -165,7 +176,7 @@ namespace mathvm {
             this->variables = new vector<Val>(function->localsNumber());
         }
 
-        ~StackContext() {
+        virtual ~StackContext() {
             delete variables;
         }
 

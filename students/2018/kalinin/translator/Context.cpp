@@ -6,8 +6,6 @@
 
 using namespace mathvm;
 
-//TODO заменить рекурсию на цикл везде где можно
-
 vector<BytecodeFunction *> Context::functionList{};
 
 unordered_map<string, uint16_t> Context::constantsById{};
@@ -15,13 +13,14 @@ unordered_map<string, uint16_t> Context::constantsById{};
 vector<string> Context::constantsList{};
 
 BytecodeFunction *Context::getFunction(string name) {
-    if (functionsById.find(name) != functionsById.end()) {
-        return functionList[functionsById[name]];
+    Context *ctx = this;
+    while (ctx->functionsById.find(name) == ctx->functionsById.end()) {
+        if (ctx->parent == nullptr) {
+            return nullptr;
+        }
+        ctx = ctx->parent;
     }
-    if (parent == nullptr) {
-        return nullptr;
-    }
-    return parent->getFunction(name);
+    return functionList[ctx->functionsById[name]];
 }
 
 uint16_t Context::getId() {
@@ -144,17 +143,15 @@ SubContext *SubContext::addChild() {
 }
 
 Context *SubContext::getVarContext(string name) {
-    if (variablesById.find(name) != variablesById.end()) {
-        return this;
-    }
-    if (parent == nullptr) {
+    SubContext *parentWithVariable = findParentWithVariable(name);
+    if (parentWithVariable == nullptr) {
         if (ownContext->getParent() != nullptr) {
             return ownContext->getParent()->getVarContext(name);
         } else {
             return nullptr;
         }
     }
-    return parent->getVarContext(name);
+    return parentWithVariable;
 }
 
 uint16_t SubContext::getVarId(string name) {
@@ -171,6 +168,22 @@ BytecodeFunction *SubContext::getFunction(string name) {
 
 uint16_t SubContext::getId() {
     return ownContext->getId();
+}
+
+bool SubContext::declareVariable(string name) {
+    auto *parentWithVariable = findParentWithVariable(name);
+    return parentWithVariable == nullptr;
+}
+
+SubContext *SubContext::findParentWithVariable(string name) {
+    SubContext *ctx = this;
+    while (ctx->variablesById.find(name) == ctx->variablesById.end()) {
+        if (ctx->parent == nullptr) {
+            return nullptr;
+        }
+        ctx = ctx->parent;
+    }
+    return ctx;
 }
 
 void StackContext::setInt16(int ind, uint16_t value) {
