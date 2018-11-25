@@ -150,10 +150,12 @@ void BytecodeGenerator::visitBinaryOpNode(BinaryOpNode *node) {
     switch (op) {
         case tOR:
         case tAND:
+            translateLogicOperation(node, op);
+            break;
         case tAOR:
         case tAAND:
         case tAXOR:
-            translateBooleanOperation(node, op);
+            translateBitwiseOperation(node, op);
             break;
         case tMOD:
             node->visitChildren(this);
@@ -211,14 +213,12 @@ void BytecodeGenerator::visitPrintNode(PrintNode *node) {
     }
 }
 
-void BytecodeGenerator::translateBooleanOperation(BinaryOpNode *node, TokenKind op) {
+void BytecodeGenerator::translateBitwiseOperation(BinaryOpNode *node, TokenKind op) {
     node->visitChildren(this);
     switch (op) {
-        case tOR:
         case tAOR:
             bytecode->addInsn(BC_IAOR);
             break;
-        case tAND:
         case tAAND:
             bytecode->addInsn(BC_IAAND);
             break;
@@ -229,6 +229,42 @@ void BytecodeGenerator::translateBooleanOperation(BinaryOpNode *node, TokenKind 
             break;
     }
 }
+
+void BytecodeGenerator::translateLogicAtom(Instruction compareInsn, Instruction trueResult,
+                                           Label* endLabel) {
+    Label falseLabel(bytecode);
+    bytecode->addInsn(BC_ILOAD0);
+    bytecode->addBranch(compareInsn, falseLabel);
+    bytecode->addInsn(trueResult);
+    bytecode->addBranch(BC_JA, *endLabel);
+    bytecode->bind(falseLabel);
+}
+
+
+void BytecodeGenerator::translateLogicOperation(BinaryOpNode *node, TokenKind op) {
+    Label firstIsFalseLabel(bytecode);
+    Label endLabel(bytecode);
+
+    Instruction compareInsn, trueResult, falseResult;
+
+    if (op == tAND) {
+        compareInsn = BC_IFICMPE;
+        trueResult = BC_ILOAD0;
+        falseResult = BC_ILOAD1;
+    } else {
+        compareInsn = BC_IFICMPNE;
+        trueResult = BC_ILOAD1;
+        falseResult = BC_ILOAD0;
+    }
+
+    node->left()->visit(this);
+    translateLogicAtom(compareInsn, trueResult, &endLabel);
+    node->right()->visit(this);
+    translateLogicAtom(compareInsn, trueResult, &endLabel);
+    bytecode->addInsn(falseResult);
+    bytecode->bind(endLabel);
+}
+
 
 void BytecodeGenerator::translateCompareOperation(AstNode *left, AstNode *right, TokenKind op) {
     VarType leftType = getType(left);
@@ -348,10 +384,10 @@ void BytecodeGenerator::translateInverseBoolean(UnaryOpNode *node) {
     Label endLabel(bytecode);
     bytecode->addInsn(BC_ILOAD0);
     bytecode->addBranch(BC_IFICMPNE, elseLabel);
-    bytecode->addInsn(BC_ILOAD1);
+    bytecode->addInsn(BC_ILOAD0);
     bytecode->addBranch(BC_JA, endLabel);
     bytecode->bind(elseLabel);
-    bytecode->addInsn(BC_ILOAD0);
+    bytecode->addInsn(BC_ILOAD1);
     bytecode->bind(endLabel);
 }
 

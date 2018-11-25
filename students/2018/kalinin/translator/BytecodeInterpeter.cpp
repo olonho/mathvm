@@ -7,8 +7,8 @@
 using namespace mathvm;
 
 Status *BytecodeInterpeter::execute(std::vector<Var *> &vars) {
-    callStack->bytecode->dump(cout);
-    cout << "++++++++++++++++++++++++++++++++\n" << endl;
+//    callStack->bytecode->dump(cout);
+//    cout << "++++++++++++++++++++++++++++++++\n" << endl;
     interpate();
     return Status::Ok();
 }
@@ -283,10 +283,10 @@ void BytecodeInterpeter::evalIntegerExpession(ArithmeticOperation op) {
     int64_t result = 0;
     switch (op) {
         case OR:
-            result = left || right;
+            result = left | right;
             break;
         case AND:
-            result = left && right;
+            result = left & right;
             break;
         case XOR:
             result = left ^ right;

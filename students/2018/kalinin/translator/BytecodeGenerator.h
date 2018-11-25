@@ -59,11 +59,15 @@ namespace mathvm {
     private :
         VarType getType(AstNode *node);
 
-        void translateBooleanOperation(BinaryOpNode *node, TokenKind op);
+        void translateBitwiseOperation(BinaryOpNode *node, TokenKind op);
 
         void translateCompareOperation(AstNode *left, AstNode *right, TokenKind op);
 
         void translateArithmeticOperation(BinaryOpNode *node, TokenKind op);
+
+        void translateLogicOperation(BinaryOpNode *node, TokenKind op);
+
+        void translateLogicAtom(Instruction compareInsn, Instruction trueResult, Label *endLabel);
 
         void translateNegateNumber(UnaryOpNode *node);
 
