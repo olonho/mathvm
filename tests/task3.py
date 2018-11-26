@@ -3,9 +3,21 @@
 import sys
 from common import *
 
+disabled_tests = {
+    'fib',
+    'fib_closure',
+    'ackermann',
+    'ackermann_closure',
+    'complex',
+    'complex2'
+}
+
+skip_extra = True
+
 def run_test(mvm, test_dir, test):
     try:
-        print('Starting test "'+test+'"')
+        # print('------------------------------------------------')
+        print('Starting test "' + test + '"')
         sys.stdout.flush()
 
         test_file = os.path.join(test_dir, test + '.mvm')
@@ -15,23 +27,56 @@ def run_test(mvm, test_dir, test):
         expect_data = read_file(expect_file)
 
         if expect_data == result_data:
-            print('Test "'+test+'" has PASSED')
+            return True, ''
         else:
-            print('Test "'+test+'" has FAILED')
-            print('Expected: ')
-            print('**************************')
-            print(expect_data)
-            print('**************************')
-            print('Result: ')
-            print('**************************')
-            print(result_data)
-            print('**************************')
-            print(make_diff(expect_file, result_data))
-            print('**************************')
+            message = 'Expected: \n'
+            message += '--------------------------\n'
+            message += expect_data + '\n'
+            message += '--------------------------\n'
+            message += 'Result: \n'
+            message += '--------------------------\n'
+            message += result_data
     except Exception as e:
-        print('Failed to execute the test ' + test)
-        print(e)
+        message = e.message
+    return False, message
+
 
 if __name__ == '__main__':
-    for mvm, test_dir, test in load_tests():
-        run_test(mvm, test_dir, test)
+    passed_tests = []
+    failed_tests = {}
+    actual_disabled_tests = set()
+
+    for mvm, test_dir, test in load_tests(skip_extra):
+        if test in disabled_tests:
+            actual_disabled_tests.add(test)
+            continue
+        passed, message = run_test(mvm, test_dir, test)
+        if passed:
+            passed_tests.append(test)
+        else:
+            failed_tests[test] = message
+
+    print('\n')
+
+    if len(actual_disabled_tests) > 0:
+        print('DISABLED:')
+        for test in sorted(actual_disabled_tests):
+            print('Test: ' + test)
+        print('\n')
+
+    if len(failed_tests) == 0 and len(actual_disabled_tests) == 0:
+        print('All tests passed')
+        exit(0)
+
+    if len(passed_tests) > 0:
+        print('PASSED:')
+        for test in sorted(passed_tests):
+            print('Test: ' + test)
+    if len(failed_tests) > 0:
+        if len(passed_tests) > 0:
+            print('\n')
+        print('FAILED')
+        for test in sorted(failed_tests.keys()):
+            print('Test: ' + test)
+            print(failed_tests[test])
+            print('---------------------------------')
