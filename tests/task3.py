@@ -1,23 +1,26 @@
 #!/usr/bin/env python2.7
 
+import re
 import sys
 from common import *
 
-disabled_tests = {
-    'fib',
-    'fib_closure',
-    'ackermann',
-    'ackermann_closure',
-    'complex',
-    'complex2'
-}
 
-skip_extra = True
+disabled_tests = [
+    # 'mark4/ackermann',
+    # 'mark4/ackermann_closure',
+    # 'mark4/fib',
+    # 'mark4/fib_closure',
+    # 'mark4/extra/.*',
+
+    # 'mark4/vars',
+    'mark5/extra/.*',
+    'perf/.*',
+]
+
 
 def run_test(mvm, test_dir, test):
     try:
-        # print('------------------------------------------------')
-        print('Starting test "' + test + '"')
+        print 'Running test "' + test + '"...',
         sys.stdout.flush()
 
         test_file = os.path.join(test_dir, test + '.mvm')
@@ -27,56 +30,34 @@ def run_test(mvm, test_dir, test):
         expect_data = read_file(expect_file)
 
         if expect_data == result_data:
-            return True, ''
+            print 'PASSED'
+            return True
         else:
-            message = 'Expected: \n'
-            message += '--------------------------\n'
-            message += expect_data + '\n'
-            message += '--------------------------\n'
-            message += 'Result: \n'
-            message += '--------------------------\n'
-            message += result_data
+            print 'FAILED'
+            print_result(expect_file, result_data, True)
+            return False
     except Exception as e:
-        message = e.message
-    return False, message
+        print '\nFAILED:', e.message
+    return False
 
 
 if __name__ == '__main__':
-    passed_tests = []
-    failed_tests = {}
-    actual_disabled_tests = set()
+    passed = []
+    failed = []
+    disabled = []
 
-    for mvm, test_dir, test in load_tests(skip_extra):
-        if test in disabled_tests:
-            actual_disabled_tests.add(test)
+    for mvm, test_dir, test in load_tests():
+        if any(re.match(regex, test) for regex in disabled_tests):
+            disabled.append(test)
             continue
-        passed, message = run_test(mvm, test_dir, test)
-        if passed:
-            passed_tests.append(test)
+
+        if run_test(mvm, test_dir, test):
+            passed.append(test)
         else:
-            failed_tests[test] = message
+            failed.append(test)
 
-    print('\n')
-
-    if len(actual_disabled_tests) > 0:
-        print('DISABLED:')
-        for test in sorted(actual_disabled_tests):
-            print('Test: ' + test)
-        print('\n')
-
-    if len(failed_tests) == 0 and len(actual_disabled_tests) == 0:
-        print('All tests passed')
-        exit(0)
-
-    if len(passed_tests) > 0:
-        print('PASSED:')
-        for test in sorted(passed_tests):
-            print('Test: ' + test)
-    if len(failed_tests) > 0:
-        if len(passed_tests) > 0:
-            print('\n')
-        print('FAILED')
-        for test in sorted(failed_tests.keys()):
-            print('Test: ' + test)
-            print(failed_tests[test])
-            print('---------------------------------')
+    print '\n\n Summary:', len(passed), 'PASSED,', len(failed), 'FAILED,', len(disabled), 'DISABLED'
+    print '\nPASSED:', passed
+    print '\nFAILED:', failed
+    print '\nDISABLED:', disabled
+    print '\n\n'

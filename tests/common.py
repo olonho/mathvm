@@ -52,7 +52,27 @@ def run_mvm(bin, impl, file):
     return out
 
 
-def load_tests(skip_extra=False):
+def print_result(expect_file, actual_data, with_diff=False):
+    width = 60
+
+    print 'Expected:'
+    print '-' * width
+    print read_file(expect_file)
+    print '-' * width
+
+    print 'Actual:'
+    print '-' * width
+    print actual_data
+    print '-' * width
+
+    if with_diff:
+        print 'Diff:'
+        print '-' * width
+        print make_diff(expect_file, actual_data)
+        print '-' * width
+
+
+def load_tests():
     parser = optparse.OptionParser()
     parser.add_option('-e', '--executable',
                       action='store',
@@ -73,20 +93,16 @@ def load_tests(skip_extra=False):
     if options.executable is None:
         options.executable = os.path.join('./build', options.kind, 'mvm')
 
-    test_files = []
+    tests = []
 
-    for path, _, files in list(os.walk(options.testdir)):
-        if skip_extra and path.endswith('extra'):
-            continue
+    for path, _, files in os.walk(options.testdir):
         for file in files:
             if not file.endswith('.mvm'):
                 continue
             full_path = os.path.join(path, file)
-            test_name = full_path.split(options.testdir)[1]
-            test_files.append(test_name[:-4])
-    tests = []
-
-    for t in test_files:
-        tests.append((options.executable, options.testdir, t))
+            test_name = os.path.relpath(full_path, options.testdir)
+            tests.append((options.executable,
+                          options.testdir,
+                          test_name[:-4]))
 
     return tests
