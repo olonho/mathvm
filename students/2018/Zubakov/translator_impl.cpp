@@ -1,6 +1,7 @@
 #include <mathvm.h>
 #include <visitors.h>
 #include <parser.h>
+//#include "interpreter.cpp"
 
 namespace mathvm {
 
@@ -249,11 +250,11 @@ namespace mathvm {
 
     // Implement me!
     Translator *Translator::create(const string &impl) {
-        if (impl == "" || impl == "intepreter") {
-            //return new BytecodeTranslatorImpl();
+        if (impl == "" || impl == "interpreter") {
+            return new BytecodeTranslatorImpl();
         }
         if (impl == "jit") {
-            //return new MachCodeTranslatorImpl();
+//            return new MachCodeTranslatorImpl();
         }
         if (impl == "printer") {
             return new SourceTranslatorImpl();

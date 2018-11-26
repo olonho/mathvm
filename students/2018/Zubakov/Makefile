@@ -17,8 +17,13 @@ endif
 
 USER_OBJ = \
 	$(JIT_OBJ) \
+	$(OBJ)/translator_impl$(OBJ_SUFF) \
+	$(OBJ)/bytecode$(OBJ_SUFF) \
+	$(OBJ)/interpreter$(OBJ_SUFF) \
+	$(OBJ)/resolver$(OBJ_SUFF) \
+	$(OBJ)/testvisitor$(OBJ_SUFF) \
 	$(OBJ)/main$(OBJ_SUFF) \
-	$(OBJ)/translator_impl$(OBJ_SUFF)
+	$(OBJ)/typeinference$(OBJ_SUFF)
 
 USER_CFLAGS = -std=c++14
 
@@ -35,10 +40,10 @@ KIND = debug
 endif
 
 test: $(MATHVM)
-	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
-	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
-	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
-	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
+	#$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
+	#$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
+	#$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
+	$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
 	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
 	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
 
