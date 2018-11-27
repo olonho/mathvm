@@ -1,17 +1,18 @@
 #include <mathvm.h>
+#include "include/printer_translator.h"
 
 namespace mathvm {
 
 // Implement me!
 Translator* Translator::create(const string& impl) {
-   if (impl == "" || impl == "interpreter") {
-       //return new BytecodeTranslatorImpl();
+   if (impl.empty() || impl == "interpreter") {
+       return new BytecodeTranslatorImpl();
    }
    if (impl == "jit") {
        //return new MachCodeTranslatorImpl();
    }
    if (impl == "printer") {
-       //return new SourceTranslatorImpl();
+       return new PrinterTranslator();
    }
    return nullptr;
 }

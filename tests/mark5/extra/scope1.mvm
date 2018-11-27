@@ -1,0 +1,28 @@
+
+function int wtf2() {
+    int i;
+    for (i in 0..9) {
+        int j;
+        for (j in 0..9) {
+            if (j * 10 + i == 42) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+function int wtf1() {
+    int i;
+    for (i in 0..9) {
+        int j;
+        for (j in 0..9) {
+            if (i * 10 + j == 42 && wtf2()) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+print(wtf1(), '\n');

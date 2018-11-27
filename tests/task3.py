@@ -1,11 +1,26 @@
 #!/usr/bin/env python2.7
 
+import re
 import sys
 from common import *
 
+
+disabled_tests = [
+    # 'mark4/ackermann',
+    # 'mark4/ackermann_closure',
+    # 'mark4/fib',
+    # 'mark4/fib_closure',
+    # 'mark4/extra/.*',
+
+    # 'mark4/vars',
+    'mark5/extra/.*',
+    'perf/.*',
+]
+
+
 def run_test(mvm, test_dir, test):
     try:
-        print('Starting test "'+test+'"')
+        print 'Running test "' + test + '"...',
         sys.stdout.flush()
 
         test_file = os.path.join(test_dir, test + '.mvm')
@@ -15,23 +30,34 @@ def run_test(mvm, test_dir, test):
         expect_data = read_file(expect_file)
 
         if expect_data == result_data:
-            print('Test "'+test+'" has PASSED')
+            print 'PASSED'
+            return True
         else:
-            print('Test "'+test+'" has FAILED')
-            print('Expected: ')
-            print('**************************')
-            print(expect_data)
-            print('**************************')
-            print('Result: ')
-            print('**************************')
-            print(result_data)
-            print('**************************')
-            print(make_diff(expect_file, result_data))
-            print('**************************')
+            print 'FAILED'
+            print_result(expect_file, result_data, True)
+            return False
     except Exception as e:
-        print('Failed to execute the test ' + test)
-        print(e)
+        print '\nFAILED:', e.message
+    return False
+
 
 if __name__ == '__main__':
+    passed = []
+    failed = []
+    disabled = []
+
     for mvm, test_dir, test in load_tests():
-        run_test(mvm, test_dir, test)
+        if any(re.match(regex, test) for regex in disabled_tests):
+            disabled.append(test)
+            continue
+
+        if run_test(mvm, test_dir, test):
+            passed.append(test)
+        else:
+            failed.append(test)
+
+    print '\n\n Summary:', len(passed), 'PASSED,', len(failed), 'FAILED,', len(disabled), 'DISABLED'
+    print '\nPASSED:', passed
+    print '\nFAILED:', failed
+    print '\nDISABLED:', disabled
+    print '\n\n'

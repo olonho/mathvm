@@ -63,15 +63,15 @@ using namespace std;
         DO(LOADSVAR3, "Load string from variable 3, push on TOS.", 1)   \
         DO(STOREDVAR0, "Pop TOS and store to double variable 0.", 1)    \
         DO(STOREDVAR1, "Pop TOS and store to double variable 1.", 1)    \
-        DO(STOREDVAR2, "Pop TOS and store to double variable 0.", 1)    \
+        DO(STOREDVAR2, "Pop TOS and store to double variable 2.", 1)    \
         DO(STOREDVAR3, "Pop TOS and store to double variable 3.", 1)    \
         DO(STOREIVAR0, "Pop TOS and store to int variable 0.", 1)       \
         DO(STOREIVAR1, "Pop TOS and store to int variable 1.", 1)       \
-        DO(STOREIVAR2, "Pop TOS and store to int variable 0.", 1)       \
+        DO(STOREIVAR2, "Pop TOS and store to int variable 2.", 1)       \
         DO(STOREIVAR3, "Pop TOS and store to int variable 3.", 1)       \
         DO(STORESVAR0, "Pop TOS and store to string variable 0.", 1)    \
         DO(STORESVAR1, "Pop TOS and store to string variable 1.", 1)    \
-        DO(STORESVAR2, "Pop TOS and store to string variable 0.", 1)    \
+        DO(STORESVAR2, "Pop TOS and store to string variable 2.", 1)    \
         DO(STORESVAR3, "Pop TOS and store to string variable 3.", 1)    \
         DO(LOADDVAR, "Load double from variable, whose 2-byte is id inlined to insn stream, push on TOS.", 3) \
         DO(LOADIVAR, "Load int from variable, whose 2-byte id is inlined to insn stream, push on TOS.", 3) \
