@@ -1,11 +1,5 @@
-int seed = 42;
-function int rnd() {
-    seed = (6364136223846793005 * seed + 1442695040888963407);
-    return seed;
-}
-
 function int up(int val) {
-    return (val ^ rnd()) % 256;
+    return (val ^ 21) % 256;
 }
 
 function int f1(int x, int y, int z) {
