@@ -300,7 +300,7 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
                 stack.pop();
                 i2 = stack.top().getIntValue();
                 stack.pop();
-                stack.emplace(i1 % i2);
+                stack.emplace((int64_t)((uint64_t)i1 % (uint64_t)i2));
                 idx += insn_sizes(instr);
                 break;
             case BC_DNEG:
