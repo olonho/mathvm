@@ -175,6 +175,35 @@ class BytecodeVisitor : public AstVisitor {
 
 #define ADD_D_I_INST(inst) bytecode->addInsn(argtp == DOUBLE ? BC_D##inst : BC_I##inst);
         void visitBinaryOpNode(BinaryOpNode* node) {
+            if (node->kind() == tOR) {
+                Label ok(bytecode), end(bytecode);
+                node->left()->visit(this);
+                bytecode->addInsn(BC_ILOAD0);
+                bytecode->addBranch(BC_IFICMPNE, ok);
+                node->right()->visit(this);
+                bytecode->addInsn(BC_ILOAD0);
+                bytecode->addBranch(BC_IFICMPNE, ok);
+                bytecode->addInsn(BC_ILOAD0);
+                bytecode->addBranch(BC_JA, end);
+                bytecode->bind(ok);
+                bytecode->addInsn(BC_ILOAD1);
+                bytecode->bind(end);
+                return;
+            } else if (node->kind() == tAND) {
+                Label ok(bytecode), end(bytecode);
+                node->left()->visit(this);
+                bytecode->addInsn(BC_ILOAD0);
+                bytecode->addBranch(BC_IFICMPE, ok);
+                node->right()->visit(this);
+                bytecode->addInsn(BC_ILOAD0);
+                bytecode->addBranch(BC_IFICMPE, ok);
+                bytecode->addInsn(BC_ILOAD1);
+                bytecode->addBranch(BC_JA, end);
+                bytecode->bind(ok);
+                bytecode->addInsn(BC_ILOAD0);
+                bytecode->bind(end);
+                return;
+            }
             node->right()->visit(this);
             node->left()->visit(this);
             Type argtp = GET_TYPE(node->right());
