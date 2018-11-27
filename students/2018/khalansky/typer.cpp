@@ -36,7 +36,8 @@ class ExprTyperVisitor : public AstVisitor {
     }
 
     void registerVar(AstVar *var) {
-        var->setInfo((void*)((funId << 16) | varCnt));
+        unsigned long long value = ((funId << 16) | varCnt);
+        var->setInfo((void*)value);
         ++varCnt;
     }
 

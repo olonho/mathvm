@@ -157,7 +157,7 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
     Context *context = &contexts[curFn->id()].top();
     uint32_t idx = 0;
 
-    Value v1(0LL), v2(0LL);
+    Value v1((int64_t)0LL), v2((int64_t)0LL);
     double d1, d2;
     int64_t i1, i2;
     const char *c;
@@ -208,7 +208,7 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
                 idx += insn_sizes(instr);
                 break;
             case BC_ILOAD0:
-                stack.emplace(0LL);
+                stack.emplace((int64_t)0LL);
                 idx += insn_sizes(instr);
                 break;
             case BC_SLOAD0:
@@ -220,7 +220,7 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
                 idx += insn_sizes(instr);
                 break;
             case BC_ILOAD1:
-                stack.emplace(1LL);
+                stack.emplace((int64_t)1LL);
                 idx += insn_sizes(instr);
                 break;
             case BC_DLOADM1:
@@ -228,7 +228,7 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
                 idx += insn_sizes(instr);
                 break;
             case BC_ILOADM1:
-                stack.emplace(-1LL);
+                stack.emplace((int64_t)-1LL);
                 idx += insn_sizes(instr);
                 break;
             case BC_DADD:
@@ -578,11 +578,11 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
                 d2 = stack.top().getDoubleValue();
                 stack.pop();
                 if (d1 < d2) {
-                    stack.emplace(-1LL);
+                    stack.emplace((int64_t)-1LL);
                 } else if (d1 == d2) {
-                    stack.emplace(0LL);
+                    stack.emplace((int64_t)0LL);
                 } else {
-                    stack.emplace(1LL);
+                    stack.emplace((int64_t)1LL);
                 }
                 idx += insn_sizes(instr);
                 break;
@@ -592,11 +592,11 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
                 i2 = stack.top().getIntValue();
                 stack.pop();
                 if (i1 < i2) {
-                    stack.emplace(-1LL);
+                    stack.emplace((int64_t)-1LL);
                 } else if (i1 == i2) {
-                    stack.emplace(0LL);
+                    stack.emplace((int64_t)0LL);
                 } else {
-                    stack.emplace(1LL);
+                    stack.emplace((int64_t)1LL);
                 }
                 idx += insn_sizes(instr);
                 break;

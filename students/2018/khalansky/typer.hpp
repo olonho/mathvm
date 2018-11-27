@@ -4,7 +4,7 @@
 #include <mathvm.h>
 #include <ast.h>
 
-#define INFO(node) (reinterpret_cast<unsigned int>((node)->info()))
+#define INFO(node) (reinterpret_cast<unsigned long long int>((node)->info()))
 
 #define GET_TYPE(node) ((Type)INFO((AstNode*)node))
 #define GET_CTX(var) (INFO((AstVar*)var) >> 16)
