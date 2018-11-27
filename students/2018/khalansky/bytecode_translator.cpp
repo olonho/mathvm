@@ -170,9 +170,8 @@ class BytecodeVisitor : public AstVisitor {
 
     public:
 
-        BytecodeVisitor(Code *code) {
-            this->code = code;
-        }
+        BytecodeVisitor(Code *code): currentFunction(nullptr), code(code)
+        { }
 
 #define ADD_D_I_INST(inst) bytecode->addInsn(argtp == DOUBLE ? BC_D##inst : BC_I##inst);
         void visitBinaryOpNode(BinaryOpNode* node) {
@@ -431,7 +430,10 @@ class BytecodeVisitor : public AstVisitor {
                 bytecode->addInsn(BC_STOP);
             }
             currentFunction = oldCurrentFunction;
-            bytecode = ((BytecodeFunction*)currentFunction->info())->bytecode();
+            if (currentFunction) {
+                bytecode =
+                    ((BytecodeFunction*)currentFunction->info())->bytecode();
+            }
         }
 
         void visitBlockNode(BlockNode* node) {
