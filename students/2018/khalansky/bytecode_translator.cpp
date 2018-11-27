@@ -2,6 +2,7 @@
 #include "../../../vm/parser.h"
 #include "typer.hpp"
 #include "bytecode_interpreter.hpp"
+#include <dlfcn.h>
 
 #define TODO assert(0)
 
@@ -460,7 +461,14 @@ class BytecodeVisitor : public AstVisitor {
                 NativeCallNode* native = dynamic_cast<NativeCallNode*>
                     (body->nodeAt(0));
                 if (native) {
-                    TODO;
+                    void *fnAddr = dlsym(RTLD_DEFAULT, node->name().c_str());
+                    assert(fnAddr);
+                    uint16_t fnId = code->makeNativeFunction(node->name(),
+                        native->nativeSignature(),
+                        fnAddr);
+                    bytecode->addInsn(BC_CALLNATIVE);
+                    bytecode->addInt16(fnId);
+                    bytecode->addInsn(BC_RETURN);
                     return;
                 }
             }
@@ -486,7 +494,7 @@ class BytecodeVisitor : public AstVisitor {
         }
 
         void visitNativeCallNode(NativeCallNode* node) {
-            TODO;
+            assert(0);
         }
 
         void visitCallNode(CallNode* node) {
