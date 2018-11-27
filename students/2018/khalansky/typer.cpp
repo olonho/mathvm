@@ -192,6 +192,7 @@ class ExprTyperVisitor : public AstVisitor {
     void visitStoreNode(StoreNode* node) {
         SET_TYPE(node, NONE);
         node->value()->visit(this);
+        SET_TYPE(node->value(), node->var()->type());
         accessVar(node->var());
     }
 
