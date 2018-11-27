@@ -204,8 +204,8 @@ class BytecodeVisitor : public AstVisitor {
                 bytecode->bind(end);
                 return;
             }
-            node->right()->visit(this);
             node->left()->visit(this);
+            node->right()->visit(this);
             Type argtp = GET_TYPE(node->right());
             Type type = argtp;
             Type thisType = GET_TYPE(node);
@@ -214,15 +214,18 @@ class BytecodeVisitor : public AstVisitor {
                     ADD_D_I_INST(ADD);
                     break;
                 case tSUB:   // "-", 12)
+                    bytecode->addInsn(BC_SWAP);
                     ADD_D_I_INST(SUB);
                     break;
                 case tMUL:   // "*", 13)
                     ADD_D_I_INST(MUL);
                     break;
                 case tDIV:   // "/", 13)
+                    bytecode->addInsn(BC_SWAP);
                     ADD_D_I_INST(DIV);
                     break;
                 case tMOD:   // "%", 13)
+                    bytecode->addInsn(BC_SWAP);
                     bytecode->addInsn(BC_IMOD);
                     break;
                 case tEQ:    // "==", 9)
@@ -231,6 +234,7 @@ class BytecodeVisitor : public AstVisitor {
                 case tGE:    // ">=", 10)
                 case tLT:    // "<", 10)
                 case tLE:    // "<=", 10)
+                    bytecode->addInsn(BC_SWAP);
                     if (argtp == INT || argtp == BOOL) {
                         generateComparison(node->kind());
                     } else if (argtp == DOUBLE) {
@@ -476,8 +480,8 @@ class BytecodeVisitor : public AstVisitor {
             }
             Scope *paramScope = node->body()->scope()->parent();
             for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-                AstVar *var =
-                    paramScope->lookupVariable(node->parameterName(i));
+                AstVar *var = paramScope->lookupVariable(
+                    node->parameterName(node->parametersNumber()-i-1));
                 storeVar(var);
             }
             body->visit(this);
@@ -501,7 +505,7 @@ class BytecodeVisitor : public AstVisitor {
 
         void visitCallNode(CallNode* node) {
             for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-                node->parameterAt(node->parametersNumber()-1-i)->visit(this);
+                node->parameterAt(i)->visit(this);
             }
             bytecode->addInsn(BC_CALL);
             AstFunction *fn = currentScope->lookupFunction(node->name());
