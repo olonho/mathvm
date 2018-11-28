@@ -1,6 +1,6 @@
 #include "ast_printer.h"
-#include "mathvm.h"
 #include "../../../../vm/parser.h"
+#include "mathvm.h"
 
 namespace mathvm {
 
