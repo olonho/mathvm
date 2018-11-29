@@ -1,7 +1,13 @@
 #include "bytecode_interpreter.hpp"
 #include <stack>
 #include <iostream>
-#include <unordered_map>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wbool-operation"
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
+#include <asmjit/asmjit.h>
+#pragma GCC diagnostic pop
+
 using namespace std;
 
 namespace mathvm {
@@ -74,6 +80,130 @@ public:
         return os;
     }
 };
+
+static void callNative(const Code *code, uint16_t id, stack<Value>& stk) {
+
+    using namespace asmjit;
+
+    const string *name;
+    const Signature *signature;
+    const void* fn = code->nativeById(id, &signature, &name);
+    assert(fn);
+
+    JitRuntime rt;
+
+    CodeHolder holder;
+    holder.init(rt.getCodeInfo());
+
+    uint8_t argtp[signature->size()];
+    for (size_t i = 0; i < signature->size(); ++i) {
+        switch ((*signature)[i].first) {
+            case VT_DOUBLE:
+                argtp[i] = TypeIdOf<double>::kTypeId;
+                break;
+            case VT_INT:
+                argtp[i] = TypeIdOf<int64_t>::kTypeId;
+                break;
+            case VT_STRING:
+                argtp[i] = TypeIdOf<const char*>::kTypeId;
+                break;
+            case VT_VOID:
+                argtp[i] = TypeIdOf<void>::kTypeId;
+                break;
+            default:
+                assert(0);
+                break;
+        }
+    }
+
+    X86Compiler a(&holder);
+    FuncSignature thisFn;
+    thisFn.init(CallConv::kIdHost, argtp[0], nullptr, 0);
+    a.addFunc(thisFn);
+    FuncSignature asmjitSign;
+    asmjitSign.init(CallConv::kIdHost, argtp[0], argtp + 1, signature->size()-1);
+    stack<X86Reg> args;
+    for (size_t i = signature->size()-1; i > 0; --i) {
+        switch ((*signature)[i].first) {
+            case VT_DOUBLE: {
+                X86Xmm val = a.newXmm();
+                X86Mem c0(a.newDoubleConst(kConstScopeLocal,
+                    stk.top().getDoubleValue()));
+                a.movsd(val, c0);
+                args.push(val);
+                break;
+            }
+            case VT_INT: {
+                X86Gp val = a.newI64();
+                a.mov(val, stk.top().getIntValue());
+                args.push(val);
+                break;
+            }
+            case VT_STRING: {
+                X86Gp val = a.newUIntPtr();
+                a.mov(val, (uint64_t)stk.top().getStringValue());
+                args.push(val);
+                break;
+            }
+            default:
+                assert(0);
+                break;
+        }
+        stk.pop();
+    }
+    CCFuncCall *call = a.call(imm_ptr(fn), asmjitSign);
+    for (size_t i = 0; i < signature->size()-1; ++i) {
+        call->setArg(i, args.top());
+        args.pop();
+    }
+    switch ((*signature)[0].first) {
+        case VT_DOUBLE: {
+            X86Xmm retVal = a.newXmm();
+            call->setRet(0, retVal);
+            a.ret(retVal);
+            break;
+        }
+        case VT_INT:
+        case VT_STRING: {
+            X86Gp retVal = a.newI64();
+            call->setRet(0, retVal);
+            a.ret(retVal);
+            break;
+        }
+        case VT_VOID:
+            a.ret();
+            break;
+        default:
+            assert(0);
+    }
+    a.endFunc();
+    a.finalize();
+
+    void *myFn;
+    Error err = rt.add(&myFn, &holder);
+    if (err) {
+        printf("ASMJIT ERROR: 0x%08X [%s]\n", err, DebugUtils::errorAsString(err));
+        assert(0);
+    }
+    switch ((*signature)[0].first) {
+        case VT_DOUBLE:
+            stk.emplace(((double (*)())myFn)());
+            break;
+        case VT_INT:
+            stk.emplace(((int64_t (*)())myFn)());
+            break;
+        case VT_STRING:
+            stk.emplace(((const char *(*)())myFn)());
+            break;
+        case VT_VOID:
+            ((void *(*)())myFn)();
+            break;
+        default:
+            assert(0);
+            break;
+    }
+    rt.release(myFn);
+}
 
 class Context {
 private:
@@ -648,7 +778,7 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
                 idx = 0;
                 break;
             case BC_CALLNATIVE:
-                break;
+                callNative(this, code->getInt16(idx + 1), stack);
             case BC_RETURN:
                 contexts[curFn->id()].pop();
                 curFn = callStack.top().first;

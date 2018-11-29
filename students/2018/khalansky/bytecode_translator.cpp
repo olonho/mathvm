@@ -467,7 +467,8 @@ class BytecodeVisitor : public AstVisitor {
                 NativeCallNode* native = dynamic_cast<NativeCallNode*>
                     (body->nodeAt(0));
                 if (native) {
-                    void *fnAddr = dlsym(RTLD_DEFAULT, node->name().c_str());
+                    void *fnAddr = dlsym(RTLD_DEFAULT,
+                        native->nativeName().c_str());
                     assert(fnAddr);
                     uint16_t fnId = code->makeNativeFunction(node->name(),
                         native->nativeSignature(),
