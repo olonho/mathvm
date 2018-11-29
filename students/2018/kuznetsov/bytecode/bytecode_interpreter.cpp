@@ -1,7 +1,7 @@
 #include "bytecode_interpreter.h"
 #include "program_state.h"
 #include <sstream>
-#include <queue>
+#include <stack>
 
 namespace mathvm {
 
@@ -561,14 +561,14 @@ namespace mathvm {
 //		called_func->get_bytecode()->dump(std::cout);
 //		std::cout << called_func->name() << ' ' << called_func->get_body_scope_id() << '\n';
 		program_state* called_function_state = new program_state(called_func->get_bytecode(), called_func->get_body_scope_id());
-		std::queue<elem_t> passed_params;
+		std::stack<elem_t> passed_params;
 		for (uint32_t param_id = 0; param_id < called_func->parametersNumber(); ++param_id) {
 			elem_t elem = nested_functions_states.back()->top();
 			nested_functions_states.back()->pop();
 			passed_params.push(elem);
 		}
 		while (!passed_params.empty()) {
-			called_function_state->push(passed_params.front());
+			called_function_state->push(passed_params.top());
 			passed_params.pop();
 		}
 		nested_functions_states.back()->save(vars_values);

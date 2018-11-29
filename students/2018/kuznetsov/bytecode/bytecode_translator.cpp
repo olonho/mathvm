@@ -15,6 +15,7 @@ namespace mathvm {
 		return status;
 	}
 
+	// TODO swap (left and right operands may affect shared resource)
 	void bytecode_translator::visitBinaryOpNode(BinaryOpNode *node) {
 		if (node->kind() == tAND)
 			type_stack.push(translate_lazy_and(node));
@@ -203,9 +204,9 @@ namespace mathvm {
 			throw std::invalid_argument("parameters number mismatch");
 
 		for (uint32_t i = 0; i < params_num; ++i) {
-			node->parameterAt(params_num - i - 1)->visit(this);
+			node->parameterAt(i)->visit(this);
 			VarType parameter_actual_type = type_stack.top();
-			VarType parameter_expected_type = tfunc->parameterType(params_num - i - 1);
+			VarType parameter_expected_type = tfunc->parameterType(i);
 			if (parameter_actual_type != parameter_expected_type) {
 				type_stack.pop();
 				if (parameter_actual_type == VT_INT && parameter_expected_type == VT_DOUBLE) {
