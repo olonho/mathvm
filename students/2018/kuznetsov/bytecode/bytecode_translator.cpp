@@ -22,8 +22,9 @@ namespace mathvm {
 		else if (node->kind() == tOR)
 			type_stack.push(translate_lazy_or(node));
 		else {
-			node->right()->visit(this);
 			node->left()->visit(this);
+			node->right()->visit(this);
+			bytecode->addInsn(Instruction::BC_SWAP);
 			type_stack.push(translate_binop(node->kind()));
 		}
 	}
@@ -60,22 +61,31 @@ namespace mathvm {
 		node->visitChildren(this);
 		const AstVar* var = node->var();
 
+		VarType assigned_expr_type = type_stack.top();
+		VarType var_type = var->type();
+		if (var_type != assigned_expr_type) {
+			type_stack.pop();
+			if (var_type == VT_DOUBLE && assigned_expr_type == VT_INT) {
+				first_to_double();
+				type_stack.push(VT_DOUBLE);
+			} else if (var_type == VT_INT && assigned_expr_type == VT_DOUBLE) {
+				first_to_int();
+				type_stack.push(VT_INT);
+			} else {
+				throw std::invalid_argument("type mismatch");
+			}
+		}
+
 		switch (node->op()) {
 			case tINCRSET:
-				translate_load(node->var());
+				translate_load(var);
 				translate_binop(tADD);
 
-				if (var->type() != type_stack.top())
-					throw std::invalid_argument("type mismatch");
-				type_stack.pop();
 				break;
 			case tDECRSET:
-				translate_load(node->var());
+				translate_load(var);
 				translate_binop(tSUB);
 
-				if (var->type() != type_stack.top())
-					throw std::invalid_argument("type mismatch");
-				type_stack.pop();
 				break;
 			case tASSIGN:
 				break;
@@ -266,9 +276,9 @@ namespace mathvm {
 	}
 
 	VarType bytecode_translator::translate_binop(TokenKind kind) {
-		VarType left = type_stack.top();
-		type_stack.pop();
 		VarType right = type_stack.top();
+		type_stack.pop();
+		VarType left = type_stack.top();
 		type_stack.pop();
 		switch (kind) {
 			case tADD: {
