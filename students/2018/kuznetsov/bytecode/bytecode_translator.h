@@ -45,11 +45,6 @@ namespace mathvm {
 		TranslatedFunctionWrapper(AstFunction* function)
 			: TranslatedFunction(function), astFunction(function), bytecode(new Bytecode()) {}
 
-//		~TranslatedFunctionWrapper() {
-//			delete astFunction;
-//			delete bytecode;
-//		}
-
 		virtual void disassemble(ostream& out) const {}
 		AstFunction* get_function() const {
 			return astFunction;
@@ -83,7 +78,6 @@ namespace mathvm {
 	class bytecode_translator : public AstVisitor {
 
 		Code* code = new CCode;
-		Bytecode *function_bytecode = new Bytecode();
 		Bytecode *bytecode = new Bytecode();
 		VarType current_subtree_type = VT_INVALID;
 		std::vector<Scope*> scopes;
@@ -100,20 +94,6 @@ namespace mathvm {
 		std::vector<TranslatedFunctionWrapper*> functions_declarations_stack;
 
 	public:
-
-		~bytecode_translator() {
-//			delete code;
-			delete bytecode;
-//			if (current_node != nullptr)
-//				delete current_node;
-//			delete current_function;
-//			for (uint32_t i = 0; i < scopes.size(); ++i)
-//				delete scopes[i];
-//			for (uint32_t i = 0; i < nested_functions_bytecodes.size(); ++i)
-//				delete nested_functions_bytecodes[nested_functions_bytecodes.size() - i - 1];
-//			for (uint32_t i = 0; i < functions_declarations_stack.size(); ++i)
-//				delete functions_declarations_stack[i];
-		}
 
 		virtual void visitBinaryOpNode(BinaryOpNode *node) override;
 
@@ -163,10 +143,6 @@ namespace mathvm {
 		void first_to_double();
 		void first_to_int();
 		void second_to_double();
-		void require_int_or_double();
-		void require_int();
-		void check_binary_op_correctness(BinaryOpNode* op);
-		void check_unary_op_correctness(UnaryOpNode* op);
 
 		VarType translate_binop(TokenKind kind);
 		VarType translate_unop(TokenKind kind);
@@ -179,18 +155,14 @@ namespace mathvm {
 		void translate_store(const AstVar* var);
 		Instruction get_load_insn(const AstVar* var);
 		Instruction get_store_insn(const AstVar* var);
-		Instruction get_local_load_insn(const AstVar* var);
-		Instruction get_local_store_insn(const AstVar* var);
 
-		void save_bytecode(bool create_new_bytecode);
+		void save_bytecode();
 		void flush_bytecode_to_function(TranslatedFunctionWrapper* wrapper);
 
 		VarType resolve_int_or_double_binary(VarType left, VarType right);
 		VarType resolve_int_binary(VarType left, VarType right);
 		VarType resolve_int_or_double_unary(VarType top_type);
 		VarType resolve_int_unary(VarType top_type);
-
-		int32_t try_find_local(const AstVar* param);
 	};
 
 	struct variable {

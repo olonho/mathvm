@@ -15,7 +15,6 @@ namespace mathvm {
 		return status;
 	}
 
-	// TODO swap (left and right operands may affect shared resource)
 	void bytecode_translator::visitBinaryOpNode(BinaryOpNode *node) {
 		if (node->kind() == tAND)
 			type_stack.push(translate_lazy_and(node));
@@ -197,12 +196,6 @@ namespace mathvm {
 	}
 
 	void bytecode_translator::visitFunctionNode(mathvm::FunctionNode *node) {
-//		Scope* owner = node->body()->scope();
-//		uint32_t params = node->parametersNumber();
-//		for (uint32_t i = 0; i < params; ++i) {
-//			AstVar* var = owner->lookupVariable(node->parameterName(params - i - 1));
-//			translate_store(var);
-//		}
 		node->visitChildren(this);
 	}
 
@@ -327,7 +320,6 @@ namespace mathvm {
 			default:
 				return VT_INVALID;
 		}
-		return VT_INVALID;
 	}
 
 	VarType bytecode_translator::translate_unop(TokenKind kind) {
@@ -459,13 +451,12 @@ namespace mathvm {
 
 	void bytecode_translator::translate_function(TranslatedFunctionWrapper* wrapper) {
 		AstFunction* astFunction = wrapper->get_function();
-		save_bytecode(wrapper->name() != "<top>");
+		save_bytecode();
 
 		FunctionNode* node = astFunction->node();
 		Scope* owner = node->body()->scope();
 		uint32_t params = node->parametersNumber();
 		wrapper->set_body_scope_id(functions[wrapper]->scope_id + 1);
-//		std::cout << wrapper->name() << ' ' << wrapper->get_body_scope_id() << '\n';
 		for (uint32_t i = 0; i < params; ++i) {
 			AstVar* var = owner->lookupVariable(node->parameterName(params - i - 1));
 			translate_store(var);
@@ -485,9 +476,7 @@ namespace mathvm {
 			AstVar* var = var_iterator.next();
 			elem_t elem;
 			vars_values[scopes.size() - 1].push_back(elem);
-//			std::cout << "var " << var->name() << ' ' << scopes.size() - 1 << '\n';
 			vars[var] = new variable(scopes.size() - 1, vars_values[scopes.size() - 1].size() - 1);
-//			std::cout << var->name() << " " << vars[var]->scope_id << " " << vars[var]->var_id << '\n';
 		}
 		Scope::FunctionIterator function_iterator(scope);
 		while (function_iterator.hasNext()) {
@@ -552,33 +541,6 @@ namespace mathvm {
 		}
 	}
 
-	Instruction bytecode_translator::get_local_load_insn(const AstVar* var) {
-
-		switch (var->type()) {
-			case VT_INT:
-				return Instruction::BC_LOADIVAR;
-			case VT_DOUBLE:
-				return Instruction::BC_LOADDVAR;
-			case VT_STRING:
-				return Instruction::BC_LOADSVAR;
-			default:
-				return Instruction::BC_INVALID;
-		}
-	}
-
-	Instruction bytecode_translator::get_local_store_insn(const AstVar* var) {
-		switch (var->type()) {
-			case VT_INT:
-				return Instruction::BC_STOREIVAR;
-			case VT_DOUBLE:
-				return Instruction::BC_STOREDVAR;
-			case VT_STRING:
-				return Instruction::BC_STORESVAR;
-			default:
-				return Instruction::BC_INVALID;
-		}
-	}
-
 	void bytecode_translator::print_bytecode() const {
 		uint16_t id = 0;
 		TranslatedFunctionWrapper* function = dynamic_cast<TranslatedFunctionWrapper*>(code->functionById(id));
@@ -631,7 +593,7 @@ namespace mathvm {
 		return bc;
 	}
 
-	void bytecode_translator::save_bytecode(bool create_new_bytecode) {
+	void bytecode_translator::save_bytecode() {
 		nested_functions_bytecodes.push_back(copy(bytecode));
 		bytecode = new Bytecode();
 	}
@@ -684,14 +646,5 @@ namespace mathvm {
 		if (top_type == VT_INT)
 			return top_type;
 		throw std::invalid_argument("required int or double");
-	}
-
-	int32_t bytecode_translator::try_find_local(const AstVar *param) {
-		for (auto it = functions_declarations_stack.rbegin(); it != functions_declarations_stack.rend(); ++it) {
-			if ((*it)->contains(param)) {
-				return (*it)->get_param(param)->second;
-			}
-		}
-		return -1;
 	}
 }

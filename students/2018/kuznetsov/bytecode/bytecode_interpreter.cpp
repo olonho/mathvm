@@ -21,6 +21,9 @@ namespace mathvm {
 
 	bytecode_interpreter::bytecode_interpreter(mathvm::bytecode_translator &translator) {
 		nested_functions_states.push_back(new program_state(translator.get_bytecode(), 0));
+//		stringstream ss;
+//		ss << nested_functions_states.back()->get_insn();
+//		throw std::invalid_argument(ss.str());
 		context = translator.get_code();
 		vars = translator.get_vars();
 		vars_values = translator.get_vars_values();
@@ -31,8 +34,10 @@ namespace mathvm {
 	}
 
 	bytecode_interpreter::~bytecode_interpreter() {
-//		delete state;
 //		delete context;
+//		for (std::vector<program_state*>::iterator it = nested_functions_states.begin(); it != nested_functions_states.end(); ++it)
+//			delete (*it);
+//		nested_functions_states.clear();
 	}
 
 	void bytecode_interpreter::visit_DLOAD() {
@@ -287,7 +292,7 @@ namespace mathvm {
 		nested_functions_states.back()->push(upper);
 		nested_functions_states.back()->push(lower);
 	}
-	
+
 	void bytecode_interpreter::visit_LOADDVAR0() {
 		nested_functions_states.back()->push(var0);
 	}
@@ -395,7 +400,7 @@ namespace mathvm {
 		var3 = nested_functions_states.back()->top();
 		nested_functions_states.back()->pop();
 	}
-	
+
 	void bytecode_interpreter::visit_LOADCTXDVAR() {
 		uint16_t scope_id = nested_functions_states.back()->get_uint16();
 		uint16_t var_id = nested_functions_states.back()->get_uint16();
@@ -411,7 +416,7 @@ namespace mathvm {
 //		std::cout << "LOADCTXIVAR! " << var_elem.i << '\n';
 		nested_functions_states.back()->push(var_elem);
 	}
-	
+
 	void bytecode_interpreter::visit_LOADCTXSVAR() {
 		uint16_t scope_id = nested_functions_states.back()->get_uint16();
 		uint16_t var_id = nested_functions_states.back()->get_uint16();
@@ -547,20 +552,16 @@ namespace mathvm {
 		nested_functions_states.back()->pop();
 		elem_t lower = nested_functions_states.back()->top();
 		nested_functions_states.back()->pop();
-//		std::cout << "CMP " << upper.i << ' ' << lower.i << ' ' << offset << '\n';
 		if (upper.i >= lower.i) {
 			nested_functions_states.back()->move_bptr(offset - 2);
 		}
 	}
 
 	void bytecode_interpreter::visit_CALL() {
-//		std::cout << "CALL " << (++i) << "\n";
 		uint16_t func_id = nested_functions_states.back()->get_uint16();
 		TranslatedFunctionWrapper* called_func = dynamic_cast<TranslatedFunctionWrapper*>(context->functionById(func_id));
-//		std::cout << "FUNCTION BYTECODE " << '\n';
-//		called_func->get_bytecode()->dump(std::cout);
-//		std::cout << called_func->name() << ' ' << called_func->get_body_scope_id() << '\n';
 		program_state* called_function_state = new program_state(called_func->get_bytecode(), called_func->get_body_scope_id());
+
 		std::stack<elem_t> passed_params;
 		for (uint32_t param_id = 0; param_id < called_func->parametersNumber(); ++param_id) {
 			elem_t elem = nested_functions_states.back()->top();
@@ -591,6 +592,9 @@ namespace mathvm {
 
 	void bytecode_interpreter::run() {
 		while (!nested_functions_states.back()->bytecode_ended()) {
+//			stringstream ss;
+//			ss << nested_functions_states.back()->get_insn();
+//			throw std::invalid_argument(ss.str());
 			switch (nested_functions_states.back()->get_insn()) {
 				case BC_DLOAD:
 					visit_DLOAD();

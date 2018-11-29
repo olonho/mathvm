@@ -32,7 +32,7 @@ namespace mathvm {
 
 		void save(std::vector< std::vector<elem_t> > values);
 		void restore(std::vector< std::vector<elem_t> >* target, uint32_t from_scope);
-
+		Bytecode* get_bc() { return bytecode; }
 		/**
 		 * Get values and move bytecode pointer
 		 */
