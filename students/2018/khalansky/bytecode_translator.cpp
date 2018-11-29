@@ -311,6 +311,7 @@ class BytecodeVisitor : public AstVisitor {
             } else {
                 bytecode->addInsn(BC_SLOAD0);
             }
+            fixType(GET_TYPE(node), STRING);
         }
 
         void visitDoubleLiteralNode(DoubleLiteralNode* node) {
@@ -325,6 +326,7 @@ class BytecodeVisitor : public AstVisitor {
                 bytecode->addInsn(BC_DLOAD);
                 bytecode->addDouble(c);
             }
+            fixType(GET_TYPE(node), DOUBLE);
         }
 
         void visitIntLiteralNode(IntLiteralNode* node) {
@@ -344,6 +346,7 @@ class BytecodeVisitor : public AstVisitor {
                     bytecode->addInt64(c);
                     break;
             }
+            fixType(GET_TYPE(node), INT);
         }
 
         void visitLoadNode(LoadNode* node) {
