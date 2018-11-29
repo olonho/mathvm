@@ -16,9 +16,15 @@ namespace mathvm {
 	}
 
 	void bytecode_translator::visitBinaryOpNode(BinaryOpNode *node) {
-		node->right()->visit(this);
-		node->left()->visit(this);
-		type_stack.push(translate_binop(node->kind()));
+		if (node->kind() == tAND)
+			type_stack.push(translate_lazy_and(node));
+		else if (node->kind() == tOR)
+			type_stack.push(translate_lazy_or(node));
+		else {
+			node->right()->visit(this);
+			node->left()->visit(this);
+			type_stack.push(translate_binop(node->kind()));
+		}
 	}
 
 	void bytecode_translator::visitUnaryOpNode(mathvm::UnaryOpNode *node) {
@@ -160,6 +166,22 @@ namespace mathvm {
 
 	void bytecode_translator::visitReturnNode(mathvm::ReturnNode *node) {
 		node->visitChildren(this);
+		VarType return_type = current_function->returnType();
+		if (return_type != VT_VOID) {
+			VarType actual_return_type = type_stack.top();
+			if (return_type != actual_return_type) {
+				type_stack.pop();
+				if (actual_return_type == VT_INT && return_type == VT_DOUBLE) {
+					first_to_double();
+					type_stack.push(VT_DOUBLE);
+				} else if (actual_return_type == VT_DOUBLE && return_type == VT_INT) {
+					first_to_int();
+					type_stack.push(VT_INT);
+				} else {
+					throw std::invalid_argument("type mismatch");
+				}
+			}
+		}
 		bytecode->addInsn(Instruction::BC_RETURN);
 	}
 
@@ -175,22 +197,29 @@ namespace mathvm {
 
 	void bytecode_translator::visitCallNode(mathvm::CallNode *node) {
 
-		for (uint32_t i = 0; i < node->parametersNumber(); ++i) {
-			node->parameterAt(node->parametersNumber() - i - 1)->visit(this);
-		}
-//		std::vector<VarType> tps;
-//		while (!type_stack.empty()) {
-//			tps.push_back(type_stack.top());
-//			type_stack.pop();
-//		}
-//		std::cout << node->name() << ' ';
-//		for (auto tp = tps.rbegin(); tp != tps.rend(); ++tp) {
-//			std::cout << *tp << ' ';
-//			type_stack.push(*tp);
-//		}
-//		std::cout << '\n';
-		bytecode->addInsn(Instruction::BC_CALL);
 		TranslatedFunction* tfunc = code->functionByName(node->name());
+		uint32_t params_num = node->parametersNumber();
+		if (tfunc->parametersNumber() != params_num)
+			throw std::invalid_argument("parameters number mismatch");
+
+		for (uint32_t i = 0; i < params_num; ++i) {
+			node->parameterAt(params_num - i - 1)->visit(this);
+			VarType parameter_actual_type = type_stack.top();
+			VarType parameter_expected_type = tfunc->parameterType(params_num - i - 1);
+			if (parameter_actual_type != parameter_expected_type) {
+				type_stack.pop();
+				if (parameter_actual_type == VT_INT && parameter_expected_type == VT_DOUBLE) {
+					first_to_double();
+					type_stack.push(VT_DOUBLE);
+				} else if (parameter_actual_type == VT_DOUBLE && parameter_expected_type == VT_INT) {
+					first_to_int();
+					type_stack.push(VT_INT);
+				} else {
+					throw std::invalid_argument("type mismatch");
+				}
+			}
+		}
+		bytecode->addInsn(Instruction::BC_CALL);
 		bytecode->addUInt16(tfunc->id());
 		for (uint16_t i = 0; i < tfunc->parametersNumber(); ++i)
 			type_stack.pop();
@@ -222,10 +251,11 @@ namespace mathvm {
 	}
 
 	void bytecode_translator::first_to_double() {
-		resolve_int_unary(type_stack.top());
 		bytecode->addInsn(Instruction::BC_I2D);
-		type_stack.pop();
-		type_stack.push(VT_DOUBLE);
+	}
+
+	void bytecode_translator::first_to_int() {
+		bytecode->addInsn(Instruction::BC_D2I);
 	}
 
 	void bytecode_translator::second_to_double() {
@@ -262,12 +292,6 @@ namespace mathvm {
 			}
 			case tMOD:
 				bytecode->addInsn(Instruction::BC_IMOD);
-				return resolve_int_binary(left, right);
-			case tAND:
-				bytecode->addInsn(Instruction::BC_IAAND);
-				return resolve_int_binary(left, right);
-			case tOR:
-				bytecode->addInsn(Instruction::BC_IAOR);
 				return resolve_int_binary(left, right);
 			case tAAND:
 				bytecode->addInsn(Instruction::BC_IAAND);
@@ -310,6 +334,57 @@ namespace mathvm {
 			default:
 				return VT_INVALID;
 		}
+	}
+
+	VarType bytecode_translator::translate_lazy_and(BinaryOpNode* node) {
+		node->left()->visit(this);
+		resolve_int_unary(type_stack.top());
+		bytecode->addInsn(BC_ILOAD0);
+
+		Label lafter(bytecode);
+		Label lfalse(bytecode);
+
+		bytecode->addBranch(Instruction::BC_IFICMPNE, lfalse);
+		// left == 0; left && right == 0
+		bytecode->addInsn(BC_ILOAD0);
+		bytecode->addBranch(Instruction::BC_JA, lafter);
+		bytecode->bind(lfalse);
+
+		// left != 0; left && right == (right != 0)
+		node->right()->visit(this);
+		resolve_int_unary(type_stack.top());
+		bytecode->addInsn(BC_ILOAD0);
+		translate_cmp(tNEQ, VT_INT);
+
+		bytecode->bind(lafter);
+
+		return VT_INT;
+	}
+
+	VarType bytecode_translator::translate_lazy_or(BinaryOpNode* node) {
+		node->left()->visit(this);
+		resolve_int_unary(type_stack.top());
+		bytecode->addInsn(BC_ILOAD0);
+
+		Label lafter(bytecode);
+		Label lfalse(bytecode);
+
+		bytecode->addBranch(Instruction::BC_IFICMPE, lfalse);
+		// left != 0; left || right != 0
+		bytecode->addInsn(BC_ILOAD1);
+		bytecode->addBranch(Instruction::BC_JA, lafter);
+
+		bytecode->bind(lfalse);
+
+		// left == 0; left || right == (right != 0)
+		node->right()->visit(this);
+		resolve_int_unary(type_stack.top());
+		bytecode->addInsn(BC_ILOAD0);
+		translate_cmp(tNEQ, VT_INT);
+
+		bytecode->bind(lafter);
+
+		return VT_INT;
 	}
 
 	/*
@@ -378,10 +453,13 @@ namespace mathvm {
 		FunctionNode* node = astFunction->node();
 		Scope* owner = node->body()->scope();
 		uint32_t params = node->parametersNumber();
+		wrapper->set_body_scope_id(functions[wrapper]->scope_id + 1);
+//		std::cout << wrapper->name() << ' ' << wrapper->get_body_scope_id() << '\n';
 		for (uint32_t i = 0; i < params; ++i) {
 			AstVar* var = owner->lookupVariable(node->parameterName(params - i - 1));
 			translate_store(var);
 		}
+		current_function = wrapper;
 		node->body()->visit(this);
 		flush_bytecode_to_function(wrapper);
 	}
@@ -396,6 +474,7 @@ namespace mathvm {
 			AstVar* var = var_iterator.next();
 			elem_t elem;
 			vars_values[scopes.size() - 1].push_back(elem);
+//			std::cout << "var " << var->name() << ' ' << scopes.size() - 1 << '\n';
 			vars[var] = new variable(scopes.size() - 1, vars_values[scopes.size() - 1].size() - 1);
 //			std::cout << var->name() << " " << vars[var]->scope_id << " " << vars[var]->var_id << '\n';
 		}
@@ -419,32 +498,20 @@ namespace mathvm {
 
 
 	void bytecode_translator::translate_load(const mathvm::AstVar *var) {
-//		int32_t local_param_id = try_find_local(var);
-//		if (local_param_id < 0) {
-			bytecode->addInsn(get_load_insn(var));
+		bytecode->addInsn(get_load_insn(var));
 
-			const AstVar *_var = var;
-			type_stack.push(var->type());
+		const AstVar *_var = var;
+		type_stack.push(var->type());
 
-			bytecode->addUInt16(vars[_var]->scope_id);
-			bytecode->addUInt16(vars[_var]->var_id);
-//		} else {
-//			bytecode->addInsn(get_local_load_insn(var));
-//			bytecode->addUInt16(local_param_id);
-//		}
+		bytecode->addUInt16(vars[_var]->scope_id);
+		bytecode->addUInt16(vars[_var]->var_id);
 	}
 
 	void bytecode_translator::translate_store(const mathvm::AstVar *var) {
-//		int32_t local_param_id = try_find_local(var);
-//		if (local_param_id > -10) {
-			bytecode->addInsn(get_store_insn(var));
+		bytecode->addInsn(get_store_insn(var));
 
-			bytecode->addUInt16(vars[var]->scope_id);
-			bytecode->addUInt16(vars[var]->var_id);
-//		} else {
-//			bytecode->addInsn(get_local_store_insn(var));
-//			bytecode->addUInt16(local_param_id);
-//		}
+		bytecode->addUInt16(vars[var]->scope_id);
+		bytecode->addUInt16(vars[var]->var_id);
 	}
 
 	Instruction bytecode_translator::get_load_insn(const AstVar* var) {
@@ -578,8 +645,13 @@ namespace mathvm {
 		}
 		if (ints == 2)
 			return VT_INT;
-		else if (ints + doubles == 2)
+		else if (ints + doubles == 2) {
+			if (left == VT_INT)
+				first_to_double();
+			if (right == VT_INT)
+				second_to_double();
 			return VT_DOUBLE;
+		}
 		else {
 			throw std::invalid_argument("required int or double");
 		}
@@ -604,7 +676,6 @@ namespace mathvm {
 	}
 
 	int32_t bytecode_translator::try_find_local(const AstVar *param) {
-		std::cout << functions_declarations_stack.size() << std::endl;
 		for (auto it = functions_declarations_stack.rbegin(); it != functions_declarations_stack.rend(); ++it) {
 			if ((*it)->contains(param)) {
 				return (*it)->get_param(param)->second;

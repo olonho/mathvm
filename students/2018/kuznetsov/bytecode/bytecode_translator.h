@@ -39,10 +39,17 @@ namespace mathvm {
 		Bytecode* bytecode;
 		std::map<const AstVar*, uint32_t> params_map;
 		std::set<const AstVar*> local_params;
+		uint16_t body_scope_id;
 
 	public:
 		TranslatedFunctionWrapper(AstFunction* function)
 			: TranslatedFunction(function), astFunction(function), bytecode(new Bytecode()) {}
+
+//		~TranslatedFunctionWrapper() {
+//			delete astFunction;
+//			delete bytecode;
+//		}
+
 		virtual void disassemble(ostream& out) const {}
 		AstFunction* get_function() const {
 			return astFunction;
@@ -65,6 +72,12 @@ namespace mathvm {
 		bool contains(const AstVar* var) {
 			return get_param(var) != params_map.end();
 		}
+		uint16_t get_body_scope_id() {
+			return body_scope_id;
+		}
+		void set_body_scope_id(uint16_t scope_id) {
+			body_scope_id = scope_id;
+		}
 	};
 
 	class bytecode_translator : public AstVisitor {
@@ -73,7 +86,6 @@ namespace mathvm {
 		Bytecode *function_bytecode = new Bytecode();
 		Bytecode *bytecode = new Bytecode();
 		VarType current_subtree_type = VT_INVALID;
-		AstNode* current_node = nullptr;
 		std::vector<Scope*> scopes;
 		std::vector< std::vector<elem_t> > vars_values;
 		std::vector<Bytecode*> nested_functions_bytecodes;
@@ -84,6 +96,7 @@ namespace mathvm {
 		std::map<uint16_t, Bytecode*> functions_bytecodes;
 		uint16_t last_func_id = 0;
 		TranslatedFunctionWrapper* top;
+		TranslatedFunctionWrapper* current_function;
 		std::vector<TranslatedFunctionWrapper*> functions_declarations_stack;
 
 	public:
@@ -91,8 +104,15 @@ namespace mathvm {
 		~bytecode_translator() {
 //			delete code;
 			delete bytecode;
-			if (current_node != nullptr)
-				delete current_node;
+//			if (current_node != nullptr)
+//				delete current_node;
+//			delete current_function;
+//			for (uint32_t i = 0; i < scopes.size(); ++i)
+//				delete scopes[i];
+//			for (uint32_t i = 0; i < nested_functions_bytecodes.size(); ++i)
+//				delete nested_functions_bytecodes[nested_functions_bytecodes.size() - i - 1];
+//			for (uint32_t i = 0; i < functions_declarations_stack.size(); ++i)
+//				delete functions_declarations_stack[i];
 		}
 
 		virtual void visitBinaryOpNode(BinaryOpNode *node) override;
@@ -141,6 +161,7 @@ namespace mathvm {
 
 	private:
 		void first_to_double();
+		void first_to_int();
 		void second_to_double();
 		void require_int_or_double();
 		void require_int();
@@ -149,6 +170,8 @@ namespace mathvm {
 
 		VarType translate_binop(TokenKind kind);
 		VarType translate_unop(TokenKind kind);
+		VarType translate_lazy_and(BinaryOpNode* node);
+		VarType translate_lazy_or(BinaryOpNode* node);
 		void translate_cmp(TokenKind cmp_kind, VarType cmp_type);
 
 		void translate_function(TranslatedFunctionWrapper* wrapper);

@@ -16,9 +16,10 @@ namespace mathvm {
 		std::vector <elem_t> program_stack;
 		uint32_t bptr;
 		std::vector< std::vector<elem_t> > vars_values;
+		uint32_t topmost_scope_id;
 
 	public:
-		program_state(Bytecode *_bytecode);
+		program_state(Bytecode *_bytecode, uint32_t scope_id);
 
 		~program_state();
 
@@ -27,8 +28,10 @@ namespace mathvm {
 		void pop();
 		bool empty();
 
+		uint32_t get_scope_id();
+
 		void save(std::vector< std::vector<elem_t> > values);
-		void restore(std::vector< std::vector<elem_t> >* target);
+		void restore(std::vector< std::vector<elem_t> >* target, uint32_t from_scope);
 
 		/**
 		 * Get values and move bytecode pointer

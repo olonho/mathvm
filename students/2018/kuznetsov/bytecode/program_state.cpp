@@ -5,8 +5,8 @@
 #include "program_state.h"
 
 namespace mathvm {
-	program_state::program_state(mathvm::Bytecode *_bytecode)
-		: bytecode(_bytecode), bptr(0) {}
+	program_state::program_state(mathvm::Bytecode *_bytecode, uint32_t scope_id)
+		: bytecode(_bytecode), bptr(0), topmost_scope_id(scope_id) {}
 
 	program_state::~program_state() {
 		delete bytecode;
@@ -28,6 +28,10 @@ namespace mathvm {
 		return program_stack.size() == 0;
 	}
 
+	uint32_t program_state::get_scope_id() {
+		return topmost_scope_id;
+	}
+
 	void program_state::save(std::vector< std::vector<elem_t> > values) {
 //		vars_values.clear();
 //		std::vector<elem_t> v;
@@ -39,15 +43,23 @@ namespace mathvm {
 		vars_values = std::vector< std::vector<elem_t> >(values);
 	}
 
-	void program_state::restore(std::vector< std::vector<elem_t> >* target) {
+	void program_state::restore(std::vector< std::vector<elem_t> >* target, uint32_t from_scope) {
 //		target.clear();
 //		std::vector<elem_t> v;
-//		for (uint32_t i = 0; i < vars_values.size(); ++i) {
-//			target.push_back(v);
-//			for (uint32_t j = 0; j < vars_values[i].size(); ++j)
-//				target.back().push_back(vars_values[i][j]);
+//		for (uint32_t i = 0; i < target->size(); ++i) {
+//			for (uint32_t j = 0; j < (*target)[i].size(); ++j)
+//				std::cout << i << '@' << j << '@' << (*target)[i][j].i << ' ';
 //		}
-		*target = std::vector< std::vector<elem_t> >(vars_values);
+////		std::cout << " ====> " << topmost_scope_id << " ====> ";
+//		std::cout << '\n';
+		for (uint32_t scope_id = from_scope; scope_id < target->size(); ++scope_id)
+			(*target)[scope_id] = std::vector<elem_t>(vars_values[scope_id]);
+//		for (uint32_t i = 0; i < target->size(); ++i) {
+//			for (uint32_t j = 0; j < (*target)[i].size(); ++j)
+//				std::cout << i << '@' << j << '@' << (*target)[i][j].i << ' ';
+//		}
+//		std::cout << std::endl;
+//		*target = std::vector< std::vector<elem_t> >(vars_values);
 	}
 
 	// 1 byte

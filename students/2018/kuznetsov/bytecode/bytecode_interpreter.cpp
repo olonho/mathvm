@@ -12,7 +12,7 @@ namespace mathvm {
 			bytecode_translator visitor;
 			visitor.traverse_scope(parser.top()->owner());
 			*code = visitor.get_code();
-			visitor.print_bytecode();
+//			visitor.print_bytecode();
 			bytecode_interpreter interpreter(visitor);
 			interpreter.run();
 		}
@@ -20,7 +20,7 @@ namespace mathvm {
 	}
 
 	bytecode_interpreter::bytecode_interpreter(mathvm::bytecode_translator &translator) {
-		nested_functions_states.push_back(new program_state(translator.get_bytecode()));
+		nested_functions_states.push_back(new program_state(translator.get_bytecode(), 0));
 		context = translator.get_code();
 		vars = translator.get_vars();
 		vars_values = translator.get_vars_values();
@@ -554,11 +554,13 @@ namespace mathvm {
 	}
 
 	void bytecode_interpreter::visit_CALL() {
+//		std::cout << "CALL " << (++i) << "\n";
 		uint16_t func_id = nested_functions_states.back()->get_uint16();
 		TranslatedFunctionWrapper* called_func = dynamic_cast<TranslatedFunctionWrapper*>(context->functionById(func_id));
 //		std::cout << "FUNCTION BYTECODE " << '\n';
 //		called_func->get_bytecode()->dump(std::cout);
-		program_state* called_function_state = new program_state(called_func->get_bytecode());
+//		std::cout << called_func->name() << ' ' << called_func->get_body_scope_id() << '\n';
+		program_state* called_function_state = new program_state(called_func->get_bytecode(), called_func->get_body_scope_id());
 		std::queue<elem_t> passed_params;
 		for (uint32_t param_id = 0; param_id < called_func->parametersNumber(); ++param_id) {
 			elem_t elem = nested_functions_states.back()->top();
@@ -574,16 +576,17 @@ namespace mathvm {
 	}
 
 	void bytecode_interpreter::visit_RETURN() {
+		uint16_t function_scope_id = nested_functions_states.back()->get_scope_id();
 		if (!nested_functions_states.back()->empty()) {
 			elem_t elem = nested_functions_states.back()->top();
-//			std::cout << "AAAA " << elem.i << '\n';
 			nested_functions_states.back()->pop();
 			nested_functions_states.pop_back();
 			nested_functions_states.back()->push(elem);
 		} else {
 			nested_functions_states.pop_back();
 		}
-		nested_functions_states.back()->restore(&vars_values);
+		if (nested_functions_states.size() > 1)
+			nested_functions_states.back()->restore(&vars_values, function_scope_id);
 	}
 
 	void bytecode_interpreter::run() {

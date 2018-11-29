@@ -29,7 +29,6 @@ namespace mathvm {
 		std::vector< std::vector<elem_t> > vars_values;
 		elem_t var0, var1, var2, var3;
 
-
 	public:
 		bytecode_interpreter(bytecode_translator& translator);
 		~bytecode_interpreter();
