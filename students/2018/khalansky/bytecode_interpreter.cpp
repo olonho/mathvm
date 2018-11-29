@@ -671,6 +671,7 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
             case BC_LOADCTXDVAR:
                 stack.emplace(contexts[code->getInt16(idx+1)].top().
                     getDoubleValue(code->getInt16(idx+3)));
+                idx += insn_sizes(instr);
                 break;
             case BC_LOADCTXIVAR:
                 stack.emplace(contexts[code->getInt16(idx+1)].top().
@@ -680,6 +681,7 @@ Status* MathvmCode::execute(vector<Var*>& vars) {
             case BC_LOADCTXSVAR:
                 stack.emplace(contexts[code->getInt16(idx+1)].top().
                     getStringValue(code->getInt16(idx+3)));
+                idx += insn_sizes(instr);
                 break;
             case BC_STORECTXDVAR:
                 d1 = stack.top().getDoubleValue();
