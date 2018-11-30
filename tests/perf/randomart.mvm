@@ -6,6 +6,14 @@ function void free(string ptr) native 'free';
 function string memset(string ptr, int ch, int count) native 'memset';
 function int strlen(string s) native 'strlen';
 
+function string i2sImpl(int ptr, int ptr2, int zero) native 'memcpy';
+function string i2s(int ptr) {
+    return i2sImpl(ptr, ptr, 0);
+}
+function int s2i(string ptr) {
+    return ptr;
+}
+
 function int getI(string ptr, int idx) {
     return getMem(ptr, idx * 8, 8);
 }
@@ -96,8 +104,7 @@ function string randomart(string rawS, int rawLen) {
     string p = retval;
     function void putC(int c) {
         setS(p, 0, c);
-        int pi = p;
-        p = pi + 1;
+        p = i2s(s2i(p) + 1);
     }
     function void putS(string s) {
         putC(getS(s, 0));
