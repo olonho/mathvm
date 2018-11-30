@@ -23,7 +23,7 @@ namespace mathvm {
 
 	class bytecode_interpreter {
 
-		std::vector<program_state*> nested_functions_states;
+		std::vector<program_state> nested_functions_states;
 		Code* context;
 		std::map<const AstVar*, variable*> vars;
 		std::vector< std::vector<elem_t> > vars_values;

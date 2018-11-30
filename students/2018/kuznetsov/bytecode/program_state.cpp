@@ -6,10 +6,10 @@
 
 namespace mathvm {
 	program_state::program_state(mathvm::Bytecode *_bytecode, uint32_t scope_id)
-		: bytecode(_bytecode), bptr(0), topmost_scope_id(scope_id) {}
+		: bytecode(_bytecode), bptr(0), topmost_scope_id(scope_id) {
+	}
 
 	program_state::~program_state() {
-		delete bytecode;
 	}
 
 	void program_state::push(mathvm::elem_t &element) {
