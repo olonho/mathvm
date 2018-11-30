@@ -1,0 +1,97 @@
+
+int maxLen = 20;
+
+function int shl(int val, int cnt) {
+    while (cnt) {
+        val = val * 2;
+        cnt -= 1;
+    }
+    return val;
+}
+
+function int shr(int val, int cnt) {
+    while (cnt) {
+        val = val / 2;
+        cnt -= 1;
+    }
+    return val;
+}
+
+
+int bits = 3;
+int mask = shl(1, bits) - 1;
+
+function int get(int s, int idx) {
+    return shr(s, idx * bits) & mask;
+}
+
+function int set(int s, int ssize, int idx, int newVal) {
+    int r = 0;
+
+    int j;
+    for (j in 0..ssize-1) {
+        int val;
+        if (j == idx) {
+            val = newVal & mask;
+        } else {
+            val = get(s, j);
+        }
+        r = r | shl(val, j * bits);
+    }
+
+    return r;
+}
+
+function int strlen(int s) {
+    int len = 0;
+    while (get(s, len)) {
+        len += 1;
+    }
+    return len;
+}
+function void puts(int s) {
+    int len = 0;
+    while (get(s, len)) {
+        print(get(s, len));
+        len += 1;
+    }
+    print('\n');
+}
+
+
+int w1;
+function int get1(int idx) {
+    return get(w1, idx);
+}
+function void set1(int idx, int val) {
+    w1 = set(w1, maxLen, idx, val);
+}
+int w2;
+function int get2(int idx) {
+    return get(w2, idx);
+}
+function void set2(int idx, int val) {
+    w2 = set(w2, maxLen, idx, val);
+}
+
+
+int i;
+
+w1 = 0;
+for (i in 0..9) {
+    set1(i, 1 + i % 5);
+}
+set1(10, 0);
+print('len1=', strlen(w1), '\n');
+puts(w1);
+
+w2 = 0;
+for (i in 0..strlen(w1)-1) {
+    set2(i, get1(i));
+    set1(i, get1(i) ^ 21);
+}
+print('len1=', strlen(w1), '\n');
+puts(w1);
+print('len2=', strlen(w2), '\n');
+puts(w2);
+
