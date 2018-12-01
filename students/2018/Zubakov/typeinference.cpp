@@ -16,7 +16,7 @@ namespace mathvm {
     }
 
     void TypeInferenceVisitor::visitLoadNode(LoadNode *node) {
-        node->setInfo(new Info(node->var()->type()));
+        node->setInfo(createInfo(node->var()->type()));
     }
 
     void TypeInferenceVisitor::visitCallNode(CallNode *node) {
@@ -31,7 +31,7 @@ namespace mathvm {
     }
 
     void TypeInferenceVisitor::visitStoreNode(StoreNode *node) {
-        node->setInfo(createInfo(node->var()->type()));
+        node->setInfo(createInfo(VT_VOID));
         node->value()->visit(this);
     }
 
@@ -54,24 +54,36 @@ namespace mathvm {
 
     void TypeInferenceVisitor::visitReturnNode(ReturnNode *node) {
         node->returnExpr()->visit(this);
-        node->setInfo(node->returnExpr()->info());
+        node->setInfo(createInfo(curent->returnType()));
     }
 
     void TypeInferenceVisitor::visitFunctionNode(FunctionNode *node) {
+        FunctionNode *old = curent;
+        curent = node;
         node->setInfo(createInfo(node->returnType()));
+
+        Scope *varScope = node->body()->scope()->parent();
+        Scope::VarIterator it(varScope);
+        while (it.hasNext()) {
+            AstVar *pVar = it.next();
+            pVar->setInfo(createInfo(pVar->type()));
+        }
+
+
         node->body()->visit(this);
         AstBaseVisitor::visitFunctionNode(node);
+        curent = old;
     }
 
     void TypeInferenceVisitor::visitBlockNode(BlockNode *node) {
         Scope *oldScope = currentScope;
         currentScope = node->scope();
 
-//        Scope::VarIterator varIt(currentScope);
-//        while (varIt.hasNext()) {
-//            AstVar *curVar = varIt.next();
-//
-//        }
+        Scope::VarIterator varIt(currentScope);
+        while (varIt.hasNext()) {
+            AstVar *curVar = varIt.next();
+            curVar->setInfo(createInfo(curVar->type()));
+        }
 
         Scope::FunctionIterator funIt(currentScope);
         while (funIt.hasNext()) {
@@ -102,6 +114,22 @@ namespace mathvm {
 
         VarType result = infer(leftType, rightType);
         assert(result != VT_INVALID);
+
+        switch (node->kind()) {
+            case tAND:
+            case tEQ:
+            case tNEQ:
+            case tGT:
+            case tGE:
+            case tLT:
+            case tLE:
+            case tOR:
+                node->setInfo(createInfo(VT_INT));
+                return;
+            default:
+                break;
+        }
+
         node->setInfo(createInfo(result));
     }
 
@@ -148,9 +176,26 @@ namespace mathvm {
             }
         }
         return VT_INVALID; // right is VT_VOID or VT_STRING
+    }
 
+    void TypeInferenceVisitor::visitForNode(ForNode *node) {
+        node->setInfo(createInfo(VT_VOID));
+        AstBaseVisitor::visitForNode(node);
+    }
 
-        return VT_INVALID;
+    void TypeInferenceVisitor::visitPrintNode(PrintNode *node) {
+        node->setInfo(createInfo(VT_VOID));
+        AstBaseVisitor::visitPrintNode(node);
+    }
+
+    void TypeInferenceVisitor::visitIfNode(IfNode *node) {
+        node->setInfo(createInfo(VT_VOID));
+        AstBaseVisitor::visitIfNode(node);
+    }
+
+    void TypeInferenceVisitor::visitWhileNode(WhileNode *node) {
+        node->setInfo(createInfo(VT_VOID));
+        AstBaseVisitor::visitWhileNode(node);
     }
 
 

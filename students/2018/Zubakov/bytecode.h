@@ -13,15 +13,51 @@ namespace mathvm {
     private:
         Code *const _code;
         Bytecode *bytecode;
-        AstFunction *_cur_function;
+        BytecodeFunction *_cur_function;
         Scope *cur_scope;
+        uint16_t scope_id = 0;
+        uint16_t var_number = 0;
 
         void cast(VarType left, VarType right);
 
+        void generateComparison(BinaryOpNode *node);
+
+        void generateComparisonSwitching(TokenKind kind);
+
+        void generateBoolean(BinaryOpNode *node);
+
+        void castToBoolean();
+
+        void generateArithmetic(BinaryOpNode *node);
+
         void generateDoubleArithmetic(TokenKind tokenKind);
+
         void generateIntArithmetic(TokenKind tokenKind);
 
+        void setLocalsInfo(BytecodeFunction *function);
+
+        void setLocalsInfo();
+
+        void storeVariable(const AstVar *var);
+
+        void storeIntVariable(uint16_t vaId, uint16_t contextId);
+
+        void storeDoubleVariable(uint16_t varId, uint16_t contextId);
+
+        void storeStringVariable(uint16_t varId, uint16_t contextId);
+
+        void loadVariable(const AstVar *var);
+
+        void loadIntVariable(uint16_t varId, uint16_t contextId);
+
+        void loadDoubleVariable(uint16_t varId, uint16_t contextId);
+
+        void loadStringVariable(uint16_t varId, uint16_t contextId);
+
     public:
+        void registerFunction(AstFunction* function);
+        void visitAstFunction(AstFunction *astFunction);
+
         BytecodeVisitor(Code *code);
 
         void visitBlockNode(BlockNode *node) override;
@@ -43,6 +79,18 @@ namespace mathvm {
         void visitStoreNode(StoreNode *node) override;
 
         void visitLoadNode(LoadNode *node) override;
+
+        void visitUnaryOpNode(UnaryOpNode *node) override;
+
+        void visitForNode(ForNode *node) override;
+
+        void visitIfNode(IfNode *node) override;
+
+        void visitWhileNode(WhileNode *node) override;
+
+        void visitNativeCallNode(NativeCallNode *node) override;
+
+        void visitReturnNode(ReturnNode *node) override;
     };
 
 }

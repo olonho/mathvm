@@ -10,7 +10,7 @@ using namespace mathvm;
 using namespace std;
 using namespace std::literals::string_literals;
 
-string loadFile(const string& filename) {
+string loadFile(const string &filename) {
     ifstream file{filename};
     if (!file) {
         cerr << "Cannot read file: " << filename << endl;
@@ -19,7 +19,7 @@ string loadFile(const string& filename) {
     return {(istreambuf_iterator<char>(file)), istreambuf_iterator<char>()};
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     string impl;
     string script_file;
 
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    Code* code = 0;
+    Code *code = 0;
     unique_ptr<Status> translateStatus{translator->translate(program, &code)};
 
     if (translateStatus->isError()) {
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
     if (impl != "printer") {
         assert(code);
 
-        vector<Var*> vars;
+        vector<Var *> vars;
         unique_ptr<Status> execStatus{code->execute(vars)};
 
         if (execStatus->isError()) {
