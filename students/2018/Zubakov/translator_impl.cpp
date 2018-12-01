@@ -1,10 +1,10 @@
 #include <mathvm.h>
 #include <visitors.h>
 #include <parser.h>
-//#include "interpreter.cpp"
+//#include "include/interpreter.h"
+#include "interpreter.cpp"
 
 namespace mathvm {
-
     class PrintVisitor : public AstBaseVisitor {
     private:
         ostream &os;

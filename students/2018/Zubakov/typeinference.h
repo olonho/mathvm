@@ -12,11 +12,33 @@ namespace mathvm {
     class Info {
     private:
         VarType type;
+        uint16_t _id;
+        uint16_t _context;
     public:
         Info(VarType type) : type(type) {}
 
         VarType getType() const {
             return type;
+        }
+
+        void setType(VarType type) {
+            Info::type = type;
+        }
+
+        void setId(uint16_t id) {
+            _id = id;
+        }
+
+        uint16_t getId() {
+            return _id;
+        }
+
+        void setContextId(uint16_t id) {
+            _context = id;
+        }
+
+        uint16_t getContextId() {
+            return _context;
         }
     };
 
@@ -49,15 +71,25 @@ namespace mathvm {
 
         void visitFunctionNode(FunctionNode *node) override;
 
+        void visitForNode(ForNode *node) override;
+
+        void visitPrintNode(PrintNode *node) override;
+
+        void visitIfNode(IfNode *node) override;
+
+        void visitWhileNode(WhileNode *node) override;
+
     private:
         vector <std::unique_ptr<Info>> &ptrs;
         Scope *currentScope = nullptr;
+        FunctionNode* curent;
 
-        Info *createInfo(const VarType& type);
+
+        Info *createInfo(const VarType &type);
+
         VarType infer(VarType &left, VarType &right);
 
     };
-
 
 
 }
