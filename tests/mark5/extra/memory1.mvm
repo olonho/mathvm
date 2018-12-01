@@ -1,0 +1,35 @@
+function int getMem(string base, int offset, int width) native 'unsafe_getMem';
+function void setMem(string base, int offset, int value, int width) native 'unsafe_setMem';
+function string malloc(int size) native 'malloc';
+function void free(string ptr) native 'free';
+function int strlen(string str) native 'strlen';
+function string strtok(string str, string delim) native 'strtok';
+
+string letters = 'aA';
+string delims = ' \t\n';
+
+int tokens = 64 * 1024;
+string text = malloc(2 * tokens + 1);
+string null = strtok('', ':)');
+
+int i;
+for (i in 0..tokens-1) {
+    setMem(text, i * 2, getMem(letters, i % strlen(letters), 1) + i % 26, 1);
+    setMem(text, i * 2 + 1, getMem(delims, i % strlen(delims), 1), 1);
+}
+setMem(text, tokens * 2, 0, 1);
+
+
+int count = 0;
+
+string token = strtok(text, delims);
+while (token) {
+    if (count % 1009 == 0) {
+        print(token);
+    }
+    count += 1;
+    token = strtok(null, delims);
+}
+print('\ntotal: ', count, ' tokens\n');
+
+free(text);
