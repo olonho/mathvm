@@ -35,7 +35,7 @@ class Scanner : ErrorInfoHolder {
     int32_t _tokenStart;
     const string* _code;
     char _ch;
-    TokenKind _kind;
+//    TokenKind _kind;
     TokenList* _tokens;
 
     static bool isLetter(char ch);

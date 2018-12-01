@@ -1,14 +1,10 @@
 #include "pretty_print_translator_impl.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace mathvm;
 
-template<typename Iterator, typename Consumer>
-void iterate(Iterator& it, Consumer const& p) {
-    while (it.hasNext()) {
-        p(it.next());
-    }
-}
+using utils::iterate;
 
 template<typename Printer>
 void printWithSeparator(ostream& _buffer, size_t times, Printer const& p) {
@@ -50,49 +46,11 @@ string escape(const string& s) {
     return ss.str();
 }
 
-ostream& operator<<(ostream& o, VarType type) {
-    switch (type) {
-        case VT_INVALID:
-            o << "invalid";
-            break;
-        case VT_VOID:
-            o << "void";
-            break;
-        case VT_DOUBLE:
-            o << "double";
-            break;
-        case VT_INT:
-            o << "int";
-            break;
-        case VT_STRING:
-            o << "string";
-            break;
-    }
-
-    return o;
-}
-
-ostream& operator<<(ostream& o, TokenKind kind) {
-#define PRINT_OP(t, s, p) \
-        case t: o << (s); \
-        break;
-
-    switch (kind) {
-        case tTokenCount:
-            break;
-        FOR_TOKENS(PRINT_OP)
-    }
-
-#undef PRINT_OP
-
-    return o;
-}
-
 void PrettyPrintTranslatorImpl::visitBlockNode(BlockNode* node) {
     Scope::VarIterator varIterator(node->scope());
     iterate(varIterator, [&](AstVar* var) {
         indent();
-        _buffer << var->type()
+        _buffer << typeToName(var->type())
                 << " "
                 << var->name()
                 << ";"

@@ -443,13 +443,13 @@ static inline bool isUnaryOp(TokenKind token) {
     return (token == tSUB) || (token == tNOT);
 }
 
-static inline bool isBinaryOp(TokenKind token) {
-    return (token >= tADD && token <= tMOD) ||
-           (token == tRANGE) ||
-           (token >= tEQ && token <= tLE) ||
-           (token == tAND  || token == tOR ||
-            token == tAAND || token == tAOR || token == tAXOR);
-}
+//static inline bool isBinaryOp(TokenKind token) {
+//    return (token >= tADD && token <= tMOD) ||
+//           (token == tRANGE) ||
+//           (token >= tEQ && token <= tLE) ||
+//           (token == tAND  || token == tOR ||
+//            token == tAAND || token == tAOR || token == tAXOR);
+//}
 
 AstNode* Parser::parseUnary() {
     if (isUnaryOp(currentToken())) {

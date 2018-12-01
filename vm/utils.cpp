@@ -30,6 +30,7 @@ char* loadFile(const char* file) {
 	uint8_t* result = new uint8_t[size + 1];
 
 	int rv = read(fd, result, size);
+	(void)rv;
 	assert(rv == size);
 	result[size] = '\0';
 	close(fd);

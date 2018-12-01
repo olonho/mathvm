@@ -13,6 +13,9 @@ USER_OBJ = \
 	$(OBJ)/main$(OBJ_SUFF) \
 	$(OBJ)/translator_impl$(OBJ_SUFF) \
 	$(OBJ)/pretty_print_translator_impl$(OBJ_SUFF) \
+	$(OBJ)/bytecode_translator_impl$(OBJ_SUFF) \
+	$(OBJ)/bytecode_translator_visitor$(OBJ_SUFF) \
+	$(OBJ)/interpreter_code_impl$(OBJ_SUFF) \
 
 USER_CFLAGS = -std=c++14
 
@@ -28,11 +31,13 @@ else
 KIND = debug
 endif
 
+INCLUDE += -I$(ROOT)/include
+
 test: $(MATHVM)
 	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
 	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
 	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
-	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
+	$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
 	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
 	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
 
