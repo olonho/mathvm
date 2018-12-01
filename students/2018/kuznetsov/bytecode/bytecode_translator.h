@@ -79,7 +79,6 @@ namespace mathvm {
 
 		Code* code = new CCode;
 		Bytecode *bytecode = new Bytecode();
-		VarType current_subtree_type = VT_INVALID;
 		std::vector<Scope*> scopes;
 		std::vector< std::vector<elem_t> > vars_values;
 		std::vector<Bytecode*> nested_functions_bytecodes;
@@ -91,7 +90,6 @@ namespace mathvm {
 		uint16_t last_func_id = 0;
 		TranslatedFunctionWrapper* top;
 		TranslatedFunctionWrapper* current_function;
-		std::vector<TranslatedFunctionWrapper*> functions_declarations_stack;
 
 	public:
 

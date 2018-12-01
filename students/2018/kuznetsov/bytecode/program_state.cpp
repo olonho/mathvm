@@ -33,33 +33,12 @@ namespace mathvm {
 	}
 
 	void program_state::save(std::vector< std::vector<elem_t> > values) {
-//		vars_values.clear();
-//		std::vector<elem_t> v;
-//		for (uint32_t i = 0; i < values.size(); ++i) {
-//			vars_values.push_back(v);
-//			for (uint32_t j = 0; j < values[i].size(); ++j)
-//				vars_values.back().push_back(values[i][j]);
-//		}
 		vars_values = std::vector< std::vector<elem_t> >(values);
 	}
 
 	void program_state::restore(std::vector< std::vector<elem_t> >* target, uint32_t from_scope) {
-//		target.clear();
-//		std::vector<elem_t> v;
-//		for (uint32_t i = 0; i < target->size(); ++i) {
-//			for (uint32_t j = 0; j < (*target)[i].size(); ++j)
-//				std::cout << i << '@' << j << '@' << (*target)[i][j].i << ' ';
-//		}
-////		std::cout << " ====> " << topmost_scope_id << " ====> ";
-//		std::cout << '\n';
 		for (uint32_t scope_id = from_scope; scope_id < target->size(); ++scope_id)
 			(*target)[scope_id] = std::vector<elem_t>(vars_values[scope_id]);
-//		for (uint32_t i = 0; i < target->size(); ++i) {
-//			for (uint32_t j = 0; j < (*target)[i].size(); ++j)
-//				std::cout << i << '@' << j << '@' << (*target)[i][j].i << ' ';
-//		}
-//		std::cout << std::endl;
-//		*target = std::vector< std::vector<elem_t> >(vars_values);
 	}
 
 	// 1 byte

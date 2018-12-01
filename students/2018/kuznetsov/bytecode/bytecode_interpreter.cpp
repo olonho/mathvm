@@ -547,8 +547,6 @@ namespace mathvm {
 	}
 
 	void bytecode_interpreter::visit_CALL() {
-//		double start = getTimeInSeconds();
-//		std::cout << nested_functions_states.size() << std::endl;
 		uint16_t func_id = nested_functions_states.back().get_uint16();
 		TranslatedFunctionWrapper* called_func = static_cast<TranslatedFunctionWrapper*>(context->functionById(func_id));
 		program_state called_function_state(called_func->get_bytecode(), called_func->get_body_scope_id());
@@ -565,12 +563,10 @@ namespace mathvm {
 		}
 		nested_functions_states.back().save(vars_values);
 		nested_functions_states.push_back(called_function_state);
-//		std::cout << "time: " << getTimeInSeconds() - start << std::endl;
 	}
 
 	void bytecode_interpreter::visit_RETURN() {
 		uint16_t function_scope_id = nested_functions_states.back().get_scope_id();
-//		function_scope_id;
 		if (!nested_functions_states.back().empty()) {
 			elem_t elem = nested_functions_states.back().top();
 			nested_functions_states.back().pop();
@@ -585,9 +581,6 @@ namespace mathvm {
 
 	void bytecode_interpreter::run() {
 		while (!nested_functions_states.back().bytecode_ended()) {
-//		stringstream ss;
-//		ss << nested_functions_states.back().get_insn();
-//		throw std::invalid_argument(ss.str());
 			switch (nested_functions_states.back().get_insn()) {
 				case BC_DLOAD:
 					visit_DLOAD();
