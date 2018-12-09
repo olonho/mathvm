@@ -94,7 +94,6 @@ void BytecodeGenerator::TypeInfoCollector::visitCallNode(CallNode *node) {
     uint32_t index = node->position();
     TranslatedFunction *function = _bytecodeGenerator->_code->functionByName(node->name());
 
-
     _info.expressionType[index] = function->returnType();
 
     uint16_t parametersNumber = function->parametersNumber();
@@ -203,11 +202,10 @@ void BytecodeGenerator::FunctionCallCollector::visitIfNode(IfNode *node) {
 
 void BytecodeGenerator::FunctionCallCollector::visitCallNode(CallNode *node) {
     _info.returnValueUsed[node->position()] = !_parentIsBlockNode;
-    uint32_t parametersNumber = node->parametersNumber();
-    for (uint32_t i = parametersNumber; i > 0; --i) {
-        _info.returnValueUsed[node->parameterAt(i - 1)->position()] = true;
-    }
+    bool oldParentIsBlockNode = _parentIsBlockNode;
+    _parentIsBlockNode = false;
     node->visitChildren(this);
+    _parentIsBlockNode = oldParentIsBlockNode;
 }
 
 void BytecodeGenerator::FunctionCallCollector::visitStoreNode(StoreNode *node) {
