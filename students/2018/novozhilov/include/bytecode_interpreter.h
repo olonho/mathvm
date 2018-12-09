@@ -8,25 +8,7 @@
 #include <stack>
 #include <variant>
 #include <mathvm.h>
-#include "context.h"
-
-/*
-0: ILOAD 1
-9: STOREIVAR @0
-12: DLOAD 2.2
-21: STOREDVAR @1
-24: ILOAD0
-25: LOADIVAR @0
-28: I2D
-29: LOADDVAR @1
-32: DCMP
-33: IFICMPL 40
-36: ILOAD0
-37: JA 41
-40: ILOAD1
-41: IPRINT
-42: STOP
-*/
+#include "interpreter_context.h"
 
 namespace mathvm {
     class InterpreterCodeImpl : public Code {
@@ -39,16 +21,19 @@ namespace mathvm {
         Code *_code;
         ostream &_out;
         stack<StackValue > _stack;
-        Context *_context;
+        InterpreterContext *_context;
+        vector<vector<InterpreterContext*>> _contextsByFunction;
+        vector<BytecodeFunction*> _callStack;
+        vector<uint32_t> _offsetStack;
 
     public:
         explicit BytecodeInterpreter(Code *code, ostream &out = cout);
 
-        Status *execute(vector<Var*> &vars);
-
-        void executeFunction(BytecodeFunction *function);
+        Status *executeProgram(vector<Var *> &vars);
 
     private:
+        void execute(BytecodeFunction* mainFunction);
+
         BytecodeFunction *getFunctionByName(string name);
 
         void enterContext(BytecodeFunction *function);

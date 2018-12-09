@@ -1,9 +1,4 @@
 #include <utility>
-
-//
-// Created by jetbrains on 23.10.18.
-//
-
 #include "include/context.h"
 
 using namespace mathvm;
@@ -11,7 +6,6 @@ using namespace mathvm;
 Context::Context(BytecodeFunction *function, Context *parentContext, Scope *scope)
     : _function(function)
     , _parentContext(parentContext)
-    , _scopeId(parentContext ? parentContext->getContextId() + static_cast<uint16_t>(1) : static_cast<uint16_t >(0))
     , _variables(function->localsNumber()) {
     if (scope != nullptr) {
         Scope::VarIterator iterator(scope);
@@ -43,13 +37,6 @@ uint16_t Context::addVar(Var *var) {
     return index;
 }
 
-StackValue Context::getVarById(uint16_t index) {
-    if (index >= _variables.size()) {
-        throw std::runtime_error("index out of bounds");
-    }
-    return _variables[index];
-}
-
 bool Context::containsVariable(string name) {
     return _variableById.find(name) != _variableById.end();
 }
@@ -59,7 +46,7 @@ Context *Context::getParentContext() {
 }
 
 uint16_t Context::getContextId() {
-    return _scopeId;
+    return _function->id();
 }
 
 Bytecode *Context::getBytecode() {
@@ -77,21 +64,4 @@ uint16_t Context::getVarId(string name) {
 uint16_t Context::getVarsCount() {
     return static_cast<uint16_t>(_variables.size());
 }
-
-Context *Context::getContextById(uint16_t id) {
-    Context *context = this;
-    while (context != nullptr) {
-        if (context->getContextId() == id) {
-            return context;
-        }
-        context = context->getParentContext();
-    }
-    return nullptr;
-}
-
-void Context::setVarById(StackValue var, uint16_t index) {
-    _variables[index] = std::move(var);
-}
-
-
 

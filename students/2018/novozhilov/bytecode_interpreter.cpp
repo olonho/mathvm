@@ -1,7 +1,3 @@
-//
-// Created by jetbrains on 18.10.18.
-//
-
 #include <mathvm.h>
 #include <ast.h>
 #include "include/bytecode_interpreter.h"
@@ -10,23 +6,24 @@ using namespace mathvm;
 
 Status *mathvm::InterpreterCodeImpl::execute(vector<Var *> &vars) {
     BytecodeInterpreter interpreter(this);
-    return interpreter.execute(vars);
+    return interpreter.executeProgram(vars);
 }
 
-BytecodeInterpreter::BytecodeInterpreter(Code *code, ostream &out) : _code(code), _out(out), _stack(), _context(nullptr) {}
+BytecodeInterpreter::BytecodeInterpreter(Code *code, ostream &out) : _code(code), _out(out), _stack(), _context(nullptr), _contextsByFunction(65535) {}
 
-Status *BytecodeInterpreter::execute(vector<Var *> &vars __attribute__ ((unused))) {
-    BytecodeFunction *topFunction = getFunctionByName(AstFunction::top_name);
-    executeFunction(topFunction);
+Status *BytecodeInterpreter::executeProgram(vector<Var *> &vars __attribute__ ((unused))) {
+    BytecodeFunction *mainFunction = getFunctionByName(AstFunction::top_name);
+    execute(mainFunction);
     return Status::Ok();
 }
 
-void BytecodeInterpreter::executeFunction(BytecodeFunction *function) {
-    enterContext(function);
-    Bytecode *bytecode = function->bytecode();
-    uint32_t length = bytecode->length();
-    for (uint32_t i = 0; i < length; ) {
+void BytecodeInterpreter::execute(BytecodeFunction *mainFunction) {
+    enterContext(mainFunction);
+    while (true) {
+        uint32_t &i = _offsetStack.back();
+        Bytecode *bytecode = _callStack.back()->bytecode();
         Instruction instruction = getInstruction(bytecode, i);
+        bool shouldExit = false;
         switch (instruction) {
             case BC_INVALID:
                 throw std::runtime_error("invalid instruction");
@@ -105,11 +102,8 @@ void BytecodeInterpreter::executeFunction(BytecodeFunction *function) {
             case BC_IAOR:
                 pushInt(popInt() | popInt());
                 break;
-            case BC_IAAND: {
-                int64_t left = popInt();
-                int64_t right = popInt();
-                pushInt(left & right);
-            }
+            case BC_IAAND:
+                pushInt(popInt() & popInt());
                 break;
             case BC_IAXOR:
                 pushInt(popInt() ^ popInt());
@@ -177,26 +171,29 @@ void BytecodeInterpreter::executeFunction(BytecodeFunction *function) {
             case BC_IFICMPLE:
                 conditionalJump(bytecode, instruction, i);
                 break;
-            case BC_STOP:
-                i = length;
-                break;
             case BC_CALL: {
                 uint16_t id = getUInt16(bytecode, i);
                 auto *calledFunction = dynamic_cast<BytecodeFunction*>(_code->functionById(id));
-                executeFunction(calledFunction);
+                enterContext(calledFunction);
                 break;
             }
             case BC_CALLNATIVE:
                 // TODO
                 break;
+            case BC_STOP:
             case BC_RETURN:
-                i = length;
+                shouldExit = true;
                 break;
             default:
                 throw std::runtime_error("unsupported instruction");
         }
+        if (shouldExit) {
+            exitContext();
+            if (_context == nullptr) {
+                break;
+            }
+        }
     }
-    exitContext();
 }
 
 BytecodeFunction *BytecodeInterpreter::getFunctionByName(string name) {
@@ -236,23 +233,35 @@ T BytecodeInterpreter::popTyped() {
 }
 
 void BytecodeInterpreter::enterContext(BytecodeFunction *function) {
-    auto *context = new Context(function, _context);
+    auto *context = new InterpreterContext(function);
+    uint16_t id = function->id();
+    _callStack.push_back(function);
+    _offsetStack.push_back(0);
+    _contextsByFunction[id].push_back(context);
     _context = context;
 }
 
 void BytecodeInterpreter::exitContext() {
     assert(_context);
-    Context *context = _context;
-    _context = _context->getParentContext();
-    delete context;
+    delete _context;
+    uint16_t id = _callStack.back()->id();
+    _contextsByFunction[id].pop_back();
+    _callStack.pop_back();
+    _offsetStack.pop_back();
+    if (_callStack.empty()) {
+        _context = nullptr;
+    } else {
+        id = _callStack.back()->id();
+        _context = _contextsByFunction[id].back();
+    }
 }
 
 void BytecodeInterpreter::loadVar(Bytecode* bytecode, Instruction instruction, uint32_t &i) {
     uint16_t varId = getUInt16(bytecode, i);
-    Context *context;
+    InterpreterContext* context;
     if (instruction == BC_LOADCTXIVAR || instruction == BC_LOADCTXDVAR || instruction == BC_LOADCTXSVAR) {
         uint16_t contextId = getUInt16(bytecode, i);
-        context = _context->getContextById(contextId);
+        context = _contextsByFunction[contextId].back();
     } else {
         context = _context;
     }
@@ -278,10 +287,10 @@ void BytecodeInterpreter::loadVar(Bytecode* bytecode, Instruction instruction, u
 
 void BytecodeInterpreter::storeVar(Bytecode *bytecode, Instruction instruction, uint32_t &i) {
     uint16_t varId = getUInt16(bytecode, i);
-    Context *context;
+    InterpreterContext* context;
     if (instruction == BC_STORECTXIVAR || instruction == BC_STORECTXDVAR || instruction == BC_STORECTXSVAR) {
         uint16_t contextId = getUInt16(bytecode, i);
-        context = _context->getContextById(contextId);
+        context = _contextsByFunction[contextId].back();
     } else {
         context = _context;
     }
