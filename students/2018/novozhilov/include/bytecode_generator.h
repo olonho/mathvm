@@ -73,6 +73,8 @@ namespace mathvm {
 
         void castVarOnStackTop(VarType sourceType, VarType targetType);
 
+        void castVarOnStackTopToBool();
+
         Context *findOwnerContextOfVar(string name);
 
         void processArithmeticOperation(BinaryOpNode *node);

@@ -86,9 +86,16 @@ void BytecodeInterpreter::executeFunction(BytecodeFunction *function) {
             case BC_IDIV:
                 pushInt(popInt() / popInt());
                 break;
-            case BC_IMOD:
-                pushInt(popInt() % popInt());
+            case BC_IMOD: {
+                int64_t left = popInt();
+                int64_t right = popInt();
+                if (right == 0) {
+                    pushInt(0);
+                } else {
+                    pushInt(left % right);
+                }
                 break;
+            }
             case BC_DNEG:
                 pushDouble(-popDouble());
                 break;
@@ -98,8 +105,11 @@ void BytecodeInterpreter::executeFunction(BytecodeFunction *function) {
             case BC_IAOR:
                 pushInt(popInt() | popInt());
                 break;
-            case BC_IAAND:
-                pushInt(popInt() & popInt());
+            case BC_IAAND: {
+                int64_t left = popInt();
+                int64_t right = popInt();
+                pushInt(left & right);
+            }
                 break;
             case BC_IAXOR:
                 pushInt(popInt() ^ popInt());

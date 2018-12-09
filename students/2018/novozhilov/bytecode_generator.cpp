@@ -309,7 +309,17 @@ void BytecodeGenerator::processArithmeticOperation(BinaryOpNode *node) {
 }
 
 void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {
-    node->visitChildren(this);
+    TokenKind kind = node->kind();
+    bool isLogic = kind == tAND || kind == tOR;
+
+    node->left()->visit(this);
+    if (isLogic) {
+        castVarOnStackTopToBool();
+    }
+    node->right()->visit(this);
+    if (isLogic) {
+        castVarOnStackTopToBool();
+    }
 
     if (getNodeType(node) != VT_INT) {
         throw std::runtime_error("illegal type on stack");
@@ -317,7 +327,7 @@ void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {
 
     Bytecode *bytecode = getBytecode();
 
-    switch (node->kind()) {
+    switch (kind) {
         case tAOR:
         case tOR:
             bytecode->addInsn(BC_IAOR);
@@ -547,4 +557,17 @@ void BytecodeGenerator::castVarOnStackTop(VarType sourceType, VarType targetType
 
 bool BytecodeGenerator::isNumberType(VarType type) {
     return type == VT_INT || type == VT_DOUBLE;
+}
+
+void BytecodeGenerator::castVarOnStackTopToBool() {
+    Bytecode *bytecode = getBytecode();
+    bytecode->addInsn(BC_ILOAD0);
+    Label elseLabel(bytecode);
+    Label endLabel(bytecode);
+    bytecode->addBranch(BC_IFICMPE, elseLabel);
+    bytecode->addInsn(BC_ILOAD1);
+    bytecode->addBranch(BC_JA, endLabel);
+    bytecode->bind(elseLabel);
+    bytecode->addInsn(BC_ILOAD0);
+    bytecode->bind(endLabel);
 }
