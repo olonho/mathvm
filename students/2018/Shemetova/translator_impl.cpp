@@ -1,6 +1,12 @@
 #include <mathvm.h>
 #include "../../../vm/parser.h"
 #include <iostream>
+#include "interpreter/translator_helper.h"
+#include "bytecode_translator.h"
+#include "interpreter/typer.h"
+//#include "ast_to_bytecode.h"
+
+//http://blog.jamesdbloom.com/JavaCodeToByteCode_PartOne.html
 
 #define INDENT "    "
 
@@ -24,28 +30,28 @@ namespace mathvm {
             }
             return type_name;
         }
-        
+
         void visitFunctionHeader(FunctionNode* node) {
-                std::cout << std::endl << currentIndent << "function "
-                        << getType(node->returnType())
-                        << " "
-                        << node->name() << "(";
-                uint32_t n = node->parametersNumber();
-                for (uint32_t i = 0; i < n; i++) {
-                    std::cout << getType(node->parameterType(i))
-                            << " " << node->parameterName(i);
-                    if (i < n - 1) {
-                        std::cout << ", ";
-                    }
+            std::cout << std::endl << currentIndent << "function "
+                    << getType(node->returnType())
+                    << " "
+                    << node->name() << "(";
+            uint32_t n = node->parametersNumber();
+            for (uint32_t i = 0; i < n; i++) {
+                std::cout << getType(node->parameterType(i))
+                        << " " << node->parameterName(i);
+                if (i < n - 1) {
+                    std::cout << ", ";
                 }
-                std::cout << ") " ;
+            }
+            std::cout << ") ";
         }
 
         void visitBlockNoIndent(BlockNode* node) {
             Scope* sc = node->scope();
             Scope::VarIterator it = Scope::VarIterator(sc);
-			bool flag;
-			if (it.hasNext()) flag = true;
+            bool flag;
+            if (it.hasNext()) flag = true;
             while (it.hasNext()) {
                 AstVar* var = it.next();
                 std::cout << currentIndent << getType(var->type())
@@ -54,20 +60,19 @@ namespace mathvm {
                 std::cout << ";" << std::endl;
 
             }
-			flag = false;
+            flag = false;
             Scope::FunctionIterator itf = Scope::FunctionIterator(sc);
-			if (itf.hasNext()) flag = true;
+            if (itf.hasNext()) flag = true;
             while (itf.hasNext()) {
                 AstFunction* func = itf.next();
                 BlockNode* body = func->node()->body();
-                if (body->nodes() == 2 && 
+                if (body->nodes() == 2 &&
                         (body->nodeAt(0))->isNativeCallNode()) {
                     visitFunctionHeader(func->node());
                     std::cout << " ";
                     (body->nodeAt(0))->visit(this);
                     std::cout << ";";
-                }
-                else {
+                } else {
                     (func->node())->visit(this);
                 }
             }
@@ -75,19 +80,17 @@ namespace mathvm {
             uint32_t n = node->nodes();
             for (uint32_t i = 0; i < n; i++) {
                 if (!(node->nodeAt(i)->isIfNode()) && !(node->nodeAt(i)->isReturnNode())) {
-					std::cout << currentIndent;
+                    std::cout << currentIndent;
                     (node->nodeAt(i))->visit(this);
                     std::cout << ";" << std::endl;
-                }
-				else if (node->nodeAt(i)->isIfNode()) {
-					std::cout << currentIndent;
+                } else if (node->nodeAt(i)->isIfNode()) {
+                    std::cout << currentIndent;
                     (node->nodeAt(i))->visit(this);
-					std::cout << std::endl;
-				}
-				else {
-					(node->nodeAt(i))->visit(this);
-				}
-					
+                    std::cout << std::endl;
+                } else {
+                    (node->nodeAt(i))->visit(this);
+                }
+
             }
         }
 
@@ -192,7 +195,7 @@ namespace mathvm {
             (node->inExpr())->visit(this);
             std::cout << ") {";
             (node->body())->visit(this);
-            std::cout <<  currentIndent << "}";
+            std::cout << currentIndent << "}";
         }
 
         virtual void visitIfNode(IfNode* node) {
@@ -218,7 +221,7 @@ namespace mathvm {
 
         virtual void visitReturnNode(ReturnNode* node) {
             if (node->returnExpr() != 0) {
-				std::cout << currentIndent;
+                std::cout << currentIndent;
                 std::cout << "return ";
                 (node->returnExpr())->visit(this);
                 std::cout << ";" << std::endl;
@@ -250,7 +253,7 @@ namespace mathvm {
 
     Translator* Translator::create(const string& impl) {
         if (impl == "" || impl == "intepreter") {
-            //return new BytecodeTranslatorImpl();
+            return new BytecodeTranslatorImpl();
         }
         if (impl == "jit") {
             //return new MachCodeTranslatorImpl();
@@ -258,7 +261,8 @@ namespace mathvm {
         if (impl == "printer") {
             return new SourceTranslatorImpl();
         }
-        return nullptr;
+        //cout << impl << endl;
+        return new BytecodeTranslatorImpl();
     }
 
-} // namespace mathvm
+} // namespace mathvm 
