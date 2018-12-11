@@ -177,8 +177,8 @@ void BytecodeInterpreter::execute(BytecodeFunction *mainFunction) {
                 enterContext(calledFunction);
                 break;
             }
-            case BC_CALLNATIVE:
-                // TODO
+            case BC_DUMP:
+                dumpStackTop();
                 break;
             case BC_STOP:
             case BC_RETURN:
@@ -392,4 +392,8 @@ void BytecodeInterpreter::compare(T upper, T lower) {
     } else {
         pushInt(0);
     }
+}
+
+void BytecodeInterpreter::dumpStackTop() {
+    _stack.push(_stack.top());
 }

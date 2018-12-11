@@ -63,8 +63,9 @@ namespace mathvm {
         template<class T> T popTyped();
         int64_t popInt();
         double popDouble();
-
         string popString();
+
+        void dumpStackTop();
     };
 }
 

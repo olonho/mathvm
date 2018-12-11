@@ -68,18 +68,19 @@ void BytecodeGenerator::visitForNode(ForNode *node) {
 
     const AstVar *var = node->var();
     VarType type = var->type();
-    storeValueToVar(var);
+    storeValueToVar(var);  // init value
+    inExpr->right()->visit(this); // right bound
 
     Bytecode *bytecode = getBytecode();
 
     Label startLabel(bytecode);
     Label endLabel(bytecode);
-
     bytecode->bind(startLabel);
-    loadValueFromVar(var, type);
-    inExpr->right()->visit(this);
+    bytecode->addInsn(BC_DUMP);
 
-    bytecode->addBranch(BC_IFICMPL, endLabel);
+    loadValueFromVar(var, type);
+
+    bytecode->addBranch(BC_IFICMPG, endLabel);
     node->body()->visit(this);
 
     loadValueFromVar(var, type);
@@ -88,6 +89,7 @@ void BytecodeGenerator::visitForNode(ForNode *node) {
     storeValueToVar(var);
     bytecode->addBranch(BC_JA, startLabel);
     bytecode->bind(endLabel);
+    bytecode->addInsn(BC_POP);
 }
 
 void BytecodeGenerator::visitWhileNode(WhileNode *node) {
