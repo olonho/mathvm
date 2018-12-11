@@ -272,14 +272,16 @@ void BytecodeGenerator::processArithmeticOperation(BinaryOpNode *node) {
     VarType type = getNodeType(node);
 
     node->right()->visit(this);
-    castVarOnStackTop(getNodeType(node->right()), type);
+    VarType opType = getNodeType(node->left());
+//    castVarOnStackTop(getNodeType(node->right()), type);
     node->left()->visit(this);
-    castVarOnStackTop(getNodeType(node->left()), type);
+//    castVarOnStackTop(getNodeType(node->left()), type);
 
     if (!(type == VT_INT || type == VT_DOUBLE)) {
         throw std::runtime_error("illegal type on stack");
     }
-    bool intType = type == VT_INT;
+//    bool intType = type == VT_INT;
+    bool intType = opType == VT_INT;
 
     Bytecode *bytecode = getBytecode();
     
@@ -306,6 +308,7 @@ void BytecodeGenerator::processArithmeticOperation(BinaryOpNode *node) {
         default:
             throw std::runtime_error("illegal operation kind");
     }
+    castVarOnStackTop(opType, type);
 }
 
 void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {

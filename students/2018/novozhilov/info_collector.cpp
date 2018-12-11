@@ -55,7 +55,11 @@ void BytecodeGenerator::TypeInfoCollector::visitBinaryOpNode(BinaryOpNode *node)
     }
     _info.expressionType[node->left()->position()] = type;
     _info.expressionType[node->right()->position()] = type;
-    _info.expressionType[node->position()] = type;
+    if (isComparingOperation(node->kind())) {
+        _info.expressionType[node->position()] = VT_INT;
+    } else {
+        _info.expressionType[node->position()] = type;
+    }
 }
 
 void BytecodeGenerator::TypeInfoCollector::visitUnaryOpNode(UnaryOpNode *node) {
@@ -136,6 +140,26 @@ bool BytecodeGenerator::TypeInfoCollector::isArithmeticOperation(TokenKind const
         case tMUL:
         case tDIV:
         case tMOD:
+        case tEQ:
+        case tNEQ:
+        case tGE:
+        case tGT:
+        case tLE:
+        case tLT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool BytecodeGenerator::TypeInfoCollector::isComparingOperation(TokenKind const& kind) {
+    switch (kind) {
+        case tEQ:
+        case tNEQ:
+        case tGE:
+        case tGT:
+        case tLE:
+        case tLT:
             return true;
         default:
             return false;

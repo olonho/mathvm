@@ -130,6 +130,8 @@ namespace mathvm {
             VarType getNodeType(AstNode *node);
 
             bool isArithmeticOperation(TokenKind const &kind);
+
+            bool isComparingOperation(TokenKind const& kind);
         };
 
     private:
