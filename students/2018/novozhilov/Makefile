@@ -17,6 +17,7 @@ USER_OBJ = \
 	$(OBJ)/main$(OBJ_SUFF) \
 	$(OBJ)/printer_translator$(OBJ_SUFF) \
 	$(OBJ)/translator_impl$(OBJ_SUFF) \
+	$(OBJ)/interpreter_context$(OBJ_SUFF)
 
 USER_CFLAGS = -std=c++17 -g
 
