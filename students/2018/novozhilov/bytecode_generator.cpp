@@ -63,8 +63,6 @@ void BytecodeGenerator::generateCodeForFunction(AstFunction *function) {
 }
 
 void BytecodeGenerator::visitForNode(ForNode *node) {
-    // TODO: add check for type
-
     BinaryOpNode *inExpr = node->inExpr()->asBinaryOpNode();
     inExpr->left()->visit(this);
 
@@ -272,19 +270,16 @@ void BytecodeGenerator::processArithmeticOperation(BinaryOpNode *node) {
     VarType type = getNodeType(node);
 
     node->right()->visit(this);
-    VarType opType = getNodeType(node->left());
-//    castVarOnStackTop(getNodeType(node->right()), type);
     node->left()->visit(this);
-//    castVarOnStackTop(getNodeType(node->left()), type);
 
     if (!(type == VT_INT || type == VT_DOUBLE)) {
         throw std::runtime_error("illegal type on stack");
     }
-//    bool intType = type == VT_INT;
+
+    VarType opType = getNodeType(node->left());
     bool intType = opType == VT_INT;
 
     Bytecode *bytecode = getBytecode();
-    
     switch (node->kind()) {
         case tADD:
             bytecode->addInsn(intType ? BC_IADD : BC_DADD);
@@ -314,10 +309,26 @@ void BytecodeGenerator::processArithmeticOperation(BinaryOpNode *node) {
 void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {
     TokenKind kind = node->kind();
     bool isLogic = kind == tAND || kind == tOR;
+    bool isAnd = kind == tAND;
+
+    Bytecode *bytecode = getBytecode();
+    Label lazyLabel(bytecode);
+    Label endLabel(bytecode);
 
     node->left()->visit(this);
     if (isLogic) {
         castVarOnStackTopToBool();
+        if (isAnd) {
+            bytecode->addInsn(BC_ILOAD0);
+        } else {
+            bytecode->addInsn(BC_ILOAD1);
+        }
+        bytecode->addBranch(BC_IFICMPE, lazyLabel);
+        if (isAnd) {
+            bytecode->addInsn(BC_ILOAD1);
+        } else {
+            bytecode->add(BC_ILOAD0);
+        }
     }
     node->right()->visit(this);
     if (isLogic) {
@@ -328,7 +339,6 @@ void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {
         throw std::runtime_error("illegal type on stack");
     }
 
-    Bytecode *bytecode = getBytecode();
 
     switch (kind) {
         case tAOR:
@@ -345,6 +355,18 @@ void BytecodeGenerator::processLogicOperation(BinaryOpNode *node) {
         default:
             throw std::runtime_error("illegal operation kind");
     }
+    bytecode->addBranch(BC_JA, endLabel);
+    if (isLogic) {
+        bytecode->bind(lazyLabel);
+        if (isAnd) {
+            bytecode->addInsn(BC_ILOAD0);
+        } else {
+            bytecode->addInsn(BC_ILOAD1);
+        }
+    }
+    bytecode->bind(endLabel);
+
+
 }
 
 void BytecodeGenerator::processComparingOperation(BinaryOpNode *node) {
