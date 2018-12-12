@@ -102,7 +102,6 @@ namespace mathvm {
 
 	void bytecode_translator::visitIfNode(mathvm::IfNode *node) {
 		node->ifExpr()->visit(this);
-//		resolve_int_unary(type_stack.top());
 		VarType top_type = type_stack.top();
 		type_stack.pop();
 
@@ -176,7 +175,6 @@ namespace mathvm {
 
 		bytecode->bind(lstart);
 		node->whileExpr()->visit(this);
-//		resolve_int_unary(type_stack.top());
 		VarType top_type = type_stack.top();
 		type_stack.pop();
 
@@ -214,7 +212,6 @@ namespace mathvm {
 			type_stack.pop();
 		}
 		bytecode->addInsn(Instruction::BC_RETURN);
-//		type_stack.pop();
 	}
 
 	void bytecode_translator::visitFunctionNode(mathvm::FunctionNode *node) {
@@ -373,7 +370,8 @@ namespace mathvm {
 //		resolve_int_unary(type_stack.top());
 		if (type_stack.top() == VT_STRING) {
 			bytecode->addInsn(Instruction::BC_S2I);
-		}
+		} else if (type_stack.top() != VT_INT)
+			throw std::invalid_argument("only integer/string variables are allowed in lazy and");
 		type_stack.pop();
 		bytecode->addInsn(BC_ILOAD0);
 
@@ -390,7 +388,8 @@ namespace mathvm {
 		node->right()->visit(this);
 		if (type_stack.top() == VT_STRING) {
 			bytecode->addInsn(Instruction::BC_S2I);
-		}
+		} else if (type_stack.top() != VT_INT)
+			throw std::invalid_argument("only integer/string variables are allowed in lazy and");
 		type_stack.pop();
 		bytecode->addInsn(BC_ILOAD0);
 		translate_cmp(tNEQ, VT_INT);
@@ -404,7 +403,8 @@ namespace mathvm {
 		node->left()->visit(this);
 		if (type_stack.top() == VT_STRING) {
 			bytecode->addInsn(Instruction::BC_S2I);
-		}
+		} else if (type_stack.top() != VT_INT)
+			throw std::invalid_argument("only integer/string variables are allowed in lazy or");
 		type_stack.pop();
 		bytecode->addInsn(BC_ILOAD0);
 
@@ -422,7 +422,8 @@ namespace mathvm {
 		node->right()->visit(this);
 		if (type_stack.top() == VT_STRING) {
 			bytecode->addInsn(Instruction::BC_S2I);
-		}
+		} else if (type_stack.top() != VT_INT)
+			throw std::invalid_argument("only integer/string variables are allowed in lazy or");
 		type_stack.pop();
 		bytecode->addInsn(BC_ILOAD0);
 		translate_cmp(tNEQ, VT_INT);
