@@ -12,6 +12,7 @@ namespace mathvm {
 			bytecode_translator visitor;
 			visitor.traverse_scope(parser.top()->owner());
 			*code = visitor.get_code();
+//			visitor.print_bytecode();
 			bytecode_interpreter interpreter(visitor);
 			interpreter.run();
 		}
@@ -24,6 +25,7 @@ namespace mathvm {
 		context = translator.get_code();
 		vars = translator.get_vars();
 		vars_values = translator.get_vars_values();
+		synthetic_vars = new elem_t[translator.get_synthetic_vars_counter()];
 		var0 = translator.get_var0();
 		var1 = translator.get_var1();
 		var2 = translator.get_var2();
@@ -252,7 +254,7 @@ namespace mathvm {
 		elem_t upper = nested_functions_states.back().top();
 		nested_functions_states.back().pop();
 		elem_t elem;
-		elem.d = (double)elem.i;
+		elem.d = (double)upper.i;
 		nested_functions_states.back().push(elem);
 	}
 
@@ -260,7 +262,7 @@ namespace mathvm {
 		elem_t upper = nested_functions_states.back().top();
 		nested_functions_states.back().pop();
 		elem_t elem;
-		elem.i = (int64_t)elem.d;
+		elem.i = (int64_t)upper.d;
 		nested_functions_states.back().push(elem);
 	}
 
@@ -394,6 +396,45 @@ namespace mathvm {
 		nested_functions_states.back().pop();
 	}
 
+	void bytecode_interpreter::visit_LOADDVAR() {
+		uint16_t var_id = nested_functions_states.back().get_uint16();
+		elem_t elem = synthetic_vars[var_id];
+		nested_functions_states.back().push(elem);
+	}
+
+	void bytecode_interpreter::visit_LOADIVAR() {
+		uint16_t var_id = nested_functions_states.back().get_uint16();
+		elem_t elem = synthetic_vars[var_id];
+		nested_functions_states.back().push(elem);
+	}
+
+	void bytecode_interpreter::visit_LOADSVAR() {
+		uint16_t var_id = nested_functions_states.back().get_uint16();
+		elem_t elem = synthetic_vars[var_id];
+		nested_functions_states.back().push(elem);
+	}
+
+	void bytecode_interpreter::visit_STOREDVAR() {
+		uint16_t var_id = nested_functions_states.back().get_uint16();
+		elem_t new_var_elem = nested_functions_states.back().top();
+		nested_functions_states.back().pop();
+		synthetic_vars[var_id] = new_var_elem;
+	}
+
+	void bytecode_interpreter::visit_STOREIVAR() {
+		uint16_t var_id = nested_functions_states.back().get_uint16();
+		elem_t new_var_elem = nested_functions_states.back().top();
+		nested_functions_states.back().pop();
+		synthetic_vars[var_id] = new_var_elem;
+	}
+
+	void bytecode_interpreter::visit_STORESVAR() {
+		uint16_t var_id = nested_functions_states.back().get_uint16();
+		elem_t new_var_elem = nested_functions_states.back().top();
+		nested_functions_states.back().pop();
+		synthetic_vars[var_id] = new_var_elem;
+	}
+	
 	void bytecode_interpreter::visit_LOADCTXDVAR() {
 		uint16_t scope_id = nested_functions_states.back().get_uint16();
 		uint16_t var_id = nested_functions_states.back().get_uint16();
@@ -749,6 +790,24 @@ namespace mathvm {
 					break;
 				case BC_STORESVAR3:
 					visit_STORESVAR3();
+					break;
+				case BC_LOADDVAR:
+					visit_LOADDVAR();
+					break;
+				case BC_LOADIVAR:
+					visit_LOADIVAR();
+					break;
+				case BC_LOADSVAR:
+					visit_LOADSVAR();
+					break;
+				case BC_STOREDVAR:
+					visit_STOREDVAR();
+					break;
+				case BC_STOREIVAR:
+					visit_STOREIVAR();
+					break;
+				case BC_STORESVAR:
+					visit_STORESVAR();
 					break;
 				case BC_LOADCTXDVAR:
 					visit_LOADCTXDVAR();

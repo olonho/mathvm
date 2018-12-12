@@ -27,6 +27,7 @@ namespace mathvm {
 		Code* context;
 		std::map<const AstVar*, variable*> vars;
 		std::vector< std::vector<elem_t> > vars_values;
+		elem_t* synthetic_vars;
 		elem_t var0, var1, var2, var3;
 		int i = 0;
 

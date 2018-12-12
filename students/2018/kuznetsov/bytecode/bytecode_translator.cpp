@@ -138,14 +138,17 @@ namespace mathvm {
 
 		range_node->right()->visit(this);
 		resolve_int_unary(type_stack.top());
-		bytecode->addInsn(Instruction::BC_STOREIVAR0);
+		bytecode->addInsn(Instruction::BC_STOREIVAR);
+		bytecode->addUInt16(synthetic_vars_counter);
 		range_node->left()->visit(this);
 		resolve_int_unary(type_stack.top());
 		const AstVar* var = node->var();
 		translate_store(var);
 
 		bytecode->bind(lstart);
-		bytecode->addInsn(Instruction::BC_LOADIVAR0);
+		bytecode->addInsn(Instruction::BC_LOADIVAR);
+		bytecode->addUInt16(synthetic_vars_counter);
+		++synthetic_vars_counter;
 		translate_load(var);
 		bytecode->addBranch(Instruction::BC_IFICMPG, lafter);
 		node->body()->visit(this);
@@ -167,8 +170,8 @@ namespace mathvm {
 		resolve_int_unary(type_stack.top());
 		type_stack.pop();
 
-		bytecode->addInsn(Instruction::BC_ILOAD1);
-		bytecode->addBranch(Instruction::BC_IFICMPNE, lafter);
+		bytecode->addInsn(Instruction::BC_ILOAD0);
+		bytecode->addBranch(Instruction::BC_IFICMPE, lafter);
 		node->loopBlock()->visit(this);
 		bytecode->addBranch(Instruction::BC_JA, lstart);
 		bytecode->bind(lafter);
@@ -583,6 +586,10 @@ namespace mathvm {
 
 	elem_t bytecode_translator::get_var3() const {
 		return var3;
+	}
+
+	uint16_t bytecode_translator::get_synthetic_vars_counter() const {
+		return synthetic_vars_counter;
 	}
 
 	Bytecode* copy(Bytecode* orig_bytecode) {

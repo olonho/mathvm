@@ -91,6 +91,8 @@ namespace mathvm {
 		TranslatedFunctionWrapper* top;
 		TranslatedFunctionWrapper* current_function;
 
+		uint16_t synthetic_vars_counter = 0;
+
 	public:
 
 		virtual void visitBinaryOpNode(BinaryOpNode *node) override;
@@ -136,6 +138,8 @@ namespace mathvm {
 		elem_t get_var1() const;
 		elem_t get_var2() const;
 		elem_t get_var3() const;
+
+		uint16_t get_synthetic_vars_counter() const;
 
 	private:
 		void first_to_double();
