@@ -87,6 +87,7 @@ namespace mathvm {
 
 				break;
 			case tASSIGN:
+				type_stack.pop();
 				break;
 			default:
 				throw exception();
@@ -210,8 +211,10 @@ namespace mathvm {
 					throw std::invalid_argument("type mismatch");
 				}
 			}
+			type_stack.pop();
 		}
 		bytecode->addInsn(Instruction::BC_RETURN);
+//		type_stack.pop();
 	}
 
 	void bytecode_translator::visitFunctionNode(mathvm::FunctionNode *node) {
