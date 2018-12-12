@@ -2,6 +2,7 @@
 #include "program_state.h"
 #include <sstream>
 #include <stack>
+#include <string.h>
 
 namespace mathvm {
 
@@ -269,9 +270,8 @@ namespace mathvm {
 	void bytecode_interpreter::visit_S2I() {
 		elem_t upper = nested_functions_states.back().top();
 		nested_functions_states.back().pop();
-		stringstream s2i(upper.s);
 		elem_t elem;
-		s2i >> elem.i;
+		elem.i = strlen(upper.s);
 		nested_functions_states.back().push(elem);
 	}
 

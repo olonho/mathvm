@@ -101,11 +101,19 @@ namespace mathvm {
 
 	void bytecode_translator::visitIfNode(mathvm::IfNode *node) {
 		node->ifExpr()->visit(this);
-		resolve_int_unary(type_stack.top());
+//		resolve_int_unary(type_stack.top());
+		VarType top_type = type_stack.top();
 		type_stack.pop();
 
 		Label lfalse(bytecode);
 		Label lafter(bytecode);
+
+		if (top_type == VT_DOUBLE) {
+			bytecode->addInsn(Instruction::BC_DLOAD0);
+			bytecode->addInsn(Instruction::BC_DCMP);
+		} else if (top_type == VT_STRING) {
+			bytecode->addInsn(Instruction::BC_S2I);
+		}
 
 		bytecode->addInsn(Instruction::BC_ILOAD0);
 		bytecode->addBranch(Instruction::BC_IFICMPE, lfalse);
@@ -167,8 +175,16 @@ namespace mathvm {
 
 		bytecode->bind(lstart);
 		node->whileExpr()->visit(this);
-		resolve_int_unary(type_stack.top());
+//		resolve_int_unary(type_stack.top());
+		VarType top_type = type_stack.top();
 		type_stack.pop();
+
+		if (top_type == VT_DOUBLE) {
+			bytecode->addInsn(Instruction::BC_DLOAD0);
+			bytecode->addInsn(Instruction::BC_DCMP);
+		} else if (top_type == VT_STRING) {
+			bytecode->addInsn(Instruction::BC_S2I);
+		}
 
 		bytecode->addInsn(Instruction::BC_ILOAD0);
 		bytecode->addBranch(Instruction::BC_IFICMPE, lafter);
@@ -327,6 +343,7 @@ namespace mathvm {
 
 	VarType bytecode_translator::translate_unop(TokenKind kind) {
 		VarType toptype = type_stack.top();
+		type_stack.pop();
 		switch (kind) {
 			case tADD:
 				return resolve_int_or_double_unary(toptype);
@@ -334,9 +351,15 @@ namespace mathvm {
 				bytecode->addInsn((toptype == VT_DOUBLE) ? Instruction::BC_DNEG : Instruction::BC_INEG);
 				return resolve_int_or_double_unary(toptype);
 			case tNOT:
+				if (toptype == VT_DOUBLE) {
+					bytecode->addInsn(Instruction::BC_DLOAD0);
+					bytecode->addInsn(Instruction::BC_DCMP);
+				} else if (toptype == VT_STRING) {
+					bytecode->addInsn(Instruction::BC_S2I);
+				}
 				bytecode->addInsn(Instruction::BC_ILOAD1);
 				bytecode->addInsn(Instruction::BC_IAXOR);
-				return resolve_int_unary(toptype);
+				return VT_INT;
 			default:
 				return VT_INVALID;
 		}
@@ -344,7 +367,11 @@ namespace mathvm {
 
 	VarType bytecode_translator::translate_lazy_and(BinaryOpNode* node) {
 		node->left()->visit(this);
-		resolve_int_unary(type_stack.top());
+//		resolve_int_unary(type_stack.top());
+		if (type_stack.top() == VT_STRING) {
+			bytecode->addInsn(Instruction::BC_S2I);
+		}
+		type_stack.pop();
 		bytecode->addInsn(BC_ILOAD0);
 
 		Label lafter(bytecode);
@@ -358,7 +385,10 @@ namespace mathvm {
 
 		// left != 0; left && right == (right != 0)
 		node->right()->visit(this);
-		resolve_int_unary(type_stack.top());
+		if (type_stack.top() == VT_STRING) {
+			bytecode->addInsn(Instruction::BC_S2I);
+		}
+		type_stack.pop();
 		bytecode->addInsn(BC_ILOAD0);
 		translate_cmp(tNEQ, VT_INT);
 
@@ -369,7 +399,10 @@ namespace mathvm {
 
 	VarType bytecode_translator::translate_lazy_or(BinaryOpNode* node) {
 		node->left()->visit(this);
-		resolve_int_unary(type_stack.top());
+		if (type_stack.top() == VT_STRING) {
+			bytecode->addInsn(Instruction::BC_S2I);
+		}
+		type_stack.pop();
 		bytecode->addInsn(BC_ILOAD0);
 
 		Label lafter(bytecode);
@@ -384,7 +417,10 @@ namespace mathvm {
 
 		// left == 0; left || right == (right != 0)
 		node->right()->visit(this);
-		resolve_int_unary(type_stack.top());
+		if (type_stack.top() == VT_STRING) {
+			bytecode->addInsn(Instruction::BC_S2I);
+		}
+		type_stack.pop();
 		bytecode->addInsn(BC_ILOAD0);
 		translate_cmp(tNEQ, VT_INT);
 
@@ -414,12 +450,14 @@ namespace mathvm {
 	 *     ...
 	 */
 	void bytecode_translator::translate_cmp(TokenKind cmp_kind, VarType cmp_type) {
-		bytecode->addInsn((cmp_type == VT_DOUBLE) ? Instruction::BC_DCMP : Instruction::BC_ICMP);
 
 		Label lafter(bytecode);
 		Label lfalse(bytecode);
 
-		bytecode->addInsn(Instruction::BC_ILOAD0);
+		if (cmp_type != VT_STRING) {
+			bytecode->addInsn((cmp_type == VT_DOUBLE) ? Instruction::BC_DCMP : Instruction::BC_ICMP);
+			bytecode->addInsn(Instruction::BC_ILOAD0);
+		}
 
 		// upper == 0, lower == cmp(a, b)
 		switch (cmp_kind) {
@@ -637,6 +675,18 @@ namespace mathvm {
 		}
 	}
 
+	VarType bytecode_translator::resolve_binary(VarType left, VarType right) {
+		int strings = 0;
+		if (left == VT_STRING)
+			++strings;
+		if (right == VT_STRING)
+			++strings;
+		if (strings == 2)
+			return VT_STRING;
+		else
+			return resolve_int_or_double_binary(left, right);
+	}
+
 	VarType bytecode_translator::resolve_int_binary(VarType left, VarType right) {
 		if (left == VT_INT && right == VT_INT)
 			return VT_INT;
@@ -652,6 +702,6 @@ namespace mathvm {
 	VarType bytecode_translator::resolve_int_unary(VarType top_type) {
 		if (top_type == VT_INT)
 			return top_type;
-		throw std::invalid_argument("required int or double");
+		throw std::invalid_argument("required int");
 	}
 }

@@ -165,6 +165,7 @@ namespace mathvm {
 		VarType resolve_int_binary(VarType left, VarType right);
 		VarType resolve_int_or_double_unary(VarType top_type);
 		VarType resolve_int_unary(VarType top_type);
+		VarType resolve_binary(VarType left, VarType right);
 	};
 
 	struct variable {
