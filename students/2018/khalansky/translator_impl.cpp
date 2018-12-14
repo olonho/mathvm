@@ -11,7 +11,7 @@ Translator* Translator::create(const string& impl) {
        return new BytecodeTranslatorImpl();
    }
    if (impl == "jit") {
-       //return new MachCodeTranslatorImpl();
+       return new MachCodeTranslatorImpl();
    }
    if (impl == "printer") {
        return new SourceTranslatorImpl();

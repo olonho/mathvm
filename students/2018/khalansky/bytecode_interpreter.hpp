@@ -5,7 +5,7 @@
 
 namespace mathvm {
 
-class MathvmCode : public Code {
+class InterpreterCodeImpl : public Code {
 public:
     virtual Status* execute(vector<Var*>& vars);
 };

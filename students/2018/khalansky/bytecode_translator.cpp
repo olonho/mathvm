@@ -11,30 +11,55 @@ namespace mathvm {
 class BytecodeVisitor : public AstVisitor {
     private:
 
-        void generateComparison(TokenKind kind) {
+        void generateComparison(TokenKind kind, bool inverse = false) {
             Label label1(bytecode);
             Label label2(bytecode);
-            switch (kind) {
-                case tEQ:    // "==", 9)
-                    bytecode->addBranch(BC_IFICMPE, label1);
-                    break;
-                case tNEQ:   // "!=", 9)
-                    bytecode->addBranch(BC_IFICMPNE, label1);
-                    break;
-                case tGT:    // ">", 10)
-                    bytecode->addBranch(BC_IFICMPG, label1);
-                    break;
-                case tGE:    // ">=", 10)
-                    bytecode->addBranch(BC_IFICMPGE, label1);
-                    break;
-                case tLT:    // "<", 10)
-                    bytecode->addBranch(BC_IFICMPL, label1);
-                    break;
-                case tLE:    // "<=", 10)
-                    bytecode->addBranch(BC_IFICMPLE, label1);
-                    break;
-                default:
-                    assert(0);
+            if (!inverse) {
+                switch (kind) {
+                    case tEQ:    // "==", 9)
+                        bytecode->addBranch(BC_IFICMPE, label1);
+                        break;
+                    case tNEQ:   // "!=", 9)
+                        bytecode->addBranch(BC_IFICMPNE, label1);
+                        break;
+                    case tGT:    // ">", 10)
+                        bytecode->addBranch(BC_IFICMPG, label1);
+                        break;
+                    case tGE:    // ">=", 10)
+                        bytecode->addBranch(BC_IFICMPGE, label1);
+                        break;
+                    case tLT:    // "<", 10)
+                        bytecode->addBranch(BC_IFICMPL, label1);
+                        break;
+                    case tLE:    // "<=", 10)
+                        bytecode->addBranch(BC_IFICMPLE, label1);
+                        break;
+                    default:
+                        assert(0);
+                }
+            } else {
+                switch (kind) {
+                    case tEQ:    // "==", 9)
+                        bytecode->addBranch(BC_IFICMPE, label1);
+                        break;
+                    case tNEQ:   // "!=", 9)
+                        bytecode->addBranch(BC_IFICMPNE, label1);
+                        break;
+                    case tGT:    // ">", 10)
+                        bytecode->addBranch(BC_IFICMPL, label1);
+                        break;
+                    case tGE:    // ">=", 10)
+                        bytecode->addBranch(BC_IFICMPLE, label1);
+                        break;
+                    case tLT:    // "<", 10)
+                        bytecode->addBranch(BC_IFICMPG, label1);
+                        break;
+                    case tLE:    // "<=", 10)
+                        bytecode->addBranch(BC_IFICMPGE, label1);
+                        break;
+                    default:
+                        assert(0);
+                }
             }
             bytecode->addInsn(BC_ILOAD0);
             bytecode->addBranch(BC_JA, label2);
@@ -158,6 +183,19 @@ class BytecodeVisitor : public AstVisitor {
                             assert(0);
                     }
                     break;
+                case STRING:
+                    switch (src) {
+                        case STRING:
+                            break;
+                        case DOUBLE:
+                            bytecode->addInsn(BC_D2I);
+                        case BOOL:
+                        case INT:
+                            break;
+                        default:
+                            assert(0);
+                    }
+                    break;
                 default:
                     assert(0);
             }
@@ -175,6 +213,7 @@ class BytecodeVisitor : public AstVisitor {
 
 #define ADD_D_I_INST(inst) bytecode->addInsn(argtp == DOUBLE ? BC_D##inst : BC_I##inst);
         void visitBinaryOpNode(BinaryOpNode* node) {
+            Type thisType = GET_TYPE(node);
             if (node->kind() == tOR) {
                 Label ok(bytecode), end(bytecode);
                 node->left()->visit(this);
@@ -188,6 +227,7 @@ class BytecodeVisitor : public AstVisitor {
                 bytecode->bind(ok);
                 bytecode->addInsn(BC_ILOAD1);
                 bytecode->bind(end);
+                fixType(thisType, BOOL);
                 return;
             } else if (node->kind() == tAND) {
                 Label ok(bytecode), end(bytecode);
@@ -202,30 +242,28 @@ class BytecodeVisitor : public AstVisitor {
                 bytecode->bind(ok);
                 bytecode->addInsn(BC_ILOAD0);
                 bytecode->bind(end);
+                fixType(thisType, BOOL);
                 return;
             }
-            node->left()->visit(this);
+
             node->right()->visit(this);
+            node->left()->visit(this);
             Type argtp = GET_TYPE(node->right());
             Type type = argtp;
-            Type thisType = GET_TYPE(node);
             switch (node->kind()) {
                 case tADD:   // "+", 12)
                     ADD_D_I_INST(ADD);
                     break;
                 case tSUB:   // "-", 12)
-                    bytecode->addInsn(BC_SWAP);
                     ADD_D_I_INST(SUB);
                     break;
                 case tMUL:   // "*", 13)
                     ADD_D_I_INST(MUL);
                     break;
                 case tDIV:   // "/", 13)
-                    bytecode->addInsn(BC_SWAP);
                     ADD_D_I_INST(DIV);
                     break;
                 case tMOD:   // "%", 13)
-                    bytecode->addInsn(BC_SWAP);
                     bytecode->addInsn(BC_IMOD);
                     break;
                 case tEQ:    // "==", 9)
@@ -234,29 +272,12 @@ class BytecodeVisitor : public AstVisitor {
                 case tGE:    // ">=", 10)
                 case tLT:    // "<", 10)
                 case tLE:    // "<=", 10)
-                    bytecode->addInsn(BC_SWAP);
-                    if (argtp == INT || argtp == BOOL) {
-                        generateComparison(node->kind());
-                    } else if (argtp == DOUBLE) {
-                        ADD_D_I_INST(CMP);
+                    if (argtp == DOUBLE) {
+                        bytecode->addInsn(BC_DCMP);
                         bytecode->addInsn(BC_ILOAD0);
                         bytecode->addInsn(BC_SWAP);
-                        generateComparison(node->kind());
                     }
-                    type = BOOL;
-                    break;
-                case tOR:    // "||", 4)
-                    if (argtp == BOOL) {
-                        bytecode->addInsn(BC_IAOR);
-                    } else {
-                    }
-                    type = BOOL;
-                    break;
-                case tAND:   // "&&", 5)
-                    if (argtp == BOOL) {
-                        bytecode->addInsn(BC_IAAND);
-                    } else {
-                    }
+                    generateComparison(node->kind());
                     type = BOOL;
                     break;
                 case tAOR:   // "|", 4)
@@ -268,6 +289,8 @@ class BytecodeVisitor : public AstVisitor {
                 case tAXOR:  // "^", 5)
                     bytecode->addInsn(BC_IAXOR);
                     break;
+                case tOR:    // "||", 4)
+                case tAND:   // "&&", 5)
                 default:
                     assert(0);
                     break;
@@ -542,7 +565,9 @@ class BytecodeVisitor : public AstVisitor {
 
 };
 
-Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
+Status* BytecodeTranslatorImpl::translateBytecode(
+    const string& program, InterpreterCodeImpl* *code)
+{
     Parser parser;
     Status *status = parser.parseProgram(program);
     if (!status->isOk()) {
@@ -550,12 +575,20 @@ Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
     }
     AstFunction *node = parser.top();
 
-    *code = new MathvmCode();
+    *code = new InterpreterCodeImpl();
     assignTypes(node, *code);
 
     BytecodeVisitor visitor(*code);
     visitor.enterFunction(node);
 
+    return status;
+}
+
+
+Status* BytecodeTranslatorImpl::translate(const string& program, Code* *code) {
+    InterpreterCodeImpl *icode;
+    Status *status = translateBytecode(program, &icode);
+    *code = icode;
     return status;
 }
 

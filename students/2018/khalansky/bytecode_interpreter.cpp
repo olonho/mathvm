@@ -203,12 +203,12 @@ class NativeBridge {
     void callNativeInternal(
         const void *code, uint16_t id, const Signature& sig, stack<Value>& stk)
     {
-        uint64_t *instk = new uint64_t[sig.size()];
+        char instk[sizeof(uint64_t) * sig.size()];
         for (size_t i = 0; i < sig.size()-1; ++i) {
-            instk[sig.size()-2-i] = stk.top().getAnything();
+            ((uint64_t*)instk)[sig.size()-2-i] = stk.top().getAnything();
             stk.pop();
         }
-        uint64_t *instk_top = instk + sig.size() - 2;
+        uint64_t *instk_top = (uint64_t*)instk + sig.size() - 2;
         if (fns.count(id)) {
             fns[id](instk_top);
         } else {
@@ -232,7 +232,6 @@ class NativeBridge {
                 assert(0);
                 break;
         }
-        delete instk;
     }
 
 public:
@@ -247,131 +246,6 @@ public:
         callNativeInternal(fn, id, *signature, stk);
     }
 };
-
-/*
-void callNative(const Code *code, uint16_t id, stack<Value>& stk) {
-    using namespace asmjit;
-
-    const string *name;
-    const Signature *signature;
-    const void* fn = code->nativeById(id, &signature, &name);
-    assert(fn);
-
-    JitRuntime rt;
-
-    CodeHolder holder;
-    holder.init(rt.getCodeInfo());
-
-    uint8_t argtp[signature->size()];
-    for (size_t i = 0; i < signature->size(); ++i) {
-        switch ((*signature)[i].first) {
-            case VT_DOUBLE:
-                argtp[i] = TypeIdOf<double>::kTypeId;
-                break;
-            case VT_INT:
-                argtp[i] = TypeIdOf<int64_t>::kTypeId;
-                break;
-            case VT_STRING:
-                argtp[i] = TypeIdOf<const char*>::kTypeId;
-                break;
-            case VT_VOID:
-                argtp[i] = TypeIdOf<void>::kTypeId;
-                break;
-            default:
-                assert(0);
-                break;
-        }
-    }
-
-    X86Compiler a(&holder);
-    FuncSignature thisFn;
-    thisFn.init(CallConv::kIdHost, argtp[0], nullptr, 0);
-    a.addFunc(thisFn);
-    FuncSignature asmjitSign;
-    asmjitSign.init(CallConv::kIdHost, argtp[0], argtp + 1, signature->size()-1);
-    stack<X86Reg> args;
-    for (size_t i = signature->size()-1; i > 0; --i) {
-        switch ((*signature)[i].first) {
-            case VT_DOUBLE: {
-                X86Xmm val = a.newXmm();
-                X86Mem c0(a.newDoubleConst(kConstScopeLocal,
-                    stk.top().getDoubleValue()));
-                a.movsd(val, c0);
-                args.push(val);
-                break;
-            }
-            case VT_INT: {
-                X86Gp val = a.newI64();
-                a.mov(val, stk.top().getIntValue());
-                args.push(val);
-                break;
-            }
-            case VT_STRING: {
-                X86Gp val = a.newUIntPtr();
-                a.mov(val, (uint64_t)stk.top().getStringValue());
-                args.push(val);
-                break;
-            }
-            default:
-                assert(0);
-                break;
-        }
-        stk.pop();
-    }
-    CCFuncCall *call = a.call(imm_ptr(fn), asmjitSign);
-    for (size_t i = 0; i < signature->size()-1; ++i) {
-        call->setArg(i, args.top());
-        args.pop();
-    }
-    switch ((*signature)[0].first) {
-        case VT_DOUBLE: {
-            X86Xmm retVal = a.newXmm();
-            call->setRet(0, retVal);
-            a.ret(retVal);
-            break;
-        }
-        case VT_INT:
-        case VT_STRING: {
-            X86Gp retVal = a.newI64();
-            call->setRet(0, retVal);
-            a.ret(retVal);
-            break;
-        }
-        case VT_VOID:
-            a.ret();
-            break;
-        default:
-            assert(0);
-    }
-    a.endFunc();
-    a.finalize();
-
-    void *myFn;
-    Error err = rt.add(&myFn, &holder);
-    if (err) {
-        printf("ASMJIT ERROR: 0x%08X [%s]\n", err, DebugUtils::errorAsString(err));
-        assert(0);
-    }
-    switch ((*signature)[0].first) {
-        case VT_DOUBLE:
-            stk.emplace(((double (*)())myFn)());
-            break;
-        case VT_INT:
-            stk.emplace(((int64_t (*)())myFn)());
-            break;
-        case VT_STRING:
-            stk.emplace(((const char *(*)())myFn)());
-            break;
-        case VT_VOID:
-            ((void *(*)())myFn)();
-            break;
-        default:
-            assert(0);
-            break;
-    }
-    rt.release(myFn);
-}
-*/
 
 class Context {
 private:
@@ -432,7 +306,7 @@ public:
     }
 };
 
-Status* MathvmCode::execute(vector<Var*>& vars) {
+Status* InterpreterCodeImpl::execute(vector<Var*>& vars) {
     const TranslatedFunction *top = functionByName("<top>");
 
     NativeBridge bridge;
