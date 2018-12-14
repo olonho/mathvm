@@ -22,7 +22,8 @@ USER_OBJ = \
 	$(OBJ)/source_translator$(OBJ_SUFF) \
 	$(OBJ)/typer$(OBJ_SUFF) \
 	$(OBJ)/bytecode_translator$(OBJ_SUFF) \
-	$(OBJ)/bytecode_interpreter$(OBJ_SUFF)
+	$(OBJ)/bytecode_interpreter$(OBJ_SUFF) \
+	$(OBJ)/machcode_translator$(OBJ_SUFF)
 
 USER_CFLAGS = -std=c++14
 
