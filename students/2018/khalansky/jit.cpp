@@ -66,9 +66,12 @@ class JitEnvImpl {
 
     size_t maxFnId;
     void **funcTable;
+    uint64_t **contexts;
     size_t entryPoint;
     vector<vector<uint8_t> > args;
     vector<FuncSignature> sigs;
+    vector<vector<uint8_t> > nativeArgs;
+    unordered_map<string, FuncSignature> nativeSigs;
 
     void *translateFunction(
         const BytecodeFunction &function, CodeHolder& code);
@@ -104,8 +107,7 @@ log(stderr), bytecodeCode(&bytecode)
 
     {
         maxFnId = 0;
-        Code::FunctionIterator fnit(
-            const_cast<InterpreterCodeImpl*>(&bytecode));
+        Code::FunctionIterator fnit(&bytecode);
         while (fnit.hasNext()) {
             auto *fn = fnit.next();
             maxFnId = max(maxFnId, (size_t)(fn->id() + 1));
@@ -113,6 +115,26 @@ log(stderr), bytecodeCode(&bytecode)
         funcTable = new void*[maxFnId];
         args.resize(maxFnId);
         sigs.resize(maxFnId);
+    }
+
+    {
+        uint16_t id = 0;
+        Code::NativeFunctionIterator fnit(&bytecode);
+        while (fnit.hasNext()) {
+            auto fn = fnit.next();
+            nativeArgs.emplace_back(fn.signature().size()-1);
+            for (uint16_t i = 1; i < fn.signature().size(); ++i) {
+                nativeArgs[id][i-1] = varTypeToJitType(fn.signature()[i].first);
+            }
+            FuncSignature sign;
+            sign.init(
+                CallConv::kIdHost,
+                varTypeToJitType(fn.signature()[0].first),
+                nativeArgs[id].data(),
+                fn.signature().size()-1);
+            nativeSigs.emplace(fn.name(), sign);
+            ++id;
+        }
     }
 
     {
@@ -131,6 +153,8 @@ log(stderr), bytecodeCode(&bytecode)
                 bfn->parametersNumber());
         }
     }
+
+    contexts = new uint64_t*[maxFnId];
 
     {
         Code::FunctionIterator fnit(&bytecode);
@@ -154,6 +178,7 @@ log(stderr), bytecodeCode(&bytecode)
 JitEnvImpl::~JitEnvImpl() {
     delete bytecodeCode;
     delete[] funcTable;
+    delete[] contexts;
 }
 
 void * JitEnvImpl::translateFunction(const BytecodeFunction &function,
@@ -175,18 +200,8 @@ void * JitEnvImpl::translateFunction(const BytecodeFunction &function,
 
     X86Compiler cc(&code);
 
-    vector<X86Gp> vars(function.localsNumber());
-    for (auto &var : vars) {
-        var = cc.newI64();
-    }
-    vector<X86Xmm> dvars(function.localsNumber());
-    for (auto &var : dvars) {
-        var = cc.newXmm();
-    }
     stack<X86Gp> gpRegs;
     stack<X86Xmm> xmmRegs;
-
-    asmjit::Label funcEnd = cc.newLabel();
 
     X86Xmm d1;
     X86Xmm d2;
@@ -196,6 +211,27 @@ void * JitEnvImpl::translateFunction(const BytecodeFunction &function,
     X86Mem m1;
     X86Mem m2;
     cc.addFunc(sigs[function.id()]);
+
+    X86Gp varIx = cc.newUIntPtr("varIx");
+    X86Mem fnVars = cc.newStack((function.localsNumber() + 1) * 8, 8);
+    X86Mem fnVarsIx(fnVars);
+    fnVarsIx.setIndex(varIx);
+    fnVarsIx.setSize(8);
+
+    {
+        X86Gp contextTable = cc.newUIntPtr();
+        cc.mov(contextTable, imm_ptr(contexts));
+        X86Mem tableRecord = x86::ptr(contextTable, int(function.id() * sizeof(uint64_t)));
+
+        X86Gp prev = cc.newUIntPtr();
+        cc.mov(varIx, function.localsNumber() * 8);
+        cc.mov(prev, tableRecord);
+        cc.mov(fnVarsIx, prev);
+
+        X86Gp varPtr = cc.newUIntPtr();
+        cc.lea(varPtr, fnVars);
+        cc.mov(tableRecord, varPtr);
+    }
 
     for (size_t j = 0; j < bytecode->length(); ++j) {
         cerr << j << " ";
@@ -511,146 +547,180 @@ void * JitEnvImpl::translateFunction(const BytecodeFunction &function,
                 break;
             case BC_LOADDVAR0:
                 d1 = cc.newXmm();
-                cc.movsd(d1, dvars[0]);
+                cc.mov(varIx, 0 * 8);
+                cc.movsd(d1, fnVarsIx);
                 xmmRegs.push(d1);
                 break;
             case BC_LOADDVAR1:
                 d1 = cc.newXmm();
-                cc.movsd(d1, dvars[1]);
+                cc.mov(varIx, 1 * 8);
+                cc.movsd(d1, fnVarsIx);
                 xmmRegs.push(d1);
                 break;
             case BC_LOADDVAR2:
                 d1 = cc.newXmm();
-                cc.movsd(d1, dvars[2]);
+                cc.mov(varIx, 2 * 8);
+                cc.movsd(d1, fnVarsIx);
                 xmmRegs.push(d1);
                 break;
             case BC_LOADDVAR3:
                 d1 = cc.newXmm();
-                cc.movsd(d1, dvars[3]);
+                cc.mov(varIx, 3 * 8);
+                cc.movsd(d1, fnVarsIx);
                 xmmRegs.push(d1);
                 break;
             case BC_LOADIVAR0:
             case BC_LOADSVAR0:
                 i1 = cc.newI64();
-                cc.mov(i1, vars[0]);
+                cc.mov(varIx, 0 * 8);
+                cc.mov(i1, fnVarsIx);
                 gpRegs.push(i1);
                 break;
             case BC_LOADIVAR1:
             case BC_LOADSVAR1:
                 i1 = cc.newI64();
-                cc.mov(i1, vars[1]);
+                cc.mov(varIx, 1 * 8);
+                cc.mov(i1, fnVarsIx);
                 gpRegs.push(i1);
                 break;
             case BC_LOADIVAR2:
             case BC_LOADSVAR2:
                 i1 = cc.newI64();
-                cc.mov(i1, vars[2]);
+                cc.mov(varIx, 2 * 8);
+                cc.mov(i1, fnVarsIx);
                 gpRegs.push(i1);
                 break;
             case BC_LOADIVAR3:
             case BC_LOADSVAR3:
                 i1 = cc.newI64();
-                cc.mov(i1, vars[3]);
+                cc.mov(varIx, 3 * 8);
+                cc.mov(i1, fnVarsIx);
                 gpRegs.push(i1);
                 break;
             case BC_STOREDVAR0:
                 d1 = xmmRegs.top();
                 xmmRegs.pop();
-                cc.movsd(dvars[0], d1);
+                cc.mov(varIx, 0 * 8);
+                cc.movsd(fnVarsIx, d1);
                 break;
             case BC_STOREDVAR1:
                 d1 = xmmRegs.top();
                 xmmRegs.pop();
-                cc.movsd(dvars[1], d1);
+                cc.mov(varIx, 1 * 8);
+                cc.movsd(fnVarsIx, d1);
                 break;
             case BC_STOREDVAR2:
                 d1 = xmmRegs.top();
                 xmmRegs.pop();
-                cc.movsd(dvars[2], d1);
+                cc.mov(varIx, 2 * 8);
+                cc.movsd(fnVarsIx, d1);
                 break;
             case BC_STOREDVAR3:
                 d1 = xmmRegs.top();
                 xmmRegs.pop();
-                cc.movsd(dvars[3], d1);
+                cc.mov(varIx, 3 * 8);
+                cc.movsd(fnVarsIx, d1);
                 break;
             case BC_STOREIVAR0:
             case BC_STORESVAR0:
                 i1 = gpRegs.top();
                 gpRegs.pop();
-                cc.mov(vars[0], i1);
+                cc.mov(varIx, 0 * 8);
+                cc.mov(fnVarsIx, i1);
                 break;
             case BC_STOREIVAR1:
             case BC_STORESVAR1:
                 i1 = gpRegs.top();
                 gpRegs.pop();
-                cc.mov(vars[1], i1);
+                cc.mov(varIx, 1 * 8);
+                cc.mov(fnVarsIx, i1);
                 break;
             case BC_STOREIVAR2:
             case BC_STORESVAR2:
                 i1 = gpRegs.top();
                 gpRegs.pop();
-                cc.mov(vars[2], i1);
+                cc.mov(varIx, 2 * 8);
+                cc.mov(fnVarsIx, i1);
                 break;
             case BC_STOREIVAR3:
             case BC_STORESVAR3:
                 i1 = gpRegs.top();
                 gpRegs.pop();
-                cc.mov(vars[3], i1);
+                cc.mov(varIx, 3 * 8);
+                cc.mov(fnVarsIx, i1);
                 break;
             case BC_LOADDVAR:
                 d1 = cc.newXmm();
-                cc.movsd(d1, dvars[bytecode->getInt16(idx+1)]);
+                cc.mov(varIx, bytecode->getInt16(idx+1) * 8);
+                cc.movsd(d1, fnVarsIx);
                 xmmRegs.push(d1);
                 break;
             case BC_LOADIVAR:
             case BC_LOADSVAR:
                 i1 = cc.newI64();
-                cc.mov(i1, vars[bytecode->getInt16(idx+1)]);
+                cc.mov(varIx, bytecode->getInt16(idx+1) * 8);
+                cc.mov(i1, fnVarsIx);
                 gpRegs.push(i1);
                 break;
             case BC_STOREDVAR:
                 d1 = xmmRegs.top();
                 xmmRegs.pop();
-                cc.movsd(dvars[bytecode->getInt16(idx+1)], d1);
+                cc.mov(varIx, bytecode->getInt16(idx+1) * 8);
+                cc.movsd(fnVarsIx, d1);
                 break;
             case BC_STOREIVAR:
             case BC_STORESVAR:
                 i1 = gpRegs.top();
                 gpRegs.pop();
-                cc.mov(vars[bytecode->getInt16(idx+1)], i1);
+                cc.mov(varIx, bytecode->getInt16(idx+1) * 8);
+                cc.mov(fnVarsIx, i1);
                 break;
-                /*
+#define GET_VAR_RECORD \
+                    X86Gp contextTable = cc.newUIntPtr(); \
+                    cc.mov(contextTable, imm_ptr(contexts)); \
+                    X86Mem tableRecord = x86::ptr(contextTable, int(bytecode->getInt16(idx+1) * sizeof(uint64_t))); \
+                    X86Gp tablePtr = cc.newUIntPtr(); \
+                    cc.mov(tablePtr, tableRecord); \
+                    X86Mem varRecord = x86::ptr(tablePtr, bytecode->getInt16(idx+3) * 8);
             case BC_LOADCTXDVAR:
-                gpRegs.emplace(contexts[bytecode->getInt16(idx+1)].top().
-                    getDoubleValue(bytecode->getInt16(idx+3)));
+                d1 = cc.newXmm();
+                {
+                    GET_VAR_RECORD
+
+                    cc.movsd(d1, varRecord);
+                }
+                xmmRegs.push(d1);
                 break;
             case BC_LOADCTXIVAR:
-                gpRegs.emplace(contexts[bytecode->getInt16(idx+1)].top().
-                    getIntValue(bytecode->getInt16(idx+3)));
-                break;
             case BC_LOADCTXSVAR:
-                gpRegs.emplace(contexts[bytecode->getInt16(idx+1)].top().
-                    getStringValue(bytecode->getInt16(idx+3)));
+                i1 = cc.newI64();
+                {
+                    GET_VAR_RECORD
+
+                    cc.mov(i1, varRecord);
+                }
+                gpRegs.push(i1);
                 break;
             case BC_STORECTXDVAR:
-                d1 = gpRegs.top().getDoubleValue();
-                gpRegs.pop();
-                contexts[bytecode->getInt16(idx+1)].top()
-                    .set(bytecode->getInt16(idx+3), d1);
+                d1 = xmmRegs.top();
+                xmmRegs.pop();
+                {
+                    GET_VAR_RECORD
+
+                    cc.movsd(varRecord, d1);
+                }
                 break;
             case BC_STORECTXIVAR:
-                i1 = gpRegs.top().getIntValue();
-                gpRegs.pop();
-                contexts[bytecode->getInt16(idx+1)].top()
-                    .set(bytecode->getInt16(idx+3), i1);
-                break;
             case BC_STORECTXSVAR:
-                c = gpRegs.top().getStringValue();
+                i1 = gpRegs.top();
                 gpRegs.pop();
-                contexts[bytecode->getInt16(idx+1)].top()
-                    .set(bytecode->getInt16(idx+3), c);
+                {
+                    GET_VAR_RECORD
+
+                    cc.mov(varRecord, i1);
+                }
                 break;
-                */
+#undef GET_VAR_RECORD
             case BC_DCMP:
                 d1 = xmmRegs.top();
                 xmmRegs.pop();
@@ -770,11 +840,65 @@ void * JitEnvImpl::translateFunction(const BytecodeFunction &function,
                 }
                 break;
             }
-/*
-            case BC_CALLNATIVE:
+            case BC_CALLNATIVE: {
+                uint16_t id = bytecode->getInt16(idx + 1);
+                const Signature *sign;
+                const string *name;
+                const void *fnptr = bytecodeCode->nativeById(id, &sign, &name);
+                CCFuncCall *call = cc.call(imm_ptr(fnptr), nativeSigs[*name]);
+                for (uint16_t i = 0; i < sign->size()-1; ++i) {
+                    uint16_t ix = sign->size()-1-i-1;
+                    switch ((*sign)[ix+1].first) {
+                        case VT_DOUBLE: {
+                            d1 = xmmRegs.top();
+                            xmmRegs.pop();
+                            call->setArg(ix, d1);
+                            break;
+                        }
+                        case VT_INT:
+                        case VT_STRING: {
+                            i1 = gpRegs.top();
+                            gpRegs.pop();
+                            call->setArg(ix, i1);
+                            break;
+                        }
+                        case VT_INVALID:
+                        case VT_VOID:
+                            assert(0);
+                            break;
+                    }
+                }
+                switch ((*sign)[0].first) {
+                    case VT_DOUBLE:
+                        d1 = cc.newXmm();
+                        call->setRet(0, d1);
+                        xmmRegs.push(d1);
+                        break;
+                    case VT_INT:
+                    case VT_STRING:
+                        i1 = cc.newI64();
+                        call->setRet(0, i1);
+                        gpRegs.push(i1);
+                        break;
+                    case VT_VOID:
+                        break;
+                    case VT_INVALID:
+                        assert(0);
+                        break;
+                }
                 break;
-*/
+            }
             case BC_RETURN:
+                {
+                    X86Gp contextTable = cc.newUIntPtr();
+                    cc.mov(contextTable, imm_ptr(contexts));
+                    X86Mem tableRecord = x86::ptr(contextTable, int(function.id() * sizeof(uint64_t)));
+
+                    X86Gp prev = cc.newUIntPtr();
+                    cc.mov(varIx, function.localsNumber() * 8);
+                    cc.mov(prev, fnVarsIx);
+                    cc.mov(tableRecord, prev);
+                }
                 switch (function.returnType()) {
                     case VT_DOUBLE:
                         d1 = xmmRegs.top();
@@ -792,7 +916,6 @@ void * JitEnvImpl::translateFunction(const BytecodeFunction &function,
                         assert(0);
                         break;
                 }
-                cc.jmp(funcEnd);
                 break;
             case BC_BREAK:
                 cc.int_(3);
