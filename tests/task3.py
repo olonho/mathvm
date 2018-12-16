@@ -6,21 +6,22 @@ from common import *
 
 
 disabled_tests = [
-    # 'mark4/ackermann',
-    # 'mark4/ackermann_closure',
-    # 'mark4/fib',
-    # 'mark4/fib_closure',
+     'ackermann',
+     'ackermann_closure',
+     'complex2',
+     'fib',
+     'fib_closure',
     # 'mark4/extra/.*',
 
     # 'mark4/vars',
     'mark5/extra/.*',
-    'perf/.*',
+    #'plot'
 ]
 
 
 def run_test(mvm, test_dir, test):
     try:
-        print 'Running test "' + test + '"...',
+        # print 'Running test "' + test + '"...',
         sys.stdout.flush()
 
         test_file = os.path.join(test_dir, test + '.mvm')
@@ -30,10 +31,10 @@ def run_test(mvm, test_dir, test):
         expect_data = read_file(expect_file)
 
         if expect_data == result_data:
-            print 'PASSED'
+            # print 'PASSED'
             return True
         else:
-            print 'FAILED'
+            print test + ' FAILED'
             print_result(expect_file, result_data, True)
             return False
     except Exception as e:
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     disabled = []
 
     for mvm, test_dir, test in load_tests():
-        if any(re.match(regex, test) for regex in disabled_tests):
+        if test in disabled_tests:
             disabled.append(test)
             continue
 
@@ -57,7 +58,7 @@ if __name__ == '__main__':
             failed.append(test)
 
     print '\n\n Summary:', len(passed), 'PASSED,', len(failed), 'FAILED,', len(disabled), 'DISABLED'
-    print '\nPASSED:', passed
-    print '\nFAILED:', failed
-    print '\nDISABLED:', disabled
-    print '\n\n'
+    print 'PASSED:  ', passed
+    print 'FAILED:  ', failed
+    # print 'DISABLED:', disabled
+    print '\n'
