@@ -9,18 +9,11 @@ NO_JIT = 1
 # This flag enables SDL dependencies (should be 1 for task #4).
 #WITH_SDL = 1
 
-ifneq ($(NO_JIT), 1)
-JIT_OBJ = $(OBJ)/jit$(OBJ_SUFF)
-else
-JIT_OBJ =
-endif
-
 USER_OBJ = \
-	$(JIT_OBJ) \
 	$(OBJ)/main$(OBJ_SUFF) \
 	$(OBJ)/translator_impl$(OBJ_SUFF)
 
-USER_CFLAGS = -std=c++14 -ldl -Wno-unused-function -Wno-error=switch -Wno-switch
+USER_CFLAGS = -std=c++14 -g
 
 include $(VM_ROOT)/common.mk
 
@@ -35,12 +28,12 @@ KIND = debug
 endif
 
 test: $(MATHVM)
-#	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
-#	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
-#	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
-	$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
-	$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
-	$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
+	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
+	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
+	$(VM_ROOT)/tests/task1.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
+	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark3/
+	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark4/
+	#$(VM_ROOT)/tests/task3.py -k $(KIND) -t $(VM_ROOT)/tests/mark5/
 
 $(MATHVM): $(OUT) $(MATHVM_OBJ) $(USER_OBJ)
 	$(CXX) -o $@ $(MATHVM_OBJ) $(USER_OBJ) $(LIBS)

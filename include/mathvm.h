@@ -85,7 +85,7 @@ using namespace std;
         DO(STORECTXDVAR, "Pop TOS and store to double variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
         DO(STORECTXIVAR, "Pop TOS and store to int variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
         DO(STORECTXSVAR, "Pop TOS and store to string variable, whose 2-byte context and 2-byte id is inlined to insn stream.", 5) \
-        DO(DCMP, "Compare 2 topmost doubles, pushing libc-style comparator value cmp(upper, lower) as integer.", 1) \
+        DO(DCMP, "Compare 2 topmost doubles, pushing libc-stryle comparator value cmp(upper, lower) as integer.", 1) \
         DO(ICMP, "Compare 2 topmost ints, pushing libc-style comparator value cmp(upper, lower) as integer.", 1) \
         DO(JA, "Jump always, next two bytes - signed offset of jump destination.", 3) \
         DO(IFICMPNE, "Compare two topmost integers and jump if upper != lower, next two bytes - signed offset of jump destination.", 3) \
@@ -113,8 +113,7 @@ typedef enum {
     VT_VOID,
     VT_DOUBLE,
     VT_INT,
-    VT_STRING,
-    VT_BOOL
+    VT_STRING
 } VarType;
 
 // Element 0 is return type.
@@ -298,17 +297,6 @@ class Bytecode {
 
     void addInsn(Instruction insn) {
         add((uint8_t)insn);
-    }
-
-    void addInsns(Instruction insn1, Instruction insn2) {
-      add((uint8_t)insn1);
-      add((uint8_t)insn2);
-    }
-
-    void addInsns(Instruction insn1, Instruction insn2, Instruction insn3) {
-      add((uint8_t)insn1);
-      add((uint8_t)insn2);
-      add((uint8_t)insn3);
     }
 
     uint32_t current() const {
@@ -597,8 +585,21 @@ class Translator {
     virtual Status* translate(const string& program, Code* *code) = 0;
 };
 
-struct InterpreterCodeImpl;
+class InterpreterCodeImpl;
 class MachCodeImpl;
+class BytecodeTranslatorImpl : public Translator {
+    Status* translateBytecode(const string& program,
+                              InterpreterCodeImpl* *code);
+
+  public:
+    BytecodeTranslatorImpl() {
+    }
+
+    virtual ~BytecodeTranslatorImpl() {
+    }
+
+    virtual Status* translate(const string& program, Code* *code);
+};
 
 class MachCodeTranslatorImpl : public Translator {
     Status* translateMachCode(const string& program,
