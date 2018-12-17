@@ -12,7 +12,7 @@ disabled_tests = [
     # 'mark4/fib_closure',
     # 'mark4/extra/.*',
 
-    # 'mark4/vars',
+    'mark4/generated/.*',
     'mark5/extra/.*',
     'perf/.*',
 ]
@@ -36,6 +36,8 @@ def run_test(mvm, test_dir, test):
             print 'FAILED'
             print_result(expect_file, result_data, True)
             return False
+    except KeyboardInterrupt:
+        return False
     except Exception as e:
         print '\nFAILED:', e.message
     return False

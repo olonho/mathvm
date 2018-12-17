@@ -12,6 +12,8 @@ perf_tests = [
     'perf/graph_plot.mvm',
     'perf/prime.mvm',
     'perf/plot.mvm',
+    'perf/randomart.mvm',
+    'perf/lissajous.mvm',
 ]
 
 
