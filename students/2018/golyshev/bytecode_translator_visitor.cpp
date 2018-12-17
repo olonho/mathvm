@@ -1,5 +1,7 @@
-
+#include "../../../libs/asmjit-master/src/asmjit/asmjit.h"
+#include <dlfcn.h>
 #include <bytecode_translator_visitor.hpp>
+#include <interpreter_code_impl.hpp>
 
 using namespace mathvm;
 
@@ -29,7 +31,7 @@ void BytecodeTranslatorVisitor::translateFunction(AstFunction* function) {
     auto bytecodeFunction = code_->functionByName(function->name());
     enterContext(dynamic_cast<BytecodeFunction*>(bytecodeFunction));
     function->node()->visit(this);
-    bytecodeFunction->setLocalsNumber(context().varsNumber() - bytecodeFunction->parametersNumber());
+    bytecodeFunction->setLocalsNumber(context().varsNumber());
     leaveContext();
 }
 
@@ -42,9 +44,8 @@ void BytecodeTranslatorVisitor::enterContext(BytecodeFunction* function) {
 }
 
 void BytecodeTranslatorVisitor::visitForNode(ForNode* node) {
-
     auto range = dynamic_cast<BinaryOpNode const*>(node->inExpr());
-    if (range->kind() != tRANGE) throw runtime_error("For cannot be without range");
+    if (range == nullptr || range->kind() != tRANGE) throw runtime_error("For cannot be without range");
 
     range->left()->visit(this);
     storeVar(*node->var());
@@ -56,9 +57,7 @@ void BytecodeTranslatorVisitor::visitForNode(ForNode* node) {
     range->right()->visit(this);
     loadVar(*node->var());
 
-    currentBytecode()->addInsn(BC_ICMP);
-    currentBytecode()->addInsn(BC_ILOAD1);
-    currentBytecode()->addBranch(BC_IFICMPE, exitLabel);
+    currentBytecode()->addBranch(BC_IFICMPG, exitLabel);
 
     node->body()->visit(this);
 
@@ -201,6 +200,7 @@ void BytecodeTranslatorVisitor::visitStoreNode(StoreNode* node) {
             );
     }
 
+    castFromTo(context().tosType(), pVar.type());
     storeVar(pVar);
 }
 
@@ -286,8 +286,199 @@ void BytecodeTranslatorVisitor::visitUnaryOpNode(UnaryOpNode* node) {
     }
 }
 
-void BytecodeTranslatorVisitor::visitNativeCallNode(NativeCallNode*) {
-    throw runtime_error("Not implemented yet");
+void BytecodeTranslatorVisitor::visitNativeCallNode(NativeCallNode* node) {
+    using namespace asmjit;
+
+    static JitRuntime rt; // me being lazy
+
+    InterpreterCodeImpl::NativeFunction result;
+
+    void* functionToCall = dlsym(RTLD_DEFAULT, node->nativeName().c_str());
+    if (!functionToCall) {
+        throw runtime_error("Cannot find native function " + node->nativeName());
+    }
+
+    auto paramsNumber = node->nativeSignature().size() - 1;
+    auto returnType = node->nativeSignature()[0].first;
+
+    CodeHolder code;                        // Holds code and relocation information.
+    code.init(rt.getCodeInfo());            // Initialize to the same arch as JIT runtime.
+
+    FuncSignatureX signature;
+    switch (returnType) {
+        case VT_STRING:
+            signature.setRetT<char*>();
+            break;
+
+        case VT_DOUBLE:
+            signature.setRetT<double>();
+            break;
+
+        case VT_INT:
+            signature.setRetT<int64_t>();
+            break;
+
+        case VT_VOID:
+            signature.setRetT<void>();
+            break;
+
+        default:
+            throw runtime_error("Unsupported return type");
+    }
+
+    for (uint16_t i = 0; i < paramsNumber; i++) {
+        auto paramType = node->nativeSignature()[i + 1].first;
+        switch (paramType) {
+            case VT_STRING: {
+                signature.addArgT<char*>();
+                break;
+            }
+
+            case VT_DOUBLE: {
+                signature.addArgT<double>();
+                break;
+            }
+
+            case VT_INT: {
+                signature.addArgT<int64_t>();
+                break;
+            }
+
+            default:
+                throw runtime_error("Unsupported native function param type");
+        }
+    }
+
+    X86Compiler cc(&code);
+    cc.addFunc(FuncSignature2<void, NativeVal*, NativeVal*>());
+
+    X86Gp args = cc.newIntPtr("args");
+    X86Gp res = cc.newIntPtr("res");
+
+    cc.setArg(0, args);
+    cc.setArg(1, res);
+
+    X86Gp gpRet = cc.newGpq();
+    X86Xmm xmmRet = cc.newXmmSd();
+
+    vector<X86Xmm> xmms;
+    vector<X86Gp> gpqs;
+    vector<bool> isXmms;
+
+    for (uint16_t i = 0; i < paramsNumber; i++) {
+        auto paramType = node->nativeSignature()[i + 1].first;
+        switch (paramType) {
+            case VT_STRING: {
+                gpqs.push_back(cc.newGpq()); // Gpq is for 8 byte register
+                isXmms.push_back(false);
+                break;
+            }
+
+            case VT_DOUBLE: {
+                xmms.push_back(cc.newXmmSd()); // Sd for double precision
+                isXmms.push_back(true);
+                break;
+            }
+
+            case VT_INT: {
+                gpqs.push_back(cc.newGpq()); // Gpq is for 8 byte register
+                isXmms.push_back(false);
+                break;
+            }
+
+            default:
+                throw runtime_error("Unsupported native function param type");
+        }
+    }
+
+    {
+        uint16_t iXmm = 0;
+        uint16_t iGpq = 0;
+        for (uint16_t i = 0; i < paramsNumber; i++) {
+            auto paramType = node->nativeSignature()[i + 1].first;
+            switch (paramType) {
+                case VT_DOUBLE: {
+                    cc.movsd(xmms[iXmm++], x86::qword_ptr(args, i * 8));
+                    break;
+                }
+
+                case VT_STRING: {
+                    cc.mov(gpqs[iGpq++], x86::qword_ptr(args, i * 8));
+                    break;
+                }
+
+                case VT_INT: {
+                    cc.mov(gpqs[iGpq++], x86::qword_ptr(args, i * 8));
+                    break;
+                }
+
+                default:
+                    throw runtime_error("Unsupported native function param type");
+            }
+        }
+    }
+
+    auto call = cc.call(imm_ptr(functionToCall), signature);
+
+    {
+        uint16_t iXmm = 0;
+        uint16_t iGpq = 0;
+        for (auto it = isXmms.rbegin(); it != isXmms.rend(); ++it) {
+            if (*it) {
+                call->setArg(iXmm + iGpq, xmms[iXmm]);
+                iXmm++;
+            } else {
+                call->setArg(iXmm + iGpq, gpqs[iGpq]);
+                iGpq++;
+            }
+        }
+    }
+
+    switch (returnType) {
+        case VT_STRING:
+            call->setRet(0, gpRet);
+            cc.mov(x86::ptr(res), gpRet);
+            break;
+
+        case VT_DOUBLE:
+            call->setRet(0, xmmRet);
+            cc.movsd(x86::ptr(res), xmmRet);
+            break;
+
+        case VT_INT:
+            call->setRet(0, gpRet);
+            cc.mov(x86::ptr(res), gpRet);
+            break;
+
+        case VT_VOID:
+            break;
+
+        default:
+            throw runtime_error("Unsupported return type");
+    }
+
+    cc.endFunc();
+    cc.finalize();
+
+    Error err = rt.add(&result, &code);
+    if (err) throw runtime_error("Cannot convert this function");
+
+    auto id = code_->makeNativeFunction(node->nativeName(), node->nativeSignature(), (void*)result);
+    currentBytecode()->addInsn(BC_CALLNATIVE);
+    currentBytecode()->addUInt16(id);
+}
+
+bool BytecodeTranslatorVisitor::isUnusedExpression(AstNode* child) const {
+    if (auto callNode = dynamic_cast<CallNode*>(child)) {
+        auto returnType = code_->functionByName(callNode->name())->returnType();
+        return returnType != VT_VOID && returnType != VT_INVALID;
+    }
+
+    return dynamic_cast<BinaryOpNode*>(child)
+           || dynamic_cast<UnaryOpNode*>(child)
+           || dynamic_cast<DoubleLiteralNode*>(child)
+           || dynamic_cast<IntLiteralNode*>(child)
+           || dynamic_cast<DoubleLiteralNode*>(child);
 }
 
 void BytecodeTranslatorVisitor::visitBlockNode(BlockNode* node) {
@@ -307,8 +498,15 @@ void BytecodeTranslatorVisitor::visitBlockNode(BlockNode* node) {
         translateFunction(function);
     });
 
+    for (uint32_t i = 0; i < node->nodes(); i++) {
+        auto child = node->nodeAt(i);
 
-    node->visitChildren(this);
+        child->visit(this);
+
+        if (isUnusedExpression(child)) {
+            currentBytecode()->addInsn(BC_POP);
+        }
+    }
 }
 
 void BytecodeTranslatorVisitor::visitReturnNode(ReturnNode* node) {
@@ -322,7 +520,19 @@ void BytecodeTranslatorVisitor::visitReturnNode(ReturnNode* node) {
 
 void BytecodeTranslatorVisitor::visitFunctionNode(FunctionNode* node) {
     for (uint32_t i = 0; i < node->parametersNumber(); i++) {
-        currentBytecode()->addInsn(BC_STOREIVAR);
+        switch (node->parameterType(i)) {
+            case VT_DOUBLE:
+                currentBytecode()->addInsn(BC_STOREDVAR);
+                break;
+            case VT_INT:
+                currentBytecode()->addInsn(BC_STOREIVAR);
+                break;
+            case VT_STRING:
+                currentBytecode()->addInsn(BC_STORESVAR);
+                break;
+            default:
+                throw runtime_error("Unsupported argument type");
+        }
         currentBytecode()->addUInt16(context().findVarIndex(node->parameterName(i)));
     }
 
@@ -597,23 +807,43 @@ void BytecodeTranslatorVisitor::binaryMathOperation(BinaryOpNode* node) {
 }
 
 void BytecodeTranslatorVisitor::binaryBooleanLogicOperation(BinaryOpNode* pNode) {
-    pNode->right()->visit(this);
-    if (context().tosType() != VT_INT) throw runtime_error("Type is not int");
+    Label setZero(currentBytecode());
+    Label setOne(currentBytecode());
+    Label skip(currentBytecode());
 
     pNode->left()->visit(this);
     if (context().tosType() != VT_INT) throw runtime_error("Type is not int");
+    castToBool();
 
     switch (pNode->kind()) {
         case tOR:
-            currentBytecode()->addInsn(BC_IAOR);
+            currentBytecode()->addInsn(BC_ILOAD0);
+            currentBytecode()->addBranch(BC_IFICMPNE, setOne);
             break;
         case tAND: {
-            currentBytecode()->addInsn(BC_IAAND);
+            currentBytecode()->addInsn(BC_ILOAD0);
+            currentBytecode()->addBranch(BC_IFICMPE, setZero);
             break;
         }
         default:
             throw runtime_error("Unsupported boolean logic operator");
     }
+
+    pNode->right()->visit(this);
+    if (context().tosType() != VT_INT) throw runtime_error("Type is not int");
+    castToBool();
+
+    currentBytecode()->addBranch(BC_JA, skip);
+
+    currentBytecode()->bind(setOne);
+    currentBytecode()->addInsn(BC_ILOAD1);
+    currentBytecode()->addBranch(BC_JA, skip);
+
+    currentBytecode()->bind(setZero);
+    currentBytecode()->addInsn(BC_ILOAD0);
+    currentBytecode()->addBranch(BC_JA, skip);
+
+    currentBytecode()->bind(skip);
 
     context().setTosType(VT_INT);
 }
@@ -691,7 +921,8 @@ void BytecodeTranslatorVisitor::binaryRelationOperation(BinaryOpNode const* node
 }
 
 void BytecodeTranslatorVisitor::negateAsBool() {
-    if (context().tosType() != VT_INT) throw runtime_error("Cannot negate non int");
+    if (context().tosType() != VT_INT && context().tosType() != VT_STRING)
+        throw runtime_error("Can negate only ints and strings");
 
     Label setOneLabel(currentBytecode());
     Label skip(currentBytecode());
@@ -761,5 +992,18 @@ void BytecodeTranslatorVisitor::castFromTo(VarType from, VarType to) {
         currentBytecode()->addInsn(BC_D2I);
         context().setTosType(VT_INT);
     }
+}
+
+void BytecodeTranslatorVisitor::castToBool() {
+    Label skip(context().bytecode());
+    Label setFalse((context().bytecode()));
+
+    context().bytecode()->addInsn(BC_ILOAD0);
+    context().bytecode()->addBranch(BC_IFICMPE, setFalse);
+    context().bytecode()->addInsn(BC_ILOAD1);
+    context().bytecode()->addBranch(BC_JA, skip);
+    context().bytecode()->bind(setFalse);
+    context().bytecode()->addInsn(BC_ILOAD0);
+    context().bytecode()->bind(skip);
 }
 

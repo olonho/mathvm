@@ -51,5 +51,8 @@ namespace mathvm {
         void binaryMathLogicOperation(BinaryOpNode const* pNode);
         void negateAsBool();
         void castFromTo(VarType from, VarType to);
+        void castToBool();
+
+        bool isUnusedExpression(AstNode* child) const;
     };
 }

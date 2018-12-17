@@ -21,6 +21,20 @@ namespace mathvm {
         explicit Val(uint16_t id) : stringId(id) {}
     };
 
+    union NativeVal {
+        double doubleValue;
+        int64_t intValue;
+        char const* stringValue;
+
+        NativeVal() : intValue(0) {};
+
+        explicit NativeVal(double val) : doubleValue(val) {}
+
+        explicit NativeVal(int64_t val) : intValue(val) {}
+
+        explicit NativeVal(char const* val) : stringValue(val) {}
+    };
+
     struct CallContext {
         explicit CallContext(BytecodeFunction* function)
             : function_(function) {}
@@ -87,7 +101,7 @@ namespace mathvm {
     struct ExecutionContext {
         explicit ExecutionContext(BytecodeFunction* function)
             : function_(function),
-              variables_(function->parametersNumber() + function->localsNumber()) {}
+              variables_(function->localsNumber()) {}
 
         ExecutionContext(ExecutionContext const&) = delete;
         ExecutionContext(ExecutionContext&&) = default;
@@ -155,6 +169,10 @@ namespace mathvm {
 
         uint16_t scopeId() const {
             return function_->scopeId();
+        }
+
+        uint16_t localsNumber() {
+            return uint16_t(variables_.size());
         }
 
     private:
