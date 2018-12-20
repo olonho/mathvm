@@ -174,24 +174,23 @@ void BytecodeTranslatorVisitor::visitCallNode(CallNode* node) {
 
 void BytecodeTranslatorVisitor::visitStoreNode(StoreNode* node) {
     auto pVar = *node->var();
+    auto varType = node->var()->type();
+
+    node->value()->visit(this);
+    castFromTo(context().tosType(), varType);
 
     switch (node->op()) {
         case tASSIGN:
-            node->value()->visit(this);
             break;
 
         case tINCRSET:
-            node->value()->visit(this);
             loadVar(pVar);
-            currentBytecode()->addInsn(BC_IADD);
-            context().setTosType(VT_INT);
+            currentBytecode()->addInsn(varType == VT_INT ? BC_IADD : BC_DADD);
             break;
 
         case tDECRSET:
-            node->value()->visit(this);
             loadVar(pVar);
-            currentBytecode()->addInsn(BC_ISUB);
-            context().setTosType(VT_INT);
+            currentBytecode()->addInsn(varType == VT_INT ? BC_ISUB: BC_DSUB);
             break;
 
         default:
@@ -200,7 +199,7 @@ void BytecodeTranslatorVisitor::visitStoreNode(StoreNode* node) {
             );
     }
 
-    castFromTo(context().tosType(), pVar.type());
+    context().setTosType(varType);
     storeVar(pVar);
 }
 
