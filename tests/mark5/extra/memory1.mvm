@@ -23,7 +23,7 @@ setMem(text, tokens * 2, 0, 1);
 int count = 0;
 
 string token = strtok(text, delims);
-while (token) {
+while (!!token) {
     if (count % 1009 == 0) {
         print(token);
     }

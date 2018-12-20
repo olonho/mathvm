@@ -6,12 +6,13 @@ function void free(string ptr) native 'free';
 function string memset(string ptr, int ch, int count) native 'memset';
 function int strlen(string s) native 'strlen';
 
-function string i2sImpl(int ptr, int ptr2, int zero) native 'memcpy';
+function string i2sImpl(int ptr, int ptr2, int zero) native 'memmove';
 function string i2s(int ptr) {
     return i2sImpl(ptr, ptr, 0);
 }
+function int s2iImpl(string ptr, string ptr2, int zero) native 'memmove';
 function int s2i(string ptr) {
-    return ptr;
+    return s2iImpl(ptr, ptr, 0);
 }
 
 function int getI(string ptr, int idx) {

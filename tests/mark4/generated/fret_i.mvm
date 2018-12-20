@@ -1,0 +1,5264 @@
+
+int i1;
+int i2;
+double d1;
+double d2;
+
+function int fri(int idx) {
+if (idx == 0) {
+i1=1;i2=1;
+return i1+i2;
+}
+if (idx == 1) {
+return 1+1;
+}
+if (idx == 2) {
+i1=1;i2=2;
+return i1+i2;
+}
+if (idx == 3) {
+return 1+2;
+}
+if (idx == 4) {
+i1=1;i2=3;
+return i1+i2;
+}
+if (idx == 5) {
+return 1+3;
+}
+if (idx == 6) {
+i1=1;i2=4;
+return i1+i2;
+}
+if (idx == 7) {
+return 1+4;
+}
+if (idx == 8) {
+i1=1;i2=5;
+return i1+i2;
+}
+if (idx == 9) {
+return 1+5;
+}
+if (idx == 10) {
+i1=2;i2=1;
+return i1+i2;
+}
+if (idx == 11) {
+return 2+1;
+}
+if (idx == 12) {
+i1=2;i2=2;
+return i1+i2;
+}
+if (idx == 13) {
+return 2+2;
+}
+if (idx == 14) {
+i1=2;i2=3;
+return i1+i2;
+}
+if (idx == 15) {
+return 2+3;
+}
+if (idx == 16) {
+i1=2;i2=4;
+return i1+i2;
+}
+if (idx == 17) {
+return 2+4;
+}
+if (idx == 18) {
+i1=2;i2=5;
+return i1+i2;
+}
+if (idx == 19) {
+return 2+5;
+}
+if (idx == 20) {
+i1=3;i2=1;
+return i1+i2;
+}
+if (idx == 21) {
+return 3+1;
+}
+if (idx == 22) {
+i1=3;i2=2;
+return i1+i2;
+}
+if (idx == 23) {
+return 3+2;
+}
+if (idx == 24) {
+i1=3;i2=3;
+return i1+i2;
+}
+if (idx == 25) {
+return 3+3;
+}
+if (idx == 26) {
+i1=3;i2=4;
+return i1+i2;
+}
+if (idx == 27) {
+return 3+4;
+}
+if (idx == 28) {
+i1=3;i2=5;
+return i1+i2;
+}
+if (idx == 29) {
+return 3+5;
+}
+if (idx == 30) {
+i1=4;i2=1;
+return i1+i2;
+}
+if (idx == 31) {
+return 4+1;
+}
+if (idx == 32) {
+i1=4;i2=2;
+return i1+i2;
+}
+if (idx == 33) {
+return 4+2;
+}
+if (idx == 34) {
+i1=4;i2=3;
+return i1+i2;
+}
+if (idx == 35) {
+return 4+3;
+}
+if (idx == 36) {
+i1=4;i2=4;
+return i1+i2;
+}
+if (idx == 37) {
+return 4+4;
+}
+if (idx == 38) {
+i1=4;i2=5;
+return i1+i2;
+}
+if (idx == 39) {
+return 4+5;
+}
+if (idx == 40) {
+i1=5;i2=1;
+return i1+i2;
+}
+if (idx == 41) {
+return 5+1;
+}
+if (idx == 42) {
+i1=5;i2=2;
+return i1+i2;
+}
+if (idx == 43) {
+return 5+2;
+}
+if (idx == 44) {
+i1=5;i2=3;
+return i1+i2;
+}
+if (idx == 45) {
+return 5+3;
+}
+if (idx == 46) {
+i1=5;i2=4;
+return i1+i2;
+}
+if (idx == 47) {
+return 5+4;
+}
+if (idx == 48) {
+i1=5;i2=5;
+return i1+i2;
+}
+if (idx == 49) {
+return 5+5;
+}
+if (idx == 50) {
+i1=1;i2=1;
+return i1-i2;
+}
+if (idx == 51) {
+return 1-1;
+}
+if (idx == 52) {
+i1=1;i2=2;
+return i1-i2;
+}
+if (idx == 53) {
+return 1-2;
+}
+if (idx == 54) {
+i1=1;i2=3;
+return i1-i2;
+}
+if (idx == 55) {
+return 1-3;
+}
+if (idx == 56) {
+i1=1;i2=4;
+return i1-i2;
+}
+if (idx == 57) {
+return 1-4;
+}
+if (idx == 58) {
+i1=1;i2=5;
+return i1-i2;
+}
+if (idx == 59) {
+return 1-5;
+}
+if (idx == 60) {
+i1=2;i2=1;
+return i1-i2;
+}
+if (idx == 61) {
+return 2-1;
+}
+if (idx == 62) {
+i1=2;i2=2;
+return i1-i2;
+}
+if (idx == 63) {
+return 2-2;
+}
+if (idx == 64) {
+i1=2;i2=3;
+return i1-i2;
+}
+if (idx == 65) {
+return 2-3;
+}
+if (idx == 66) {
+i1=2;i2=4;
+return i1-i2;
+}
+if (idx == 67) {
+return 2-4;
+}
+if (idx == 68) {
+i1=2;i2=5;
+return i1-i2;
+}
+if (idx == 69) {
+return 2-5;
+}
+if (idx == 70) {
+i1=3;i2=1;
+return i1-i2;
+}
+if (idx == 71) {
+return 3-1;
+}
+if (idx == 72) {
+i1=3;i2=2;
+return i1-i2;
+}
+if (idx == 73) {
+return 3-2;
+}
+if (idx == 74) {
+i1=3;i2=3;
+return i1-i2;
+}
+if (idx == 75) {
+return 3-3;
+}
+if (idx == 76) {
+i1=3;i2=4;
+return i1-i2;
+}
+if (idx == 77) {
+return 3-4;
+}
+if (idx == 78) {
+i1=3;i2=5;
+return i1-i2;
+}
+if (idx == 79) {
+return 3-5;
+}
+if (idx == 80) {
+i1=4;i2=1;
+return i1-i2;
+}
+if (idx == 81) {
+return 4-1;
+}
+if (idx == 82) {
+i1=4;i2=2;
+return i1-i2;
+}
+if (idx == 83) {
+return 4-2;
+}
+if (idx == 84) {
+i1=4;i2=3;
+return i1-i2;
+}
+if (idx == 85) {
+return 4-3;
+}
+if (idx == 86) {
+i1=4;i2=4;
+return i1-i2;
+}
+if (idx == 87) {
+return 4-4;
+}
+if (idx == 88) {
+i1=4;i2=5;
+return i1-i2;
+}
+if (idx == 89) {
+return 4-5;
+}
+if (idx == 90) {
+i1=5;i2=1;
+return i1-i2;
+}
+if (idx == 91) {
+return 5-1;
+}
+if (idx == 92) {
+i1=5;i2=2;
+return i1-i2;
+}
+if (idx == 93) {
+return 5-2;
+}
+if (idx == 94) {
+i1=5;i2=3;
+return i1-i2;
+}
+if (idx == 95) {
+return 5-3;
+}
+if (idx == 96) {
+i1=5;i2=4;
+return i1-i2;
+}
+if (idx == 97) {
+return 5-4;
+}
+if (idx == 98) {
+i1=5;i2=5;
+return i1-i2;
+}
+if (idx == 99) {
+return 5-5;
+}
+if (idx == 100) {
+i1=1;i2=1;
+return i1*i2;
+}
+if (idx == 101) {
+return 1*1;
+}
+if (idx == 102) {
+i1=1;i2=2;
+return i1*i2;
+}
+if (idx == 103) {
+return 1*2;
+}
+if (idx == 104) {
+i1=1;i2=3;
+return i1*i2;
+}
+if (idx == 105) {
+return 1*3;
+}
+if (idx == 106) {
+i1=1;i2=4;
+return i1*i2;
+}
+if (idx == 107) {
+return 1*4;
+}
+if (idx == 108) {
+i1=1;i2=5;
+return i1*i2;
+}
+if (idx == 109) {
+return 1*5;
+}
+if (idx == 110) {
+i1=2;i2=1;
+return i1*i2;
+}
+if (idx == 111) {
+return 2*1;
+}
+if (idx == 112) {
+i1=2;i2=2;
+return i1*i2;
+}
+if (idx == 113) {
+return 2*2;
+}
+if (idx == 114) {
+i1=2;i2=3;
+return i1*i2;
+}
+if (idx == 115) {
+return 2*3;
+}
+if (idx == 116) {
+i1=2;i2=4;
+return i1*i2;
+}
+if (idx == 117) {
+return 2*4;
+}
+if (idx == 118) {
+i1=2;i2=5;
+return i1*i2;
+}
+if (idx == 119) {
+return 2*5;
+}
+if (idx == 120) {
+i1=3;i2=1;
+return i1*i2;
+}
+if (idx == 121) {
+return 3*1;
+}
+if (idx == 122) {
+i1=3;i2=2;
+return i1*i2;
+}
+if (idx == 123) {
+return 3*2;
+}
+if (idx == 124) {
+i1=3;i2=3;
+return i1*i2;
+}
+if (idx == 125) {
+return 3*3;
+}
+if (idx == 126) {
+i1=3;i2=4;
+return i1*i2;
+}
+if (idx == 127) {
+return 3*4;
+}
+if (idx == 128) {
+i1=3;i2=5;
+return i1*i2;
+}
+if (idx == 129) {
+return 3*5;
+}
+if (idx == 130) {
+i1=4;i2=1;
+return i1*i2;
+}
+if (idx == 131) {
+return 4*1;
+}
+if (idx == 132) {
+i1=4;i2=2;
+return i1*i2;
+}
+if (idx == 133) {
+return 4*2;
+}
+if (idx == 134) {
+i1=4;i2=3;
+return i1*i2;
+}
+if (idx == 135) {
+return 4*3;
+}
+if (idx == 136) {
+i1=4;i2=4;
+return i1*i2;
+}
+if (idx == 137) {
+return 4*4;
+}
+if (idx == 138) {
+i1=4;i2=5;
+return i1*i2;
+}
+if (idx == 139) {
+return 4*5;
+}
+if (idx == 140) {
+i1=5;i2=1;
+return i1*i2;
+}
+if (idx == 141) {
+return 5*1;
+}
+if (idx == 142) {
+i1=5;i2=2;
+return i1*i2;
+}
+if (idx == 143) {
+return 5*2;
+}
+if (idx == 144) {
+i1=5;i2=3;
+return i1*i2;
+}
+if (idx == 145) {
+return 5*3;
+}
+if (idx == 146) {
+i1=5;i2=4;
+return i1*i2;
+}
+if (idx == 147) {
+return 5*4;
+}
+if (idx == 148) {
+i1=5;i2=5;
+return i1*i2;
+}
+if (idx == 149) {
+return 5*5;
+}
+if (idx == 150) {
+i1=1;i2=1;
+return i1/i2;
+}
+if (idx == 151) {
+return 1/1;
+}
+if (idx == 152) {
+i1=1;i2=2;
+return i1/i2;
+}
+if (idx == 153) {
+return 1/2;
+}
+if (idx == 154) {
+i1=1;i2=3;
+return i1/i2;
+}
+if (idx == 155) {
+return 1/3;
+}
+if (idx == 156) {
+i1=1;i2=4;
+return i1/i2;
+}
+if (idx == 157) {
+return 1/4;
+}
+if (idx == 158) {
+i1=1;i2=5;
+return i1/i2;
+}
+if (idx == 159) {
+return 1/5;
+}
+if (idx == 160) {
+i1=2;i2=1;
+return i1/i2;
+}
+if (idx == 161) {
+return 2/1;
+}
+if (idx == 162) {
+i1=2;i2=2;
+return i1/i2;
+}
+if (idx == 163) {
+return 2/2;
+}
+if (idx == 164) {
+i1=2;i2=3;
+return i1/i2;
+}
+if (idx == 165) {
+return 2/3;
+}
+if (idx == 166) {
+i1=2;i2=4;
+return i1/i2;
+}
+if (idx == 167) {
+return 2/4;
+}
+if (idx == 168) {
+i1=2;i2=5;
+return i1/i2;
+}
+if (idx == 169) {
+return 2/5;
+}
+if (idx == 170) {
+i1=3;i2=1;
+return i1/i2;
+}
+if (idx == 171) {
+return 3/1;
+}
+if (idx == 172) {
+i1=3;i2=2;
+return i1/i2;
+}
+if (idx == 173) {
+return 3/2;
+}
+if (idx == 174) {
+i1=3;i2=3;
+return i1/i2;
+}
+if (idx == 175) {
+return 3/3;
+}
+if (idx == 176) {
+i1=3;i2=4;
+return i1/i2;
+}
+if (idx == 177) {
+return 3/4;
+}
+if (idx == 178) {
+i1=3;i2=5;
+return i1/i2;
+}
+if (idx == 179) {
+return 3/5;
+}
+if (idx == 180) {
+i1=4;i2=1;
+return i1/i2;
+}
+if (idx == 181) {
+return 4/1;
+}
+if (idx == 182) {
+i1=4;i2=2;
+return i1/i2;
+}
+if (idx == 183) {
+return 4/2;
+}
+if (idx == 184) {
+i1=4;i2=3;
+return i1/i2;
+}
+if (idx == 185) {
+return 4/3;
+}
+if (idx == 186) {
+i1=4;i2=4;
+return i1/i2;
+}
+if (idx == 187) {
+return 4/4;
+}
+if (idx == 188) {
+i1=4;i2=5;
+return i1/i2;
+}
+if (idx == 189) {
+return 4/5;
+}
+if (idx == 190) {
+i1=5;i2=1;
+return i1/i2;
+}
+if (idx == 191) {
+return 5/1;
+}
+if (idx == 192) {
+i1=5;i2=2;
+return i1/i2;
+}
+if (idx == 193) {
+return 5/2;
+}
+if (idx == 194) {
+i1=5;i2=3;
+return i1/i2;
+}
+if (idx == 195) {
+return 5/3;
+}
+if (idx == 196) {
+i1=5;i2=4;
+return i1/i2;
+}
+if (idx == 197) {
+return 5/4;
+}
+if (idx == 198) {
+i1=5;i2=5;
+return i1/i2;
+}
+if (idx == 199) {
+return 5/5;
+}
+if (idx == 200) {
+i1=1;i2=1;
+return i1%i2;
+}
+if (idx == 201) {
+return 1%1;
+}
+if (idx == 202) {
+i1=1;i2=2;
+return i1%i2;
+}
+if (idx == 203) {
+return 1%2;
+}
+if (idx == 204) {
+i1=1;i2=3;
+return i1%i2;
+}
+if (idx == 205) {
+return 1%3;
+}
+if (idx == 206) {
+i1=1;i2=4;
+return i1%i2;
+}
+if (idx == 207) {
+return 1%4;
+}
+if (idx == 208) {
+i1=1;i2=5;
+return i1%i2;
+}
+if (idx == 209) {
+return 1%5;
+}
+if (idx == 210) {
+i1=2;i2=1;
+return i1%i2;
+}
+if (idx == 211) {
+return 2%1;
+}
+if (idx == 212) {
+i1=2;i2=2;
+return i1%i2;
+}
+if (idx == 213) {
+return 2%2;
+}
+if (idx == 214) {
+i1=2;i2=3;
+return i1%i2;
+}
+if (idx == 215) {
+return 2%3;
+}
+if (idx == 216) {
+i1=2;i2=4;
+return i1%i2;
+}
+if (idx == 217) {
+return 2%4;
+}
+if (idx == 218) {
+i1=2;i2=5;
+return i1%i2;
+}
+if (idx == 219) {
+return 2%5;
+}
+if (idx == 220) {
+i1=3;i2=1;
+return i1%i2;
+}
+if (idx == 221) {
+return 3%1;
+}
+if (idx == 222) {
+i1=3;i2=2;
+return i1%i2;
+}
+if (idx == 223) {
+return 3%2;
+}
+if (idx == 224) {
+i1=3;i2=3;
+return i1%i2;
+}
+if (idx == 225) {
+return 3%3;
+}
+if (idx == 226) {
+i1=3;i2=4;
+return i1%i2;
+}
+if (idx == 227) {
+return 3%4;
+}
+if (idx == 228) {
+i1=3;i2=5;
+return i1%i2;
+}
+if (idx == 229) {
+return 3%5;
+}
+if (idx == 230) {
+i1=4;i2=1;
+return i1%i2;
+}
+if (idx == 231) {
+return 4%1;
+}
+if (idx == 232) {
+i1=4;i2=2;
+return i1%i2;
+}
+if (idx == 233) {
+return 4%2;
+}
+if (idx == 234) {
+i1=4;i2=3;
+return i1%i2;
+}
+if (idx == 235) {
+return 4%3;
+}
+if (idx == 236) {
+i1=4;i2=4;
+return i1%i2;
+}
+if (idx == 237) {
+return 4%4;
+}
+if (idx == 238) {
+i1=4;i2=5;
+return i1%i2;
+}
+if (idx == 239) {
+return 4%5;
+}
+if (idx == 240) {
+i1=5;i2=1;
+return i1%i2;
+}
+if (idx == 241) {
+return 5%1;
+}
+if (idx == 242) {
+i1=5;i2=2;
+return i1%i2;
+}
+if (idx == 243) {
+return 5%2;
+}
+if (idx == 244) {
+i1=5;i2=3;
+return i1%i2;
+}
+if (idx == 245) {
+return 5%3;
+}
+if (idx == 246) {
+i1=5;i2=4;
+return i1%i2;
+}
+if (idx == 247) {
+return 5%4;
+}
+if (idx == 248) {
+i1=5;i2=5;
+return i1%i2;
+}
+if (idx == 249) {
+return 5%5;
+}
+if (idx == 250) {
+i1=1;i2=1;
+return i1&i2;
+}
+if (idx == 251) {
+return 1&1;
+}
+if (idx == 252) {
+i1=1;i2=2;
+return i1&i2;
+}
+if (idx == 253) {
+return 1&2;
+}
+if (idx == 254) {
+i1=1;i2=3;
+return i1&i2;
+}
+if (idx == 255) {
+return 1&3;
+}
+if (idx == 256) {
+i1=1;i2=4;
+return i1&i2;
+}
+if (idx == 257) {
+return 1&4;
+}
+if (idx == 258) {
+i1=1;i2=5;
+return i1&i2;
+}
+if (idx == 259) {
+return 1&5;
+}
+if (idx == 260) {
+i1=2;i2=1;
+return i1&i2;
+}
+if (idx == 261) {
+return 2&1;
+}
+if (idx == 262) {
+i1=2;i2=2;
+return i1&i2;
+}
+if (idx == 263) {
+return 2&2;
+}
+if (idx == 264) {
+i1=2;i2=3;
+return i1&i2;
+}
+if (idx == 265) {
+return 2&3;
+}
+if (idx == 266) {
+i1=2;i2=4;
+return i1&i2;
+}
+if (idx == 267) {
+return 2&4;
+}
+if (idx == 268) {
+i1=2;i2=5;
+return i1&i2;
+}
+if (idx == 269) {
+return 2&5;
+}
+if (idx == 270) {
+i1=3;i2=1;
+return i1&i2;
+}
+if (idx == 271) {
+return 3&1;
+}
+if (idx == 272) {
+i1=3;i2=2;
+return i1&i2;
+}
+if (idx == 273) {
+return 3&2;
+}
+if (idx == 274) {
+i1=3;i2=3;
+return i1&i2;
+}
+if (idx == 275) {
+return 3&3;
+}
+if (idx == 276) {
+i1=3;i2=4;
+return i1&i2;
+}
+if (idx == 277) {
+return 3&4;
+}
+if (idx == 278) {
+i1=3;i2=5;
+return i1&i2;
+}
+if (idx == 279) {
+return 3&5;
+}
+if (idx == 280) {
+i1=4;i2=1;
+return i1&i2;
+}
+if (idx == 281) {
+return 4&1;
+}
+if (idx == 282) {
+i1=4;i2=2;
+return i1&i2;
+}
+if (idx == 283) {
+return 4&2;
+}
+if (idx == 284) {
+i1=4;i2=3;
+return i1&i2;
+}
+if (idx == 285) {
+return 4&3;
+}
+if (idx == 286) {
+i1=4;i2=4;
+return i1&i2;
+}
+if (idx == 287) {
+return 4&4;
+}
+if (idx == 288) {
+i1=4;i2=5;
+return i1&i2;
+}
+if (idx == 289) {
+return 4&5;
+}
+if (idx == 290) {
+i1=5;i2=1;
+return i1&i2;
+}
+if (idx == 291) {
+return 5&1;
+}
+if (idx == 292) {
+i1=5;i2=2;
+return i1&i2;
+}
+if (idx == 293) {
+return 5&2;
+}
+if (idx == 294) {
+i1=5;i2=3;
+return i1&i2;
+}
+if (idx == 295) {
+return 5&3;
+}
+if (idx == 296) {
+i1=5;i2=4;
+return i1&i2;
+}
+if (idx == 297) {
+return 5&4;
+}
+if (idx == 298) {
+i1=5;i2=5;
+return i1&i2;
+}
+if (idx == 299) {
+return 5&5;
+}
+if (idx == 300) {
+i1=1;i2=1;
+return i1|i2;
+}
+if (idx == 301) {
+return 1|1;
+}
+if (idx == 302) {
+i1=1;i2=2;
+return i1|i2;
+}
+if (idx == 303) {
+return 1|2;
+}
+if (idx == 304) {
+i1=1;i2=3;
+return i1|i2;
+}
+if (idx == 305) {
+return 1|3;
+}
+if (idx == 306) {
+i1=1;i2=4;
+return i1|i2;
+}
+if (idx == 307) {
+return 1|4;
+}
+if (idx == 308) {
+i1=1;i2=5;
+return i1|i2;
+}
+if (idx == 309) {
+return 1|5;
+}
+if (idx == 310) {
+i1=2;i2=1;
+return i1|i2;
+}
+if (idx == 311) {
+return 2|1;
+}
+if (idx == 312) {
+i1=2;i2=2;
+return i1|i2;
+}
+if (idx == 313) {
+return 2|2;
+}
+if (idx == 314) {
+i1=2;i2=3;
+return i1|i2;
+}
+if (idx == 315) {
+return 2|3;
+}
+if (idx == 316) {
+i1=2;i2=4;
+return i1|i2;
+}
+if (idx == 317) {
+return 2|4;
+}
+if (idx == 318) {
+i1=2;i2=5;
+return i1|i2;
+}
+if (idx == 319) {
+return 2|5;
+}
+if (idx == 320) {
+i1=3;i2=1;
+return i1|i2;
+}
+if (idx == 321) {
+return 3|1;
+}
+if (idx == 322) {
+i1=3;i2=2;
+return i1|i2;
+}
+if (idx == 323) {
+return 3|2;
+}
+if (idx == 324) {
+i1=3;i2=3;
+return i1|i2;
+}
+if (idx == 325) {
+return 3|3;
+}
+if (idx == 326) {
+i1=3;i2=4;
+return i1|i2;
+}
+if (idx == 327) {
+return 3|4;
+}
+if (idx == 328) {
+i1=3;i2=5;
+return i1|i2;
+}
+if (idx == 329) {
+return 3|5;
+}
+if (idx == 330) {
+i1=4;i2=1;
+return i1|i2;
+}
+if (idx == 331) {
+return 4|1;
+}
+if (idx == 332) {
+i1=4;i2=2;
+return i1|i2;
+}
+if (idx == 333) {
+return 4|2;
+}
+if (idx == 334) {
+i1=4;i2=3;
+return i1|i2;
+}
+if (idx == 335) {
+return 4|3;
+}
+if (idx == 336) {
+i1=4;i2=4;
+return i1|i2;
+}
+if (idx == 337) {
+return 4|4;
+}
+if (idx == 338) {
+i1=4;i2=5;
+return i1|i2;
+}
+if (idx == 339) {
+return 4|5;
+}
+if (idx == 340) {
+i1=5;i2=1;
+return i1|i2;
+}
+if (idx == 341) {
+return 5|1;
+}
+if (idx == 342) {
+i1=5;i2=2;
+return i1|i2;
+}
+if (idx == 343) {
+return 5|2;
+}
+if (idx == 344) {
+i1=5;i2=3;
+return i1|i2;
+}
+if (idx == 345) {
+return 5|3;
+}
+if (idx == 346) {
+i1=5;i2=4;
+return i1|i2;
+}
+if (idx == 347) {
+return 5|4;
+}
+if (idx == 348) {
+i1=5;i2=5;
+return i1|i2;
+}
+if (idx == 349) {
+return 5|5;
+}
+if (idx == 350) {
+i1=1;i2=1;
+return i1^i2;
+}
+if (idx == 351) {
+return 1^1;
+}
+if (idx == 352) {
+i1=1;i2=2;
+return i1^i2;
+}
+if (idx == 353) {
+return 1^2;
+}
+if (idx == 354) {
+i1=1;i2=3;
+return i1^i2;
+}
+if (idx == 355) {
+return 1^3;
+}
+if (idx == 356) {
+i1=1;i2=4;
+return i1^i2;
+}
+if (idx == 357) {
+return 1^4;
+}
+if (idx == 358) {
+i1=1;i2=5;
+return i1^i2;
+}
+if (idx == 359) {
+return 1^5;
+}
+if (idx == 360) {
+i1=2;i2=1;
+return i1^i2;
+}
+if (idx == 361) {
+return 2^1;
+}
+if (idx == 362) {
+i1=2;i2=2;
+return i1^i2;
+}
+if (idx == 363) {
+return 2^2;
+}
+if (idx == 364) {
+i1=2;i2=3;
+return i1^i2;
+}
+if (idx == 365) {
+return 2^3;
+}
+if (idx == 366) {
+i1=2;i2=4;
+return i1^i2;
+}
+if (idx == 367) {
+return 2^4;
+}
+if (idx == 368) {
+i1=2;i2=5;
+return i1^i2;
+}
+if (idx == 369) {
+return 2^5;
+}
+if (idx == 370) {
+i1=3;i2=1;
+return i1^i2;
+}
+if (idx == 371) {
+return 3^1;
+}
+if (idx == 372) {
+i1=3;i2=2;
+return i1^i2;
+}
+if (idx == 373) {
+return 3^2;
+}
+if (idx == 374) {
+i1=3;i2=3;
+return i1^i2;
+}
+if (idx == 375) {
+return 3^3;
+}
+if (idx == 376) {
+i1=3;i2=4;
+return i1^i2;
+}
+if (idx == 377) {
+return 3^4;
+}
+if (idx == 378) {
+i1=3;i2=5;
+return i1^i2;
+}
+if (idx == 379) {
+return 3^5;
+}
+if (idx == 380) {
+i1=4;i2=1;
+return i1^i2;
+}
+if (idx == 381) {
+return 4^1;
+}
+if (idx == 382) {
+i1=4;i2=2;
+return i1^i2;
+}
+if (idx == 383) {
+return 4^2;
+}
+if (idx == 384) {
+i1=4;i2=3;
+return i1^i2;
+}
+if (idx == 385) {
+return 4^3;
+}
+if (idx == 386) {
+i1=4;i2=4;
+return i1^i2;
+}
+if (idx == 387) {
+return 4^4;
+}
+if (idx == 388) {
+i1=4;i2=5;
+return i1^i2;
+}
+if (idx == 389) {
+return 4^5;
+}
+if (idx == 390) {
+i1=5;i2=1;
+return i1^i2;
+}
+if (idx == 391) {
+return 5^1;
+}
+if (idx == 392) {
+i1=5;i2=2;
+return i1^i2;
+}
+if (idx == 393) {
+return 5^2;
+}
+if (idx == 394) {
+i1=5;i2=3;
+return i1^i2;
+}
+if (idx == 395) {
+return 5^3;
+}
+if (idx == 396) {
+i1=5;i2=4;
+return i1^i2;
+}
+if (idx == 397) {
+return 5^4;
+}
+if (idx == 398) {
+i1=5;i2=5;
+return i1^i2;
+}
+if (idx == 399) {
+return 5^5;
+}
+if (idx == 400) {
+i1=1;d2=1.0;
+return i1+d2;
+}
+if (idx == 401) {
+return 1+1.0;
+}
+if (idx == 402) {
+i1=1;d2=2.0;
+return i1+d2;
+}
+if (idx == 403) {
+return 1+2.0;
+}
+if (idx == 404) {
+i1=1;d2=2.5;
+return i1+d2;
+}
+if (idx == 405) {
+return 1+2.5;
+}
+if (idx == 406) {
+i1=1;d2=3.0;
+return i1+d2;
+}
+if (idx == 407) {
+return 1+3.0;
+}
+if (idx == 408) {
+i1=1;d2=4.0;
+return i1+d2;
+}
+if (idx == 409) {
+return 1+4.0;
+}
+if (idx == 410) {
+i1=1;d2=5;
+return i1+d2;
+}
+if (idx == 411) {
+return 1+5;
+}
+if (idx == 412) {
+i1=2;d2=1.0;
+return i1+d2;
+}
+if (idx == 413) {
+return 2+1.0;
+}
+if (idx == 414) {
+i1=2;d2=2.0;
+return i1+d2;
+}
+if (idx == 415) {
+return 2+2.0;
+}
+if (idx == 416) {
+i1=2;d2=2.5;
+return i1+d2;
+}
+if (idx == 417) {
+return 2+2.5;
+}
+if (idx == 418) {
+i1=2;d2=3.0;
+return i1+d2;
+}
+if (idx == 419) {
+return 2+3.0;
+}
+if (idx == 420) {
+i1=2;d2=4.0;
+return i1+d2;
+}
+if (idx == 421) {
+return 2+4.0;
+}
+if (idx == 422) {
+i1=2;d2=5;
+return i1+d2;
+}
+if (idx == 423) {
+return 2+5;
+}
+if (idx == 424) {
+i1=3;d2=1.0;
+return i1+d2;
+}
+if (idx == 425) {
+return 3+1.0;
+}
+if (idx == 426) {
+i1=3;d2=2.0;
+return i1+d2;
+}
+if (idx == 427) {
+return 3+2.0;
+}
+if (idx == 428) {
+i1=3;d2=2.5;
+return i1+d2;
+}
+if (idx == 429) {
+return 3+2.5;
+}
+if (idx == 430) {
+i1=3;d2=3.0;
+return i1+d2;
+}
+if (idx == 431) {
+return 3+3.0;
+}
+if (idx == 432) {
+i1=3;d2=4.0;
+return i1+d2;
+}
+if (idx == 433) {
+return 3+4.0;
+}
+if (idx == 434) {
+i1=3;d2=5;
+return i1+d2;
+}
+if (idx == 435) {
+return 3+5;
+}
+if (idx == 436) {
+i1=4;d2=1.0;
+return i1+d2;
+}
+if (idx == 437) {
+return 4+1.0;
+}
+if (idx == 438) {
+i1=4;d2=2.0;
+return i1+d2;
+}
+if (idx == 439) {
+return 4+2.0;
+}
+if (idx == 440) {
+i1=4;d2=2.5;
+return i1+d2;
+}
+if (idx == 441) {
+return 4+2.5;
+}
+if (idx == 442) {
+i1=4;d2=3.0;
+return i1+d2;
+}
+if (idx == 443) {
+return 4+3.0;
+}
+if (idx == 444) {
+i1=4;d2=4.0;
+return i1+d2;
+}
+if (idx == 445) {
+return 4+4.0;
+}
+if (idx == 446) {
+i1=4;d2=5;
+return i1+d2;
+}
+if (idx == 447) {
+return 4+5;
+}
+if (idx == 448) {
+i1=5;d2=1.0;
+return i1+d2;
+}
+if (idx == 449) {
+return 5+1.0;
+}
+if (idx == 450) {
+i1=5;d2=2.0;
+return i1+d2;
+}
+if (idx == 451) {
+return 5+2.0;
+}
+if (idx == 452) {
+i1=5;d2=2.5;
+return i1+d2;
+}
+if (idx == 453) {
+return 5+2.5;
+}
+if (idx == 454) {
+i1=5;d2=3.0;
+return i1+d2;
+}
+if (idx == 455) {
+return 5+3.0;
+}
+if (idx == 456) {
+i1=5;d2=4.0;
+return i1+d2;
+}
+if (idx == 457) {
+return 5+4.0;
+}
+if (idx == 458) {
+i1=5;d2=5;
+return i1+d2;
+}
+if (idx == 459) {
+return 5+5;
+}
+if (idx == 460) {
+i1=1;d2=1.0;
+return i1-d2;
+}
+if (idx == 461) {
+return 1-1.0;
+}
+if (idx == 462) {
+i1=1;d2=2.0;
+return i1-d2;
+}
+if (idx == 463) {
+return 1-2.0;
+}
+if (idx == 464) {
+i1=1;d2=2.5;
+return i1-d2;
+}
+if (idx == 465) {
+return 1-2.5;
+}
+if (idx == 466) {
+i1=1;d2=3.0;
+return i1-d2;
+}
+if (idx == 467) {
+return 1-3.0;
+}
+if (idx == 468) {
+i1=1;d2=4.0;
+return i1-d2;
+}
+if (idx == 469) {
+return 1-4.0;
+}
+if (idx == 470) {
+i1=1;d2=5;
+return i1-d2;
+}
+if (idx == 471) {
+return 1-5;
+}
+if (idx == 472) {
+i1=2;d2=1.0;
+return i1-d2;
+}
+if (idx == 473) {
+return 2-1.0;
+}
+if (idx == 474) {
+i1=2;d2=2.0;
+return i1-d2;
+}
+if (idx == 475) {
+return 2-2.0;
+}
+if (idx == 476) {
+i1=2;d2=2.5;
+return i1-d2;
+}
+if (idx == 477) {
+return 2-2.5;
+}
+if (idx == 478) {
+i1=2;d2=3.0;
+return i1-d2;
+}
+if (idx == 479) {
+return 2-3.0;
+}
+if (idx == 480) {
+i1=2;d2=4.0;
+return i1-d2;
+}
+if (idx == 481) {
+return 2-4.0;
+}
+if (idx == 482) {
+i1=2;d2=5;
+return i1-d2;
+}
+if (idx == 483) {
+return 2-5;
+}
+if (idx == 484) {
+i1=3;d2=1.0;
+return i1-d2;
+}
+if (idx == 485) {
+return 3-1.0;
+}
+if (idx == 486) {
+i1=3;d2=2.0;
+return i1-d2;
+}
+if (idx == 487) {
+return 3-2.0;
+}
+if (idx == 488) {
+i1=3;d2=2.5;
+return i1-d2;
+}
+if (idx == 489) {
+return 3-2.5;
+}
+if (idx == 490) {
+i1=3;d2=3.0;
+return i1-d2;
+}
+if (idx == 491) {
+return 3-3.0;
+}
+if (idx == 492) {
+i1=3;d2=4.0;
+return i1-d2;
+}
+if (idx == 493) {
+return 3-4.0;
+}
+if (idx == 494) {
+i1=3;d2=5;
+return i1-d2;
+}
+if (idx == 495) {
+return 3-5;
+}
+if (idx == 496) {
+i1=4;d2=1.0;
+return i1-d2;
+}
+if (idx == 497) {
+return 4-1.0;
+}
+if (idx == 498) {
+i1=4;d2=2.0;
+return i1-d2;
+}
+if (idx == 499) {
+return 4-2.0;
+}
+if (idx == 500) {
+i1=4;d2=2.5;
+return i1-d2;
+}
+if (idx == 501) {
+return 4-2.5;
+}
+if (idx == 502) {
+i1=4;d2=3.0;
+return i1-d2;
+}
+if (idx == 503) {
+return 4-3.0;
+}
+if (idx == 504) {
+i1=4;d2=4.0;
+return i1-d2;
+}
+if (idx == 505) {
+return 4-4.0;
+}
+if (idx == 506) {
+i1=4;d2=5;
+return i1-d2;
+}
+if (idx == 507) {
+return 4-5;
+}
+if (idx == 508) {
+i1=5;d2=1.0;
+return i1-d2;
+}
+if (idx == 509) {
+return 5-1.0;
+}
+if (idx == 510) {
+i1=5;d2=2.0;
+return i1-d2;
+}
+if (idx == 511) {
+return 5-2.0;
+}
+if (idx == 512) {
+i1=5;d2=2.5;
+return i1-d2;
+}
+if (idx == 513) {
+return 5-2.5;
+}
+if (idx == 514) {
+i1=5;d2=3.0;
+return i1-d2;
+}
+if (idx == 515) {
+return 5-3.0;
+}
+if (idx == 516) {
+i1=5;d2=4.0;
+return i1-d2;
+}
+if (idx == 517) {
+return 5-4.0;
+}
+if (idx == 518) {
+i1=5;d2=5;
+return i1-d2;
+}
+if (idx == 519) {
+return 5-5;
+}
+if (idx == 520) {
+i1=1;d2=1.0;
+return i1*d2;
+}
+if (idx == 521) {
+return 1*1.0;
+}
+if (idx == 522) {
+i1=1;d2=2.0;
+return i1*d2;
+}
+if (idx == 523) {
+return 1*2.0;
+}
+if (idx == 524) {
+i1=1;d2=2.5;
+return i1*d2;
+}
+if (idx == 525) {
+return 1*2.5;
+}
+if (idx == 526) {
+i1=1;d2=3.0;
+return i1*d2;
+}
+if (idx == 527) {
+return 1*3.0;
+}
+if (idx == 528) {
+i1=1;d2=4.0;
+return i1*d2;
+}
+if (idx == 529) {
+return 1*4.0;
+}
+if (idx == 530) {
+i1=1;d2=5;
+return i1*d2;
+}
+if (idx == 531) {
+return 1*5;
+}
+if (idx == 532) {
+i1=2;d2=1.0;
+return i1*d2;
+}
+if (idx == 533) {
+return 2*1.0;
+}
+if (idx == 534) {
+i1=2;d2=2.0;
+return i1*d2;
+}
+if (idx == 535) {
+return 2*2.0;
+}
+if (idx == 536) {
+i1=2;d2=2.5;
+return i1*d2;
+}
+if (idx == 537) {
+return 2*2.5;
+}
+if (idx == 538) {
+i1=2;d2=3.0;
+return i1*d2;
+}
+if (idx == 539) {
+return 2*3.0;
+}
+if (idx == 540) {
+i1=2;d2=4.0;
+return i1*d2;
+}
+if (idx == 541) {
+return 2*4.0;
+}
+if (idx == 542) {
+i1=2;d2=5;
+return i1*d2;
+}
+if (idx == 543) {
+return 2*5;
+}
+if (idx == 544) {
+i1=3;d2=1.0;
+return i1*d2;
+}
+if (idx == 545) {
+return 3*1.0;
+}
+if (idx == 546) {
+i1=3;d2=2.0;
+return i1*d2;
+}
+if (idx == 547) {
+return 3*2.0;
+}
+if (idx == 548) {
+i1=3;d2=2.5;
+return i1*d2;
+}
+if (idx == 549) {
+return 3*2.5;
+}
+if (idx == 550) {
+i1=3;d2=3.0;
+return i1*d2;
+}
+if (idx == 551) {
+return 3*3.0;
+}
+if (idx == 552) {
+i1=3;d2=4.0;
+return i1*d2;
+}
+if (idx == 553) {
+return 3*4.0;
+}
+if (idx == 554) {
+i1=3;d2=5;
+return i1*d2;
+}
+if (idx == 555) {
+return 3*5;
+}
+if (idx == 556) {
+i1=4;d2=1.0;
+return i1*d2;
+}
+if (idx == 557) {
+return 4*1.0;
+}
+if (idx == 558) {
+i1=4;d2=2.0;
+return i1*d2;
+}
+if (idx == 559) {
+return 4*2.0;
+}
+if (idx == 560) {
+i1=4;d2=2.5;
+return i1*d2;
+}
+if (idx == 561) {
+return 4*2.5;
+}
+if (idx == 562) {
+i1=4;d2=3.0;
+return i1*d2;
+}
+if (idx == 563) {
+return 4*3.0;
+}
+if (idx == 564) {
+i1=4;d2=4.0;
+return i1*d2;
+}
+if (idx == 565) {
+return 4*4.0;
+}
+if (idx == 566) {
+i1=4;d2=5;
+return i1*d2;
+}
+if (idx == 567) {
+return 4*5;
+}
+if (idx == 568) {
+i1=5;d2=1.0;
+return i1*d2;
+}
+if (idx == 569) {
+return 5*1.0;
+}
+if (idx == 570) {
+i1=5;d2=2.0;
+return i1*d2;
+}
+if (idx == 571) {
+return 5*2.0;
+}
+if (idx == 572) {
+i1=5;d2=2.5;
+return i1*d2;
+}
+if (idx == 573) {
+return 5*2.5;
+}
+if (idx == 574) {
+i1=5;d2=3.0;
+return i1*d2;
+}
+if (idx == 575) {
+return 5*3.0;
+}
+if (idx == 576) {
+i1=5;d2=4.0;
+return i1*d2;
+}
+if (idx == 577) {
+return 5*4.0;
+}
+if (idx == 578) {
+i1=5;d2=5;
+return i1*d2;
+}
+if (idx == 579) {
+return 5*5;
+}
+if (idx == 580) {
+i1=1;d2=1.0;
+return i1/d2;
+}
+if (idx == 581) {
+return 1/1.0;
+}
+if (idx == 582) {
+i1=1;d2=2.0;
+return i1/d2;
+}
+if (idx == 583) {
+return 1/2.0;
+}
+if (idx == 584) {
+i1=1;d2=2.5;
+return i1/d2;
+}
+if (idx == 585) {
+return 1/2.5;
+}
+if (idx == 586) {
+i1=1;d2=3.0;
+return i1/d2;
+}
+if (idx == 587) {
+return 1/3.0;
+}
+if (idx == 588) {
+i1=1;d2=4.0;
+return i1/d2;
+}
+if (idx == 589) {
+return 1/4.0;
+}
+if (idx == 590) {
+i1=1;d2=5;
+return i1/d2;
+}
+if (idx == 591) {
+return 1/5;
+}
+if (idx == 592) {
+i1=2;d2=1.0;
+return i1/d2;
+}
+if (idx == 593) {
+return 2/1.0;
+}
+if (idx == 594) {
+i1=2;d2=2.0;
+return i1/d2;
+}
+if (idx == 595) {
+return 2/2.0;
+}
+if (idx == 596) {
+i1=2;d2=2.5;
+return i1/d2;
+}
+if (idx == 597) {
+return 2/2.5;
+}
+if (idx == 598) {
+i1=2;d2=3.0;
+return i1/d2;
+}
+if (idx == 599) {
+return 2/3.0;
+}
+if (idx == 600) {
+i1=2;d2=4.0;
+return i1/d2;
+}
+if (idx == 601) {
+return 2/4.0;
+}
+if (idx == 602) {
+i1=2;d2=5;
+return i1/d2;
+}
+if (idx == 603) {
+return 2/5;
+}
+if (idx == 604) {
+i1=3;d2=1.0;
+return i1/d2;
+}
+if (idx == 605) {
+return 3/1.0;
+}
+if (idx == 606) {
+i1=3;d2=2.0;
+return i1/d2;
+}
+if (idx == 607) {
+return 3/2.0;
+}
+if (idx == 608) {
+i1=3;d2=2.5;
+return i1/d2;
+}
+if (idx == 609) {
+return 3/2.5;
+}
+if (idx == 610) {
+i1=3;d2=3.0;
+return i1/d2;
+}
+if (idx == 611) {
+return 3/3.0;
+}
+if (idx == 612) {
+i1=3;d2=4.0;
+return i1/d2;
+}
+if (idx == 613) {
+return 3/4.0;
+}
+if (idx == 614) {
+i1=3;d2=5;
+return i1/d2;
+}
+if (idx == 615) {
+return 3/5;
+}
+if (idx == 616) {
+i1=4;d2=1.0;
+return i1/d2;
+}
+if (idx == 617) {
+return 4/1.0;
+}
+if (idx == 618) {
+i1=4;d2=2.0;
+return i1/d2;
+}
+if (idx == 619) {
+return 4/2.0;
+}
+if (idx == 620) {
+i1=4;d2=2.5;
+return i1/d2;
+}
+if (idx == 621) {
+return 4/2.5;
+}
+if (idx == 622) {
+i1=4;d2=3.0;
+return i1/d2;
+}
+if (idx == 623) {
+return 4/3.0;
+}
+if (idx == 624) {
+i1=4;d2=4.0;
+return i1/d2;
+}
+if (idx == 625) {
+return 4/4.0;
+}
+if (idx == 626) {
+i1=4;d2=5;
+return i1/d2;
+}
+if (idx == 627) {
+return 4/5;
+}
+if (idx == 628) {
+i1=5;d2=1.0;
+return i1/d2;
+}
+if (idx == 629) {
+return 5/1.0;
+}
+if (idx == 630) {
+i1=5;d2=2.0;
+return i1/d2;
+}
+if (idx == 631) {
+return 5/2.0;
+}
+if (idx == 632) {
+i1=5;d2=2.5;
+return i1/d2;
+}
+if (idx == 633) {
+return 5/2.5;
+}
+if (idx == 634) {
+i1=5;d2=3.0;
+return i1/d2;
+}
+if (idx == 635) {
+return 5/3.0;
+}
+if (idx == 636) {
+i1=5;d2=4.0;
+return i1/d2;
+}
+if (idx == 637) {
+return 5/4.0;
+}
+if (idx == 638) {
+i1=5;d2=5;
+return i1/d2;
+}
+if (idx == 639) {
+return 5/5;
+}
+if (idx == 640) {
+d1=1.0;i2=1;
+return d1+i2;
+}
+if (idx == 641) {
+return 1.0+1;
+}
+if (idx == 642) {
+d1=1.0;i2=2;
+return d1+i2;
+}
+if (idx == 643) {
+return 1.0+2;
+}
+if (idx == 644) {
+d1=1.0;i2=3;
+return d1+i2;
+}
+if (idx == 645) {
+return 1.0+3;
+}
+if (idx == 646) {
+d1=1.0;i2=4;
+return d1+i2;
+}
+if (idx == 647) {
+return 1.0+4;
+}
+if (idx == 648) {
+d1=1.0;i2=5;
+return d1+i2;
+}
+if (idx == 649) {
+return 1.0+5;
+}
+if (idx == 650) {
+d1=2.0;i2=1;
+return d1+i2;
+}
+if (idx == 651) {
+return 2.0+1;
+}
+if (idx == 652) {
+d1=2.0;i2=2;
+return d1+i2;
+}
+if (idx == 653) {
+return 2.0+2;
+}
+if (idx == 654) {
+d1=2.0;i2=3;
+return d1+i2;
+}
+if (idx == 655) {
+return 2.0+3;
+}
+if (idx == 656) {
+d1=2.0;i2=4;
+return d1+i2;
+}
+if (idx == 657) {
+return 2.0+4;
+}
+if (idx == 658) {
+d1=2.0;i2=5;
+return d1+i2;
+}
+if (idx == 659) {
+return 2.0+5;
+}
+if (idx == 660) {
+d1=2.5;i2=1;
+return d1+i2;
+}
+if (idx == 661) {
+return 2.5+1;
+}
+if (idx == 662) {
+d1=2.5;i2=2;
+return d1+i2;
+}
+if (idx == 663) {
+return 2.5+2;
+}
+if (idx == 664) {
+d1=2.5;i2=3;
+return d1+i2;
+}
+if (idx == 665) {
+return 2.5+3;
+}
+if (idx == 666) {
+d1=2.5;i2=4;
+return d1+i2;
+}
+if (idx == 667) {
+return 2.5+4;
+}
+if (idx == 668) {
+d1=2.5;i2=5;
+return d1+i2;
+}
+if (idx == 669) {
+return 2.5+5;
+}
+if (idx == 670) {
+d1=3.0;i2=1;
+return d1+i2;
+}
+if (idx == 671) {
+return 3.0+1;
+}
+if (idx == 672) {
+d1=3.0;i2=2;
+return d1+i2;
+}
+if (idx == 673) {
+return 3.0+2;
+}
+if (idx == 674) {
+d1=3.0;i2=3;
+return d1+i2;
+}
+if (idx == 675) {
+return 3.0+3;
+}
+if (idx == 676) {
+d1=3.0;i2=4;
+return d1+i2;
+}
+if (idx == 677) {
+return 3.0+4;
+}
+if (idx == 678) {
+d1=3.0;i2=5;
+return d1+i2;
+}
+if (idx == 679) {
+return 3.0+5;
+}
+if (idx == 680) {
+d1=4.0;i2=1;
+return d1+i2;
+}
+if (idx == 681) {
+return 4.0+1;
+}
+if (idx == 682) {
+d1=4.0;i2=2;
+return d1+i2;
+}
+if (idx == 683) {
+return 4.0+2;
+}
+if (idx == 684) {
+d1=4.0;i2=3;
+return d1+i2;
+}
+if (idx == 685) {
+return 4.0+3;
+}
+if (idx == 686) {
+d1=4.0;i2=4;
+return d1+i2;
+}
+if (idx == 687) {
+return 4.0+4;
+}
+if (idx == 688) {
+d1=4.0;i2=5;
+return d1+i2;
+}
+if (idx == 689) {
+return 4.0+5;
+}
+if (idx == 690) {
+d1=5;i2=1;
+return d1+i2;
+}
+if (idx == 691) {
+return 5+1;
+}
+if (idx == 692) {
+d1=5;i2=2;
+return d1+i2;
+}
+if (idx == 693) {
+return 5+2;
+}
+if (idx == 694) {
+d1=5;i2=3;
+return d1+i2;
+}
+if (idx == 695) {
+return 5+3;
+}
+if (idx == 696) {
+d1=5;i2=4;
+return d1+i2;
+}
+if (idx == 697) {
+return 5+4;
+}
+if (idx == 698) {
+d1=5;i2=5;
+return d1+i2;
+}
+if (idx == 699) {
+return 5+5;
+}
+if (idx == 700) {
+d1=1.0;i2=1;
+return d1-i2;
+}
+if (idx == 701) {
+return 1.0-1;
+}
+if (idx == 702) {
+d1=1.0;i2=2;
+return d1-i2;
+}
+if (idx == 703) {
+return 1.0-2;
+}
+if (idx == 704) {
+d1=1.0;i2=3;
+return d1-i2;
+}
+if (idx == 705) {
+return 1.0-3;
+}
+if (idx == 706) {
+d1=1.0;i2=4;
+return d1-i2;
+}
+if (idx == 707) {
+return 1.0-4;
+}
+if (idx == 708) {
+d1=1.0;i2=5;
+return d1-i2;
+}
+if (idx == 709) {
+return 1.0-5;
+}
+if (idx == 710) {
+d1=2.0;i2=1;
+return d1-i2;
+}
+if (idx == 711) {
+return 2.0-1;
+}
+if (idx == 712) {
+d1=2.0;i2=2;
+return d1-i2;
+}
+if (idx == 713) {
+return 2.0-2;
+}
+if (idx == 714) {
+d1=2.0;i2=3;
+return d1-i2;
+}
+if (idx == 715) {
+return 2.0-3;
+}
+if (idx == 716) {
+d1=2.0;i2=4;
+return d1-i2;
+}
+if (idx == 717) {
+return 2.0-4;
+}
+if (idx == 718) {
+d1=2.0;i2=5;
+return d1-i2;
+}
+if (idx == 719) {
+return 2.0-5;
+}
+if (idx == 720) {
+d1=2.5;i2=1;
+return d1-i2;
+}
+if (idx == 721) {
+return 2.5-1;
+}
+if (idx == 722) {
+d1=2.5;i2=2;
+return d1-i2;
+}
+if (idx == 723) {
+return 2.5-2;
+}
+if (idx == 724) {
+d1=2.5;i2=3;
+return d1-i2;
+}
+if (idx == 725) {
+return 2.5-3;
+}
+if (idx == 726) {
+d1=2.5;i2=4;
+return d1-i2;
+}
+if (idx == 727) {
+return 2.5-4;
+}
+if (idx == 728) {
+d1=2.5;i2=5;
+return d1-i2;
+}
+if (idx == 729) {
+return 2.5-5;
+}
+if (idx == 730) {
+d1=3.0;i2=1;
+return d1-i2;
+}
+if (idx == 731) {
+return 3.0-1;
+}
+if (idx == 732) {
+d1=3.0;i2=2;
+return d1-i2;
+}
+if (idx == 733) {
+return 3.0-2;
+}
+if (idx == 734) {
+d1=3.0;i2=3;
+return d1-i2;
+}
+if (idx == 735) {
+return 3.0-3;
+}
+if (idx == 736) {
+d1=3.0;i2=4;
+return d1-i2;
+}
+if (idx == 737) {
+return 3.0-4;
+}
+if (idx == 738) {
+d1=3.0;i2=5;
+return d1-i2;
+}
+if (idx == 739) {
+return 3.0-5;
+}
+if (idx == 740) {
+d1=4.0;i2=1;
+return d1-i2;
+}
+if (idx == 741) {
+return 4.0-1;
+}
+if (idx == 742) {
+d1=4.0;i2=2;
+return d1-i2;
+}
+if (idx == 743) {
+return 4.0-2;
+}
+if (idx == 744) {
+d1=4.0;i2=3;
+return d1-i2;
+}
+if (idx == 745) {
+return 4.0-3;
+}
+if (idx == 746) {
+d1=4.0;i2=4;
+return d1-i2;
+}
+if (idx == 747) {
+return 4.0-4;
+}
+if (idx == 748) {
+d1=4.0;i2=5;
+return d1-i2;
+}
+if (idx == 749) {
+return 4.0-5;
+}
+if (idx == 750) {
+d1=5;i2=1;
+return d1-i2;
+}
+if (idx == 751) {
+return 5-1;
+}
+if (idx == 752) {
+d1=5;i2=2;
+return d1-i2;
+}
+if (idx == 753) {
+return 5-2;
+}
+if (idx == 754) {
+d1=5;i2=3;
+return d1-i2;
+}
+if (idx == 755) {
+return 5-3;
+}
+if (idx == 756) {
+d1=5;i2=4;
+return d1-i2;
+}
+if (idx == 757) {
+return 5-4;
+}
+if (idx == 758) {
+d1=5;i2=5;
+return d1-i2;
+}
+if (idx == 759) {
+return 5-5;
+}
+if (idx == 760) {
+d1=1.0;i2=1;
+return d1*i2;
+}
+if (idx == 761) {
+return 1.0*1;
+}
+if (idx == 762) {
+d1=1.0;i2=2;
+return d1*i2;
+}
+if (idx == 763) {
+return 1.0*2;
+}
+if (idx == 764) {
+d1=1.0;i2=3;
+return d1*i2;
+}
+if (idx == 765) {
+return 1.0*3;
+}
+if (idx == 766) {
+d1=1.0;i2=4;
+return d1*i2;
+}
+if (idx == 767) {
+return 1.0*4;
+}
+if (idx == 768) {
+d1=1.0;i2=5;
+return d1*i2;
+}
+if (idx == 769) {
+return 1.0*5;
+}
+if (idx == 770) {
+d1=2.0;i2=1;
+return d1*i2;
+}
+if (idx == 771) {
+return 2.0*1;
+}
+if (idx == 772) {
+d1=2.0;i2=2;
+return d1*i2;
+}
+if (idx == 773) {
+return 2.0*2;
+}
+if (idx == 774) {
+d1=2.0;i2=3;
+return d1*i2;
+}
+if (idx == 775) {
+return 2.0*3;
+}
+if (idx == 776) {
+d1=2.0;i2=4;
+return d1*i2;
+}
+if (idx == 777) {
+return 2.0*4;
+}
+if (idx == 778) {
+d1=2.0;i2=5;
+return d1*i2;
+}
+if (idx == 779) {
+return 2.0*5;
+}
+if (idx == 780) {
+d1=2.5;i2=1;
+return d1*i2;
+}
+if (idx == 781) {
+return 2.5*1;
+}
+if (idx == 782) {
+d1=2.5;i2=2;
+return d1*i2;
+}
+if (idx == 783) {
+return 2.5*2;
+}
+if (idx == 784) {
+d1=2.5;i2=3;
+return d1*i2;
+}
+if (idx == 785) {
+return 2.5*3;
+}
+if (idx == 786) {
+d1=2.5;i2=4;
+return d1*i2;
+}
+if (idx == 787) {
+return 2.5*4;
+}
+if (idx == 788) {
+d1=2.5;i2=5;
+return d1*i2;
+}
+if (idx == 789) {
+return 2.5*5;
+}
+if (idx == 790) {
+d1=3.0;i2=1;
+return d1*i2;
+}
+if (idx == 791) {
+return 3.0*1;
+}
+if (idx == 792) {
+d1=3.0;i2=2;
+return d1*i2;
+}
+if (idx == 793) {
+return 3.0*2;
+}
+if (idx == 794) {
+d1=3.0;i2=3;
+return d1*i2;
+}
+if (idx == 795) {
+return 3.0*3;
+}
+if (idx == 796) {
+d1=3.0;i2=4;
+return d1*i2;
+}
+if (idx == 797) {
+return 3.0*4;
+}
+if (idx == 798) {
+d1=3.0;i2=5;
+return d1*i2;
+}
+if (idx == 799) {
+return 3.0*5;
+}
+if (idx == 800) {
+d1=4.0;i2=1;
+return d1*i2;
+}
+if (idx == 801) {
+return 4.0*1;
+}
+if (idx == 802) {
+d1=4.0;i2=2;
+return d1*i2;
+}
+if (idx == 803) {
+return 4.0*2;
+}
+if (idx == 804) {
+d1=4.0;i2=3;
+return d1*i2;
+}
+if (idx == 805) {
+return 4.0*3;
+}
+if (idx == 806) {
+d1=4.0;i2=4;
+return d1*i2;
+}
+if (idx == 807) {
+return 4.0*4;
+}
+if (idx == 808) {
+d1=4.0;i2=5;
+return d1*i2;
+}
+if (idx == 809) {
+return 4.0*5;
+}
+if (idx == 810) {
+d1=5;i2=1;
+return d1*i2;
+}
+if (idx == 811) {
+return 5*1;
+}
+if (idx == 812) {
+d1=5;i2=2;
+return d1*i2;
+}
+if (idx == 813) {
+return 5*2;
+}
+if (idx == 814) {
+d1=5;i2=3;
+return d1*i2;
+}
+if (idx == 815) {
+return 5*3;
+}
+if (idx == 816) {
+d1=5;i2=4;
+return d1*i2;
+}
+if (idx == 817) {
+return 5*4;
+}
+if (idx == 818) {
+d1=5;i2=5;
+return d1*i2;
+}
+if (idx == 819) {
+return 5*5;
+}
+if (idx == 820) {
+d1=1.0;i2=1;
+return d1/i2;
+}
+if (idx == 821) {
+return 1.0/1;
+}
+if (idx == 822) {
+d1=1.0;i2=2;
+return d1/i2;
+}
+if (idx == 823) {
+return 1.0/2;
+}
+if (idx == 824) {
+d1=1.0;i2=3;
+return d1/i2;
+}
+if (idx == 825) {
+return 1.0/3;
+}
+if (idx == 826) {
+d1=1.0;i2=4;
+return d1/i2;
+}
+if (idx == 827) {
+return 1.0/4;
+}
+if (idx == 828) {
+d1=1.0;i2=5;
+return d1/i2;
+}
+if (idx == 829) {
+return 1.0/5;
+}
+if (idx == 830) {
+d1=2.0;i2=1;
+return d1/i2;
+}
+if (idx == 831) {
+return 2.0/1;
+}
+if (idx == 832) {
+d1=2.0;i2=2;
+return d1/i2;
+}
+if (idx == 833) {
+return 2.0/2;
+}
+if (idx == 834) {
+d1=2.0;i2=3;
+return d1/i2;
+}
+if (idx == 835) {
+return 2.0/3;
+}
+if (idx == 836) {
+d1=2.0;i2=4;
+return d1/i2;
+}
+if (idx == 837) {
+return 2.0/4;
+}
+if (idx == 838) {
+d1=2.0;i2=5;
+return d1/i2;
+}
+if (idx == 839) {
+return 2.0/5;
+}
+if (idx == 840) {
+d1=2.5;i2=1;
+return d1/i2;
+}
+if (idx == 841) {
+return 2.5/1;
+}
+if (idx == 842) {
+d1=2.5;i2=2;
+return d1/i2;
+}
+if (idx == 843) {
+return 2.5/2;
+}
+if (idx == 844) {
+d1=2.5;i2=3;
+return d1/i2;
+}
+if (idx == 845) {
+return 2.5/3;
+}
+if (idx == 846) {
+d1=2.5;i2=4;
+return d1/i2;
+}
+if (idx == 847) {
+return 2.5/4;
+}
+if (idx == 848) {
+d1=2.5;i2=5;
+return d1/i2;
+}
+if (idx == 849) {
+return 2.5/5;
+}
+if (idx == 850) {
+d1=3.0;i2=1;
+return d1/i2;
+}
+if (idx == 851) {
+return 3.0/1;
+}
+if (idx == 852) {
+d1=3.0;i2=2;
+return d1/i2;
+}
+if (idx == 853) {
+return 3.0/2;
+}
+if (idx == 854) {
+d1=3.0;i2=3;
+return d1/i2;
+}
+if (idx == 855) {
+return 3.0/3;
+}
+if (idx == 856) {
+d1=3.0;i2=4;
+return d1/i2;
+}
+if (idx == 857) {
+return 3.0/4;
+}
+if (idx == 858) {
+d1=3.0;i2=5;
+return d1/i2;
+}
+if (idx == 859) {
+return 3.0/5;
+}
+if (idx == 860) {
+d1=4.0;i2=1;
+return d1/i2;
+}
+if (idx == 861) {
+return 4.0/1;
+}
+if (idx == 862) {
+d1=4.0;i2=2;
+return d1/i2;
+}
+if (idx == 863) {
+return 4.0/2;
+}
+if (idx == 864) {
+d1=4.0;i2=3;
+return d1/i2;
+}
+if (idx == 865) {
+return 4.0/3;
+}
+if (idx == 866) {
+d1=4.0;i2=4;
+return d1/i2;
+}
+if (idx == 867) {
+return 4.0/4;
+}
+if (idx == 868) {
+d1=4.0;i2=5;
+return d1/i2;
+}
+if (idx == 869) {
+return 4.0/5;
+}
+if (idx == 870) {
+d1=5;i2=1;
+return d1/i2;
+}
+if (idx == 871) {
+return 5/1;
+}
+if (idx == 872) {
+d1=5;i2=2;
+return d1/i2;
+}
+if (idx == 873) {
+return 5/2;
+}
+if (idx == 874) {
+d1=5;i2=3;
+return d1/i2;
+}
+if (idx == 875) {
+return 5/3;
+}
+if (idx == 876) {
+d1=5;i2=4;
+return d1/i2;
+}
+if (idx == 877) {
+return 5/4;
+}
+if (idx == 878) {
+d1=5;i2=5;
+return d1/i2;
+}
+if (idx == 879) {
+return 5/5;
+}
+if (idx == 880) {
+d1=1.0;d2=1.0;
+return d1+d2;
+}
+if (idx == 881) {
+return 1.0+1.0;
+}
+if (idx == 882) {
+d1=1.0;d2=2.0;
+return d1+d2;
+}
+if (idx == 883) {
+return 1.0+2.0;
+}
+if (idx == 884) {
+d1=1.0;d2=2.5;
+return d1+d2;
+}
+if (idx == 885) {
+return 1.0+2.5;
+}
+if (idx == 886) {
+d1=1.0;d2=3.0;
+return d1+d2;
+}
+if (idx == 887) {
+return 1.0+3.0;
+}
+if (idx == 888) {
+d1=1.0;d2=4.0;
+return d1+d2;
+}
+if (idx == 889) {
+return 1.0+4.0;
+}
+if (idx == 890) {
+d1=1.0;d2=5;
+return d1+d2;
+}
+if (idx == 891) {
+return 1.0+5;
+}
+if (idx == 892) {
+d1=2.0;d2=1.0;
+return d1+d2;
+}
+if (idx == 893) {
+return 2.0+1.0;
+}
+if (idx == 894) {
+d1=2.0;d2=2.0;
+return d1+d2;
+}
+if (idx == 895) {
+return 2.0+2.0;
+}
+if (idx == 896) {
+d1=2.0;d2=2.5;
+return d1+d2;
+}
+if (idx == 897) {
+return 2.0+2.5;
+}
+if (idx == 898) {
+d1=2.0;d2=3.0;
+return d1+d2;
+}
+if (idx == 899) {
+return 2.0+3.0;
+}
+if (idx == 900) {
+d1=2.0;d2=4.0;
+return d1+d2;
+}
+if (idx == 901) {
+return 2.0+4.0;
+}
+if (idx == 902) {
+d1=2.0;d2=5;
+return d1+d2;
+}
+if (idx == 903) {
+return 2.0+5;
+}
+if (idx == 904) {
+d1=2.5;d2=1.0;
+return d1+d2;
+}
+if (idx == 905) {
+return 2.5+1.0;
+}
+if (idx == 906) {
+d1=2.5;d2=2.0;
+return d1+d2;
+}
+if (idx == 907) {
+return 2.5+2.0;
+}
+if (idx == 908) {
+d1=2.5;d2=2.5;
+return d1+d2;
+}
+if (idx == 909) {
+return 2.5+2.5;
+}
+if (idx == 910) {
+d1=2.5;d2=3.0;
+return d1+d2;
+}
+if (idx == 911) {
+return 2.5+3.0;
+}
+if (idx == 912) {
+d1=2.5;d2=4.0;
+return d1+d2;
+}
+if (idx == 913) {
+return 2.5+4.0;
+}
+if (idx == 914) {
+d1=2.5;d2=5;
+return d1+d2;
+}
+if (idx == 915) {
+return 2.5+5;
+}
+if (idx == 916) {
+d1=3.0;d2=1.0;
+return d1+d2;
+}
+if (idx == 917) {
+return 3.0+1.0;
+}
+if (idx == 918) {
+d1=3.0;d2=2.0;
+return d1+d2;
+}
+if (idx == 919) {
+return 3.0+2.0;
+}
+if (idx == 920) {
+d1=3.0;d2=2.5;
+return d1+d2;
+}
+if (idx == 921) {
+return 3.0+2.5;
+}
+if (idx == 922) {
+d1=3.0;d2=3.0;
+return d1+d2;
+}
+if (idx == 923) {
+return 3.0+3.0;
+}
+if (idx == 924) {
+d1=3.0;d2=4.0;
+return d1+d2;
+}
+if (idx == 925) {
+return 3.0+4.0;
+}
+if (idx == 926) {
+d1=3.0;d2=5;
+return d1+d2;
+}
+if (idx == 927) {
+return 3.0+5;
+}
+if (idx == 928) {
+d1=4.0;d2=1.0;
+return d1+d2;
+}
+if (idx == 929) {
+return 4.0+1.0;
+}
+if (idx == 930) {
+d1=4.0;d2=2.0;
+return d1+d2;
+}
+if (idx == 931) {
+return 4.0+2.0;
+}
+if (idx == 932) {
+d1=4.0;d2=2.5;
+return d1+d2;
+}
+if (idx == 933) {
+return 4.0+2.5;
+}
+if (idx == 934) {
+d1=4.0;d2=3.0;
+return d1+d2;
+}
+if (idx == 935) {
+return 4.0+3.0;
+}
+if (idx == 936) {
+d1=4.0;d2=4.0;
+return d1+d2;
+}
+if (idx == 937) {
+return 4.0+4.0;
+}
+if (idx == 938) {
+d1=4.0;d2=5;
+return d1+d2;
+}
+if (idx == 939) {
+return 4.0+5;
+}
+if (idx == 940) {
+d1=5;d2=1.0;
+return d1+d2;
+}
+if (idx == 941) {
+return 5+1.0;
+}
+if (idx == 942) {
+d1=5;d2=2.0;
+return d1+d2;
+}
+if (idx == 943) {
+return 5+2.0;
+}
+if (idx == 944) {
+d1=5;d2=2.5;
+return d1+d2;
+}
+if (idx == 945) {
+return 5+2.5;
+}
+if (idx == 946) {
+d1=5;d2=3.0;
+return d1+d2;
+}
+if (idx == 947) {
+return 5+3.0;
+}
+if (idx == 948) {
+d1=5;d2=4.0;
+return d1+d2;
+}
+if (idx == 949) {
+return 5+4.0;
+}
+if (idx == 950) {
+d1=5;d2=5;
+return d1+d2;
+}
+if (idx == 951) {
+return 5+5;
+}
+if (idx == 952) {
+d1=1.0;d2=1.0;
+return d1-d2;
+}
+if (idx == 953) {
+return 1.0-1.0;
+}
+if (idx == 954) {
+d1=1.0;d2=2.0;
+return d1-d2;
+}
+if (idx == 955) {
+return 1.0-2.0;
+}
+if (idx == 956) {
+d1=1.0;d2=2.5;
+return d1-d2;
+}
+if (idx == 957) {
+return 1.0-2.5;
+}
+if (idx == 958) {
+d1=1.0;d2=3.0;
+return d1-d2;
+}
+if (idx == 959) {
+return 1.0-3.0;
+}
+if (idx == 960) {
+d1=1.0;d2=4.0;
+return d1-d2;
+}
+if (idx == 961) {
+return 1.0-4.0;
+}
+if (idx == 962) {
+d1=1.0;d2=5;
+return d1-d2;
+}
+if (idx == 963) {
+return 1.0-5;
+}
+if (idx == 964) {
+d1=2.0;d2=1.0;
+return d1-d2;
+}
+if (idx == 965) {
+return 2.0-1.0;
+}
+if (idx == 966) {
+d1=2.0;d2=2.0;
+return d1-d2;
+}
+if (idx == 967) {
+return 2.0-2.0;
+}
+if (idx == 968) {
+d1=2.0;d2=2.5;
+return d1-d2;
+}
+if (idx == 969) {
+return 2.0-2.5;
+}
+if (idx == 970) {
+d1=2.0;d2=3.0;
+return d1-d2;
+}
+if (idx == 971) {
+return 2.0-3.0;
+}
+if (idx == 972) {
+d1=2.0;d2=4.0;
+return d1-d2;
+}
+if (idx == 973) {
+return 2.0-4.0;
+}
+if (idx == 974) {
+d1=2.0;d2=5;
+return d1-d2;
+}
+if (idx == 975) {
+return 2.0-5;
+}
+if (idx == 976) {
+d1=2.5;d2=1.0;
+return d1-d2;
+}
+if (idx == 977) {
+return 2.5-1.0;
+}
+if (idx == 978) {
+d1=2.5;d2=2.0;
+return d1-d2;
+}
+if (idx == 979) {
+return 2.5-2.0;
+}
+if (idx == 980) {
+d1=2.5;d2=2.5;
+return d1-d2;
+}
+if (idx == 981) {
+return 2.5-2.5;
+}
+if (idx == 982) {
+d1=2.5;d2=3.0;
+return d1-d2;
+}
+if (idx == 983) {
+return 2.5-3.0;
+}
+if (idx == 984) {
+d1=2.5;d2=4.0;
+return d1-d2;
+}
+if (idx == 985) {
+return 2.5-4.0;
+}
+if (idx == 986) {
+d1=2.5;d2=5;
+return d1-d2;
+}
+if (idx == 987) {
+return 2.5-5;
+}
+if (idx == 988) {
+d1=3.0;d2=1.0;
+return d1-d2;
+}
+if (idx == 989) {
+return 3.0-1.0;
+}
+if (idx == 990) {
+d1=3.0;d2=2.0;
+return d1-d2;
+}
+if (idx == 991) {
+return 3.0-2.0;
+}
+if (idx == 992) {
+d1=3.0;d2=2.5;
+return d1-d2;
+}
+if (idx == 993) {
+return 3.0-2.5;
+}
+if (idx == 994) {
+d1=3.0;d2=3.0;
+return d1-d2;
+}
+if (idx == 995) {
+return 3.0-3.0;
+}
+if (idx == 996) {
+d1=3.0;d2=4.0;
+return d1-d2;
+}
+if (idx == 997) {
+return 3.0-4.0;
+}
+if (idx == 998) {
+d1=3.0;d2=5;
+return d1-d2;
+}
+if (idx == 999) {
+return 3.0-5;
+}
+if (idx == 1000) {
+d1=4.0;d2=1.0;
+return d1-d2;
+}
+if (idx == 1001) {
+return 4.0-1.0;
+}
+if (idx == 1002) {
+d1=4.0;d2=2.0;
+return d1-d2;
+}
+if (idx == 1003) {
+return 4.0-2.0;
+}
+if (idx == 1004) {
+d1=4.0;d2=2.5;
+return d1-d2;
+}
+if (idx == 1005) {
+return 4.0-2.5;
+}
+if (idx == 1006) {
+d1=4.0;d2=3.0;
+return d1-d2;
+}
+if (idx == 1007) {
+return 4.0-3.0;
+}
+if (idx == 1008) {
+d1=4.0;d2=4.0;
+return d1-d2;
+}
+if (idx == 1009) {
+return 4.0-4.0;
+}
+if (idx == 1010) {
+d1=4.0;d2=5;
+return d1-d2;
+}
+if (idx == 1011) {
+return 4.0-5;
+}
+if (idx == 1012) {
+d1=5;d2=1.0;
+return d1-d2;
+}
+if (idx == 1013) {
+return 5-1.0;
+}
+if (idx == 1014) {
+d1=5;d2=2.0;
+return d1-d2;
+}
+if (idx == 1015) {
+return 5-2.0;
+}
+if (idx == 1016) {
+d1=5;d2=2.5;
+return d1-d2;
+}
+if (idx == 1017) {
+return 5-2.5;
+}
+if (idx == 1018) {
+d1=5;d2=3.0;
+return d1-d2;
+}
+if (idx == 1019) {
+return 5-3.0;
+}
+if (idx == 1020) {
+d1=5;d2=4.0;
+return d1-d2;
+}
+if (idx == 1021) {
+return 5-4.0;
+}
+if (idx == 1022) {
+d1=5;d2=5;
+return d1-d2;
+}
+if (idx == 1023) {
+return 5-5;
+}
+if (idx == 1024) {
+d1=1.0;d2=1.0;
+return d1*d2;
+}
+if (idx == 1025) {
+return 1.0*1.0;
+}
+if (idx == 1026) {
+d1=1.0;d2=2.0;
+return d1*d2;
+}
+if (idx == 1027) {
+return 1.0*2.0;
+}
+if (idx == 1028) {
+d1=1.0;d2=2.5;
+return d1*d2;
+}
+if (idx == 1029) {
+return 1.0*2.5;
+}
+if (idx == 1030) {
+d1=1.0;d2=3.0;
+return d1*d2;
+}
+if (idx == 1031) {
+return 1.0*3.0;
+}
+if (idx == 1032) {
+d1=1.0;d2=4.0;
+return d1*d2;
+}
+if (idx == 1033) {
+return 1.0*4.0;
+}
+if (idx == 1034) {
+d1=1.0;d2=5;
+return d1*d2;
+}
+if (idx == 1035) {
+return 1.0*5;
+}
+if (idx == 1036) {
+d1=2.0;d2=1.0;
+return d1*d2;
+}
+if (idx == 1037) {
+return 2.0*1.0;
+}
+if (idx == 1038) {
+d1=2.0;d2=2.0;
+return d1*d2;
+}
+if (idx == 1039) {
+return 2.0*2.0;
+}
+if (idx == 1040) {
+d1=2.0;d2=2.5;
+return d1*d2;
+}
+if (idx == 1041) {
+return 2.0*2.5;
+}
+if (idx == 1042) {
+d1=2.0;d2=3.0;
+return d1*d2;
+}
+if (idx == 1043) {
+return 2.0*3.0;
+}
+if (idx == 1044) {
+d1=2.0;d2=4.0;
+return d1*d2;
+}
+if (idx == 1045) {
+return 2.0*4.0;
+}
+if (idx == 1046) {
+d1=2.0;d2=5;
+return d1*d2;
+}
+if (idx == 1047) {
+return 2.0*5;
+}
+if (idx == 1048) {
+d1=2.5;d2=1.0;
+return d1*d2;
+}
+if (idx == 1049) {
+return 2.5*1.0;
+}
+if (idx == 1050) {
+d1=2.5;d2=2.0;
+return d1*d2;
+}
+if (idx == 1051) {
+return 2.5*2.0;
+}
+if (idx == 1052) {
+d1=2.5;d2=2.5;
+return d1*d2;
+}
+if (idx == 1053) {
+return 2.5*2.5;
+}
+if (idx == 1054) {
+d1=2.5;d2=3.0;
+return d1*d2;
+}
+if (idx == 1055) {
+return 2.5*3.0;
+}
+if (idx == 1056) {
+d1=2.5;d2=4.0;
+return d1*d2;
+}
+if (idx == 1057) {
+return 2.5*4.0;
+}
+if (idx == 1058) {
+d1=2.5;d2=5;
+return d1*d2;
+}
+if (idx == 1059) {
+return 2.5*5;
+}
+if (idx == 1060) {
+d1=3.0;d2=1.0;
+return d1*d2;
+}
+if (idx == 1061) {
+return 3.0*1.0;
+}
+if (idx == 1062) {
+d1=3.0;d2=2.0;
+return d1*d2;
+}
+if (idx == 1063) {
+return 3.0*2.0;
+}
+if (idx == 1064) {
+d1=3.0;d2=2.5;
+return d1*d2;
+}
+if (idx == 1065) {
+return 3.0*2.5;
+}
+if (idx == 1066) {
+d1=3.0;d2=3.0;
+return d1*d2;
+}
+if (idx == 1067) {
+return 3.0*3.0;
+}
+if (idx == 1068) {
+d1=3.0;d2=4.0;
+return d1*d2;
+}
+if (idx == 1069) {
+return 3.0*4.0;
+}
+if (idx == 1070) {
+d1=3.0;d2=5;
+return d1*d2;
+}
+if (idx == 1071) {
+return 3.0*5;
+}
+if (idx == 1072) {
+d1=4.0;d2=1.0;
+return d1*d2;
+}
+if (idx == 1073) {
+return 4.0*1.0;
+}
+if (idx == 1074) {
+d1=4.0;d2=2.0;
+return d1*d2;
+}
+if (idx == 1075) {
+return 4.0*2.0;
+}
+if (idx == 1076) {
+d1=4.0;d2=2.5;
+return d1*d2;
+}
+if (idx == 1077) {
+return 4.0*2.5;
+}
+if (idx == 1078) {
+d1=4.0;d2=3.0;
+return d1*d2;
+}
+if (idx == 1079) {
+return 4.0*3.0;
+}
+if (idx == 1080) {
+d1=4.0;d2=4.0;
+return d1*d2;
+}
+if (idx == 1081) {
+return 4.0*4.0;
+}
+if (idx == 1082) {
+d1=4.0;d2=5;
+return d1*d2;
+}
+if (idx == 1083) {
+return 4.0*5;
+}
+if (idx == 1084) {
+d1=5;d2=1.0;
+return d1*d2;
+}
+if (idx == 1085) {
+return 5*1.0;
+}
+if (idx == 1086) {
+d1=5;d2=2.0;
+return d1*d2;
+}
+if (idx == 1087) {
+return 5*2.0;
+}
+if (idx == 1088) {
+d1=5;d2=2.5;
+return d1*d2;
+}
+if (idx == 1089) {
+return 5*2.5;
+}
+if (idx == 1090) {
+d1=5;d2=3.0;
+return d1*d2;
+}
+if (idx == 1091) {
+return 5*3.0;
+}
+if (idx == 1092) {
+d1=5;d2=4.0;
+return d1*d2;
+}
+if (idx == 1093) {
+return 5*4.0;
+}
+if (idx == 1094) {
+d1=5;d2=5;
+return d1*d2;
+}
+if (idx == 1095) {
+return 5*5;
+}
+if (idx == 1096) {
+d1=1.0;d2=1.0;
+return d1/d2;
+}
+if (idx == 1097) {
+return 1.0/1.0;
+}
+if (idx == 1098) {
+d1=1.0;d2=2.0;
+return d1/d2;
+}
+if (idx == 1099) {
+return 1.0/2.0;
+}
+if (idx == 1100) {
+d1=1.0;d2=2.5;
+return d1/d2;
+}
+if (idx == 1101) {
+return 1.0/2.5;
+}
+if (idx == 1102) {
+d1=1.0;d2=3.0;
+return d1/d2;
+}
+if (idx == 1103) {
+return 1.0/3.0;
+}
+if (idx == 1104) {
+d1=1.0;d2=4.0;
+return d1/d2;
+}
+if (idx == 1105) {
+return 1.0/4.0;
+}
+if (idx == 1106) {
+d1=1.0;d2=5;
+return d1/d2;
+}
+if (idx == 1107) {
+return 1.0/5;
+}
+if (idx == 1108) {
+d1=2.0;d2=1.0;
+return d1/d2;
+}
+if (idx == 1109) {
+return 2.0/1.0;
+}
+if (idx == 1110) {
+d1=2.0;d2=2.0;
+return d1/d2;
+}
+if (idx == 1111) {
+return 2.0/2.0;
+}
+if (idx == 1112) {
+d1=2.0;d2=2.5;
+return d1/d2;
+}
+if (idx == 1113) {
+return 2.0/2.5;
+}
+if (idx == 1114) {
+d1=2.0;d2=3.0;
+return d1/d2;
+}
+if (idx == 1115) {
+return 2.0/3.0;
+}
+if (idx == 1116) {
+d1=2.0;d2=4.0;
+return d1/d2;
+}
+if (idx == 1117) {
+return 2.0/4.0;
+}
+if (idx == 1118) {
+d1=2.0;d2=5;
+return d1/d2;
+}
+if (idx == 1119) {
+return 2.0/5;
+}
+if (idx == 1120) {
+d1=2.5;d2=1.0;
+return d1/d2;
+}
+if (idx == 1121) {
+return 2.5/1.0;
+}
+if (idx == 1122) {
+d1=2.5;d2=2.0;
+return d1/d2;
+}
+if (idx == 1123) {
+return 2.5/2.0;
+}
+if (idx == 1124) {
+d1=2.5;d2=2.5;
+return d1/d2;
+}
+if (idx == 1125) {
+return 2.5/2.5;
+}
+if (idx == 1126) {
+d1=2.5;d2=3.0;
+return d1/d2;
+}
+if (idx == 1127) {
+return 2.5/3.0;
+}
+if (idx == 1128) {
+d1=2.5;d2=4.0;
+return d1/d2;
+}
+if (idx == 1129) {
+return 2.5/4.0;
+}
+if (idx == 1130) {
+d1=2.5;d2=5;
+return d1/d2;
+}
+if (idx == 1131) {
+return 2.5/5;
+}
+if (idx == 1132) {
+d1=3.0;d2=1.0;
+return d1/d2;
+}
+if (idx == 1133) {
+return 3.0/1.0;
+}
+if (idx == 1134) {
+d1=3.0;d2=2.0;
+return d1/d2;
+}
+if (idx == 1135) {
+return 3.0/2.0;
+}
+if (idx == 1136) {
+d1=3.0;d2=2.5;
+return d1/d2;
+}
+if (idx == 1137) {
+return 3.0/2.5;
+}
+if (idx == 1138) {
+d1=3.0;d2=3.0;
+return d1/d2;
+}
+if (idx == 1139) {
+return 3.0/3.0;
+}
+if (idx == 1140) {
+d1=3.0;d2=4.0;
+return d1/d2;
+}
+if (idx == 1141) {
+return 3.0/4.0;
+}
+if (idx == 1142) {
+d1=3.0;d2=5;
+return d1/d2;
+}
+if (idx == 1143) {
+return 3.0/5;
+}
+if (idx == 1144) {
+d1=4.0;d2=1.0;
+return d1/d2;
+}
+if (idx == 1145) {
+return 4.0/1.0;
+}
+if (idx == 1146) {
+d1=4.0;d2=2.0;
+return d1/d2;
+}
+if (idx == 1147) {
+return 4.0/2.0;
+}
+if (idx == 1148) {
+d1=4.0;d2=2.5;
+return d1/d2;
+}
+if (idx == 1149) {
+return 4.0/2.5;
+}
+if (idx == 1150) {
+d1=4.0;d2=3.0;
+return d1/d2;
+}
+if (idx == 1151) {
+return 4.0/3.0;
+}
+if (idx == 1152) {
+d1=4.0;d2=4.0;
+return d1/d2;
+}
+if (idx == 1153) {
+return 4.0/4.0;
+}
+if (idx == 1154) {
+d1=4.0;d2=5;
+return d1/d2;
+}
+if (idx == 1155) {
+return 4.0/5;
+}
+if (idx == 1156) {
+d1=5;d2=1.0;
+return d1/d2;
+}
+if (idx == 1157) {
+return 5/1.0;
+}
+if (idx == 1158) {
+d1=5;d2=2.0;
+return d1/d2;
+}
+if (idx == 1159) {
+return 5/2.0;
+}
+if (idx == 1160) {
+d1=5;d2=2.5;
+return d1/d2;
+}
+if (idx == 1161) {
+return 5/2.5;
+}
+if (idx == 1162) {
+d1=5;d2=3.0;
+return d1/d2;
+}
+if (idx == 1163) {
+return 5/3.0;
+}
+if (idx == 1164) {
+d1=5;d2=4.0;
+return d1/d2;
+}
+if (idx == 1165) {
+return 5/4.0;
+}
+if (idx == 1166) {
+d1=5;d2=5;
+return d1/d2;
+}
+if (idx == 1167) {
+return 5/5;
+}
+}
+print(fri(0), '\n');
+print(fri(1), '\n');
+print(fri(2), '\n');
+print(fri(3), '\n');
+print(fri(4), '\n');
+print(fri(5), '\n');
+print(fri(6), '\n');
+print(fri(7), '\n');
+print(fri(8), '\n');
+print(fri(9), '\n');
+print(fri(10), '\n');
+print(fri(11), '\n');
+print(fri(12), '\n');
+print(fri(13), '\n');
+print(fri(14), '\n');
+print(fri(15), '\n');
+print(fri(16), '\n');
+print(fri(17), '\n');
+print(fri(18), '\n');
+print(fri(19), '\n');
+print(fri(20), '\n');
+print(fri(21), '\n');
+print(fri(22), '\n');
+print(fri(23), '\n');
+print(fri(24), '\n');
+print(fri(25), '\n');
+print(fri(26), '\n');
+print(fri(27), '\n');
+print(fri(28), '\n');
+print(fri(29), '\n');
+print(fri(30), '\n');
+print(fri(31), '\n');
+print(fri(32), '\n');
+print(fri(33), '\n');
+print(fri(34), '\n');
+print(fri(35), '\n');
+print(fri(36), '\n');
+print(fri(37), '\n');
+print(fri(38), '\n');
+print(fri(39), '\n');
+print(fri(40), '\n');
+print(fri(41), '\n');
+print(fri(42), '\n');
+print(fri(43), '\n');
+print(fri(44), '\n');
+print(fri(45), '\n');
+print(fri(46), '\n');
+print(fri(47), '\n');
+print(fri(48), '\n');
+print(fri(49), '\n');
+print(fri(50), '\n');
+print(fri(51), '\n');
+print(fri(52), '\n');
+print(fri(53), '\n');
+print(fri(54), '\n');
+print(fri(55), '\n');
+print(fri(56), '\n');
+print(fri(57), '\n');
+print(fri(58), '\n');
+print(fri(59), '\n');
+print(fri(60), '\n');
+print(fri(61), '\n');
+print(fri(62), '\n');
+print(fri(63), '\n');
+print(fri(64), '\n');
+print(fri(65), '\n');
+print(fri(66), '\n');
+print(fri(67), '\n');
+print(fri(68), '\n');
+print(fri(69), '\n');
+print(fri(70), '\n');
+print(fri(71), '\n');
+print(fri(72), '\n');
+print(fri(73), '\n');
+print(fri(74), '\n');
+print(fri(75), '\n');
+print(fri(76), '\n');
+print(fri(77), '\n');
+print(fri(78), '\n');
+print(fri(79), '\n');
+print(fri(80), '\n');
+print(fri(81), '\n');
+print(fri(82), '\n');
+print(fri(83), '\n');
+print(fri(84), '\n');
+print(fri(85), '\n');
+print(fri(86), '\n');
+print(fri(87), '\n');
+print(fri(88), '\n');
+print(fri(89), '\n');
+print(fri(90), '\n');
+print(fri(91), '\n');
+print(fri(92), '\n');
+print(fri(93), '\n');
+print(fri(94), '\n');
+print(fri(95), '\n');
+print(fri(96), '\n');
+print(fri(97), '\n');
+print(fri(98), '\n');
+print(fri(99), '\n');
+print(fri(100), '\n');
+print(fri(101), '\n');
+print(fri(102), '\n');
+print(fri(103), '\n');
+print(fri(104), '\n');
+print(fri(105), '\n');
+print(fri(106), '\n');
+print(fri(107), '\n');
+print(fri(108), '\n');
+print(fri(109), '\n');
+print(fri(110), '\n');
+print(fri(111), '\n');
+print(fri(112), '\n');
+print(fri(113), '\n');
+print(fri(114), '\n');
+print(fri(115), '\n');
+print(fri(116), '\n');
+print(fri(117), '\n');
+print(fri(118), '\n');
+print(fri(119), '\n');
+print(fri(120), '\n');
+print(fri(121), '\n');
+print(fri(122), '\n');
+print(fri(123), '\n');
+print(fri(124), '\n');
+print(fri(125), '\n');
+print(fri(126), '\n');
+print(fri(127), '\n');
+print(fri(128), '\n');
+print(fri(129), '\n');
+print(fri(130), '\n');
+print(fri(131), '\n');
+print(fri(132), '\n');
+print(fri(133), '\n');
+print(fri(134), '\n');
+print(fri(135), '\n');
+print(fri(136), '\n');
+print(fri(137), '\n');
+print(fri(138), '\n');
+print(fri(139), '\n');
+print(fri(140), '\n');
+print(fri(141), '\n');
+print(fri(142), '\n');
+print(fri(143), '\n');
+print(fri(144), '\n');
+print(fri(145), '\n');
+print(fri(146), '\n');
+print(fri(147), '\n');
+print(fri(148), '\n');
+print(fri(149), '\n');
+print(fri(150), '\n');
+print(fri(151), '\n');
+print(fri(152), '\n');
+print(fri(153), '\n');
+print(fri(154), '\n');
+print(fri(155), '\n');
+print(fri(156), '\n');
+print(fri(157), '\n');
+print(fri(158), '\n');
+print(fri(159), '\n');
+print(fri(160), '\n');
+print(fri(161), '\n');
+print(fri(162), '\n');
+print(fri(163), '\n');
+print(fri(164), '\n');
+print(fri(165), '\n');
+print(fri(166), '\n');
+print(fri(167), '\n');
+print(fri(168), '\n');
+print(fri(169), '\n');
+print(fri(170), '\n');
+print(fri(171), '\n');
+print(fri(172), '\n');
+print(fri(173), '\n');
+print(fri(174), '\n');
+print(fri(175), '\n');
+print(fri(176), '\n');
+print(fri(177), '\n');
+print(fri(178), '\n');
+print(fri(179), '\n');
+print(fri(180), '\n');
+print(fri(181), '\n');
+print(fri(182), '\n');
+print(fri(183), '\n');
+print(fri(184), '\n');
+print(fri(185), '\n');
+print(fri(186), '\n');
+print(fri(187), '\n');
+print(fri(188), '\n');
+print(fri(189), '\n');
+print(fri(190), '\n');
+print(fri(191), '\n');
+print(fri(192), '\n');
+print(fri(193), '\n');
+print(fri(194), '\n');
+print(fri(195), '\n');
+print(fri(196), '\n');
+print(fri(197), '\n');
+print(fri(198), '\n');
+print(fri(199), '\n');
+print(fri(200), '\n');
+print(fri(201), '\n');
+print(fri(202), '\n');
+print(fri(203), '\n');
+print(fri(204), '\n');
+print(fri(205), '\n');
+print(fri(206), '\n');
+print(fri(207), '\n');
+print(fri(208), '\n');
+print(fri(209), '\n');
+print(fri(210), '\n');
+print(fri(211), '\n');
+print(fri(212), '\n');
+print(fri(213), '\n');
+print(fri(214), '\n');
+print(fri(215), '\n');
+print(fri(216), '\n');
+print(fri(217), '\n');
+print(fri(218), '\n');
+print(fri(219), '\n');
+print(fri(220), '\n');
+print(fri(221), '\n');
+print(fri(222), '\n');
+print(fri(223), '\n');
+print(fri(224), '\n');
+print(fri(225), '\n');
+print(fri(226), '\n');
+print(fri(227), '\n');
+print(fri(228), '\n');
+print(fri(229), '\n');
+print(fri(230), '\n');
+print(fri(231), '\n');
+print(fri(232), '\n');
+print(fri(233), '\n');
+print(fri(234), '\n');
+print(fri(235), '\n');
+print(fri(236), '\n');
+print(fri(237), '\n');
+print(fri(238), '\n');
+print(fri(239), '\n');
+print(fri(240), '\n');
+print(fri(241), '\n');
+print(fri(242), '\n');
+print(fri(243), '\n');
+print(fri(244), '\n');
+print(fri(245), '\n');
+print(fri(246), '\n');
+print(fri(247), '\n');
+print(fri(248), '\n');
+print(fri(249), '\n');
+print(fri(250), '\n');
+print(fri(251), '\n');
+print(fri(252), '\n');
+print(fri(253), '\n');
+print(fri(254), '\n');
+print(fri(255), '\n');
+print(fri(256), '\n');
+print(fri(257), '\n');
+print(fri(258), '\n');
+print(fri(259), '\n');
+print(fri(260), '\n');
+print(fri(261), '\n');
+print(fri(262), '\n');
+print(fri(263), '\n');
+print(fri(264), '\n');
+print(fri(265), '\n');
+print(fri(266), '\n');
+print(fri(267), '\n');
+print(fri(268), '\n');
+print(fri(269), '\n');
+print(fri(270), '\n');
+print(fri(271), '\n');
+print(fri(272), '\n');
+print(fri(273), '\n');
+print(fri(274), '\n');
+print(fri(275), '\n');
+print(fri(276), '\n');
+print(fri(277), '\n');
+print(fri(278), '\n');
+print(fri(279), '\n');
+print(fri(280), '\n');
+print(fri(281), '\n');
+print(fri(282), '\n');
+print(fri(283), '\n');
+print(fri(284), '\n');
+print(fri(285), '\n');
+print(fri(286), '\n');
+print(fri(287), '\n');
+print(fri(288), '\n');
+print(fri(289), '\n');
+print(fri(290), '\n');
+print(fri(291), '\n');
+print(fri(292), '\n');
+print(fri(293), '\n');
+print(fri(294), '\n');
+print(fri(295), '\n');
+print(fri(296), '\n');
+print(fri(297), '\n');
+print(fri(298), '\n');
+print(fri(299), '\n');
+print(fri(300), '\n');
+print(fri(301), '\n');
+print(fri(302), '\n');
+print(fri(303), '\n');
+print(fri(304), '\n');
+print(fri(305), '\n');
+print(fri(306), '\n');
+print(fri(307), '\n');
+print(fri(308), '\n');
+print(fri(309), '\n');
+print(fri(310), '\n');
+print(fri(311), '\n');
+print(fri(312), '\n');
+print(fri(313), '\n');
+print(fri(314), '\n');
+print(fri(315), '\n');
+print(fri(316), '\n');
+print(fri(317), '\n');
+print(fri(318), '\n');
+print(fri(319), '\n');
+print(fri(320), '\n');
+print(fri(321), '\n');
+print(fri(322), '\n');
+print(fri(323), '\n');
+print(fri(324), '\n');
+print(fri(325), '\n');
+print(fri(326), '\n');
+print(fri(327), '\n');
+print(fri(328), '\n');
+print(fri(329), '\n');
+print(fri(330), '\n');
+print(fri(331), '\n');
+print(fri(332), '\n');
+print(fri(333), '\n');
+print(fri(334), '\n');
+print(fri(335), '\n');
+print(fri(336), '\n');
+print(fri(337), '\n');
+print(fri(338), '\n');
+print(fri(339), '\n');
+print(fri(340), '\n');
+print(fri(341), '\n');
+print(fri(342), '\n');
+print(fri(343), '\n');
+print(fri(344), '\n');
+print(fri(345), '\n');
+print(fri(346), '\n');
+print(fri(347), '\n');
+print(fri(348), '\n');
+print(fri(349), '\n');
+print(fri(350), '\n');
+print(fri(351), '\n');
+print(fri(352), '\n');
+print(fri(353), '\n');
+print(fri(354), '\n');
+print(fri(355), '\n');
+print(fri(356), '\n');
+print(fri(357), '\n');
+print(fri(358), '\n');
+print(fri(359), '\n');
+print(fri(360), '\n');
+print(fri(361), '\n');
+print(fri(362), '\n');
+print(fri(363), '\n');
+print(fri(364), '\n');
+print(fri(365), '\n');
+print(fri(366), '\n');
+print(fri(367), '\n');
+print(fri(368), '\n');
+print(fri(369), '\n');
+print(fri(370), '\n');
+print(fri(371), '\n');
+print(fri(372), '\n');
+print(fri(373), '\n');
+print(fri(374), '\n');
+print(fri(375), '\n');
+print(fri(376), '\n');
+print(fri(377), '\n');
+print(fri(378), '\n');
+print(fri(379), '\n');
+print(fri(380), '\n');
+print(fri(381), '\n');
+print(fri(382), '\n');
+print(fri(383), '\n');
+print(fri(384), '\n');
+print(fri(385), '\n');
+print(fri(386), '\n');
+print(fri(387), '\n');
+print(fri(388), '\n');
+print(fri(389), '\n');
+print(fri(390), '\n');
+print(fri(391), '\n');
+print(fri(392), '\n');
+print(fri(393), '\n');
+print(fri(394), '\n');
+print(fri(395), '\n');
+print(fri(396), '\n');
+print(fri(397), '\n');
+print(fri(398), '\n');
+print(fri(399), '\n');
+print(fri(400), '\n');
+print(fri(401), '\n');
+print(fri(402), '\n');
+print(fri(403), '\n');
+print(fri(404), '\n');
+print(fri(405), '\n');
+print(fri(406), '\n');
+print(fri(407), '\n');
+print(fri(408), '\n');
+print(fri(409), '\n');
+print(fri(410), '\n');
+print(fri(411), '\n');
+print(fri(412), '\n');
+print(fri(413), '\n');
+print(fri(414), '\n');
+print(fri(415), '\n');
+print(fri(416), '\n');
+print(fri(417), '\n');
+print(fri(418), '\n');
+print(fri(419), '\n');
+print(fri(420), '\n');
+print(fri(421), '\n');
+print(fri(422), '\n');
+print(fri(423), '\n');
+print(fri(424), '\n');
+print(fri(425), '\n');
+print(fri(426), '\n');
+print(fri(427), '\n');
+print(fri(428), '\n');
+print(fri(429), '\n');
+print(fri(430), '\n');
+print(fri(431), '\n');
+print(fri(432), '\n');
+print(fri(433), '\n');
+print(fri(434), '\n');
+print(fri(435), '\n');
+print(fri(436), '\n');
+print(fri(437), '\n');
+print(fri(438), '\n');
+print(fri(439), '\n');
+print(fri(440), '\n');
+print(fri(441), '\n');
+print(fri(442), '\n');
+print(fri(443), '\n');
+print(fri(444), '\n');
+print(fri(445), '\n');
+print(fri(446), '\n');
+print(fri(447), '\n');
+print(fri(448), '\n');
+print(fri(449), '\n');
+print(fri(450), '\n');
+print(fri(451), '\n');
+print(fri(452), '\n');
+print(fri(453), '\n');
+print(fri(454), '\n');
+print(fri(455), '\n');
+print(fri(456), '\n');
+print(fri(457), '\n');
+print(fri(458), '\n');
+print(fri(459), '\n');
+print(fri(460), '\n');
+print(fri(461), '\n');
+print(fri(462), '\n');
+print(fri(463), '\n');
+print(fri(464), '\n');
+print(fri(465), '\n');
+print(fri(466), '\n');
+print(fri(467), '\n');
+print(fri(468), '\n');
+print(fri(469), '\n');
+print(fri(470), '\n');
+print(fri(471), '\n');
+print(fri(472), '\n');
+print(fri(473), '\n');
+print(fri(474), '\n');
+print(fri(475), '\n');
+print(fri(476), '\n');
+print(fri(477), '\n');
+print(fri(478), '\n');
+print(fri(479), '\n');
+print(fri(480), '\n');
+print(fri(481), '\n');
+print(fri(482), '\n');
+print(fri(483), '\n');
+print(fri(484), '\n');
+print(fri(485), '\n');
+print(fri(486), '\n');
+print(fri(487), '\n');
+print(fri(488), '\n');
+print(fri(489), '\n');
+print(fri(490), '\n');
+print(fri(491), '\n');
+print(fri(492), '\n');
+print(fri(493), '\n');
+print(fri(494), '\n');
+print(fri(495), '\n');
+print(fri(496), '\n');
+print(fri(497), '\n');
+print(fri(498), '\n');
+print(fri(499), '\n');
+print(fri(500), '\n');
+print(fri(501), '\n');
+print(fri(502), '\n');
+print(fri(503), '\n');
+print(fri(504), '\n');
+print(fri(505), '\n');
+print(fri(506), '\n');
+print(fri(507), '\n');
+print(fri(508), '\n');
+print(fri(509), '\n');
+print(fri(510), '\n');
+print(fri(511), '\n');
+print(fri(512), '\n');
+print(fri(513), '\n');
+print(fri(514), '\n');
+print(fri(515), '\n');
+print(fri(516), '\n');
+print(fri(517), '\n');
+print(fri(518), '\n');
+print(fri(519), '\n');
+print(fri(520), '\n');
+print(fri(521), '\n');
+print(fri(522), '\n');
+print(fri(523), '\n');
+print(fri(524), '\n');
+print(fri(525), '\n');
+print(fri(526), '\n');
+print(fri(527), '\n');
+print(fri(528), '\n');
+print(fri(529), '\n');
+print(fri(530), '\n');
+print(fri(531), '\n');
+print(fri(532), '\n');
+print(fri(533), '\n');
+print(fri(534), '\n');
+print(fri(535), '\n');
+print(fri(536), '\n');
+print(fri(537), '\n');
+print(fri(538), '\n');
+print(fri(539), '\n');
+print(fri(540), '\n');
+print(fri(541), '\n');
+print(fri(542), '\n');
+print(fri(543), '\n');
+print(fri(544), '\n');
+print(fri(545), '\n');
+print(fri(546), '\n');
+print(fri(547), '\n');
+print(fri(548), '\n');
+print(fri(549), '\n');
+print(fri(550), '\n');
+print(fri(551), '\n');
+print(fri(552), '\n');
+print(fri(553), '\n');
+print(fri(554), '\n');
+print(fri(555), '\n');
+print(fri(556), '\n');
+print(fri(557), '\n');
+print(fri(558), '\n');
+print(fri(559), '\n');
+print(fri(560), '\n');
+print(fri(561), '\n');
+print(fri(562), '\n');
+print(fri(563), '\n');
+print(fri(564), '\n');
+print(fri(565), '\n');
+print(fri(566), '\n');
+print(fri(567), '\n');
+print(fri(568), '\n');
+print(fri(569), '\n');
+print(fri(570), '\n');
+print(fri(571), '\n');
+print(fri(572), '\n');
+print(fri(573), '\n');
+print(fri(574), '\n');
+print(fri(575), '\n');
+print(fri(576), '\n');
+print(fri(577), '\n');
+print(fri(578), '\n');
+print(fri(579), '\n');
+print(fri(580), '\n');
+print(fri(581), '\n');
+print(fri(582), '\n');
+print(fri(583), '\n');
+print(fri(584), '\n');
+print(fri(585), '\n');
+print(fri(586), '\n');
+print(fri(587), '\n');
+print(fri(588), '\n');
+print(fri(589), '\n');
+print(fri(590), '\n');
+print(fri(591), '\n');
+print(fri(592), '\n');
+print(fri(593), '\n');
+print(fri(594), '\n');
+print(fri(595), '\n');
+print(fri(596), '\n');
+print(fri(597), '\n');
+print(fri(598), '\n');
+print(fri(599), '\n');
+print(fri(600), '\n');
+print(fri(601), '\n');
+print(fri(602), '\n');
+print(fri(603), '\n');
+print(fri(604), '\n');
+print(fri(605), '\n');
+print(fri(606), '\n');
+print(fri(607), '\n');
+print(fri(608), '\n');
+print(fri(609), '\n');
+print(fri(610), '\n');
+print(fri(611), '\n');
+print(fri(612), '\n');
+print(fri(613), '\n');
+print(fri(614), '\n');
+print(fri(615), '\n');
+print(fri(616), '\n');
+print(fri(617), '\n');
+print(fri(618), '\n');
+print(fri(619), '\n');
+print(fri(620), '\n');
+print(fri(621), '\n');
+print(fri(622), '\n');
+print(fri(623), '\n');
+print(fri(624), '\n');
+print(fri(625), '\n');
+print(fri(626), '\n');
+print(fri(627), '\n');
+print(fri(628), '\n');
+print(fri(629), '\n');
+print(fri(630), '\n');
+print(fri(631), '\n');
+print(fri(632), '\n');
+print(fri(633), '\n');
+print(fri(634), '\n');
+print(fri(635), '\n');
+print(fri(636), '\n');
+print(fri(637), '\n');
+print(fri(638), '\n');
+print(fri(639), '\n');
+print(fri(640), '\n');
+print(fri(641), '\n');
+print(fri(642), '\n');
+print(fri(643), '\n');
+print(fri(644), '\n');
+print(fri(645), '\n');
+print(fri(646), '\n');
+print(fri(647), '\n');
+print(fri(648), '\n');
+print(fri(649), '\n');
+print(fri(650), '\n');
+print(fri(651), '\n');
+print(fri(652), '\n');
+print(fri(653), '\n');
+print(fri(654), '\n');
+print(fri(655), '\n');
+print(fri(656), '\n');
+print(fri(657), '\n');
+print(fri(658), '\n');
+print(fri(659), '\n');
+print(fri(660), '\n');
+print(fri(661), '\n');
+print(fri(662), '\n');
+print(fri(663), '\n');
+print(fri(664), '\n');
+print(fri(665), '\n');
+print(fri(666), '\n');
+print(fri(667), '\n');
+print(fri(668), '\n');
+print(fri(669), '\n');
+print(fri(670), '\n');
+print(fri(671), '\n');
+print(fri(672), '\n');
+print(fri(673), '\n');
+print(fri(674), '\n');
+print(fri(675), '\n');
+print(fri(676), '\n');
+print(fri(677), '\n');
+print(fri(678), '\n');
+print(fri(679), '\n');
+print(fri(680), '\n');
+print(fri(681), '\n');
+print(fri(682), '\n');
+print(fri(683), '\n');
+print(fri(684), '\n');
+print(fri(685), '\n');
+print(fri(686), '\n');
+print(fri(687), '\n');
+print(fri(688), '\n');
+print(fri(689), '\n');
+print(fri(690), '\n');
+print(fri(691), '\n');
+print(fri(692), '\n');
+print(fri(693), '\n');
+print(fri(694), '\n');
+print(fri(695), '\n');
+print(fri(696), '\n');
+print(fri(697), '\n');
+print(fri(698), '\n');
+print(fri(699), '\n');
+print(fri(700), '\n');
+print(fri(701), '\n');
+print(fri(702), '\n');
+print(fri(703), '\n');
+print(fri(704), '\n');
+print(fri(705), '\n');
+print(fri(706), '\n');
+print(fri(707), '\n');
+print(fri(708), '\n');
+print(fri(709), '\n');
+print(fri(710), '\n');
+print(fri(711), '\n');
+print(fri(712), '\n');
+print(fri(713), '\n');
+print(fri(714), '\n');
+print(fri(715), '\n');
+print(fri(716), '\n');
+print(fri(717), '\n');
+print(fri(718), '\n');
+print(fri(719), '\n');
+print(fri(720), '\n');
+print(fri(721), '\n');
+print(fri(722), '\n');
+print(fri(723), '\n');
+print(fri(724), '\n');
+print(fri(725), '\n');
+print(fri(726), '\n');
+print(fri(727), '\n');
+print(fri(728), '\n');
+print(fri(729), '\n');
+print(fri(730), '\n');
+print(fri(731), '\n');
+print(fri(732), '\n');
+print(fri(733), '\n');
+print(fri(734), '\n');
+print(fri(735), '\n');
+print(fri(736), '\n');
+print(fri(737), '\n');
+print(fri(738), '\n');
+print(fri(739), '\n');
+print(fri(740), '\n');
+print(fri(741), '\n');
+print(fri(742), '\n');
+print(fri(743), '\n');
+print(fri(744), '\n');
+print(fri(745), '\n');
+print(fri(746), '\n');
+print(fri(747), '\n');
+print(fri(748), '\n');
+print(fri(749), '\n');
+print(fri(750), '\n');
+print(fri(751), '\n');
+print(fri(752), '\n');
+print(fri(753), '\n');
+print(fri(754), '\n');
+print(fri(755), '\n');
+print(fri(756), '\n');
+print(fri(757), '\n');
+print(fri(758), '\n');
+print(fri(759), '\n');
+print(fri(760), '\n');
+print(fri(761), '\n');
+print(fri(762), '\n');
+print(fri(763), '\n');
+print(fri(764), '\n');
+print(fri(765), '\n');
+print(fri(766), '\n');
+print(fri(767), '\n');
+print(fri(768), '\n');
+print(fri(769), '\n');
+print(fri(770), '\n');
+print(fri(771), '\n');
+print(fri(772), '\n');
+print(fri(773), '\n');
+print(fri(774), '\n');
+print(fri(775), '\n');
+print(fri(776), '\n');
+print(fri(777), '\n');
+print(fri(778), '\n');
+print(fri(779), '\n');
+print(fri(780), '\n');
+print(fri(781), '\n');
+print(fri(782), '\n');
+print(fri(783), '\n');
+print(fri(784), '\n');
+print(fri(785), '\n');
+print(fri(786), '\n');
+print(fri(787), '\n');
+print(fri(788), '\n');
+print(fri(789), '\n');
+print(fri(790), '\n');
+print(fri(791), '\n');
+print(fri(792), '\n');
+print(fri(793), '\n');
+print(fri(794), '\n');
+print(fri(795), '\n');
+print(fri(796), '\n');
+print(fri(797), '\n');
+print(fri(798), '\n');
+print(fri(799), '\n');
+print(fri(800), '\n');
+print(fri(801), '\n');
+print(fri(802), '\n');
+print(fri(803), '\n');
+print(fri(804), '\n');
+print(fri(805), '\n');
+print(fri(806), '\n');
+print(fri(807), '\n');
+print(fri(808), '\n');
+print(fri(809), '\n');
+print(fri(810), '\n');
+print(fri(811), '\n');
+print(fri(812), '\n');
+print(fri(813), '\n');
+print(fri(814), '\n');
+print(fri(815), '\n');
+print(fri(816), '\n');
+print(fri(817), '\n');
+print(fri(818), '\n');
+print(fri(819), '\n');
+print(fri(820), '\n');
+print(fri(821), '\n');
+print(fri(822), '\n');
+print(fri(823), '\n');
+print(fri(824), '\n');
+print(fri(825), '\n');
+print(fri(826), '\n');
+print(fri(827), '\n');
+print(fri(828), '\n');
+print(fri(829), '\n');
+print(fri(830), '\n');
+print(fri(831), '\n');
+print(fri(832), '\n');
+print(fri(833), '\n');
+print(fri(834), '\n');
+print(fri(835), '\n');
+print(fri(836), '\n');
+print(fri(837), '\n');
+print(fri(838), '\n');
+print(fri(839), '\n');
+print(fri(840), '\n');
+print(fri(841), '\n');
+print(fri(842), '\n');
+print(fri(843), '\n');
+print(fri(844), '\n');
+print(fri(845), '\n');
+print(fri(846), '\n');
+print(fri(847), '\n');
+print(fri(848), '\n');
+print(fri(849), '\n');
+print(fri(850), '\n');
+print(fri(851), '\n');
+print(fri(852), '\n');
+print(fri(853), '\n');
+print(fri(854), '\n');
+print(fri(855), '\n');
+print(fri(856), '\n');
+print(fri(857), '\n');
+print(fri(858), '\n');
+print(fri(859), '\n');
+print(fri(860), '\n');
+print(fri(861), '\n');
+print(fri(862), '\n');
+print(fri(863), '\n');
+print(fri(864), '\n');
+print(fri(865), '\n');
+print(fri(866), '\n');
+print(fri(867), '\n');
+print(fri(868), '\n');
+print(fri(869), '\n');
+print(fri(870), '\n');
+print(fri(871), '\n');
+print(fri(872), '\n');
+print(fri(873), '\n');
+print(fri(874), '\n');
+print(fri(875), '\n');
+print(fri(876), '\n');
+print(fri(877), '\n');
+print(fri(878), '\n');
+print(fri(879), '\n');
+print(fri(880), '\n');
+print(fri(881), '\n');
+print(fri(882), '\n');
+print(fri(883), '\n');
+print(fri(884), '\n');
+print(fri(885), '\n');
+print(fri(886), '\n');
+print(fri(887), '\n');
+print(fri(888), '\n');
+print(fri(889), '\n');
+print(fri(890), '\n');
+print(fri(891), '\n');
+print(fri(892), '\n');
+print(fri(893), '\n');
+print(fri(894), '\n');
+print(fri(895), '\n');
+print(fri(896), '\n');
+print(fri(897), '\n');
+print(fri(898), '\n');
+print(fri(899), '\n');
+print(fri(900), '\n');
+print(fri(901), '\n');
+print(fri(902), '\n');
+print(fri(903), '\n');
+print(fri(904), '\n');
+print(fri(905), '\n');
+print(fri(906), '\n');
+print(fri(907), '\n');
+print(fri(908), '\n');
+print(fri(909), '\n');
+print(fri(910), '\n');
+print(fri(911), '\n');
+print(fri(912), '\n');
+print(fri(913), '\n');
+print(fri(914), '\n');
+print(fri(915), '\n');
+print(fri(916), '\n');
+print(fri(917), '\n');
+print(fri(918), '\n');
+print(fri(919), '\n');
+print(fri(920), '\n');
+print(fri(921), '\n');
+print(fri(922), '\n');
+print(fri(923), '\n');
+print(fri(924), '\n');
+print(fri(925), '\n');
+print(fri(926), '\n');
+print(fri(927), '\n');
+print(fri(928), '\n');
+print(fri(929), '\n');
+print(fri(930), '\n');
+print(fri(931), '\n');
+print(fri(932), '\n');
+print(fri(933), '\n');
+print(fri(934), '\n');
+print(fri(935), '\n');
+print(fri(936), '\n');
+print(fri(937), '\n');
+print(fri(938), '\n');
+print(fri(939), '\n');
+print(fri(940), '\n');
+print(fri(941), '\n');
+print(fri(942), '\n');
+print(fri(943), '\n');
+print(fri(944), '\n');
+print(fri(945), '\n');
+print(fri(946), '\n');
+print(fri(947), '\n');
+print(fri(948), '\n');
+print(fri(949), '\n');
+print(fri(950), '\n');
+print(fri(951), '\n');
+print(fri(952), '\n');
+print(fri(953), '\n');
+print(fri(954), '\n');
+print(fri(955), '\n');
+print(fri(956), '\n');
+print(fri(957), '\n');
+print(fri(958), '\n');
+print(fri(959), '\n');
+print(fri(960), '\n');
+print(fri(961), '\n');
+print(fri(962), '\n');
+print(fri(963), '\n');
+print(fri(964), '\n');
+print(fri(965), '\n');
+print(fri(966), '\n');
+print(fri(967), '\n');
+print(fri(968), '\n');
+print(fri(969), '\n');
+print(fri(970), '\n');
+print(fri(971), '\n');
+print(fri(972), '\n');
+print(fri(973), '\n');
+print(fri(974), '\n');
+print(fri(975), '\n');
+print(fri(976), '\n');
+print(fri(977), '\n');
+print(fri(978), '\n');
+print(fri(979), '\n');
+print(fri(980), '\n');
+print(fri(981), '\n');
+print(fri(982), '\n');
+print(fri(983), '\n');
+print(fri(984), '\n');
+print(fri(985), '\n');
+print(fri(986), '\n');
+print(fri(987), '\n');
+print(fri(988), '\n');
+print(fri(989), '\n');
+print(fri(990), '\n');
+print(fri(991), '\n');
+print(fri(992), '\n');
+print(fri(993), '\n');
+print(fri(994), '\n');
+print(fri(995), '\n');
+print(fri(996), '\n');
+print(fri(997), '\n');
+print(fri(998), '\n');
+print(fri(999), '\n');
+print(fri(1000), '\n');
+print(fri(1001), '\n');
+print(fri(1002), '\n');
+print(fri(1003), '\n');
+print(fri(1004), '\n');
+print(fri(1005), '\n');
+print(fri(1006), '\n');
+print(fri(1007), '\n');
+print(fri(1008), '\n');
+print(fri(1009), '\n');
+print(fri(1010), '\n');
+print(fri(1011), '\n');
+print(fri(1012), '\n');
+print(fri(1013), '\n');
+print(fri(1014), '\n');
+print(fri(1015), '\n');
+print(fri(1016), '\n');
+print(fri(1017), '\n');
+print(fri(1018), '\n');
+print(fri(1019), '\n');
+print(fri(1020), '\n');
+print(fri(1021), '\n');
+print(fri(1022), '\n');
+print(fri(1023), '\n');
+print(fri(1024), '\n');
+print(fri(1025), '\n');
+print(fri(1026), '\n');
+print(fri(1027), '\n');
+print(fri(1028), '\n');
+print(fri(1029), '\n');
+print(fri(1030), '\n');
+print(fri(1031), '\n');
+print(fri(1032), '\n');
+print(fri(1033), '\n');
+print(fri(1034), '\n');
+print(fri(1035), '\n');
+print(fri(1036), '\n');
+print(fri(1037), '\n');
+print(fri(1038), '\n');
+print(fri(1039), '\n');
+print(fri(1040), '\n');
+print(fri(1041), '\n');
+print(fri(1042), '\n');
+print(fri(1043), '\n');
+print(fri(1044), '\n');
+print(fri(1045), '\n');
+print(fri(1046), '\n');
+print(fri(1047), '\n');
+print(fri(1048), '\n');
+print(fri(1049), '\n');
+print(fri(1050), '\n');
+print(fri(1051), '\n');
+print(fri(1052), '\n');
+print(fri(1053), '\n');
+print(fri(1054), '\n');
+print(fri(1055), '\n');
+print(fri(1056), '\n');
+print(fri(1057), '\n');
+print(fri(1058), '\n');
+print(fri(1059), '\n');
+print(fri(1060), '\n');
+print(fri(1061), '\n');
+print(fri(1062), '\n');
+print(fri(1063), '\n');
+print(fri(1064), '\n');
+print(fri(1065), '\n');
+print(fri(1066), '\n');
+print(fri(1067), '\n');
+print(fri(1068), '\n');
+print(fri(1069), '\n');
+print(fri(1070), '\n');
+print(fri(1071), '\n');
+print(fri(1072), '\n');
+print(fri(1073), '\n');
+print(fri(1074), '\n');
+print(fri(1075), '\n');
+print(fri(1076), '\n');
+print(fri(1077), '\n');
+print(fri(1078), '\n');
+print(fri(1079), '\n');
+print(fri(1080), '\n');
+print(fri(1081), '\n');
+print(fri(1082), '\n');
+print(fri(1083), '\n');
+print(fri(1084), '\n');
+print(fri(1085), '\n');
+print(fri(1086), '\n');
+print(fri(1087), '\n');
+print(fri(1088), '\n');
+print(fri(1089), '\n');
+print(fri(1090), '\n');
+print(fri(1091), '\n');
+print(fri(1092), '\n');
+print(fri(1093), '\n');
+print(fri(1094), '\n');
+print(fri(1095), '\n');
+print(fri(1096), '\n');
+print(fri(1097), '\n');
+print(fri(1098), '\n');
+print(fri(1099), '\n');
+print(fri(1100), '\n');
+print(fri(1101), '\n');
+print(fri(1102), '\n');
+print(fri(1103), '\n');
+print(fri(1104), '\n');
+print(fri(1105), '\n');
+print(fri(1106), '\n');
+print(fri(1107), '\n');
+print(fri(1108), '\n');
+print(fri(1109), '\n');
+print(fri(1110), '\n');
+print(fri(1111), '\n');
+print(fri(1112), '\n');
+print(fri(1113), '\n');
+print(fri(1114), '\n');
+print(fri(1115), '\n');
+print(fri(1116), '\n');
+print(fri(1117), '\n');
+print(fri(1118), '\n');
+print(fri(1119), '\n');
+print(fri(1120), '\n');
+print(fri(1121), '\n');
+print(fri(1122), '\n');
+print(fri(1123), '\n');
+print(fri(1124), '\n');
+print(fri(1125), '\n');
+print(fri(1126), '\n');
+print(fri(1127), '\n');
+print(fri(1128), '\n');
+print(fri(1129), '\n');
+print(fri(1130), '\n');
+print(fri(1131), '\n');
+print(fri(1132), '\n');
+print(fri(1133), '\n');
+print(fri(1134), '\n');
+print(fri(1135), '\n');
+print(fri(1136), '\n');
+print(fri(1137), '\n');
+print(fri(1138), '\n');
+print(fri(1139), '\n');
+print(fri(1140), '\n');
+print(fri(1141), '\n');
+print(fri(1142), '\n');
+print(fri(1143), '\n');
+print(fri(1144), '\n');
+print(fri(1145), '\n');
+print(fri(1146), '\n');
+print(fri(1147), '\n');
+print(fri(1148), '\n');
+print(fri(1149), '\n');
+print(fri(1150), '\n');
+print(fri(1151), '\n');
+print(fri(1152), '\n');
+print(fri(1153), '\n');
+print(fri(1154), '\n');
+print(fri(1155), '\n');
+print(fri(1156), '\n');
+print(fri(1157), '\n');
+print(fri(1158), '\n');
+print(fri(1159), '\n');
+print(fri(1160), '\n');
+print(fri(1161), '\n');
+print(fri(1162), '\n');
+print(fri(1163), '\n');
+print(fri(1164), '\n');
+print(fri(1165), '\n');
+print(fri(1166), '\n');
+print(fri(1167), '\n');

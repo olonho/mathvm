@@ -1,0 +1,3252 @@
+
+int i1;
+int i2;
+int i3;
+int i4;
+double d1;
+double d2;
+double d3;
+double d4;
+string s0 = '0\n';
+string s1 = '1\n';
+
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1+i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1-i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1*i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3+i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3-i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3*i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3/i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=0.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=1;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=2;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.0;i2=3;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=1;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=2;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=1;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=2;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=1;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=2;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
+d1=1.5;i2=3;i3=3;i4=3;
+if (d1/i2==i3^i4) { print(s1); } else { print(s0); }
