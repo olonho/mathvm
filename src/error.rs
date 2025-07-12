@@ -41,6 +41,9 @@ pub enum Error {
 
     #[error("Internal error: {0}")]
     InternalError(String),
+
+    #[error("Return: {0:?}")]
+    Return(crate::types::Value),
 }
 
 impl Error {

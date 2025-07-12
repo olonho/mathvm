@@ -1,4 +1,0 @@
-int x = 42;
-double y = 3.14;
-print('Hello, MathVM!');
-print('x = ', x, ', y = ', y);
