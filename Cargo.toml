@@ -1,0 +1,24 @@
+[package]
+name = "mathvm"
+version = "0.1.0"
+edition = "2021"
+description = "A simple virtual machine for mathematical expressions - Course Assignment Stub"
+authors = ["Student Name <student@example.com>"]
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+thiserror = "1.0"
+anyhow = "1.0"
+
+[dev-dependencies]
+tempfile = "3.0"
+
+[[bin]]
+name = "mvm"
+path = "src/main.rs"
+
+[lib]
+name = "mathvm"
+path = "src/lib.rs"

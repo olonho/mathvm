@@ -1,83 +1,308 @@
-# mathvm
+# MathVM - Rust Implementation
 
-## Introduction
+A Virtual Machine for Mathematical Expressions implemented in Rust for the Virtual Machines course.
 
-This folder contains partial source code for a simple VM, with few
-intentionally missing pieces. This VM implements simple language (MVM
-language) with basic computational functionality and flow control.
+## Overview
 
-## MVM language
+MathVM is a simple stack-based virtual machine that executes programs written in the MVM language. This is a complete rewrite of the original C++ implementation in Rust, designed as a course assignment stub for students to learn about virtual machine implementation.
 
-Language has simple C-style syntax and is intentionally rather basic.
-Language has 3 types:
-  - 64-bit integer type, called `int`
-  - ANSI C compatible double type, called `double`
-  - immutable strings, called `string` (C equivalent: char*)
+## MVM Language
 
-Every variable is scoped, scope is marked with curly braces (`{`
-and `}`). Variable has to be declared before first use, otherwise
-translation error will happen.
+The MVM language is a simple C-style language with the following features:
 
-Values in variable could be modified with traditional C-style
-expressions, like `x = 2 + y * 3`; with traditional C-style operators
-precedence, i.e. aforementioned expression is evaluated as
-`x = (2 + (y * 3))`;
+### Data Types
+- `int`: 64-bit signed integer
+- `double`: IEEE 754 double precision floating point
+- `string`: Immutable UTF-8 strings
 
-Variables in topmost scope could be bound to `Var` class instances,
-to allow interoperability between MVM programs and C++.
+### Language Features
+- Variable declarations with optional initialization
+- Arithmetic operations: `+`, `-`, `*`, `/`, `%`
+- Comparison operations: `==`, `!=`, `<`, `<=`, `>`, `>=`
+- Logical operations: `&&`, `||`, `!`
+- Bitwise operations: `&`, `|`, `^`
+- Assignment operations: `=`, `+=`, `-=`, `*=`, `/=`
+- Control flow: `if/else`, `while`, `for` loops
+- Functions with parameters and return values
+- Print statements for output
 
-Literals can be:
-  - integer, such as 42 or 123456789012345
-  - double, such as 42.0 or 1e-18
-  - string, such as '42' or 'Hello \\'World\\'\n'
+### Example Programs
 
-Flow control is as following:
-  - `for` loop, with semantics:
-```
-    for (i in -10..x) {
-        print('i=', i, '\n');
-    }
-```
-  - `if` conditions, such as
-```
-    if (x == 8 && y <= 2) {
-        print('c1\n');
+```mvm
+// Basic arithmetic
+int x = 10;
+double y = 3.14;
+print('x + y = ', x + y, '\n');
+
+// Control flow
+if (x > 5) {
+    print('x is greater than 5\n');
+} else {
+    print('x is not greater than 5\n');
+}
+
+// Loops
+for (i in 1..10) {
+    print('i = ', i, '\n');
+}
+
+// Functions
+function int factorial(int n) {
+    if (n <= 1) {
+        return 1;
     } else {
-        print('c2\n');
+        return n * factorial(n - 1);
     }
+}
+
+print('factorial(5) = ', factorial(5), '\n');
 ```
 
-## Implementation
+## Architecture
 
-We provide generic source -> AST (abstract syntax tree) translator,
-so that implementors can focus on VM-specific issues. It means we
-give scanner and top-down parser, generating tree of AST nodes,
-representing program structure. It is up to implementors to provide
-remaining pieces for fully functional VM.
+The MathVM implementation consists of several key components:
 
-## Tests
+### 1. Lexer and Parser (`src/parser.rs`)
+- Tokenizes MVM source code
+- Parses tokens into an Abstract Syntax Tree (AST)
+- Handles syntax errors with detailed error messages
 
-Directory `tests` contains set of tests on basic language features,
-along with test scripts `taskN.py`. Generally, for every MVM program
-we have an .expect file, which contains expected result of execution
-for given MVM program.
+### 2. Abstract Syntax Tree (`src/ast.rs`)
+- Represents the parsed program structure
+- Includes visitor pattern for AST traversal
+- Pretty printer for source code formatting
 
-## Source tree layout
+### 3. Type System (`src/types.rs`)
+- Defines the MVM type system
+- Handles type conversions and checking
+- Runtime value representation
 
-Folder 'include' contains generic declarations of language constructs
-(as AST nodes), set of bytecodes with description, and certain basic
-interfaces.
+### 4. Bytecode (`src/bytecode.rs`)
+- Stack-based bytecode instruction set
+- Corresponds to the original C++ bytecode specification
+- Includes instruction encoding/decoding
 
-Folder `tests` contains MVM tests. Feel free to implement your own
-tests.
+### 5. Interpreters (`src/interpreter.rs`)
+- **AST Interpreter**: Directly executes the AST
+- **Bytecode Interpreter**: Executes compiled bytecode
+- Both support variable scoping and function calls
 
-Folder `vm` contain source code for the VM.
+### 6. Bytecode Generator (`src/translator.rs`)
+- Converts AST to bytecode instructions
+- Handles optimizations for common patterns
+- Manages string constants and variable allocation
 
-## Building
+### 7. Virtual Machine (`src/vm.rs`)
+- Main interface for executing MVM programs
+- Supports multiple execution modes
+- Provides debugging and introspection capabilities
 
-Build shall be pretty straightforward, just type `make` in command
-line (known to work with MacOS and Linux). Use `make OPT=1` for an
-optimized build. `NO_JIT` variables controls if JIT dependencies
-shall be compiled in.
-Create your own implementation in `students/<year>/<your last name>`
-folder, using `students/<year>/_example` template.
+## Usage
+
+### Building the Project
+
+```bash
+# Build the project
+cargo build
+
+# Build with optimizations
+cargo build --release
+
+# Run tests
+cargo test
+
+# Run with verbose output
+cargo test -- --nocapture
+```
+
+### Running MVM Programs
+
+```bash
+# Execute a MVM file
+cargo run -- program.mvm
+
+# Use interpreter mode (default)
+cargo run -- --mode interpreter program.mvm
+
+# Use printer mode (parse and pretty-print)
+cargo run -- -p program.mvm
+
+# Use JIT mode (when implemented)
+cargo run -- -j program.mvm
+```
+
+### Library Usage
+
+```rust
+use mathvm::prelude::*;
+
+// Execute MVM source code
+let mut vm = VM::new();
+let result = vm.execute("int x = 42; print(x);")?;
+
+// Compile to bytecode
+let bytecode = vm.compile("int x = 42; print(x);")?;
+
+// Pretty-print source code
+let formatted = vm.print_source("int x=42;print(x);")?;
+```
+
+## Assignment Tasks
+
+Students are expected to complete the following tasks:
+
+### Task 1: Basic Language Features
+- [ ] Implement variable declarations and assignments
+- [ ] Implement arithmetic operations
+- [ ] Implement print statements
+- [ ] Handle basic type conversions
+
+### Task 2: Control Flow
+- [ ] Implement if/else statements
+- [ ] Implement while loops
+- [ ] Implement for loops
+- [ ] Handle proper control flow in bytecode
+
+### Task 3: Functions
+- [ ] Implement function declarations
+- [ ] Implement function calls
+- [ ] Handle parameter passing and return values
+- [ ] Implement proper scoping rules
+
+### Task 4: Advanced Features
+- [ ] Implement closures and lambda functions
+- [ ] Implement native function calls
+- [ ] Optimize bytecode generation
+- [ ] Add debugging capabilities
+
+### Task 5: JIT Compilation (Optional)
+- [ ] Implement Just-In-Time compilation
+- [ ] Generate native machine code
+- [ ] Optimize hot code paths
+
+## Testing
+
+The project includes comprehensive tests that mirror the original C++ test suite:
+
+### Test Categories
+- **Mark 3**: Basic language features (variables, arithmetic, control flow)
+- **Mark 4**: Advanced features (functions, closures, complex expressions)
+- **Mark 5**: Native functions and system integration
+
+### Running Tests
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test category
+cargo test mark3
+
+# Run integration tests
+cargo test integration_tests
+
+# Run with output
+cargo test -- --nocapture
+```
+
+### Test Files
+
+Test files are located in the `tests/` directory and include:
+- `mark3/`: Basic language feature tests
+- `mark4/`: Advanced feature tests
+- `mark5/`: Native function tests
+- `integration_tests.rs`: Rust integration tests
+
+Each test consists of a `.mvm` file (source code) and a `.expect` file (expected output).
+
+## Error Handling
+
+The implementation provides detailed error messages for:
+- Syntax errors with line/column information
+- Type errors with context
+- Runtime errors with stack traces
+- Undefined variable/function errors
+
+## Performance Considerations
+
+The Rust implementation offers several advantages:
+- Memory safety without garbage collection
+- Zero-cost abstractions
+- Efficient bytecode execution
+- Parallelizable compilation phases
+
+## Development Guidelines
+
+### Code Style
+- Follow Rust naming conventions
+- Use `clippy` for linting
+- Format code with `rustfmt`
+- Write comprehensive documentation
+
+### Testing
+- Write unit tests for all public functions
+- Add integration tests for end-to-end scenarios
+- Use property-based testing where appropriate
+- Maintain test coverage above 80%
+
+### Documentation
+- Document all public APIs
+- Include usage examples
+- Maintain this README
+- Add inline comments for complex algorithms
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Implement your changes
+4. Add tests for new functionality
+5. Run `cargo test` and `cargo clippy`
+6. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Original C++ implementation by the Virtual Machines course instructors
+- Rust community for excellent tooling and documentation
+- Students and teaching assistants for feedback and contributions
+
+## Getting Help
+
+If you encounter issues:
+1. Check the test output for specific error messages
+2. Review the documentation in `src/lib.rs`
+3. Look at the example programs in `tests/`
+4. Ask questions in the course forum or office hours
+
+Remember: This is a learning exercise. The goal is to understand how virtual machines work, not just to pass the tests. Take time to understand each component and how they work together.
+
+## Implementation Status
+
+### ✅ Completed
+- [x] Basic project structure and build system
+- [x] Lexer and parser for MVM language
+- [x] AST representation and pretty printer
+- [x] Type system and value representation
+- [x] Bytecode instruction set
+- [x] Basic AST interpreter
+- [x] Bytecode generator (partial)
+- [x] Test framework and integration tests
+- [x] Error handling and reporting
+
+### 🚧 In Progress
+- [ ] Complete bytecode interpreter
+- [ ] Control flow implementation
+- [ ] Function calls and scoping
+- [ ] Native function interface
+
+### 📋 TODO
+- [ ] JIT compiler integration
+- [ ] Performance optimizations
+- [ ] Advanced debugging features
+- [ ] IDE integration support
+
+The implementation provides a solid foundation for students to build upon. The core infrastructure is in place, and the main task is to complete the missing functionality in the interpreters and bytecode generator.

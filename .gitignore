@@ -1,5 +1,58 @@
-CMakeLists.txt
-*.o
-*.pyc
-.dir
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+# Cargo files
+Cargo.lock
+
+# IDE files
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test artifacts
+/build/
+*.tmp
+*.temp
+
+# Logs
+*.log
+
+# Local configuration
+.env
+.env.local
+
+# Backup files
+*.bak
+*.backup
+
+# Documentation build
+/docs/build/
+
+# Coverage reports
+/coverage/
+*.gcov
+*.gcda
+*.gcno
+
+# Profiling data
+*.prof
+perf.data*
+
+# Binary executables
 mvm
+mathvm
+
+# Temporary files
+/tmp/
+*.tmp
